@@ -157,13 +157,52 @@ class HealthServer:
                     collector = RegtechCollector()
                     auth_result = collector.authenticate(username, password)
                 elif source_upper == "SECUDIUM":
-                    return jsonify(
-                        {
-                            "success": False,
-                            "error": "SECUDIUM support has been deprecated since v3.1",
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                    ), 410
+                    from core.secudium_collector import SecudiumCollector
+
+                    config = credentials.get("config", {})
+                    otp_mode = config.get("otp_mode", "auto")
+
+                    collector = SecudiumCollector()
+
+                    if otp_mode == "auto":
+                        # Auto mode: full auth with IMAP OTP reading
+                        email = config.get("email", "")
+                        email_password = config.get("email_password", "")
+                        imap_server = config.get("imap_server", "imap.kakao.com")
+
+                        if not email or not email_password:
+                            return jsonify({
+                                "success": False,
+                                "error": "OTP 자동 인증에 필요한 이메일 설정이 없습니다",
+                                "timestamp": datetime.now().isoformat(),
+                            })
+
+                        auth_result = collector.authenticate(
+                            username, password,
+                            email_address=email,
+                            email_password=email_password,
+                            imap_server=imap_server,
+                        )
+                    else:
+                        # Manual mode: step 1 only, return otp_required
+                        step1_result = collector.authenticate_step1(username, password)
+                        if step1_result == "otp_required":
+                            # Store session for OTP submission
+                            self._secudium_pending_auth = {
+                                "collector": collector,
+                                "username": username,
+                                "timestamp": datetime.now(),
+                            }
+                            return jsonify({
+                                "success": True,
+                                "otp_required": True,
+                                "message": "OTP 입력이 필요합니다",
+                                "timestamp": datetime.now().isoformat(),
+                            })
+                        elif step1_result == "success":
+                            auth_result = True
+                        else:
+                            auth_result = False
 
                 test_timestamp = datetime.now()
                 test_message = "인증 성공" if auth_result else "인증 실패"
@@ -197,6 +236,62 @@ class HealthServer:
                         "timestamp": datetime.now().isoformat(),
                     }
                 )  # 200 OK - 예외도 테스트 결과로 처리
+
+        @self.app.route("/api/test-auth/secudium/otp", methods=["POST"])
+        def submit_secudium_otp():
+            """Submit OTP code for Secudium manual authentication (step 2)."""
+            try:
+                data = request.get_json() or {}
+                otp_code = data.get("otp_code", "").strip()
+
+                if not otp_code:
+                    return jsonify({"success": False, "error": "OTP 코드가 필요합니다"})
+
+                if len(otp_code) != 6 or not otp_code.isdigit():
+                    return jsonify({"success": False, "error": "OTP는 6자리 숫자여야 합니다"})
+
+                pending = getattr(self, "_secudium_pending_auth", None)
+                if not pending:
+                    return jsonify({
+                        "success": False,
+                        "error": "대기 중인 인증 세션이 없습니다. 먼저 연결 테스트를 실행하세요.",
+                    })
+
+                # Check timeout (5 minutes)
+                elapsed = (datetime.now() - pending["timestamp"]).total_seconds()
+                if elapsed > 300:
+                    self._secudium_pending_auth = None
+                    return jsonify({
+                        "success": False,
+                        "error": "OTP 세션이 만료되었습니다. 다시 연결 테스트를 실행하세요.",
+                    })
+
+                collector = pending["collector"]
+                result = collector.authenticate_step2(otp_code)
+
+                self._secudium_pending_auth = None
+
+                if result == "success":
+                    return jsonify({
+                        "success": True,
+                        "message": "SECUDIUM 인증 성공",
+                        "timestamp": datetime.now().isoformat(),
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "OTP 인증 실패",
+                        "timestamp": datetime.now().isoformat(),
+                    })
+
+            except Exception as e:
+                logger.error(f"Error during Secudium OTP submission: {e}")
+                self._secudium_pending_auth = None
+                return jsonify({
+                    "success": False,
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                })
 
         @self.app.route("/api/force-collection/<source>", methods=["POST"])
         def force_collection(source):
