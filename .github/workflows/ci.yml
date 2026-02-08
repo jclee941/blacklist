@@ -65,7 +65,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - run: pip install ruff
+      - run: pip install ruff==0.9.10
       - run: ruff check app/ collector/
       - run: ruff format --check app/ collector/
 

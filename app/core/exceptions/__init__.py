@@ -27,6 +27,9 @@ __all__ = [
     "BadRequestError",
     "NotFoundError",
     "ConflictError",
+    "ForbiddenError",
+    "InternalServerError",
+    "UnauthorizedError",
     # Infrastructure
     "CacheError",
     "DatabaseError",
