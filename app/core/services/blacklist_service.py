@@ -452,7 +452,7 @@ class BlacklistService:
             logger.error(f"REGTECH collection failed: {e}")
             return {"success": False, "error": str(e)}
 
-    # SECUDIUM 지원 제거됨 - REGTECH만 지원
+    # REGTECH 및 SECUDIUM 수집 지원
 
     def sync_with_collector(self) -> Dict[str, Any]:
         try:

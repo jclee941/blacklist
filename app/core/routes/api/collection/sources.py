@@ -23,13 +23,11 @@ AVAILABLE_SOURCES = [
     {
         "id": "SECUDIUM",
         "name": "SECUDIUM",
-        "description": "SECUDIUM threat intelligence (deprecated)",
-        "enabled": False,
+        "description": "SECUDIUM threat intelligence (OTP 인증 기반)",
+        "enabled": True,
         "requires_auth": True,
-        "schedule": None,
+        "schedule": "daily",
         "data_types": ["ip"],
-        "deprecated": True,
-        "deprecation_note": "SECUDIUM support removed in v3.1.0",
     },
 ]
 

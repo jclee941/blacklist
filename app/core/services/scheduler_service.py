@@ -236,18 +236,18 @@ class CollectionScheduler:
                 """
             )
 
-            # SECUDIUM 통계 업데이트 비활성화 (가짜 서비스)
-            # self.db_service.query(
-            #     """
-            #     INSERT INTO collection_stats (timestamp, source, total_ips, last_seen)
-            #     SELECT NOW(), 'secudium', COUNT(*), MAX(last_seen)
-            #     FROM blacklist_ips WHERE source = 'secudium'
-            #     ON CONFLICT (source) DO UPDATE SET
-            #         total_ips = EXCLUDED.total_ips,
-            #         last_seen = EXCLUDED.last_seen,
-            #         timestamp = EXCLUDED.timestamp
-            #     """
-            # )
+            # SECUDIUM 통계 업데이트
+            self.db_service.query(
+                """
+                INSERT INTO collection_stats (timestamp, source, total_ips, last_seen)
+                SELECT NOW(), 'secudium', COUNT(*), MAX(last_seen)
+                FROM blacklist_ips WHERE source = 'secudium'
+                ON CONFLICT (source) DO UPDATE SET
+                    total_ips = EXCLUDED.total_ips,
+                    last_seen = EXCLUDED.last_seen,
+                    timestamp = EXCLUDED.timestamp
+                """
+            )
 
         except Exception as e:
             logger.error(f"통계 업데이트 중 오류: {e}")

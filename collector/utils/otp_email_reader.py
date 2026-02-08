@@ -29,7 +29,7 @@ class OTPEmailReader:
         Args:
             email_address: SECUDIUM 가입 이메일
             email_password: 이메일 비밀번호 (또는 앱 비밀번호)
-            imap_server: IMAP 서버 주소 (기본: Gmail)
+            imap_server: IMAP 서버 주소 (기본: imap.kakao.com)
         """
         self.email_address = email_address
         self.email_password = email_password
@@ -74,7 +74,7 @@ class OTPEmailReader:
             # INBOX 선택
             self.imap.select("INBOX")
 
-            # SECUDIUM에서 온 최신 이메일 검색 (최근 5분 이내)
+            # SECUDIUM에서 온 최신 이메일 검색
             start_time = time.time()
             otp_code = None
 
@@ -106,7 +106,7 @@ class OTPEmailReader:
                         otp_code = self._extract_otp_from_message(msg)
 
                         if otp_code:
-                            logger.info("otp_code_extracted", code=otp_code)
+                            logger.info("otp_code_extracted", code_length=len(otp_code))
                             break
 
                 # OTP 못 찾으면 3초 대기 후 재시도
