@@ -35,5 +35,5 @@ export interface CredentialFormData {
   collection_interval: string;
 }
 
-export const COLLECTORS = ['REGTECH'] as const;
+export const COLLECTORS = ['REGTECH', 'SECUDIUM'] as const;
 export type CollectorType = (typeof COLLECTORS)[number];
