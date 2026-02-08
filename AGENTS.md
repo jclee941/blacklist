@@ -1,7 +1,7 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
 **Generated:** 2026-02-08
-**Commit:** 450d20c
+**Commit:** 3e9dc95
 **Branch:** master | **Version:** 3.5.39
 
 ## COMMANDS
@@ -41,12 +41,23 @@ blacklist_service = current_app.extensions['blacklist_service']
 # Errors: RFC 7807
 raise APIError(status=400, code="INVALID_IP", message="Invalid IP format")
 # Code prefixes: AUTH_, VALID_, NOT_FOUND_, INTERNAL_
+
+# Auth: Mark public endpoints with @public decorator
+from core.auth.decorators import public
+
+@public  # No JWT required
+@bp.route("/health")
+def health(): ...
 ```
 
 ```typescript
-// API calls: ALWAYS through lib/api.ts
+// API calls: ALWAYS through lib/api.ts (Bearer token auto-attached)
 import { api } from '@/lib/api';
 const data = await api.get('/blacklist');
+
+// Auth: login/logout/token via authApi
+import { authApi } from '@/lib/api';
+const { token } = await authApi.login(username, password);
 ```
 
 ## ANTI-PATTERNS (NEVER DO)
@@ -59,13 +70,13 @@ const data = await api.get('/blacklist');
 | SQLAlchemy / Prisma | Raw SQL only | Project policy |
 | `as any`, `@ts-ignore` | Proper types | Type safety |
 | Hardcoded ports/hosts | Environment variables | Deployment |
-| Unguarded `resp.json()` | `try/except` or status check | 10 violations exist |
 | Cross-imports between services | DB, Redis, HTTP only | Service isolation |
 
 ## PROJECT STRUCTURE
 
 ```
 app/                    # Flask API (Manual DI, Raw SQL)        :2542
+  core/auth/            # JWT authentication (middleware, service, decorators)
 collector/              # ETL Service (independent)             :8545
 frontend/               # Next.js 15 Dashboard                  :2543
 cloudflare/             # Cloudflare Workers edge API (D1+KV)
@@ -83,18 +94,30 @@ No cross-imports between app/, collector/, frontend/, cloudflare/. Communication
 | `agent/` | AI agent (regtech_agent.py) | Experimental |
 | `mock-fortigate/` | Flask mock server for testing | Test fixture |
 | `docs/` | Deliverables, architecture diagrams | 9 deliverables + guides |
-| `ssl/` | TLS certificates | **⚠ Private key committed — move to secrets** |
+| `ssl/` | TLS certificates | `.gitignore`-d, keys in secrets management |
 | `frontend-source/` | Stale `.next/` build artifacts | Should be gitignored |
+
+## AUTHENTICATION
+
+JWT-based authentication via `app/core/auth/`:
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| JWTService | `jwt_service.py` | Token encode/decode (HS256, 8hr expiry) |
+| Middleware | `middleware.py` | `before_request` hook — all routes require JWT by default |
+| Decorators | `decorators.py` | `@public` — marks endpoint as no-auth-required |
+| Routes | `routes/api/auth_routes.py` | POST `/api/auth/login`, GET `/me`, GET `/verify` |
+
+**Public endpoints** (no JWT): `/health`, `/metrics`, `/api/auth/login`, `/api/fortinet/threat-feed`, `/api/fortinet/json-connector`
+
+Frontend sends Bearer token via Axios interceptor in `lib/api.ts`. On 401 → redirect to login.
 
 ## CI/CD
 
 | Workflow | Trigger | Notes |
 |----------|---------|-------|
-| `release.yml` | Tag push `v*` | Builds 5 Docker images, creates airgap bundle |
-| `ci.yml` | Push/PR | **Frontend only — NO backend tests in CI** |
-| `ci-new.yml` | Migration | Replacement CI pipeline (in progress) |
-| `release-new.yml` | Migration | Replacement release pipeline (in progress) |
-| `airgap-build.yml` | Manual | Air-gap bundle creation |
+| `ci.yml` | Push/PR to master | Path-filtered lint→test→Docker build→E2E (backend + frontend) |
+| `release.yml` | Tag push `v*` | VERSION/tag validation→matrix Docker build (5 svc)→airgap→GH Release→GHCR |
 | `build-images.yml` | Manual | Docker image builds |
 | `run-tests.yml` | Manual | Test runner |
 
@@ -106,36 +129,22 @@ git push origin master vX.Y.Z  # GitHub Actions creates release
 
 ## SECURITY
 
-- **JWT auth declared but NOT enforced** — no middleware validates tokens
-- **⚠ SSL private key in `ssl/nxtd.co.kr.key`** — must move to secrets management
+- **JWT auth enforced** on all API routes via `before_request` middleware (`app/core/auth/`)
+- SSL private key removed from Git history; certificates in `.gitignore`
 - Never log tokens, passwords, API keys
 - Use `MOCK_CREDENTIALS` in tests (from `tests/test_config.py`)
 - Secrets from env vars only; AES-256-GCM for stored credentials
 
 ## KNOWN ISSUES
 
-### Hardcoded URLs (11 violations, 9 files) — CRITICAL
+### DI Violations (8 instances) — Intentional
 
-| File | Line(s) |
-|------|---------|
-| `app/core/routes/api/collection/utils.py` | 13 |
-| `app/core/routes/api/blacklist/collection.py` | 54 |
-| `app/core/services/blacklist_service.py` | 420, 462, 510 |
-| `collector/fortimanager_uploader.py` | 36, 77 |
-| `frontend/next.config.ts` | 7 |
-
-Mixes `localhost:8545`, `blacklist-collector:8545`, `blacklist-app:443`. Fix: env vars (`COLLECTOR_URL`, `API_URL`).
-
-### DI Violations (8 instances)
-
-`admin_routes.py`, `fortimanager_push_service.py`, `settings_service.py` directly instantiate services instead of using `current_app.extensions`.
+`admin_routes.py`, `fortimanager_push_service.py`, `settings_service.py` directly instantiate services. This is intentional fallback for standalone/test execution outside Flask context.
 
 ### Other
 
-- Collector uses single-stage Dockerfile (includes Playwright bloat)
-- Dashboard polls 30s + collection polls 5s simultaneously (dual polling)
-- Three separate rate limiter instances (regtech, auth, Flask-Limiter)
-- Dual ESLint configs: `eslint.config.mjs` (flat) + `.eslintrc.json` (legacy) — consolidate
+- Collector uses single-stage Dockerfile (includes Playwright bloat) — [#5](https://github.com/qws941/blacklist/issues/5)
+- Three separate rate limiter instances (regtech, auth, Flask-Limiter) — [#13](https://github.com/qws941/blacklist/issues/13)
 
 ## COMPLEXITY HOTSPOTS
 
@@ -146,13 +155,20 @@ Mixes `localhost:8545`, `blacklist-collector:8545`, `blacklist-app:443`. Fix: en
 | `app/core/services/blacklist_service.py` | 39.43 | HIGH |
 | `collector/core/regtech_collector.py` | 961L | HIGH |
 | `collector/core/multi_source_collector.py` | 766L | HIGH |
-| `frontend/app/ip-management/IPManagementClient.tsx` | 893L | MEDIUM |
 
 ## RECENT CHANGES (v3.5.36 → v3.5.39)
 
-- `ip_management_api.py` (1050L monolith) refactored → `app/core/routes/api/ip_management/` subpackage (repository.py, routes.py, handlers.py)
+- JWT authentication middleware implemented (`app/core/auth/`)
+- SSL private key purged from Git history via `git filter-repo`
+- All hardcoded URLs replaced with environment variables + fallback
+- `ip_management_api.py` (1050L monolith) refactored → `app/core/routes/api/ip_management/` subpackage
 - `cloudflare/` Cloudflare Workers edge API added (D1 database, KV cache, 4 route modules)
-- CI pipeline migration in progress (`ci-new.yml`, `release-new.yml`)
+- CI/CD consolidated from 7 → 4 workflows
+- Dual ESLint configs consolidated (`.eslintrc.json` removed, `eslint.config.mjs` only)
+- Dual dashboard polling fixed (redundant 30s collection status poll removed)
+- Secudium collector fully implemented (collector + backend + frontend + tests)
+- Unguarded `.json()` calls fixed with `raise_for_status()` + narrowed exceptions
+- SECUDIUM source metadata corrected (`enabled: true`)
 
 ## NOTES
 
