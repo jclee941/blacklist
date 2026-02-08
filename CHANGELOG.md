@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.37] - 2026-02-08
+
+### Fixed
+- **Backend**: Resolved merge conflict markers in system_api.py (timestamp→collection_date, app.log→collector.log)
+- **Backend**: Resolved merge conflict markers in analytics.py (days=all support, removed suspicious pattern analysis)
+- **Backend**: Added missing `import os` in blacklist/collection.py for collector URL resolution
+
+---
+
 ## [3.5.36] - 2026-02-06
 
 ### Changed
