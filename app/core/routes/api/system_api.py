@@ -248,19 +248,11 @@ def get_chart_data():
             # 일별 수집 통계 (최근 30일)
             cursor.execute(
                 """
-<<<<<<< Updated upstream:app/core/routes/api/system_api.py
-                SELECT DATE(timestamp) as date,
-                       COALESCE(SUM(items_collected), 0) as collected
-                FROM collection_history
-                WHERE timestamp >= %s AND success = true
-                GROUP BY DATE(timestamp)
-=======
                 SELECT DATE(collection_date) as date,
                        COALESCE(SUM(items_collected), 0) as collected
                 FROM collection_history
                 WHERE collection_date >= %s AND success = true
                 GROUP BY DATE(collection_date)
->>>>>>> Stashed changes:app-source/core/routes/api/system_api.py
                 ORDER BY date DESC
                 LIMIT 30
             """,
@@ -322,11 +314,7 @@ def get_system_logs():
         import os
 
         # 로그 파일 읽기 (최근 100줄)
-<<<<<<< Updated upstream:app/core/routes/api/system_api.py
-        log_file = "/app/logs/app.log"
-=======
         log_file = "/app/logs/collector.log"
->>>>>>> Stashed changes:app-source/core/routes/api/system_api.py
         if not os.path.exists(log_file):
             return jsonify(
                 {
@@ -362,11 +350,7 @@ def get_system_logs():
         logger.error(f"System logs error: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to read system logs",
-<<<<<<< Updated upstream:app/core/routes/api/system_api.py
-            details={"log_file": "/app/logs/app.log", "error_type": type(e).__name__},
-=======
             details={"log_file": "/app/logs/collector.log", "error_type": type(e).__name__},
->>>>>>> Stashed changes:app-source/core/routes/api/system_api.py
         )
 
 

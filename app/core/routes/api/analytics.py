@@ -72,16 +72,6 @@ def get_detection_timeline():
         DatabaseError: Database query failed
     """
     # Get and validate query parameters
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-    try:
-        days_back = int(request.args.get("days", 365))
-    except ValueError as e:
-        raise ValidationError(
-            message="Days parameter must be a valid integer",
-            field="days",
-            details={"error": str(e)},
-        )
-=======
     days_param = request.args.get("days", "30")
     
     # days=0 or days=all means no date filter (all data)
@@ -96,7 +86,6 @@ def get_detection_timeline():
                 field="days",
                 details={"error": str(e)},
             )
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
 
     format_type = request.args.get("format", "json")  # json or chart
 
@@ -107,23 +96,6 @@ def get_detection_timeline():
         cursor = conn.cursor()
 
         # 날짜별 수집 통계 (View 사용 - 3개월 자동 비활성화 로직 적용)
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-        query = """
-            SELECT
-                COALESCE(detection_date, created_at::date) as detection_day,
-                COUNT(*) as ip_count,
-                COUNT(DISTINCT source) as source_count,
-                STRING_AGG(DISTINCT source, ', ') as sources,
-                MIN(created_at) as first_collected,
-                MAX(created_at) as last_collected
-            FROM blacklist_ips_with_auto_inactive
-            WHERE COALESCE(detection_date, created_at::date) >= CURRENT_DATE - INTERVAL '%s days'
-            GROUP BY COALESCE(detection_date, created_at::date)
-            ORDER BY detection_day DESC
-        """
-
-        cursor.execute(query, (days_back,))
-=======
         if days_back is None:
             # 전체 데이터 조회 (날짜 필터 없음)
             query = """
@@ -154,7 +126,6 @@ def get_detection_timeline():
                 ORDER BY detection_day DESC
             """
             cursor.execute(query, (days_back,))
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
         results = cursor.fetchall()
 
         # 컬럼명 매핑
@@ -179,29 +150,6 @@ def get_detection_timeline():
             if data["last_collected"]:
                 data["last_collected"] = data["last_collected"].isoformat()
 
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-            # 수상한 패턴 탐지
-            suspicious_patterns = []
-
-            # 1. 비정상적으로 많은 IP (평균의 3배 이상)
-            if len(timeline_data) > 0:
-                avg_count = sum([d["ip_count"] for d in timeline_data]) / len(timeline_data)
-                if data["ip_count"] > avg_count * 3:
-                    suspicious_patterns.append("abnormal_volume")
-
-            # 2. 정확히 떨어지는 숫자 (1000, 5000, 10000 등)
-            if data["ip_count"] % 1000 == 0 and data["ip_count"] >= 1000:
-                suspicious_patterns.append("round_number")
-
-            # 3. 동일한 소스에서 대량 수집
-            if data["source_count"] == 1 and data["ip_count"] > 1000:
-                suspicious_patterns.append("single_source_bulk")
-
-            data["suspicious_patterns"] = suspicious_patterns
-            data["is_suspicious"] = len(suspicious_patterns) > 0
-
-=======
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
             timeline_data.append(data)
 
         # 통계 요약
@@ -210,54 +158,36 @@ def get_detection_timeline():
         avg_per_day = total_ips / total_days if total_days > 0 else 0
 
         # 소스별 통계
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-        cursor.execute(
-            """
-            SELECT
-                source,
-                COUNT(*) as total_ips,
-                COUNT(DISTINCT COALESCE(detection_date, created_at::date)) as active_days,
-                MIN(COALESCE(detection_date, created_at::date)) as first_detection,
-                MAX(COALESCE(detection_date, created_at::date)) as last_detection
-            FROM blacklist_ips_with_auto_inactive
-            WHERE COALESCE(detection_date, created_at::date) >= CURRENT_DATE - INTERVAL '%s days'
-            GROUP BY source
-            ORDER BY total_ips DESC
-        """,
-            (days_back,),
-        )
-=======
         if days_back is None:
-            cursor.execute(
-                """
+            # 전체 데이터 조회 (날짜 필터 없음)
+            query = """
                 SELECT
-                    source,
-                    COUNT(*) as total_ips,
-                    COUNT(DISTINCT COALESCE(detection_date, created_at::date)) as active_days,
-                    MIN(COALESCE(detection_date, created_at::date)) as first_detection,
-                    MAX(COALESCE(detection_date, created_at::date)) as last_detection
+                    COALESCE(detection_date, created_at::date) as detection_day,
+                    COUNT(*) as ip_count,
+                    COUNT(DISTINCT source) as source_count,
+                    STRING_AGG(DISTINCT source, ', ') as sources,
+                    MIN(created_at) as first_collected,
+                    MAX(created_at) as last_collected
                 FROM blacklist_ips_with_auto_inactive
-                GROUP BY source
-                ORDER BY total_ips DESC
+                GROUP BY COALESCE(detection_date, created_at::date)
+                ORDER BY detection_day DESC
             """
-            )
+            cursor.execute(query)
         else:
-            cursor.execute(
-                """
+            query = """
                 SELECT
-                    source,
-                    COUNT(*) as total_ips,
-                    COUNT(DISTINCT COALESCE(detection_date, created_at::date)) as active_days,
-                    MIN(COALESCE(detection_date, created_at::date)) as first_detection,
-                    MAX(COALESCE(detection_date, created_at::date)) as last_detection
+                    COALESCE(detection_date, created_at::date) as detection_day,
+                    COUNT(*) as ip_count,
+                    COUNT(DISTINCT source) as source_count,
+                    STRING_AGG(DISTINCT source, ', ') as sources,
+                    MIN(created_at) as first_collected,
+                    MAX(created_at) as last_collected
                 FROM blacklist_ips_with_auto_inactive
                 WHERE COALESCE(detection_date, created_at::date) >= CURRENT_DATE - INTERVAL '%s days'
-                GROUP BY source
-                ORDER BY total_ips DESC
-            """,
-                (days_back,),
-            )
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
+                GROUP BY COALESCE(detection_date, created_at::date)
+                ORDER BY detection_day DESC
+            """
+            cursor.execute(query, (days_back,))
 
         source_results = cursor.fetchall()
         source_stats = []
@@ -275,29 +205,6 @@ def get_detection_timeline():
         cursor.close()
         conn.close()
 
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-        # 수상한 패턴 요약
-        suspicious_days = [d for d in timeline_data if d["is_suspicious"]]
-        pattern_summary = {}
-        for day in suspicious_days:
-            for pattern in day["suspicious_patterns"]:
-                pattern_summary[pattern] = pattern_summary.get(pattern, 0) + 1
-
-        # 로그 출력 (탐지일 데이터 분석)
-        logger.info("📊 탐지일 데이터 분석 결과:")
-        logger.info(f"   • 분석 기간: {days_back}일")
-        logger.info(f"   • 총 IP 수: {total_ips:,}개")
-        logger.info(f"   • 활성 일수: {total_days}일")
-        logger.info(f"   • 일평균: {avg_per_day:.1f}개")
-        logger.info(f"   • 수상한 패턴: {len(suspicious_days)}일")
-
-        if suspicious_days:
-            logger.warning("🚨 수상한 데이터 패턴 발견:")
-            for day in suspicious_days[:5]:  # 최대 5일만 로그
-                logger.warning(
-                    f"   • {day['detection_day']}: {day['ip_count']:,}개 IP ({', '.join(day['suspicious_patterns'])})"
-                )
-=======
         # 로그 출력 (탐지일 데이터 분석)
         period_str = "전체" if days_back is None else f"{days_back}일"
         logger.info("📊 탐지일 데이터 분석 결과:")
@@ -305,16 +212,11 @@ def get_detection_timeline():
         logger.info(f"   • 총 IP 수: {total_ips:,}개")
         logger.info(f"   • 활성 일수: {total_days}일")
         logger.info(f"   • 일평균: {avg_per_day:.1f}개")
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
 
         response_data = {
             "success": True,
             "metadata": {
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-                "analysis_period_days": days_back,
-=======
                 "analysis_period_days": days_back,  # None means all
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
                 "total_ips": total_ips,
                 "total_days": total_days,
                 "avg_per_day": round(avg_per_day, 1),
@@ -322,14 +224,6 @@ def get_detection_timeline():
             },
             "timeline": timeline_data,
             "source_statistics": source_stats,
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-            "suspicious_analysis": {
-                "suspicious_days_count": len(suspicious_days),
-                "pattern_summary": pattern_summary,
-                "suspicious_days": suspicious_days[:10],  # 최대 10일만 반환
-            },
-=======
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
         }
 
         if format_type == "chart":
@@ -340,19 +234,8 @@ def get_detection_timeline():
                     {
                         "label": "IP 수집량",
                         "data": [d["ip_count"] for d in timeline_data],
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-                        "backgroundColor": [
-                            ("rgba(255, 99, 132, 0.8)" if d["is_suspicious"] else "rgba(54, 162, 235, 0.8)")
-                            for d in timeline_data
-                        ],
-                        "borderColor": [
-                            ("rgba(255, 99, 132, 1)" if d["is_suspicious"] else "rgba(54, 162, 235, 1)")
-                            for d in timeline_data
-                        ],
-=======
                         "backgroundColor": "rgba(54, 162, 235, 0.8)",
                         "borderColor": "rgba(54, 162, 235, 1)",
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
                         "borderWidth": 1,
                     }
                 ],
@@ -363,10 +246,6 @@ def get_detection_timeline():
                     "data": {
                         "chart_data": chart_data,
                         "summary": response_data["metadata"],
-<<<<<<< Updated upstream:app/core/routes/api/analytics.py
-                        "suspicious_count": len(suspicious_days),
-=======
->>>>>>> Stashed changes:app-source/core/routes/api/analytics.py
                     },
                     "timestamp": datetime.now().isoformat(),
                     "request_id": g.request_id,

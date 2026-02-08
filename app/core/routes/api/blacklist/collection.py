@@ -7,6 +7,7 @@ Routes: /collection/regtech/trigger
 from flask import Blueprint, jsonify, request, current_app
 from datetime import datetime
 import logging
+import os
 from functools import wraps
 
 logger = logging.getLogger(__name__)
