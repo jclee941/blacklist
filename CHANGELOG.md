@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.38] - 2026-02-08
+
+### Added
+- **Frontend**: Secudium 수집기 인증 UI (OTP 자동/수동 모드 지원)
+- **Frontend**: OTP 수동 입력 다이얼로그 (6자리 입력, 자동 포커스)
+- **Frontend**: CredentialEditModal에 Secudium OTP 설정 필드 (이메일, IMAP 서버)
+- **Backend**: Secudium 인증정보 API 확장 (OTP 모드, 이메일, IMAP 설정 저장/조회)
+- **Backend**: Secudium OTP 제출 엔드포인트 (수동 2단계 인증)
+- **Collector**: SecudiumCollector OTP 인증 플로우 (자동 Kakao IMAP + 수동 입력)
+- **Collector**: Secudium test-auth 엔드포인트 (410 deprecation 제거, 실제 인증 구현)
+- **Collector**: authenticate_step1/step2 메서드 (수동 OTP 2단계 인증 지원)
+- **Tests**: Secudium collector 및 parser 단위 테스트
+
+---
+
 ## [3.5.37] - 2026-02-08
 
 ### Fixed
