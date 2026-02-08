@@ -67,6 +67,7 @@ jobs:
           cache: pip
       - run: pip install ruff==0.9.10
       - run: ruff check app/ collector/
+      - run: ruff format --check app/ collector/
 
   test-frontend:
     needs: lint-frontend
@@ -82,7 +83,15 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run test
+      - name: Run tests with coverage
+        run: npm run test -- --coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 30
 
   test-backend:
     needs: lint-backend
@@ -119,8 +128,21 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - run: pip install -r app/requirements.txt
-      - run: python -m pytest tests/unit -v --cov=app/core --cov-report=term-missing
+      - run: pip install -r app/requirements.txt pytest-cov
+      - name: Run tests with coverage
+        run: |
+          python -m pytest tests/unit -v \
+            --cov=app/core \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=60
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage.xml
+          retention-days: 30
 
   build:
     needs: [detect-changes, lint-frontend, lint-backend, test-frontend, test-backend]
