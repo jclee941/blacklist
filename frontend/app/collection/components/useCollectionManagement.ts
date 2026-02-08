@@ -76,10 +76,17 @@ export function useCollectionManagement() {
               imap_server: data.data.imap_server,
             };
           }
-        } catch (error) {
-          console.error(`Failed to fetch ${service} credentials:`, error);
+        } catch {
+          // Credentials not yet configured — return default empty card
         }
-        return null;
+        return {
+          service_name: service,
+          username: '',
+          enabled: false,
+          collection_interval: 60,
+          last_collection: null,
+          connection_status: 'unknown' as const,
+        };
       });
 
       const credResults = await Promise.all(credPromises);
