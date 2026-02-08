@@ -58,7 +58,6 @@ export default function Dashboard() {
       fetchStats();
       fetchSystemStatus();
       fetchRecentActivity();
-      fetchCollectionStatus();
     }, 30000);
 
     const collectionInterval = setInterval(fetchCollectionStatus, 5000);

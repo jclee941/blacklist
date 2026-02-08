@@ -98,6 +98,7 @@ class FortiManagerPushService:
 
         try:
             response = requests.post(url, json=payload, verify=False, timeout=10)
+            response.raise_for_status()
             result = response.json()
 
             if result.get("result", [{}])[0].get("status", {}).get("code") == 0:
@@ -109,7 +110,7 @@ class FortiManagerPushService:
             else:
                 logger.error(f"❌ Login failed: {result}")
                 return False
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             logger.error(f"❌ Login error: {e}")
             return False
 
@@ -160,6 +161,7 @@ class FortiManagerPushService:
 
         try:
             response = requests.post(url, json=payload, verify=False, timeout=10)
+            response.raise_for_status()
             result = response.json()
 
             status_code = result.get("result", [{}])[0].get("status", {}).get("code")
@@ -174,8 +176,8 @@ class FortiManagerPushService:
                     self.session_id = None
                     return self.upload_to_fortimanager(ip_list)
                 return False
-        except Exception as e:
-            logger.error(f"❌ Upload error: {e}")
+        except (requests.RequestException, ValueError) as e:
+            logger.error(f"\u274c Upload error: {e}")
             return False
 
     def handle_change_notification(self, payload: str):

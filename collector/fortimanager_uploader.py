@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 FortiManager Automatic Uploader
 Runs every 5 minutes to upload blacklist to FortiManager
@@ -33,7 +33,7 @@ class FortiManagerUploader:
         self.fmg_host = ''
         self.fmg_user = 'admin'
         self.fmg_pass = ''
-        self.api_url = 'http://blacklist-app:443/api/fortinet/active-ips'
+        self.api_url = os.environ.get('BLACKLIST_API_URL', 'http://blacklist-app:443') + '/api/fortinet/active-ips'
         self.filename = 'nxtd-blacklist.txt'
         self.enabled = False
         self.interval = 300  # 5 minutes
@@ -74,7 +74,7 @@ class FortiManagerUploader:
                 self.fmg_host = config.get('host', '')
                 self.enabled = config.get('enabled', False)
                 self.interval = config.get('interval', 300)
-                self.api_url = config.get('api_url', 'http://blacklist-app:443/api/fortinet/active-ips')
+                self.api_url = config.get('api_url', os.environ.get('BLACKLIST_API_URL', 'http://blacklist-app:443') + '/api/fortinet/active-ips')
                 self.filename = config.get('filename', 'nxtd-blacklist.txt')
 
                 logger.info(f"✅ FortiManager credentials loaded from database (host={self.fmg_host}, enabled={self.enabled})")

@@ -3,6 +3,8 @@
 모든 수집 관련 기능을 하나로 통합
 """
 
+import os
+
 from flask import Blueprint, render_template, jsonify, request, current_app
 import logging
 from flask_wtf.csrf import CSRFProtect
@@ -105,7 +107,7 @@ def save_credentials():
                     "host": fmg_host,
                     "enabled": fmg_enabled,
                     "interval": fmg_interval,
-                    "api_url": "http://blacklist-app:443/api/fortinet/active-ips",
+                    "api_url": os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:443") + "/api/fortinet/active-ips",
                     "filename": "nxtd-blacklist.txt",
                 },
             )
