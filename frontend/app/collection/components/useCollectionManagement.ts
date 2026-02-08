@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
+import api, {
   getCredential,
   getCollectionStatus,
   getBlacklistStats,
@@ -15,9 +15,10 @@ import type {
   BlacklistStats,
   CredentialFormState,
   NotificationState,
+  SecudiumCredentialFormState,
 } from './types';
 
-const COLLECTORS = ['REGTECH'];
+const COLLECTORS = ['REGTECH', 'SECUDIUM'];
 const REFRESH_INTERVAL = 30000;
 
 const INITIAL_FORM_STATE: CredentialFormState = {
@@ -25,6 +26,17 @@ const INITIAL_FORM_STATE: CredentialFormState = {
   password: '',
   enabled: true,
   collection_interval: 'daily',
+};
+
+const SECUDIUM_INITIAL_FORM_STATE: SecudiumCredentialFormState = {
+  username: '',
+  password: '',
+  enabled: true,
+  collection_interval: 'daily',
+  otp_mode: 'auto',
+  email: '',
+  email_password: '',
+  imap_server: 'imap.kakao.com',
 };
 
 export function useCollectionManagement() {
@@ -38,7 +50,12 @@ export function useCollectionManagement() {
   const [showCredentialModal, setShowCredentialModal] = useState(false);
   const [editingService, setEditingService] = useState<string | null>(null);
   const [notification, setNotification] = useState<NotificationState | null>(null);
-  const [credentialForm, setCredentialForm] = useState<CredentialFormState>(INITIAL_FORM_STATE);
+  const [credentialForm, setCredentialForm] = useState<
+    CredentialFormState | SecudiumCredentialFormState
+  >(INITIAL_FORM_STATE);
+
+  const [showOtpDialog, setShowOtpDialog] = useState(false);
+  const [otpServiceName, setOtpServiceName] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -54,6 +71,9 @@ export function useCollectionManagement() {
               collection_interval: data.data.collection_interval,
               last_collection: data.data.last_collection,
               connection_status: 'unknown' as const,
+              otp_mode: data.data.otp_mode,
+              email: data.data.email,
+              imap_server: data.data.imap_server,
             };
           }
         } catch (error) {
@@ -93,31 +113,90 @@ export function useCollectionManagement() {
     try {
       const data = await testCredential(serviceName.toLowerCase());
 
-      setCredentials((prev) =>
-        prev.map((cred) =>
-          cred.service_name === serviceName
-            ? {
-                ...cred,
-                connection_status: data.success ? 'connected' : 'failed',
-                status_message: data.message || data.error,
-              }
-            : cred
-        )
-      );
-
-      if (data.success) {
-        setNotification({ type: 'success', message: `${serviceName} 연결 테스트 성공!` });
-      } else {
+      if (data.code === 'otp_required') {
+        setOtpServiceName(serviceName);
+        setShowOtpDialog(true);
         setNotification({
-          type: 'error',
-          message: `${serviceName} 연결 실패: ${data.message || data.error}`,
+          type: 'success',
+          message: `${serviceName}: OTP 인증이 필요합니다.`,
         });
+      } else {
+        setCredentials((prev) =>
+          prev.map((cred) =>
+            cred.service_name === serviceName
+              ? {
+                  ...cred,
+                  connection_status: data.success ? 'connected' : 'failed',
+                  status_message: data.message || data.error,
+                }
+              : cred
+          )
+        );
+
+        if (data.success) {
+          setNotification({ type: 'success', message: `${serviceName} 연결 테스트 성공!` });
+        } else {
+          setNotification({
+            type: 'error',
+            message: `${serviceName} 연결 실패: ${data.message || data.error}`,
+          });
+        }
       }
     } catch {
       setNotification({ type: 'error', message: `${serviceName} 연결 테스트 중 오류 발생` });
     } finally {
       setTestingConnection((prev) => ({ ...prev, [serviceName]: false }));
     }
+  }, []);
+
+  const submitOtp = useCallback(
+    async (otpCode: string) => {
+      if (!otpServiceName) return;
+
+      setTestingConnection((prev) => ({ ...prev, [otpServiceName]: true }));
+
+      try {
+        const { data } = await api.post(
+          `/proxy/collection/credentials/${otpServiceName.toLowerCase()}/test`,
+          {
+            otp_code: otpCode,
+          }
+        );
+
+        setCredentials((prev) =>
+          prev.map((cred) =>
+            cred.service_name === otpServiceName
+              ? {
+                  ...cred,
+                  connection_status: data.success ? 'connected' : 'failed',
+                  status_message: data.message || data.error,
+                }
+              : cred
+          )
+        );
+
+        if (data.success) {
+          setNotification({ type: 'success', message: `${otpServiceName} OTP 인증 및 연결 성공!` });
+          setShowOtpDialog(false);
+          setOtpServiceName(null);
+        } else {
+          setNotification({
+            type: 'error',
+            message: `${otpServiceName} OTP 인증 실패: ${data.message || data.error}`,
+          });
+        }
+      } catch {
+        setNotification({ type: 'error', message: `${otpServiceName} OTP 인증 중 오류 발생` });
+      } finally {
+        setTestingConnection((prev) => ({ ...prev, [otpServiceName]: false }));
+      }
+    },
+    [otpServiceName]
+  );
+
+  const closeOtpDialog = useCallback(() => {
+    setShowOtpDialog(false);
+    setOtpServiceName(null);
   }, []);
 
   const triggerCollection = useCallback(
@@ -151,12 +230,26 @@ export function useCollectionManagement() {
     (serviceName: string) => {
       const cred = credentials.find((c) => c.service_name === serviceName);
       setEditingService(serviceName);
-      setCredentialForm({
-        username: cred?.username || '',
-        password: '',
-        enabled: cred?.enabled ?? true,
-        collection_interval: cred?.collection_interval || 'daily',
-      });
+
+      if (serviceName === 'SECUDIUM') {
+        setCredentialForm({
+          ...SECUDIUM_INITIAL_FORM_STATE,
+          username: cred?.username || '',
+          enabled: cred?.enabled ?? true,
+          collection_interval: cred?.collection_interval || 'daily',
+          otp_mode: cred?.otp_mode || 'auto',
+          email: cred?.email || '',
+          imap_server: cred?.imap_server || 'imap.kakao.com',
+        } as SecudiumCredentialFormState);
+      } else {
+        setCredentialForm({
+          ...INITIAL_FORM_STATE,
+          username: cred?.username || '',
+          enabled: cred?.enabled ?? true,
+          collection_interval: cred?.collection_interval || 'daily',
+        });
+      }
+
       setShowCredentialModal(true);
     },
     [credentials]
@@ -226,8 +319,13 @@ export function useCollectionManagement() {
     notification,
     credentialForm,
 
+    showOtpDialog,
+    otpServiceName,
+
     fetchData,
     testConnection,
+    submitOtp,
+    closeOtpDialog,
     triggerCollection,
     openEditModal,
     closeEditModal,
