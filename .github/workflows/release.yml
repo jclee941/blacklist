@@ -1,224 +1,210 @@
-# GitHub Release Workflow
-# =======================
-# Automatically creates GitHub Release with airgap bundle on tag push
-#
-# Triggers: Tag push (v*)
-# Artifacts: Source code + Docker images tarball + install script
-
+# Consolidated Release Pipeline
+# Replaces: release.yml (sequential, no validation) + release-new.yml (self-hosted only)
+# Adds: VERSION/tag validation, matrix builds, GHCR push, dry_run, Slack notify
+# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
 name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — build & package only, skip release/push'
+        type: boolean
+        default: false
 
-env:
-  FRONTEND_IMAGE: blacklist-frontend
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  # ===========================================================================
-  # Build All Docker Images
-  # ===========================================================================
-  build:
-    name: Build Docker Images
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set version from tag
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Building version: ${VERSION}"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: false
-          tags: |
-            ${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.version }}
-            ${{ env.FRONTEND_IMAGE }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/frontend-image.tar
-
-      - name: Build app image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./app/Dockerfile
-          push: false
-          tags: blacklist-app:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/app-image.tar
-
-      - name: Build collector image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./collector/Dockerfile
-          push: false
-          tags: blacklist-collector:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/collector-image.tar
-
-      - name: Build postgres image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./postgres
-          file: ./postgres/Dockerfile
-          push: false
-          tags: blacklist-postgres:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/postgres-image.tar
-
-      - name: Build redis image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./redis
-          file: ./redis/Dockerfile
-          push: false
-          tags: blacklist-redis:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/redis-image.tar
-
-      - name: Upload image artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-images
-          path: /tmp/*-image.tar
-          retention-days: 1
-
-  # ===========================================================================
-  # Create Airgap Bundle
-  # ===========================================================================
-  package:
-    name: Create Airgap Bundle
-    runs-on: ubuntu-latest
-    needs: build
-    
+  validate:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     outputs:
-      bundle_name: ${{ steps.bundle.outputs.name }}
       version: ${{ steps.version.outputs.version }}
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set version
+      - uses: actions/checkout@v4
+      - name: Extract and validate version
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Download image artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-images
-          path: /tmp/images
-
-      - name: Prepare airgap bundle
-        id: bundle
+          VERSION=$(cat VERSION)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            if [[ "$VERSION" != "$TAG_VERSION" ]]; then
+              echo "::error::VERSION file (${VERSION}) does not match tag (${TAG_VERSION})"
+              exit 1
+            fi
+          fi
+      - name: Check CHANGELOG
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          BUNDLE_DIR="blacklist-${VERSION}"
-          BUNDLE_NAME="blacklist-${VERSION}-airgap.tar.gz"
-          
-          mkdir -p ${BUNDLE_DIR}/images
-          
-          echo "Compressing Docker images..."
-          for img in /tmp/images/*-image.tar; do
-            name=$(basename $img .tar | sed 's/-image//')
-            echo "  - ${name}"
-            gzip -c $img > ${BUNDLE_DIR}/images/${name}.tar.gz
-          done
-          
-          cp deploy/airgap/docker-compose.yml ${BUNDLE_DIR}/
-          cp deploy/airgap/install.sh ${BUNDLE_DIR}/
-          chmod +x ${BUNDLE_DIR}/install.sh
-          cp -r deploy/airgap/ssl ${BUNDLE_DIR}/
-          
-          cd ${BUNDLE_DIR}/images && sha256sum *.tar.gz > checksums.sha256 && cd ../..
-          
-          echo "Creating bundle: ${BUNDLE_NAME}"
-          tar -czvf ${BUNDLE_NAME} ${BUNDLE_DIR}/
-          
-          sha256sum ${BUNDLE_NAME} > ${BUNDLE_NAME}.sha256
-          
-          echo "Bundle size: $(ls -lh ${BUNDLE_NAME} | awk '{print $5}')"
-          echo "name=${BUNDLE_NAME}" >> $GITHUB_OUTPUT
+          VERSION=$(cat VERSION)
+          if ! grep -q "## \[${VERSION}\]" CHANGELOG.md 2>/dev/null; then
+            echo "::warning::No CHANGELOG.md entry found for version ${VERSION}"
+          fi
 
-      - name: Upload bundle artifact
-        uses: actions/upload-artifact@v4
+  build-images:
+    needs: validate
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [frontend, app, collector, postgres, redis]
+        include:
+          - service: frontend
+            context: ./frontend
+            dockerfile: frontend/Dockerfile
+          - service: app
+            context: .
+            dockerfile: app/Dockerfile
+          - service: collector
+            context: .
+            dockerfile: collector/Dockerfile
+          - service: postgres
+            context: ./postgres
+            dockerfile: postgres/Dockerfile
+          - service: redis
+            context: ./redis
+            dockerfile: redis/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          load: true
+          tags: blacklist-${{ matrix.service }}:${{ needs.validate.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Export image
+        run: |
+          docker save blacklist-${{ matrix.service }}:${{ needs.validate.outputs.version }} | \
+            gzip > blacklist-${{ matrix.service }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.service }}
+          path: blacklist-${{ matrix.service }}.tar.gz
+          retention-days: 5
+
+  package-airgap:
+    needs: [validate, build-images]
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          path: images
+          merge-multiple: true
+      - name: Create airgap bundle
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          BUNDLE="blacklist-airgap-${VERSION}"
+          mkdir -p "${BUNDLE}/images"
+
+          cp images/*.tar.gz "${BUNDLE}/images/"
+          cp -r deploy/airgap/* "${BUNDLE}/" 2>/dev/null || true
+
+          if [ -f "${BUNDLE}/install.sh" ]; then
+            sed -i "s/^VERSION=.*/VERSION=${VERSION}/" "${BUNDLE}/install.sh"
+          fi
+
+          cd "${BUNDLE}/images" && sha256sum *.tar.gz > SHA256SUMS && cd ../..
+          tar czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
+          sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
         with:
           name: airgap-bundle
           path: |
-            blacklist-*-airgap.tar.gz
-            blacklist-*-airgap.tar.gz.sha256
-          retention-days: 90
+            blacklist-airgap-*.tar.gz
+            blacklist-airgap-*.tar.gz.sha256
+          retention-days: 30
 
-  # ===========================================================================
-  # Create GitHub Release
-  # ===========================================================================
-  release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: package
+  create-release:
+    needs: [validate, package-airgap]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: write
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download airgap bundle
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
           name: airgap-bundle
-          path: ./release-assets
-
-      - name: Extract changelog for this version
+      - name: Extract changelog
         id: changelog
         run: |
-          VERSION="${{ needs.package.outputs.version }}"
-          VERSION_NO_V="${VERSION#v}"
-          
-          # Extract section from CHANGELOG.md
-          NOTES=$(awk "/^## \[${VERSION_NO_V}\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md)
-          
-          if [ -z "$NOTES" ]; then
-            NOTES="Release ${VERSION}"
-          fi
-          
-          # Save to file (multiline output)
-          echo "$NOTES" > release_notes.md
-          echo "Release notes extracted for ${VERSION}"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+          VERSION="${{ needs.validate.outputs.version }}"
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1;next} /^## \[/{if(found)exit} found{print}" CHANGELOG.md 2>/dev/null || echo "Release ${VERSION}")
+          {
+            echo "notes<<EOF"
+            echo "${NOTES}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.package.outputs.version }}
-          name: Blacklist ${{ needs.package.outputs.version }}
-          body_path: release_notes.md
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ needs.validate.outputs.version }}
+          body: ${{ steps.changelog.outputs.notes }}
           files: |
-            release-assets/*
-            download.ps1
+            blacklist-airgap-*.tar.gz
+            blacklist-airgap-*.tar.gz.sha256
           draft: false
-          prerelease: ${{ contains(needs.package.outputs.version, '-') }}
-          generate_release_notes: true
+          prerelease: false
+
+  push-to-registry:
+    needs: [validate, build-images]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        service: [frontend, app, collector, postgres, redis]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.service }}
+      - name: Load image
+        run: gunzip -c blacklist-${{ matrix.service }}.tar.gz | docker load
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag and push to GHCR
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          IMAGE="ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}"
+          docker tag "blacklist-${{ matrix.service }}:${VERSION}" "${IMAGE}:${VERSION}"
+          docker tag "blacklist-${{ matrix.service }}:${VERSION}" "${IMAGE}:latest"
+          docker push "${IMAGE}:${VERSION}"
+          docker push "${IMAGE}:latest"
+
+  notify:
+    needs: [validate, create-release, push-to-registry]
+    if: always()
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    steps:
+      - name: Slack notification
+        if: vars.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Blacklist ${{ needs.validate.outputs.version }} release ${{ contains(needs.*.result, 'failure') && 'FAILED' || 'completed' }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Blacklist Release ${{ needs.validate.outputs.version }}*\nStatus: ${{ contains(needs.*.result, 'failure') && ':x: Failed' || ':white_check_mark: Success' }}\n<${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>"
+                  }
+                }
+              ]
+            }
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

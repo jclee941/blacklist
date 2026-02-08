@@ -1,0 +1,84 @@
+# CI-only compose for E2E tests
+# Uses bridge networking (production uses network_mode: host)
+# Images are pre-built and loaded from CI artifacts (tagged :ci)
+
+services:
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: blacklist
+      POSTGRES_PASSWORD: blacklist
+      POSTGRES_DB: blacklist
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blacklist"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    image: blacklist-app:ci
+    ports:
+      - "2542:2542"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://blacklist:blacklist@postgres:5432/blacklist
+      REDIS_URL: redis://redis:6379/0
+      FLASK_ENV: testing
+      SECRET_KEY: ci-test-secret-key
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:2542/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+
+  collector:
+    image: blacklist-collector:ci
+    ports:
+      - "8545:8545"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://blacklist:blacklist@postgres:5432/blacklist
+      REDIS_URL: redis://redis:6379/0
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8545/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+
+  frontend:
+    image: blacklist-frontend:ci
+    ports:
+      - "3443:443"
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://app:2542
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sfk https://localhost:443 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 15s

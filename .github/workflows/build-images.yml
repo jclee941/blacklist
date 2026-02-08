@@ -1,119 +1,85 @@
-# Reusable workflow: Build Docker images
-# Called by: ci.yml, release.yml
-
-name: Build Docker Images
+# Reusable / Manual — Build Docker Images
+# Fixes: matrix include bug (now uses proper base dimension), hardcoded self-hosted runner
+# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
+name: Build Images
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      services:
-        description: 'Comma-separated list of services to build (frontend,app,collector,postgres,redis)'
-        required: true
-        type: string
-      push:
-        description: 'Push images to registry'
-        required: false
-        type: boolean
-        default: false
-      registry:
-        description: 'Container registry (ghcr.io or local)'
-        required: false
-        type: string
-        default: 'ghcr.io'
-      tag:
-        description: 'Image tag'
-        required: false
+      version:
+        description: 'Image version tag'
         type: string
         default: 'latest'
-    outputs:
-      images:
-        description: 'JSON object of built image names'
-        value: ${{ jobs.build.outputs.images }}
-
-env:
-  REGISTRY: ${{ inputs.registry }}
+      push:
+        description: 'Push to GHCR after build'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: 'latest'
+      push:
+        type: boolean
+        default: false
 
 jobs:
   build:
-    name: Build ${{ matrix.service }}
-    runs-on: self-hosted
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    permissions:
+      packages: write
     strategy:
       fail-fast: false
       matrix:
-        service: ${{ fromJson(format('[{0}]', inputs.services)) }}
+        service: [frontend, app, collector, postgres, redis]
         include:
           - service: frontend
             context: ./frontend
-            dockerfile: ./frontend/Dockerfile
+            dockerfile: frontend/Dockerfile
           - service: app
             context: .
-            dockerfile: ./app/Dockerfile
+            dockerfile: app/Dockerfile
           - service: collector
             context: .
-            dockerfile: ./collector/Dockerfile
+            dockerfile: collector/Dockerfile
           - service: postgres
             context: ./postgres
-            dockerfile: ./postgres/Dockerfile
+            dockerfile: postgres/Dockerfile
           - service: redis
             context: ./redis
-            dockerfile: ./redis/Dockerfile
-    
-    outputs:
-      images: ${{ steps.output.outputs.images }}
-    
+            dockerfile: redis/Dockerfile
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        if: inputs.push && inputs.registry == 'ghcr.io'
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
+        if: inputs.push
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ inputs.registry }}/${{ github.repository }}/blacklist-${{ matrix.service }}
-          tags: |
-            type=raw,value=${{ inputs.tag }}
-            type=sha,prefix=
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: ${{ inputs.push }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          load: ${{ !inputs.push }}
+          tags: |
+            blacklist-${{ matrix.service }}:${{ inputs.version }}
+            ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}:${{ inputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            BUILD_DATE=${{ github.event.repository.updated_at }}
-            VCS_REF=${{ github.sha }}
 
-      - name: Export image for air-gap
+      - name: Export image
         if: ${{ !inputs.push }}
         run: |
-          IMAGE_NAME="blacklist-${{ matrix.service }}:${{ inputs.tag }}"
-          docker save "$IMAGE_NAME" | gzip > "${{ matrix.service }}.tar.gz"
+          docker save blacklist-${{ matrix.service }}:${{ inputs.version }} | \
+            gzip > blacklist-${{ matrix.service }}.tar.gz
 
-      - name: Upload image artifact
+      - uses: actions/upload-artifact@v4
         if: ${{ !inputs.push }}
-        uses: actions/upload-artifact@v4
         with:
-          name: docker-image-${{ matrix.service }}
-          path: ${{ matrix.service }}.tar.gz
-          retention-days: 1
-
-      - name: Output image name
-        id: output
-        run: |
-          echo "images={\"${{ matrix.service }}\": \"${{ steps.meta.outputs.tags }}\"}" >> $GITHUB_OUTPUT
+          name: image-${{ matrix.service }}
+          path: blacklist-${{ matrix.service }}.tar.gz
+          retention-days: 5

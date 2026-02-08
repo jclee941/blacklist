@@ -1,227 +1,209 @@
-# Blacklist Platform - CI/CD Pipeline
-# =====================================
-# Triggers: Push to master/airgap, Pull requests, Manual dispatch
-# 
-# Jobs:
-#   - lint: ESLint + TypeScript check
-#   - test: Vitest unit tests
-#   - build: Docker image build
-#   - package: Airgap bundle creation (airgap branch only)
-#   - deploy: Deploy to LXC 220 (manual or master push)
-
-name: CI/CD Pipeline
+# Consolidated CI Pipeline
+# Replaces: ci.yml (frontend-only) + ci-new.yml (self-hosted only)
+# Fixes: tsc error suppression (|| echo), vitest continue-on-error, missing backend CI
+# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
+name: CI
 
 on:
   push:
-    branches: [master, airgap]
+    branches: [master]
   pull_request:
     branches: [master]
-  workflow_dispatch:
-    inputs:
-      deploy_type:
-        description: 'Deployment type'
-        required: true
-        default: 'frontend'
-        type: choice
-        options:
-          - frontend
-          - full
-          - rollback
-      rollback_tag:
-        description: 'Image tag for rollback (only used when deploy_type=rollback)'
-        required: false
-        default: ''
-      skip_tests:
-        description: 'Skip lint and test jobs'
-        required: false
-        default: false
-        type: boolean
 
-env:
-  NODE_VERSION: '20'
-  FRONTEND_IMAGE: blacklist-frontend
-  LXC_HOST: '192.168.50.220'
-  PVE_HOST: '192.168.50.100'
-  DEPLOY_PATH: '/opt/blacklist'
-  LXC_ID: '220'
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # ===========================================================================
-  # Lint Job
-  # ===========================================================================
-  lint:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_tests }}
+  detect-changes:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      collector: ${{ steps.filter.outputs.collector }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'app/**'
+              - 'tests/**'
+            collector:
+              - 'collector/**'
+
+  lint-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: frontend
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          node-version: 20
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
 
-      - name: Install dependencies
-        run: npm ci
+  lint-backend:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.backend == 'true' ||
+      needs.detect-changes.outputs.collector == 'true'
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install ruff
+      - run: ruff check app/ collector/
+      - run: ruff format --check app/ collector/
 
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Run TypeScript check
-        run: npx tsc --noEmit || echo "TypeScript check completed with warnings"
-
-  # ===========================================================================
-  # Test Job
-  # ===========================================================================
-  test:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    needs: lint
-    if: ${{ !inputs.skip_tests }}
+  test-frontend:
+    needs: lint-frontend
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: frontend
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          node-version: 20
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Vitest
-        run: npm run test -- --run --reporter=verbose
-        continue-on-error: true
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
+  test-backend:
+    needs: lint-backend
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: blacklist
+          POSTGRES_PASSWORD: blacklist
+          POSTGRES_DB: blacklist_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U blacklist"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://blacklist:blacklist@localhost:5432/blacklist_test
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          name: test-results
-          path: frontend/test-results/
-          retention-days: 7
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r app/requirements.txt
+      - run: python -m pytest tests/unit -v --cov=app/core --cov-report=term-missing
 
-  # ===========================================================================
-  # Build Job
-  # ===========================================================================
   build:
-    name: Build Docker Image
-    runs-on: ubuntu-latest
-    needs: [lint, test]
-    if: |
-      always() &&
-      (needs.lint.result == 'success' || needs.lint.result == 'skipped') &&
-      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    
+    needs: [detect-changes, lint-frontend, lint-backend, test-frontend, test-backend]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      (needs.detect-changes.outputs.frontend == 'true' ||
+       needs.detect-changes.outputs.backend == 'true' ||
+       needs.detect-changes.outputs.collector == 'true')
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [frontend, app, collector]
+        include:
+          - service: frontend
+            context: ./frontend
+            dockerfile: frontend/Dockerfile
+          - service: app
+            context: .
+            dockerfile: app/Dockerfile
+          - service: collector
+            context: .
+            dockerfile: collector/Dockerfile
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v5
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: false
-          tags: |
-            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-            ${{ env.FRONTEND_IMAGE }}:latest
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          load: true
+          tags: blacklist-${{ matrix.service }}:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/frontend-image.tar
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
+      - run: docker save blacklist-${{ matrix.service }}:ci | gzip > ${{ matrix.service }}.tar.gz
+      - uses: actions/upload-artifact@v4
         with:
-          name: frontend-image
-          path: /tmp/frontend-image.tar
+          name: image-${{ matrix.service }}
+          path: ${{ matrix.service }}.tar.gz
           retention-days: 1
 
-  # ===========================================================================
-  # E2E Test Job (Disabled - requires self-hosted runner with network access)
-  # ===========================================================================
-  # e2e:
-  #   Disabled: Requires self-hosted runner with local network access to LXC 220
-  #   Use release.yml for airgap deployment instead
-
-  # ===========================================================================
-  # Package Airgap Bundle
-  # ===========================================================================
-  package:
-    name: Create Airgap Bundle
-    runs-on: ubuntu-latest
+  e2e:
     needs: build
-    if: |
-      needs.build.result == 'success' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/airgap' || startsWith(github.ref, 'refs/tags/'))
-    
+    if: needs.build.result == 'success'
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download frontend image
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: frontend-image
-          path: /tmp
-
-      - name: Load and save image
+          pattern: image-*
+          merge-multiple: true
+      - name: Load images
         run: |
-          docker load -i /tmp/frontend-image.tar
-          
-          mkdir -p deploy/airgap/images
-          
-          docker save ${{ env.FRONTEND_IMAGE }}:latest | gzip > deploy/airgap/images/${{ env.FRONTEND_IMAGE }}.tar.gz
-          
-          echo "Frontend image saved: $(ls -lh deploy/airgap/images/)"
-
-      - name: Generate checksums
-        run: |
-          cd deploy/airgap/images
-          sha256sum *.tar.gz > checksums.sha256
-          cat checksums.sha256
-
-      - name: Create bundle
-        run: |
-          BUNDLE_NAME="blacklist-airgap-${{ github.sha }}.tar.gz"
-          
-          tar -czvf ${BUNDLE_NAME} \
-            -C deploy/airgap \
-            docker-compose.yml \
-            install.sh \
-            images/
-          
-          echo "Bundle created: $(ls -lh ${BUNDLE_NAME})"
-          sha256sum ${BUNDLE_NAME}
-
-      - name: Upload airgap bundle
-        uses: actions/upload-artifact@v4
+          for f in *.tar.gz; do
+            gunzip -c "$f" | docker load
+          done
+      - name: Start services
+        run: docker compose -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 120
+      - uses: actions/setup-node@v4
         with:
-          name: airgap-bundle
-          path: blacklist-airgap-*.tar.gz
-          retention-days: 30
-
-  # ===========================================================================
-  # Deploy Job (Disabled - requires self-hosted runner)
-  # ===========================================================================
-  # deploy:
-  #   Disabled: Requires self-hosted runner with local network access to LXC 220
-  #   Use release.yml for airgap deployment instead
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: https://localhost:3443
+      - name: Collect logs
+        if: failure()
+        run: docker compose -f .github/docker-compose.ci.yml logs --no-color > docker-logs.txt 2>&1
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-failure-logs
+          path: |
+            docker-logs.txt
+            frontend/test-results/
+          retention-days: 7
+      - if: always()
+        run: docker compose -f .github/docker-compose.ci.yml down -v
