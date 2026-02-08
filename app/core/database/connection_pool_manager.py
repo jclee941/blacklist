@@ -1,7 +1,8 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 스마트 PostgreSQL 연결 관리자 - 반복 오류 방지 및 로깅 개선
 """
+
 import os
 import time
 import logging
@@ -65,10 +66,7 @@ class SmartConnectionManager:
         time_since_error = (now - self._last_error_time).total_seconds()
 
         # 백오프 기간 내이고 최대 로그 수를 초과했으면 억제
-        if (
-            time_since_error < self._backoff_duration
-            and self._error_count >= self._max_error_logs
-        ):
+        if time_since_error < self._backoff_duration and self._error_count >= self._max_error_logs:
             return True
 
         # 백오프 기간이 지났으면 카운터 리셋
@@ -87,8 +85,7 @@ class SmartConnectionManager:
 
         if self._error_count == self._max_error_logs:
             logger.warning(
-                f"PostgreSQL 연결 실패 ({host}): {error} "
-                f"(이후 {self._backoff_duration}초 동안 유사 오류 로깅 억제)"
+                f"PostgreSQL 연결 실패 ({host}): {error} (이후 {self._backoff_duration}초 동안 유사 오류 로깅 억제)"
             )
         else:
             logger.warning(f"PostgreSQL 연결 실패 ({host}): {error}")
@@ -134,8 +131,7 @@ class SmartConnectionManager:
         if (
             self._cached_stats
             and self._cached_stats.get("cached_at")
-            and (datetime.now() - self._cached_stats["cached_at"]).total_seconds()
-            < self._cache_timeout
+            and (datetime.now() - self._cached_stats["cached_at"]).total_seconds() < self._cache_timeout
         ):
             return self._cached_stats["data"]
 
@@ -228,5 +224,5 @@ if __name__ == "__main__":
     print("스마트 PostgreSQL 연결 테스트:")
     for i in range(3):
         stats = get_postgres_stats_smart()
-        print(f"테스트 {i+1}: {stats}")
+        print(f"테스트 {i + 1}: {stats}")
         time.sleep(1)

@@ -125,18 +125,19 @@ class RegtechCollector:
                 "https": self.proxy_url,
             }
 
-
         logger.info(f"🔐 REGTECH 로그인 시도: {username}")
 
         try:
             # Step 0: loginForm GET (세션 쿠키 획득 + 헤더 설정)
             login_page_url = f"{self.base_url}/login/loginForm"
-            self.session.headers.update({
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "ko-KR,ko;q=0.9",
-                "Referer": login_page_url,
-            })
+            self.session.headers.update(
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "ko-KR,ko;q=0.9",
+                    "Referer": login_page_url,
+                }
+            )
             self.session.get(login_page_url, timeout=30)
 
             # Step 1: addLogin (로그인 form submit - policy_monitor.py 방식)

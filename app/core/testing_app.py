@@ -1,7 +1,8 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Minimal Flask app for testing
 """
+
 import os
 import logging
 from flask import Flask, jsonify

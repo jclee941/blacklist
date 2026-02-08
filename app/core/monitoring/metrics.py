@@ -6,6 +6,7 @@ Prometheus metrics for Blacklist application
 Note: Uses lazy initialization to prevent duplicate metrics registration
 when module is imported multiple times (Flask app factory pattern).
 """
+
 import time
 import logging
 from functools import wraps
@@ -31,12 +32,12 @@ def _metric_exists(name):
     if name in REGISTRY._names_to_collectors:
         return True
     # Check with common suffixes (Counter adds _total, _created)
-    for suffix in ['_total', '_created', '_bucket', '_count', '_sum']:
+    for suffix in ["_total", "_created", "_bucket", "_count", "_sum"]:
         if f"{name}{suffix}" in REGISTRY._names_to_collectors:
             return True
     # Check all collectors for _name attribute
     for collector in list(REGISTRY._names_to_collectors.values()):
-        if hasattr(collector, '_name') and collector._name == name:
+        if hasattr(collector, "_name") and collector._name == name:
             return True
     return False
 
@@ -48,7 +49,7 @@ def _get_existing_metric(name):
         return REGISTRY._names_to_collectors[name]
     # Check collectors for _name attribute
     for collector in list(REGISTRY._names_to_collectors.values()):
-        if hasattr(collector, '_name') and collector._name == name:
+        if hasattr(collector, "_name") and collector._name == name:
             return collector
     return None
 
@@ -245,9 +246,7 @@ def setup_metrics(app):
         # Record request size
         if request.content_length:
             endpoint = request.endpoint or "unknown"
-            http_request_size_bytes.labels(
-                method=request.method, endpoint=endpoint
-            ).observe(request.content_length)
+            http_request_size_bytes.labels(method=request.method, endpoint=endpoint).observe(request.content_length)
 
     @app.after_request
     def after_request(response):
@@ -264,15 +263,13 @@ def setup_metrics(app):
                 status_code=response.status_code,
             ).inc()
 
-            http_request_duration_seconds.labels(
-                method=request.method, endpoint=endpoint
-            ).observe(duration)
+            http_request_duration_seconds.labels(method=request.method, endpoint=endpoint).observe(duration)
 
             # Record response size
             if response.content_length:
-                http_response_size_bytes.labels(
-                    method=request.method, endpoint=endpoint
-                ).observe(response.content_length)
+                http_response_size_bytes.labels(method=request.method, endpoint=endpoint).observe(
+                    response.content_length
+                )
 
         return response
 
@@ -280,16 +277,11 @@ def setup_metrics(app):
     def handle_not_found(error):
         """404 에러 조용히 처리 (메트릭만 기록)"""
         endpoint = request.endpoint or "unknown"
-        blacklist_errors_total.labels(
-            error_type="NotFound", endpoint=endpoint
-        ).inc()
+        blacklist_errors_total.labels(error_type="NotFound", endpoint=endpoint).inc()
         # 404는 조용히 반환 (500으로 변환하지 않음)
         from flask import jsonify
-        return jsonify({
-            "error": "Not Found",
-            "message": "The requested URL was not found",
-            "path": request.path
-        }), 404
+
+        return jsonify({"error": "Not Found", "message": "The requested URL was not found", "path": request.path}), 404
 
     # @app.errorhandler(Exception)
     # def handle_exception(error):
@@ -310,9 +302,7 @@ def setup_metrics(app):
     def log_exception(sender, exception, **extra):
         endpoint = request.endpoint or "unknown"
         error_type = type(exception).__name__
-        blacklist_errors_total.labels(
-            error_type=error_type, endpoint=endpoint
-        ).inc()
+        blacklist_errors_total.labels(error_type=error_type, endpoint=endpoint).inc()
 
     got_request_exception.connect(log_exception, app)
 
@@ -355,15 +345,11 @@ def track_blacklist_query(query_type):
                 # Determine if query was a hit or miss
                 query_result = "hit" if result else "miss"
 
-                blacklist_queries_total.labels(
-                    query_type=query_type, result=query_result
-                ).inc()
+                blacklist_queries_total.labels(query_type=query_type, result=query_result).inc()
 
                 return result
             except Exception as e:
-                blacklist_queries_total.labels(
-                    query_type=query_type, result="error"
-                ).inc()
+                blacklist_queries_total.labels(query_type=query_type, result="error").inc()
                 raise e
 
         return wrapper
@@ -388,25 +374,17 @@ def track_db_operation(operation):
             try:
                 result = func(*args, **kwargs)
 
-                blacklist_db_operations_total.labels(
-                    operation=operation, status="success"
-                ).inc()
+                blacklist_db_operations_total.labels(operation=operation, status="success").inc()
 
                 duration = time.time() - start_time
-                blacklist_db_operation_duration_seconds.labels(
-                    operation=operation
-                ).observe(duration)
+                blacklist_db_operation_duration_seconds.labels(operation=operation).observe(duration)
 
                 return result
             except Exception as e:
-                blacklist_db_operations_total.labels(
-                    operation=operation, status="error"
-                ).inc()
+                blacklist_db_operations_total.labels(operation=operation, status="error").inc()
 
                 duration = time.time() - start_time
-                blacklist_db_operation_duration_seconds.labels(
-                    operation=operation
-                ).observe(duration)
+                blacklist_db_operation_duration_seconds.labels(operation=operation).observe(duration)
 
                 raise e
 

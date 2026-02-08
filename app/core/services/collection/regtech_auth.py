@@ -1,4 +1,4 @@
-﻿"""REGTECH 인증 및 로그인 모듈
+"""REGTECH 인증 및 로그인 모듈
 REGTECH 포털 로그인 및 세션 관리
 """
 
@@ -128,9 +128,7 @@ class REGTECHAuthManager:
                 "success": False,
                 "error": f"로그인 실패 - 상태코드: {login_response.status_code}",
                 "status_code": login_response.status_code,
-                "response_text": (
-                    login_response.text[:500] if login_response.text else "No response"
-                ),
+                "response_text": (login_response.text[:500] if login_response.text else "No response"),
             }
 
         except requests.exceptions.Timeout:
@@ -165,9 +163,7 @@ class REGTECHAuthManager:
             if "session_cookies" in login_result:
                 session_cookies = login_result["session_cookies"]
                 for cookie_name, cookie_value in session_cookies.items():
-                    session.cookies.set(
-                        cookie_name, cookie_value, domain="regtech.fsec.or.kr"
-                    )
+                    session.cookies.set(cookie_name, cookie_value, domain="regtech.fsec.or.kr")
                 logger.info(f"🍪 세션 쿠키 적용 완료: {list(session_cookies.keys())}")
 
             # 세션 캐시에 저장

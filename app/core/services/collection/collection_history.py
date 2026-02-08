@@ -64,9 +64,7 @@ class CollectionHistoryManager:
             """,
                 (
                     collection_type,  # service_name
-                    "scheduled"
-                    if not additional_info
-                    else additional_info.get("type", "manual"),
+                    "scheduled" if not additional_info else additional_info.get("type", "manual"),
                     datetime.now(),  # collection_date
                     collected_count,  # items_collected
                     success,
@@ -80,9 +78,7 @@ class CollectionHistoryManager:
             cursor.close()
             conn.close()
 
-            logger.info(
-                f"Collection history recorded: {collection_type}, {collected_count} items, success={success}"
-            )
+            logger.info(f"Collection history recorded: {collection_type}, {collected_count} items, success={success}")
             return True
 
         except Exception as e:
@@ -95,9 +91,7 @@ class CollectionHistoryManager:
         # 이 함수는 하위 호환성을 위해 유지
         pass
 
-    def get_recent_history(
-        self, collection_type: str = None, days: int = 30
-    ) -> List[Dict[str, Any]]:
+    def get_recent_history(self, collection_type: str = None, days: int = 30) -> List[Dict[str, Any]]:
         """최근 수집 이력 조회"""
         try:
             conn = self.db_service.get_connection()

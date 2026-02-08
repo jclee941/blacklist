@@ -34,7 +34,6 @@ class RegtechConfigService:
     ) -> Dict[str, Any]:
         """REGTECH 인증정보 저장 - 보안 서비스 사용"""
         try:
-
             # 추가 설정 정보
             config = {
                 "base_url": base_url,
@@ -49,9 +48,7 @@ class RegtechConfigService:
             # 보안 서비스를 통한 저장
             from .secure_credential_service import secure_credential_service
 
-            success = secure_credential_service.save_credentials(
-                "REGTECH", username, password, config
-            )
+            success = secure_credential_service.save_credentials("REGTECH", username, password, config)
 
             if success:
                 logger.info(f"✅ REGTECH 인증정보 저장 완료: {username}")
@@ -83,25 +80,13 @@ class RegtechConfigService:
             return {
                 "username": credentials.get("username", ""),
                 "password": credentials.get("password", ""),
-                "base_url": credentials.get("config", {}).get(
-                    "base_url", "https://regtech.fsec.or.kr"
-                ),
-                "login_url": credentials.get("config", {}).get(
-                    "login_url", "/login/loginProcess"
-                ),
-                "advisory_url": credentials.get("config", {}).get(
-                    "advisory_url", "/advisory/advisory01_search"
-                ),
-                "timeout_seconds": credentials.get("config", {}).get(
-                    "timeout_seconds", 30
-                ),
+                "base_url": credentials.get("config", {}).get("base_url", "https://regtech.fsec.or.kr"),
+                "login_url": credentials.get("config", {}).get("login_url", "/login/loginProcess"),
+                "advisory_url": credentials.get("config", {}).get("advisory_url", "/advisory/advisory01_search"),
+                "timeout_seconds": credentials.get("config", {}).get("timeout_seconds", 30),
                 "max_pages": credentials.get("config", {}).get("max_pages", 100),
-                "items_per_page": credentials.get("config", {}).get(
-                    "items_per_page", 50
-                ),
-                "request_delay_seconds": credentials.get("config", {}).get(
-                    "request_delay_seconds", 1
-                ),
+                "items_per_page": credentials.get("config", {}).get("items_per_page", 50),
+                "request_delay_seconds": credentials.get("config", {}).get("request_delay_seconds", 1),
                 "created_at": credentials.get("created_at"),
                 "updated_at": credentials.get("updated_at"),
             }
@@ -148,9 +133,7 @@ class RegtechConfigService:
                     "status": "failed",
                     "message": "저장된 인증정보가 없습니다",
                 }
-                return self._format_test_result(
-                    False, test_phases, start_time, "NO_CREDENTIALS"
-                )
+                return self._format_test_result(False, test_phases, start_time, "NO_CREDENTIALS")
 
             username = credentials.get("username", "").strip()
             password = credentials.get("password", "")
@@ -160,9 +143,7 @@ class RegtechConfigService:
                     "status": "failed",
                     "message": "인증정보가 불완전합니다",
                 }
-                return self._format_test_result(
-                    False, test_phases, start_time, "INCOMPLETE_CREDENTIALS"
-                )
+                return self._format_test_result(False, test_phases, start_time, "INCOMPLETE_CREDENTIALS")
 
             test_phases["credential_check"] = {
                 "status": "success",
@@ -188,9 +169,7 @@ class RegtechConfigService:
                         "status": "warning",
                         "message": f"수집 컨테이너 응답 이상 (코드: {health_response.status_code})",
                     }
-                    logger.warning(
-                        f"⚠️ Phase 2 경고: 컨테이너 응답 코드 {health_response.status_code}"
-                    )
+                    logger.warning(f"⚠️ Phase 2 경고: 컨테이너 응답 코드 {health_response.status_code}")
 
             except requests.RequestException as e:
                 test_phases["collector_health"] = {
@@ -198,9 +177,7 @@ class RegtechConfigService:
                     "message": f"수집 컨테이너 연결 실패: {str(e)[:100]}",
                 }
                 logger.error(f"❌ Phase 2 실패: 컨테이너 연결 오류 - {e}")
-                return self._format_test_result(
-                    False, test_phases, start_time, "COLLECTOR_UNAVAILABLE"
-                )
+                return self._format_test_result(False, test_phases, start_time, "COLLECTOR_UNAVAILABLE")
 
             # Phase 3: REGTECH 인증 테스트 (실제 로그인 시도)
             logger.info("🔐 Phase 3: REGTECH 포털 인증 테스트")
@@ -209,9 +186,7 @@ class RegtechConfigService:
 
                 # 오늘 날짜로 최소한의 테스트 수집 시도
                 today = datetime.now().strftime("%Y-%m-%d")
-                auth_test_result = collection_service.test_regtech_collection(
-                    username, password, today, today
-                )
+                auth_test_result = collection_service.test_regtech_collection(username, password, today, today)
 
                 if auth_test_result.get("success"):
                     collected_count = auth_test_result.get("collected_count", 0)
@@ -223,9 +198,7 @@ class RegtechConfigService:
                         "status": "success",
                         "message": f"데이터 접근 성공 ({collected_count}개 항목)",
                     }
-                    logger.info(
-                        f"✅ Phase 3-4 완료: 인증 및 데이터 접근 성공 ({collected_count}개)"
-                    )
+                    logger.info(f"✅ Phase 3-4 완료: 인증 및 데이터 접근 성공 ({collected_count}개)")
                 else:
                     auth_error = auth_test_result.get("error", "인증 실패")
                     test_phases["authentication"] = {
@@ -237,9 +210,7 @@ class RegtechConfigService:
                         "message": "인증 실패로 데이터 접근 불가",
                     }
                     logger.error(f"❌ Phase 3 실패: 인증 오류 - {auth_error}")
-                    return self._format_test_result(
-                        False, test_phases, start_time, "AUTH_FAILED"
-                    )
+                    return self._format_test_result(False, test_phases, start_time, "AUTH_FAILED")
 
             except Exception as e:
                 test_phases["authentication"] = {
@@ -247,15 +218,11 @@ class RegtechConfigService:
                     "message": f"인증 테스트 오류: {str(e)[:100]}",
                 }
                 logger.error(f"💥 Phase 3 오류: 인증 테스트 예외 - {e}")
-                return self._format_test_result(
-                    False, test_phases, start_time, "AUTH_ERROR"
-                )
+                return self._format_test_result(False, test_phases, start_time, "AUTH_ERROR")
 
             # 모든 단계 성공
             duration = (datetime.now() - start_time).total_seconds()
-            logger.info(
-                f"🎉 REGTECH 연결 테스트 완료 - 모든 단계 성공 (소요시간: {duration:.2f}초)"
-            )
+            logger.info(f"🎉 REGTECH 연결 테스트 완료 - 모든 단계 성공 (소요시간: {duration:.2f}초)")
 
             return self._format_test_result(True, test_phases, start_time, "SUCCESS")
 
@@ -263,9 +230,7 @@ class RegtechConfigService:
             logger.error(f"💥 REGTECH 연결 테스트 중 예외 발생: {e}")
             test_phases["authentication"]["status"] = "error"
             test_phases["authentication"]["message"] = f"테스트 중 오류: {str(e)[:100]}"
-            return self._format_test_result(
-                False, test_phases, start_time, "TEST_ERROR"
-            )
+            return self._format_test_result(False, test_phases, start_time, "TEST_ERROR")
 
     def _format_test_result(
         self, success: bool, phases: Dict, start_time: datetime, result_code: str
@@ -274,23 +239,15 @@ class RegtechConfigService:
         duration = (datetime.now() - start_time).total_seconds()
 
         # 성공한 단계 수 계산
-        success_count = sum(
-            1 for phase in phases.values() if phase["status"] == "success"
-        )
+        success_count = sum(1 for phase in phases.values() if phase["status"] == "success")
         total_phases = len(phases)
 
         # 전체 메시지 생성
         if success:
             main_message = "✅ 모든 연결 테스트 통과"
         else:
-            failed_phases = [
-                name
-                for name, phase in phases.items()
-                if phase["status"] in ["failed", "error"]
-            ]
-            main_message = (
-                f"❌ 연결 테스트 실패 (실패 단계: {', '.join(failed_phases)})"
-            )
+            failed_phases = [name for name, phase in phases.items() if phase["status"] in ["failed", "error"]]
+            main_message = f"❌ 연결 테스트 실패 (실패 단계: {', '.join(failed_phases)})"
 
         return {
             "success": success,
@@ -314,9 +271,7 @@ class RegtechConfigService:
                 logger.warning("업데이트할 인증정보가 없습니다.")
                 return False
 
-            result = self.save_regtech_credentials(
-                credentials["username"], new_password
-            )
+            result = self.save_regtech_credentials(credentials["username"], new_password)
             return result.get("success", False)
 
         except Exception as e:
@@ -366,6 +321,4 @@ class RegtechConfigService:
 from flask import current_app
 from werkzeug.local import LocalProxy
 
-regtech_config_service = LocalProxy(
-    lambda: current_app.extensions["regtech_config_service"]
-)
+regtech_config_service = LocalProxy(lambda: current_app.extensions["regtech_config_service"])

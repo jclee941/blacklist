@@ -83,12 +83,8 @@ class REGTECHPolicyMonitor:
             }
 
             # 로그인 요청
-            login_response = self.session.post(
-                auth_url, data=login_data, allow_redirects=True
-            )
-            logger.info(
-                f"Login response status: {login_response.status_code}, URL: {login_response.url}"
-            )
+            login_response = self.session.post(auth_url, data=login_data, allow_redirects=True)
+            logger.info(f"Login response status: {login_response.status_code}, URL: {login_response.url}")
 
             # 인증 성공 확인 (로그아웃 버튼, 마이페이지, 또는 메인 페이지 리다이렉트)
             if "로그아웃" in login_response.text or "마이페이지" in login_response.text:
@@ -98,9 +94,7 @@ class REGTECHPolicyMonitor:
                 logger.info("✅ REGTECH 인증 성공 (메인 페이지 리다이렉트)")
                 return True
             else:
-                logger.error(
-                    f"❌ REGTECH 인증 실패 (redirect to: {login_response.url})"
-                )
+                logger.error(f"❌ REGTECH 인증 실패 (redirect to: {login_response.url})")
                 # 에러 메시지 추출
                 soup = BeautifulSoup(login_response.text, "html.parser")
                 error_msg = soup.find(id="login_error")
@@ -133,15 +127,11 @@ class REGTECHPolicyMonitor:
 
             # HTML 구조 해시
             html_structure = " ".join([tag.name for tag in soup.find_all()])
-            structure_data["html_hash"] = hashlib.md5(
-                html_structure.encode("utf-8")
-            ).hexdigest()[:16]
+            structure_data["html_hash"] = hashlib.md5(html_structure.encode("utf-8")).hexdigest()[:16]
 
             # 주요 텍스트 콘텐츠 해시 (정책 변경 감지용)
             main_text = soup.get_text(separator=" ", strip=True)
-            structure_data["content_hash"] = hashlib.md5(
-                main_text.encode("utf-8")
-            ).hexdigest()[:16]
+            structure_data["content_hash"] = hashlib.md5(main_text.encode("utf-8")).hexdigest()[:16]
 
             # 테이블 헤더 정보 (데이터 구조 변경 감지용)
             table_headers = []
@@ -189,14 +179,9 @@ class REGTECHPolicyMonitor:
             }
 
             # 데이터 존재 여부 확인
-            if (
-                "데이터가 없습니다" in response.text
-                or "조회된 데이터가 없습니다" in response.text
-            ):
+            if "데이터가 없습니다" in response.text or "조회된 데이터가 없습니다" in response.text:
                 availability_info["status"] = "no_data"
-                availability_info["error_messages"].append(
-                    "No data available message found"
-                )
+                availability_info["error_messages"].append("No data available message found")
             elif response.text and "오류" in response.text:
                 availability_info["status"] = "error"
                 error_text = soup.find(text=lambda text: text and "오류" in text)
@@ -210,9 +195,7 @@ class REGTECHPolicyMonitor:
                     rows = data_table.find_all("tr")
                     # 헤더 제외하고 데이터 행 수 계산
                     availability_info["data_count"] = max(0, len(rows) - 1)
-                    availability_info["status"] = (
-                        "data_available" if len(rows) > 1 else "no_data"
-                    )
+                    availability_info["status"] = "data_available" if len(rows) > 1 else "no_data"
                 else:
                     availability_info["status"] = "no_table"
 
@@ -254,9 +237,7 @@ class REGTECHPolicyMonitor:
         for key in structure_keys:
             if current.get(key, 0) != baseline.get(key, 0):
                 changed_elements += 1
-                changes["changes"].append(
-                    f"{key}: {baseline.get(key, 0)} → {current.get(key, 0)}"
-                )
+                changes["changes"].append(f"{key}: {baseline.get(key, 0)} → {current.get(key, 0)}")
 
         # 해시 변경 확인
         if current.get("html_hash") != baseline.get("html_hash"):
@@ -294,9 +275,7 @@ class REGTECHPolicyMonitor:
 
         return changes
 
-    def _store_monitoring_data(
-        self, structure_data: Dict, availability_data: Dict, change_analysis: Dict
-    ):
+    def _store_monitoring_data(self, structure_data: Dict, availability_data: Dict, change_analysis: Dict):
         """모니터링 데이터 저장"""
         try:
             conn = self._get_db_connection()
@@ -430,14 +409,10 @@ class REGTECHPolicyMonitor:
             availability_data = self._check_data_availability()
 
             # 베이스라인과 비교
-            change_analysis = self._compare_structures(
-                current_structure, self.baseline_structure
-            )
+            change_analysis = self._compare_structures(current_structure, self.baseline_structure)
 
             # 모니터링 데이터 저장
-            self._store_monitoring_data(
-                current_structure, availability_data, change_analysis
-            )
+            self._store_monitoring_data(current_structure, availability_data, change_analysis)
 
             # 알림 조건 확인
             alerts_sent = []
@@ -451,16 +426,11 @@ class REGTECHPolicyMonitor:
             # 2. 연속 데이터 부재 알림
             if self._check_consecutive_no_data():
                 alert_message = f"REGTECH 포털에서 {self.consecutive_no_data_threshold}회 연속 데이터 부재"
-                self._send_alert(
-                    "consecutive_no_data", alert_message, availability_data
-                )
+                self._send_alert("consecutive_no_data", alert_message, availability_data)
                 alerts_sent.append("consecutive_no_data")
 
             # 3. 새로운 데이터 감지 알림
-            if (
-                availability_data.get("status") == "data_available"
-                and availability_data.get("data_count", 0) > 0
-            ):
+            if availability_data.get("status") == "data_available" and availability_data.get("data_count", 0) > 0:
                 # 이전에 데이터가 없었다면 알림
                 self._send_alert(
                     "data_available",
@@ -470,10 +440,7 @@ class REGTECHPolicyMonitor:
                 alerts_sent.append("data_available")
 
             # 베이스라인 업데이트 (구조 변경이 확정된 경우)
-            if (
-                change_analysis.get("change_detected", False)
-                and change_analysis.get("severity") != "high"
-            ):
+            if change_analysis.get("change_detected", False) and change_analysis.get("severity") != "high":
                 self.baseline_structure = current_structure
                 logger.info("베이스라인 구조 업데이트")
 
@@ -535,9 +502,7 @@ class REGTECHPolicyMonitor:
                 (days,),
             )
 
-            alerts_summary = {
-                row["alert_type"]: row["count"] for row in cursor.fetchall()
-            }
+            alerts_summary = {row["alert_type"]: row["count"] for row in cursor.fetchall()}
 
             cursor.close()
             conn.close()

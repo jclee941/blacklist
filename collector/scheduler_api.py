@@ -1,4 +1,4 @@
-﻿"""
+"""
 Scheduler API Endpoints
 Provides HTTP API for scheduler management
 """
@@ -20,16 +20,10 @@ def create_scheduler_api(scheduler_instance):
         """Get scheduler status"""
         try:
             status = scheduler_instance.get_status()
-            return jsonify({
-                "success": True,
-                **status
-            })
+            return jsonify({"success": True, **status})
         except Exception as e:
             logger.error(f"Error getting scheduler status: {e}")
-            return jsonify({
-                "success": False,
-                "error": str(e)
-            }), 500
+            return jsonify({"success": False, "error": str(e)}), 500
 
     @app.route("/api/scheduler/force-collection/<source>", methods=["POST"])
     def force_collection(source):
@@ -38,10 +32,12 @@ def create_scheduler_api(scheduler_instance):
             source_upper = source.upper()
 
             if source_upper not in scheduler_instance.collectors:
-                return jsonify({
-                    "success": False,
-                    "error": f"Unknown source: {source_upper}. Available: {list(scheduler_instance.collectors.keys())}"
-                }), 400
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": f"Unknown source: {source_upper}. Available: {list(scheduler_instance.collectors.keys())}",
+                    }
+                ), 400
 
             logger.info(f"Forcing collection for {source_upper}")
 
@@ -51,11 +47,7 @@ def create_scheduler_api(scheduler_instance):
 
         except Exception as e:
             logger.error(f"Error forcing collection: {e}")
-            return jsonify({
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }), 500
+            return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
 
     @app.route("/api/scheduler/restart", methods=["POST"])
     def restart_scheduler():
@@ -74,20 +66,18 @@ def create_scheduler_api(scheduler_instance):
 
             logger.info("✅ Scheduler restarted successfully")
 
-            return jsonify({
-                "success": True,
-                "message": "Scheduler restarted",
-                "collectors": list(scheduler_instance.collectors.keys()),
-                "timestamp": datetime.now().isoformat()
-            })
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Scheduler restarted",
+                    "collectors": list(scheduler_instance.collectors.keys()),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error restarting scheduler: {e}")
-            return jsonify({
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }), 500
+            return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
 
     @app.route("/api/scheduler/collectors", methods=["GET"])
     def list_collectors():
@@ -103,20 +93,13 @@ def create_scheduler_api(scheduler_instance):
                     "run_count": info["run_count"],
                     "error_count": info["error_count"],
                     "last_run": info["last_run"].isoformat() if info["last_run"] else None,
-                    "next_run": info["next_run"].isoformat() if info["next_run"] else None
+                    "next_run": info["next_run"].isoformat() if info["next_run"] else None,
                 }
 
-            return jsonify({
-                "success": True,
-                "collectors": collectors_info,
-                "total": len(collectors_info)
-            })
+            return jsonify({"success": True, "collectors": collectors_info, "total": len(collectors_info)})
 
         except Exception as e:
             logger.error(f"Error listing collectors: {e}")
-            return jsonify({
-                "success": False,
-                "error": str(e)
-            }), 500
+            return jsonify({"success": False, "error": str(e)}), 500
 
     return app

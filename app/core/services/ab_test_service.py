@@ -58,9 +58,7 @@ class ABTestService:
 
         return bucket < percentage
 
-    def track_experiment(
-        self, ip: str, feature: str, variant: str, result: Dict[str, Any]
-    ) -> None:
+    def track_experiment(self, ip: str, feature: str, variant: str, result: Dict[str, Any]) -> None:
         """
         실험 결과 추적
 
@@ -93,9 +91,7 @@ class ABTestService:
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-    def update_feature_percentage(
-        self, feature: str, percentage: int
-    ) -> Dict[str, Any]:
+    def update_feature_percentage(self, feature: str, percentage: int) -> Dict[str, Any]:
         """
         기능 롤아웃 비율 업데이트
 
@@ -115,9 +111,7 @@ class ABTestService:
         old_percentage = self.FEATURE_FLAGS[feature]["percentage"]
         self.FEATURE_FLAGS[feature]["percentage"] = percentage
 
-        logger.info(
-            f"Feature '{feature}' percentage updated: {old_percentage}% → {percentage}%"
-        )
+        logger.info(f"Feature '{feature}' percentage updated: {old_percentage}% → {percentage}%")
 
         return {
             "success": True,

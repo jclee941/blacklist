@@ -27,9 +27,7 @@ def get_flask_app():
         from core.app import create_app
 
         app = create_app()
-        logger.info(
-            "✅ Flask app created via core.app factory (Phase 1.3 security enabled)"
-        )
+        logger.info("✅ Flask app created via core.app factory (Phase 1.3 security enabled)")
         return app
     except ImportError as e1:
         logger.critical(f"❌ core.app import failed: {e1}")

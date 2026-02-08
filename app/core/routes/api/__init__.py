@@ -50,9 +50,11 @@ from . import dashboard_api
 from . import error_metrics_api
 
 from .settings_api import settings_api_bp
+
 api_bp.register_blueprint(settings_api_bp)
 
 from .collection.credentials import collection_credentials_bp
+
 api_bp.register_blueprint(collection_credentials_bp)
 
 from .collection.status import collection_status_bp

@@ -83,8 +83,7 @@ class FortiGateCollector:
         self._device_info: Dict[str, Any] = {}
 
         logger.info(
-            f"FortiGateCollector initialized for {self.host}:{self.port} "
-            f"(method: {'API' if use_api else 'SSH'})"
+            f"FortiGateCollector initialized for {self.host}:{self.port} (method: {'API' if use_api else 'SSH'})"
         )
 
     def authenticate(self) -> bool:
@@ -182,9 +181,7 @@ class FortiGateCollector:
                 logger.info(f"✅ API authentication successful for {self.host}")
                 return True
             else:
-                logger.error(
-                    f"❌ API authentication failed: {response.status_code} - {response.text}"
-                )
+                logger.error(f"❌ API authentication failed: {response.status_code} - {response.text}")
                 return False
 
         except requests.exceptions.SSLError as e:
@@ -213,9 +210,7 @@ class FortiGateCollector:
 
         try:
             # Execute command
-            stdin, stdout, stderr = self._ssh_client.exec_command(
-                command, timeout=self.SSH_TIMEOUT
-            )
+            stdin, stdout, stderr = self._ssh_client.exec_command(command, timeout=self.SSH_TIMEOUT)
 
             output = stdout.read().decode("utf-8", errors="ignore")
             error = stderr.read().decode("utf-8", errors="ignore")
@@ -277,9 +272,7 @@ class FortiGateCollector:
         else:
             return self._collect_sessions_ssh(filter_blocked)
 
-    def _collect_sessions_ssh(
-        self, filter_blocked: bool = False
-    ) -> List[Dict[str, Any]]:
+    def _collect_sessions_ssh(self, filter_blocked: bool = False) -> List[Dict[str, Any]]:
         """
         Collect sessions via SSH CLI.
 
@@ -296,9 +289,7 @@ class FortiGateCollector:
             if filter_blocked:
                 # Get sessions that match blocked IPs
                 command = (
-                    "diagnose sys session filter clear\n"
-                    "diagnose sys session filter policy 0\n"
-                    "diagnose sys session list"
+                    "diagnose sys session filter clear\ndiagnose sys session filter policy 0\ndiagnose sys session list"
                 )
             else:
                 command = "diagnose sys session list"
@@ -319,9 +310,7 @@ class FortiGateCollector:
             logger.error(f"Failed to collect sessions: {e}")
             return []
 
-    def _collect_sessions_api(
-        self, filter_blocked: bool = False
-    ) -> List[Dict[str, Any]]:
+    def _collect_sessions_api(self, filter_blocked: bool = False) -> List[Dict[str, Any]]:
         """
         Collect sessions via REST API.
 
@@ -478,9 +467,7 @@ class FortiGateCollector:
             logger.warning(f"Failed to parse session block: {e}")
             return None
 
-    def get_blocked_sessions(
-        self, blacklist_ips: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
+    def get_blocked_sessions(self, blacklist_ips: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
         Get sessions involving blocked IPs.
 
@@ -507,14 +494,11 @@ class FortiGateCollector:
 
             if src_ip in blacklist_set or dst_ip in blacklist_set:
                 session["blocked_ip"] = src_ip if src_ip in blacklist_set else dst_ip
-                session["direction"] = (
-                    "inbound" if src_ip in blacklist_set else "outbound"
-                )
+                session["direction"] = "inbound" if src_ip in blacklist_set else "outbound"
                 blocked_sessions.append(session)
 
         logger.info(
-            f"Found {len(blocked_sessions)} sessions involving blocked IPs "
-            f"out of {len(all_sessions)} total sessions"
+            f"Found {len(blocked_sessions)} sessions involving blocked IPs out of {len(all_sessions)} total sessions"
         )
 
         return blocked_sessions
@@ -684,9 +668,7 @@ def collect_fortigate_sessions(
 
         except Exception as e:
             results["devices_failed"] += 1
-            results["errors"].append(
-                {"device": device_config.get("host", "unknown"), "error": str(e)}
-            )
+            results["errors"].append({"device": device_config.get("host", "unknown"), "error": str(e)})
             logger.error(f"Failed to collect from {device_config.get('host')}: {e}")
 
     logger.info(

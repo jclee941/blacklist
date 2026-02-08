@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ErrorEvent:
     """Represents a single error event"""
+
     timestamp: str
     exception_type: str
     status_code: int
@@ -85,7 +86,7 @@ class ErrorMetricsCollector:
         method: str,
         message: str,
         request_id: Optional[str] = None,
-        user_agent: Optional[str] = None
+        user_agent: Optional[str] = None,
     ) -> None:
         """
         Record an error event.
@@ -109,7 +110,7 @@ class ErrorMetricsCollector:
                 method=method,
                 message=message,
                 request_id=request_id,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
 
             # Add to recent errors
@@ -145,7 +146,7 @@ class ErrorMetricsCollector:
                 "by_endpoint": dict(self._endpoint_errors),
                 "by_status_code": dict(self._status_code_counts),
                 "uptime_hours": round(uptime_hours, 2),
-                "collection_start": self._start_time.isoformat()
+                "collection_start": self._start_time.isoformat(),
             }
 
     def get_recent_errors(
@@ -153,7 +154,7 @@ class ErrorMetricsCollector:
         limit: int = 50,
         exception_type: Optional[str] = None,
         endpoint: Optional[str] = None,
-        since: Optional[datetime] = None
+        since: Optional[datetime] = None,
     ) -> List[Dict]:
         """
         Get recent error events with optional filtering.
@@ -184,11 +185,7 @@ class ErrorMetricsCollector:
         # Apply limit and convert to dict
         return [asdict(e) for e in errors[-limit:]]
 
-    def get_error_trends(
-        self,
-        window_minutes: int = 60,
-        bucket_minutes: int = 5
-    ) -> Dict:
+    def get_error_trends(self, window_minutes: int = 60, bucket_minutes: int = 5) -> Dict:
         """
         Get error trends over time.
 
@@ -209,10 +206,7 @@ class ErrorMetricsCollector:
         window_start = now - timedelta(minutes=window_minutes)
 
         # Filter errors within window
-        recent = [
-            e for e in errors
-            if datetime.fromisoformat(e.timestamp) >= window_start
-        ]
+        recent = [e for e in errors if datetime.fromisoformat(e.timestamp) >= window_start]
 
         # Create buckets
         buckets = []
@@ -224,16 +218,17 @@ class ErrorMetricsCollector:
 
             # Count errors in this bucket
             bucket_errors = [
-                e for e in recent
-                if current_bucket_start <= datetime.fromisoformat(e.timestamp) < bucket_end
+                e for e in recent if current_bucket_start <= datetime.fromisoformat(e.timestamp) < bucket_end
             ]
 
-            buckets.append({
-                "start": current_bucket_start.isoformat(),
-                "end": bucket_end.isoformat(),
-                "count": len(bucket_errors),
-                "by_type": self._count_by_type(bucket_errors)
-            })
+            buckets.append(
+                {
+                    "start": current_bucket_start.isoformat(),
+                    "end": bucket_end.isoformat(),
+                    "count": len(bucket_errors),
+                    "by_type": self._count_by_type(bucket_errors),
+                }
+            )
 
             current_bucket_start = bucket_end
 
@@ -241,7 +236,7 @@ class ErrorMetricsCollector:
             "buckets": buckets,
             "total_in_window": len(recent),
             "window_minutes": window_minutes,
-            "bucket_minutes": bucket_minutes
+            "bucket_minutes": bucket_minutes,
         }
 
     def _count_by_type(self, errors: List[ErrorEvent]) -> Dict[str, int]:
@@ -251,11 +246,7 @@ class ErrorMetricsCollector:
             counts[error.exception_type] += 1
         return dict(counts)
 
-    def get_top_errors(
-        self,
-        by: str = "type",
-        limit: int = 10
-    ) -> List[Dict]:
+    def get_top_errors(self, by: str = "type", limit: int = 10) -> List[Dict]:
         """
         Get top errors by various criteria.
 
@@ -277,16 +268,9 @@ class ErrorMetricsCollector:
                 raise ValueError(f"Invalid 'by' parameter: {by}")
 
             # Sort by count descending
-            sorted_items = sorted(
-                data.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:limit]
+            sorted_items = sorted(data.items(), key=lambda x: x[1], reverse=True)[:limit]
 
-            return [
-                {"key": key, "count": count}
-                for key, count in sorted_items
-            ]
+            return [{"key": key, "count": count} for key, count in sorted_items]
 
     def reset_metrics(self) -> None:
         """Reset all metrics (use with caution)"""

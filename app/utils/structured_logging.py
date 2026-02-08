@@ -1,8 +1,9 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 스마트 로깅 시스템 - 중복 방지 및 노이즈 필터링
 Phase 2.1: Structlog 기반 구조화된 로깅
 """
+
 import logging
 import time
 import re
@@ -30,9 +31,7 @@ class DuplicateFilter(logging.Filter):
 
         # 시간 윈도우 밖의 기록들 정리
         self.message_counts[message_key] = [
-            t
-            for t in self.message_counts[message_key]
-            if current_time - t < self.time_window
+            t for t in self.message_counts[message_key] if current_time - t < self.time_window
         ]
 
         # 현재 시간 추가
@@ -102,10 +101,7 @@ class LogLevelFixer(logging.Filter):
         message = record.getMessage().lower()
 
         # 메시지 내용에 따라 로그 레벨 추론
-        if any(
-            keyword in message
-            for keyword in ["error", "failed", "exception", "critical"]
-        ):
+        if any(keyword in message for keyword in ["error", "failed", "exception", "critical"]):
             record.levelno = logging.ERROR
             record.levelname = "ERROR"
         elif any(keyword in message for keyword in ["warning", "warn", "경고", "실패"]):
@@ -141,8 +137,7 @@ class SmartLogFormatter(logging.Formatter):
             import json
 
             log_entry = {
-                "timestamp": datetime.fromtimestamp(record.created).isoformat()
-                + "+00:00",
+                "timestamp": datetime.fromtimestamp(record.created).isoformat() + "+00:00",
                 "level": record.levelname,
                 "name": record.name,
                 "message": record.getMessage(),
@@ -192,8 +187,6 @@ def setup_smart_logging(
     return logger
 
 
-
-
 def configure_structlog():
     """
     Phase 2.1: Structlog 전역 설정
@@ -209,7 +202,7 @@ def configure_structlog():
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            JSONRenderer()
+            JSONRenderer(),
         ],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -227,12 +220,13 @@ def configure_structlog():
 def get_structured_logger(name: str):
     """
     구조화된 로거 생성
-    
+
     Usage:
         logger = get_structured_logger(__name__)
         logger.info("blacklist_decision", ip="1.2.3.4", decision="BLOCKED", reason="whitelist")
     """
     return structlog.get_logger(name)
+
 
 def setup_smart_logging_for_app(app):
     """Flask 앱에 스마트 로깅 적용"""

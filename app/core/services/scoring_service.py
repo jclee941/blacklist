@@ -44,9 +44,7 @@ class ThreatScoringService:
         if detection_count > 0:
             detection_score = min(detection_count * 5, 30)
             score += detection_score
-            logger.info(
-                f"Score +{detection_score}: {ip} detected {detection_count} times"
-            )
+            logger.info(f"Score +{detection_score}: {ip} detected {detection_count} times")
 
         # 3. 소스 신뢰도 (최대 20점)
         source = context.get("source", "unknown")
@@ -67,9 +65,7 @@ class ThreatScoringService:
                 from datetime import datetime, timedelta
 
                 if isinstance(last_seen, str):
-                    last_seen_dt = datetime.fromisoformat(
-                        last_seen.replace("Z", "+00:00")
-                    )
+                    last_seen_dt = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
                 else:
                     last_seen_dt = last_seen
 
@@ -98,9 +94,7 @@ class ThreatScoringService:
         else:
             return "ALLOW"
 
-    def evaluate_with_scoring(
-        self, ip: str, blacklist_data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def evaluate_with_scoring(self, ip: str, blacklist_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         스코어링 기반 종합 평가
 
@@ -155,9 +149,7 @@ class ThreatScoringService:
         explanation_parts = [f"IP {ip}의 위협 점수: {score}/100 → {action}"]
 
         if details.get("in_blacklist"):
-            explanation_parts.append(
-                f"- 블랙리스트 등록됨 (소스: {details.get('source', 'unknown')})"
-            )
+            explanation_parts.append(f"- 블랙리스트 등록됨 (소스: {details.get('source', 'unknown')})")
 
         if details.get("detection_count", 0) > 0:
             explanation_parts.append(f"- 탐지 횟수: {details['detection_count']}회")

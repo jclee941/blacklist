@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from collector.core.secudium_parsers import (
     parse_black_ip_list,
     extract_download_info,
@@ -21,7 +21,7 @@ class TestParseBlackIpList:
                         "[SK쉴더스] 신규 침해 Black IP - 2026-02-06",
                         "정예린",
                         "2026-02-06 01:25:51",
-                        "<button onclick='download(\"abc-uuid\", \"file.xls\");'>Down</button>",
+                        '<button onclick=\'download("abc-uuid", "file.xls");\'>Down</button>',
                         "0",
                         "N",
                     ],
@@ -65,10 +65,12 @@ class TestParseBlackIpList:
     def test_multiple_rows(self):
         rows = []
         for i in range(5):
-            rows.append({
-                "id": i,
-                "data": ["", "", f"Title {i}", "Author", "2026-01-01", "<btn>", "0", "N"],
-            })
+            rows.append(
+                {
+                    "id": i,
+                    "data": ["", "", f"Title {i}", "Author", "2026-01-01", "<btn>", "0", "N"],
+                }
+            )
         result = parse_black_ip_list({"rows": rows})
         assert len(result) == 5
         assert [r["id"] for r in result] == [0, 1, 2, 3, 4]
@@ -85,7 +87,7 @@ class TestExtractDownloadInfo:
         assert display_filename == "blackip_20260206.xls"
 
     def test_double_quoted_onclick(self):
-        html = '<button onclick="download(\'uuid-456\', \'report.xls\');">Download</button>'
+        html = "<button onclick=\"download('uuid-456', 'report.xls');\">Download</button>"
         result = extract_download_info(html)
         assert result is not None
         server_filename, _ = result

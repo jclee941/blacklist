@@ -68,16 +68,12 @@ def set_regtech_credentials():
             )
 
         # 선택적 필드 (기본값 사용)
-        base_url = data.get(
-            "base_url", os.getenv("REGTECH_BASE_URL", "https://regtech.fsec.or.kr")
-        )
+        base_url = data.get("base_url", os.getenv("REGTECH_BASE_URL", "https://regtech.fsec.or.kr"))
         login_url = data.get("login_url", "/login/loginProcess")
         advisory_url = data.get("advisory_url", "/fcti/securityAdvisory/advisoryList")
         auto_test = data.get("auto_test", True)  # 기본적으로 자동 테스트 수행
 
-        logger.info(
-            f"🔐 REGTECH 인증정보 설정 요청 - 사용자: {username}, 자동테스트: {auto_test}"
-        )
+        logger.info(f"🔐 REGTECH 인증정보 설정 요청 - 사용자: {username}, 자동테스트: {auto_test}")
 
         # Use dependency injection
         regtech_config_service = current_app.extensions["regtech_config_service"]
@@ -115,41 +111,29 @@ def set_regtech_credentials():
                 auto_collect = data.get("auto_collect", False)
                 if auto_collect:
                     try:
-                        collection_service = current_app.extensions[
-                            "collection_service"
-                        ]
+                        collection_service = current_app.extensions["collection_service"]
 
                         # 최근 7일간의 데이터 수집 시작
                         end_date = datetime.now().strftime("%Y-%m-%d")
-                        start_date = (datetime.now() - timedelta(days=7)).strftime(
-                            "%Y-%m-%d"
-                        )
+                        start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
 
                         # 백그라운드에서 수집 시작
                         import threading
 
                         def auto_collect_background():
                             try:
-                                logger.info(
-                                    f"🚀 자동 수집 시작: {start_date} ~ {end_date}"
-                                )
+                                logger.info(f"🚀 자동 수집 시작: {start_date} ~ {end_date}")
                                 result = collection_service.trigger_regtech_collection(
                                     start_date=start_date, end_date=end_date
                                 )
                                 if result["success"]:
-                                    logger.info(
-                                        f"✅ 자동 수집 완료: {result['collected_count']}개 수집"
-                                    )
+                                    logger.info(f"✅ 자동 수집 완료: {result['collected_count']}개 수집")
                                 else:
-                                    logger.warning(
-                                        f"⚠️ 자동 수집 실패: {result.get('error', '알 수 없는 오류')}"
-                                    )
+                                    logger.warning(f"⚠️ 자동 수집 실패: {result.get('error', '알 수 없는 오류')}")
                             except Exception as e:
                                 logger.error(f"💥 자동 수집 중 오류: {e}")
 
-                        collection_thread = threading.Thread(
-                            target=auto_collect_background, daemon=True
-                        )
+                        collection_thread = threading.Thread(target=auto_collect_background, daemon=True)
                         collection_thread.start()
 
                         response_data["auto_collection"] = {
@@ -166,12 +150,8 @@ def set_regtech_credentials():
                         }
             else:
                 response_data["connection_status"] = "failed"
-                response_data["warning"] = test_result.get(
-                    "message", "연결 테스트 실패"
-                )
-                response_data["message"] += (
-                    f" (연결 테스트 실패: {test_result.get('result_code', 'UNKNOWN')})"
-                )
+                response_data["warning"] = test_result.get("message", "연결 테스트 실패")
+                response_data["message"] += f" (연결 테스트 실패: {test_result.get('result_code', 'UNKNOWN')})"
 
             total_duration = (datetime.now() - start_time).total_seconds()
             response_data["total_duration"] = total_duration
@@ -244,9 +224,7 @@ def get_regtech_credentials_info():
             "has_password": len(credentials["password"]) > 0,
         }
 
-        return jsonify(
-            {"success": True, "has_credentials": True, "data": safe_credentials}
-        )
+        return jsonify({"success": True, "has_credentials": True, "data": safe_credentials})
 
     except Exception as e:
         logger.error(f"REGTECH 인증 정보 조회 중 오류: {e}")
@@ -290,35 +268,23 @@ def test_regtech_connection():
 
                     # 최근 7일간의 데이터 수집 시작 (30일 → 7일로 단축)
                     end_date = datetime.now().strftime("%Y-%m-%d")
-                    start_date = (datetime.now() - timedelta(days=7)).strftime(
-                        "%Y-%m-%d"
-                    )
+                    start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
 
                     def auto_collect_background():
                         try:
-                            logger.info(
-                                f"🚀 연결 테스트 성공 후 자동 수집 시작: {start_date} ~ {end_date}"
-                            )
-                            collection_result = (
-                                collection_service.trigger_regtech_collection(
-                                    start_date=start_date, end_date=end_date
-                                )
+                            logger.info(f"🚀 연결 테스트 성공 후 자동 수집 시작: {start_date} ~ {end_date}")
+                            collection_result = collection_service.trigger_regtech_collection(
+                                start_date=start_date, end_date=end_date
                             )
                             if collection_result["success"]:
-                                logger.info(
-                                    f"✅ 자동 수집 완료: {collection_result['collected_count']}개 수집"
-                                )
+                                logger.info(f"✅ 자동 수집 완료: {collection_result['collected_count']}개 수집")
                             else:
-                                logger.warning(
-                                    f"⚠️ 자동 수집 실패: {collection_result.get('error', '알 수 없는 오류')}"
-                                )
+                                logger.warning(f"⚠️ 자동 수집 실패: {collection_result.get('error', '알 수 없는 오류')}")
                         except Exception as e:
                             logger.error(f"💥 자동 수집 중 오류: {e}")
 
                     # 백그라운드 스레드로 수집 실행
-                    collection_thread = threading.Thread(
-                        target=auto_collect_background, daemon=True
-                    )
+                    collection_thread = threading.Thread(target=auto_collect_background, daemon=True)
                     collection_thread.start()
 
                     response_data["auto_collection"] = {
@@ -410,28 +376,20 @@ def update_regtech_password():
                     import threading
 
                     end_date = datetime.now().strftime("%Y-%m-%d")
-                    start_date = (datetime.now() - timedelta(days=30)).strftime(
-                        "%Y-%m-%d"
-                    )
+                    start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
                     def auto_collect():
                         try:
-                            logger.info(
-                                f"패스워드 업데이트 후 자동 수집 시작: {start_date} ~ {end_date}"
-                            )
+                            logger.info(f"패스워드 업데이트 후 자동 수집 시작: {start_date} ~ {end_date}")
                             result = collection_service.trigger_regtech_collection(
                                 start_date=start_date, end_date=end_date
                             )
                             if result["success"]:
-                                logger.info(
-                                    f"자동 수집 완료: {result['collected_count']}개 수집"
-                                )
+                                logger.info(f"자동 수집 완료: {result['collected_count']}개 수집")
                         except Exception as e:
                             logger.error(f"자동 수집 중 오류: {e}")
 
-                    collection_thread = threading.Thread(
-                        target=auto_collect, daemon=True
-                    )
+                    collection_thread = threading.Thread(target=auto_collect, daemon=True)
                     collection_thread.start()
 
                     return jsonify(
@@ -461,9 +419,7 @@ def update_regtech_password():
                 )
         else:
             return (
-                jsonify(
-                    {"success": False, "error": "패스워드 업데이트에 실패했습니다."}
-                ),
+                jsonify({"success": False, "error": "패스워드 업데이트에 실패했습니다."}),
                 500,
             )
 
@@ -490,28 +446,20 @@ def initialize_regtech():
                     import threading
 
                     end_date = datetime.now().strftime("%Y-%m-%d")
-                    start_date = (datetime.now() - timedelta(days=30)).strftime(
-                        "%Y-%m-%d"
-                    )
+                    start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
                     def auto_collect():
                         try:
-                            logger.info(
-                                f"초기화 후 자동 수집 시작: {start_date} ~ {end_date}"
-                            )
+                            logger.info(f"초기화 후 자동 수집 시작: {start_date} ~ {end_date}")
                             result = collection_service.trigger_regtech_collection(
                                 start_date=start_date, end_date=end_date
                             )
                             if result["success"]:
-                                logger.info(
-                                    f"자동 수집 완료: {result['collected_count']}개 수집"
-                                )
+                                logger.info(f"자동 수집 완료: {result['collected_count']}개 수집")
                         except Exception as e:
                             logger.error(f"자동 수집 중 오류: {e}")
 
-                    collection_thread = threading.Thread(
-                        target=auto_collect, daemon=True
-                    )
+                    collection_thread = threading.Thread(target=auto_collect, daemon=True)
                     collection_thread.start()
 
                     return jsonify(
@@ -572,9 +520,7 @@ def delete_regtech_credentials():
             )
         else:
             return (
-                jsonify(
-                    {"success": False, "error": "삭제할 REGTECH 인증정보가 없습니다."}
-                ),
+                jsonify({"success": False, "error": "삭제할 REGTECH 인증정보가 없습니다."}),
                 404,
             )
 
@@ -611,14 +557,10 @@ def trigger_regtech_collection():
         logger.info(f"REGTECH collection trigger requested: {start_date} to {end_date}")
 
         # Trigger REGTECH collection
-        result = collection_service.trigger_regtech_collection(
-            start_date=start_date, end_date=end_date
-        )
+        result = collection_service.trigger_regtech_collection(start_date=start_date, end_date=end_date)
 
         if result.get("success"):
-            logger.info(
-                f"✅ REGTECH collection completed: {result.get('collected_count', 0)} items"
-            )
+            logger.info(f"✅ REGTECH collection completed: {result.get('collected_count', 0)} items")
             return jsonify(
                 {
                     "success": True,
@@ -630,9 +572,7 @@ def trigger_regtech_collection():
                 }
             )
         else:
-            logger.warning(
-                f"REGTECH collection failed: {result.get('error', 'Unknown error')}"
-            )
+            logger.warning(f"REGTECH collection failed: {result.get('error', 'Unknown error')}")
             return jsonify(
                 {
                     "success": False,
@@ -643,9 +583,7 @@ def trigger_regtech_collection():
 
     except Exception as e:
         logger.error(f"REGTECH collection trigger error: {e}")
-        return jsonify(
-            {"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}
-        ), 500
+        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
 
 
 # 🚀 향상된 API 엔드포인트들 (새로운 경로)

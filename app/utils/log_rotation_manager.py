@@ -1,7 +1,8 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 로그 순환 관리 시스템 - 대용량 JSON 로그 파일 자동 순환
 """
+
 import os
 import glob
 import gzip
@@ -129,7 +130,7 @@ class LogRotationManager:
 
         removed_count = 0
         if len(files) > self.max_files:
-            files_to_remove = files[self.max_files:]
+            files_to_remove = files[self.max_files :]
 
             for filepath in files_to_remove:
                 try:
@@ -221,24 +222,17 @@ class LogRotationManager:
 
         # 현재 상태 확인
         stats_before = self.get_log_statistics()
-        logger.info(
-            f"유지보수 전 통계: {stats_before['total_files']}개 파일, "
-            f"{stats_before['total_size_mb']:.1f}MB"
-        )
+        logger.info(f"유지보수 전 통계: {stats_before['total_files']}개 파일, {stats_before['total_size_mb']:.1f}MB")
 
         # 순환 작업 실행
         results = self.rotate_all_large_files()
 
         # 완료 후 통계
         stats_after = self.get_log_statistics()
-        logger.info(
-            f"유지보수 후 통계: {stats_after['total_files']}개 파일, "
-            f"{stats_after['total_size_mb']:.1f}MB"
-        )
+        logger.info(f"유지보수 후 통계: {stats_after['total_files']}개 파일, {stats_after['total_size_mb']:.1f}MB")
 
         logger.info(
-            f"✅ 로그 순환 완료: 순환 {results['rotated']}개, "
-            f"정리 {results['cleaned']}개, 오류 {results['errors']}개"
+            f"✅ 로그 순환 완료: 순환 {results['rotated']}개, 정리 {results['cleaned']}개, 오류 {results['errors']}개"
         )
 
 

@@ -10,9 +10,7 @@ from .service_exceptions import ServiceUnavailableError
 from .validation_exceptions import ValidationError
 
 
-def handle_exception(
-    exc: Exception, context: Optional[Dict[str, Any]] = None
-) -> BlacklistError:
+def handle_exception(exc: Exception, context: Optional[Dict[str, Any]] = None) -> BlacklistError:
     """
     일반 예외를 Secudium 예외로 변환
 
@@ -62,9 +60,7 @@ def log_exception(exc: Exception, logger_instance: Optional[logging.Logger] = No
         log.error(f"Unhandled exception: {exc}", exc_info=True)
 
 
-def create_error_response(
-    exc: Exception, include_details: bool = False
-) -> Dict[str, Any]:
+def create_error_response(exc: Exception, include_details: bool = False) -> Dict[str, Any]:
     """
     예외를 API 응답 형태로 변환
 

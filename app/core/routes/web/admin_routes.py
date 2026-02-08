@@ -53,17 +53,11 @@ def api_admin_get_regtech_credentials():
                 "data": {
                     "username": credentials.get("username", ""),
                     "has_password": bool(credentials.get("password", "")),
-                    "base_url": credentials.get(
-                        "base_url", "https://regtech.fsec.or.kr"
-                    ),
+                    "base_url": credentials.get("base_url", "https://regtech.fsec.or.kr"),
                     "login_url": credentials.get("login_url", "/login/loginProcess"),
-                    "advisory_url": credentials.get(
-                        "advisory_url", "/fcti/securityAdvisory/advisoryList"
-                    ),
+                    "advisory_url": credentials.get("advisory_url", "/fcti/securityAdvisory/advisoryList"),
                     "timeout_seconds": credentials.get("timeout_seconds", 30),
-                    "request_delay_seconds": credentials.get(
-                        "request_delay_seconds", 1
-                    ),
+                    "request_delay_seconds": credentials.get("request_delay_seconds", 1),
                     "max_pages": credentials.get("max_pages", 100),
                     "items_per_page": credentials.get("items_per_page", 50),
                 },
@@ -219,9 +213,7 @@ def api_save_credentials(service_name):
                 }
             )
         else:
-            return jsonify(
-                {"success": False, "error": result.get("error", "저장 실패")}
-            )
+            return jsonify({"success": False, "error": result.get("error", "저장 실패")})
 
     except Exception as e:
         logger.error(f"Save credentials API error for {service_name}: {e}")
@@ -244,9 +236,7 @@ def api_delete_credentials(service_name):
                 }
             )
         else:
-            return jsonify(
-                {"success": False, "error": result.get("error", "삭제 실패")}
-            )
+            return jsonify({"success": False, "error": result.get("error", "삭제 실패")})
 
     except Exception as e:
         logger.error(f"Delete credentials API error for {service_name}: {e}")

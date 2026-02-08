@@ -9,9 +9,7 @@ from flask import request, current_app
 logger = logging.getLogger(__name__)
 
 
-def _log_pull_request(
-    endpoint: str, ip_count: int, status_code: int = 200, response_time_ms: int = 0
-):
+def _log_pull_request(endpoint: str, ip_count: int, status_code: int = 200, response_time_ms: int = 0):
     """Log FortiGate pull request to database"""
     try:
         db_service = current_app.extensions.get("db_service")

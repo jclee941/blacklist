@@ -97,15 +97,11 @@ class BlacklistRepository:
         )
 
     def get_active_blacklist_ips(self) -> list[str]:
-        results = self.db.query(
-            "SELECT ip_address FROM blacklist_ips_with_auto_inactive WHERE is_active = true"
-        )
+        results = self.db.query("SELECT ip_address FROM blacklist_ips_with_auto_inactive WHERE is_active = true")
         return [row["ip_address"] for row in results]
 
     def count_active_blacklist_ips(self) -> int:
-        result = self.db.query(
-            "SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive WHERE is_active = true"
-        )
+        result = self.db.query("SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive WHERE is_active = true")
         return result[0]["count"] if result else 0
 
     def get_source_counts(self) -> dict[str, dict]:
@@ -152,9 +148,7 @@ class BlacklistRepository:
         try:
             with self.db.get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    f"ALTER TABLE blacklist_ips ADD COLUMN {column_name} {column_type};"
-                )
+                cursor.execute(f"ALTER TABLE blacklist_ips ADD COLUMN {column_name} {column_type};")
                 conn.commit()
                 cursor.close()
                 return True

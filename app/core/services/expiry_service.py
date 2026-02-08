@@ -64,10 +64,7 @@ class IPExpiryService:
 
             # 만료된 IP 목록 로그
             for ip in expired_ips:
-                logger.info(
-                    f"비활성화: {ip['ip_address']} (소스: {ip['source']}, "
-                    f"해제일: {ip['removal_date']})"
-                )
+                logger.info(f"비활성화: {ip['ip_address']} (소스: {ip['source']}, 해제일: {ip['removal_date']})")
 
             return {
                 "success": True,
@@ -76,11 +73,7 @@ class IPExpiryService:
                     {
                         "ip_address": ip["ip_address"],
                         "source": ip["source"],
-                        "removal_date": (
-                            ip["removal_date"].isoformat()
-                            if ip["removal_date"]
-                            else None
-                        ),
+                        "removal_date": (ip["removal_date"].isoformat() if ip["removal_date"] else None),
                     }
                     for ip in expired_ips
                 ],

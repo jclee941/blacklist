@@ -1,4 +1,4 @@
-﻿"""
+"""
 Simple NextTrade Dashboard
 NextTrade 브랜딩이 포함된 간단한 대시보드
 """

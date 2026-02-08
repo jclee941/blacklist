@@ -1,4 +1,4 @@
-﻿"""
+"""
 Enhanced Logger Configuration with Tagging System
 로그 태깅 및 구조화된 로깅 시스템
 """
@@ -48,9 +48,7 @@ class StructuredFormatter(logging.Formatter):
             log_data["exception"] = {
                 "type": record.exc_info[0].__name__ if record.exc_info[0] else None,
                 "message": str(record.exc_info[1]) if record.exc_info[1] else None,
-                "traceback": (
-                    self.formatException(record.exc_info) if record.exc_info else None
-                ),
+                "traceback": (self.formatException(record.exc_info) if record.exc_info else None),
             }
 
         return json.dumps(log_data, ensure_ascii=False)

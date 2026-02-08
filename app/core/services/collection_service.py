@@ -66,21 +66,15 @@ class CollectionService:
                 result = self._perform_collection(source)
 
                 # 실행 시간 계산
-                execution_time_ms = int(
-                    (datetime.now() - start_time).total_seconds() * 1000
-                )
+                execution_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
                 # 수집 이력 기록
                 collected_count = result.get("collected_count", 0)
                 actual_success = result.get("success", False) and collected_count > 0
 
                 # 메트릭 로깅
-                logger.log_metric(
-                    "collection_time", execution_time_ms, "ms", source=source
-                )
-                logger.log_metric(
-                    "collected_items", collected_count, "items", source=source
-                )
+                logger.log_metric("collection_time", execution_time_ms, "ms", source=source)
+                logger.log_metric("collected_items", collected_count, "items", source=source)
 
                 if history_manager:
                     history_manager.record_collection_history(
@@ -89,9 +83,7 @@ class CollectionService:
                         additional_info={
                             "execution_time_ms": execution_time_ms,
                             "success": actual_success,
-                            "error": (
-                                result.get("error") if not actual_success else None
-                            ),
+                            "error": (result.get("error") if not actual_success else None),
                         },
                     )
 
@@ -99,23 +91,15 @@ class CollectionService:
                 if result.get("success") and result.get("data"):
                     try:
                         validated_data = (
-                            validator.validate_collection_data(result["data"])
-                            if validator
-                            else result["data"]
+                            validator.validate_collection_data(result["data"]) if validator else result["data"]
                         )
                         self._save_collection_data(source, validated_data)
-                        logger.with_tags(action="save").info(
-                            f"데이터 저장 완료: {len(validated_data)}개"
-                        )
+                        logger.with_tags(action="save").info(f"데이터 저장 완료: {len(validated_data)}개")
                         result["validated_count"] = len(validated_data)
                     except Exception as save_error:
-                        logger.with_tags(action="save_error").error(
-                            f"데이터 저장 실패: {save_error}"
-                        )
+                        logger.with_tags(action="save_error").error(f"데이터 저장 실패: {save_error}")
                         if status_manager:
-                            status_manager.update_collection_error(
-                                source, str(save_error)
-                            )
+                            status_manager.update_collection_error(source, str(save_error))
 
                 return result
 
@@ -125,13 +109,9 @@ class CollectionService:
                     status_manager.stop_collection(source)
 
         except Exception as e:
-            execution_time_ms = int(
-                (datetime.now() - start_time).total_seconds() * 1000
-            )
+            execution_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
-            logger.with_tags(exception=type(e).__name__).error(
-                f"EXCEPTION in trigger_collection: {e}"
-            )
+            logger.with_tags(exception=type(e).__name__).error(f"EXCEPTION in trigger_collection: {e}")
 
             # 오류 상태 업데이트
             if status_manager:
@@ -162,9 +142,7 @@ class CollectionService:
         start_time = time.time()
 
         try:
-            logger.info(
-                f"Starting REGTECH collection (Period: {start_date} to {end_date})"
-            )
+            logger.info(f"Starting REGTECH collection (Period: {start_date} to {end_date})")
 
             # Check if collection is already running
             if "regtech" in self.active_collections:
@@ -176,9 +154,7 @@ class CollectionService:
 
             # Pre-collection validation using validator
             validation_result = (
-                validator._validate_collection_prerequisites(username, password)
-                if validator
-                else {"valid": True}
+                validator._validate_collection_prerequisites(username, password) if validator else {"valid": True}
             )
             if not validation_result["valid"]:
                 return {
@@ -197,9 +173,7 @@ class CollectionService:
             try:
                 # REGTECH 컬렉터를 통한 수집
                 if username and password:
-                    result = regtech_collector.collect_real_regtech_data(
-                        username, password
-                    )
+                    result = regtech_collector.collect_real_regtech_data(username, password)
                 else:
                     collected_data = regtech_collector.collect_regtech_ips()
                     result = {
@@ -275,11 +249,7 @@ class CollectionService:
                 "success": overall_success,
                 "results": results,
                 "total_collected": total_collected,
-                "message": (
-                    f"전체 수집 완료. 총 {total_collected}개 수집됨"
-                    if overall_success
-                    else "일부 수집 실패"
-                ),
+                "message": (f"전체 수집 완료. 총 {total_collected}개 수집됨" if overall_success else "일부 수집 실패"),
             }
 
         except Exception as e:
@@ -296,11 +266,7 @@ class CollectionService:
             logger.info("Stopping all collections")
 
             # 상태 관리자를 통한 모든 수집 중지
-            result = (
-                status_manager.stop_all_collections()
-                if status_manager
-                else {"success": False}
-            )
+            result = status_manager.stop_all_collections() if status_manager else {"success": False}
 
             # 로컬 상태도 정리
             self.active_collections.clear()
@@ -375,9 +341,7 @@ class CollectionService:
                 "error": str(e),
             }
 
-    def get_collection_history(
-        self, days: int = 30, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    def get_collection_history(self, days: int = 30, limit: int = 50) -> List[Dict[str, Any]]:
         """수집 이력 조회 - 웹 UI용"""
         try:
             if not history_manager:
@@ -393,20 +357,14 @@ class CollectionService:
         """수집 상태 조회"""
         try:
             # 상태 관리자에서 종합 상태 조회
-            status_data = (
-                status_manager.get_collection_status() if status_manager else {}
-            )
+            status_data = status_manager.get_collection_status() if status_manager else {}
 
             # 추가 통계 정보
-            stats = (
-                history_manager.get_collection_statistics() if history_manager else {}
-            )
+            stats = history_manager.get_collection_statistics() if history_manager else {}
             status_data["statistics"] = stats
 
             # 최근 이력
-            recent_history = (
-                history_manager.get_recent_history(days=7) if history_manager else []
-            )
+            recent_history = history_manager.get_recent_history(days=7) if history_manager else []
             status_data["recent_history"] = recent_history
 
             return status_data
@@ -472,9 +430,7 @@ class CollectionService:
         self, username: str, password: str, start_date: str = None, end_date: str = None
     ) -> Dict[str, Any]:
         """REGTECH 인증정보로 테스트 수집"""
-        return regtech_collector.test_regtech_collection(
-            username, password, start_date, end_date
-        )
+        return regtech_collector.test_regtech_collection(username, password, start_date, end_date)
 
     def test_regtech_connection(self):
         """REGTECH 연결 테스트 메서드 (웹 UI 호환성)"""
@@ -499,9 +455,7 @@ class CollectionService:
                 }
 
             collected_count = len(collected_data)
-            logger.info(
-                f"Collection completed for {source}: {collected_count} real IP addresses"
-            )
+            logger.info(f"Collection completed for {source}: {collected_count} real IP addresses")
 
             return {
                 "success": True,

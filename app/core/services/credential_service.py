@@ -38,9 +38,7 @@ class CredentialService:
             # 새 키 생성
             key = Fernet.generate_key()
             encryption_key = key.decode()
-            logger.warning(
-                "⚠️ 새로운 암호화 키가 생성되었습니다. 환경변수 CREDENTIAL_ENCRYPTION_KEY에 저장하세요."
-            )
+            logger.warning("⚠️ 새로운 암호화 키가 생성되었습니다. 환경변수 CREDENTIAL_ENCRYPTION_KEY에 저장하세요.")
             logger.warning(f"CREDENTIAL_ENCRYPTION_KEY={encryption_key}")
 
         try:
@@ -219,9 +217,7 @@ class CredentialService:
                     logger.info(f"✅ 인증정보 파일 저장 완료: {regtech_id}")
                     return True
                 except (PermissionError, OSError) as file_error:
-                    logger.error(
-                        f"❌ 파일 저장도 실패 - 프로덕션 환경에서는 임시 메모리 저장: {file_error}"
-                    )
+                    logger.error(f"❌ 파일 저장도 실패 - 프로덕션 환경에서는 임시 메모리 저장: {file_error}")
                     # 프로덕션 환경에서는 메모리에 임시 저장
                     self._temp_credentials = credentials
                     logger.warning("⚠️ 메모리에 임시 저장됨 (재시작시 소실)")
@@ -259,9 +255,7 @@ class CredentialService:
                 # 평문 JSON으로 저장된 데이터 직접 파싱
                 credentials = json.loads(json_str)
 
-                logger.info(
-                    f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}"
-                )
+                logger.info(f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}")
                 return credentials
 
         except Exception as db_error:
@@ -285,9 +279,7 @@ class CredentialService:
                 # 암호화 실패시 평문으로 시도
                 credentials = json.loads(file_data.decode())
 
-            logger.info(
-                f"✅ 인증정보 파일 로드 완료: {credentials.get('regtech_id', 'N/A')}"
-            )
+            logger.info(f"✅ 인증정보 파일 로드 완료: {credentials.get('regtech_id', 'N/A')}")
             return credentials
 
         except Exception as e:
@@ -318,9 +310,7 @@ class CredentialService:
 
             if result:
                 regtech_id, regtech_pw = result
-                logger.info(
-                    f"✅ collection_credentials에서 인증정보 로드: {regtech_id}"
-                )
+                logger.info(f"✅ collection_credentials에서 인증정보 로드: {regtech_id}")
                 return {"regtech_id": regtech_id, "regtech_pw": regtech_pw}
             else:
                 logger.warning("⚠️ collection_credentials에서 인증정보를 찾을 수 없음")
@@ -429,9 +419,7 @@ if __name__ == "__main__":
     test_pw = os.getenv("REGTECH_PW")
 
     if not test_id or not test_pw:
-        logger.warning(
-            "❌ 테스트를 위한 환경변수가 설정되지 않음: REGTECH_ID, REGTECH_PW"
-        )
+        logger.warning("❌ 테스트를 위한 환경변수가 설정되지 않음: REGTECH_ID, REGTECH_PW")
         logger.info("   환경변수를 설정하거나 웹 UI를 통해 인증정보를 저장하세요.")
         exit(1)
 

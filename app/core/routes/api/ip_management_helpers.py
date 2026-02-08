@@ -11,9 +11,7 @@ from flask import request, jsonify, g, Response
 from ...exceptions import ValidationError
 
 
-def parse_pagination_params(
-    default_page: int = 1, default_limit: int = 50
-) -> Tuple[int, int]:
+def parse_pagination_params(default_page: int = 1, default_limit: int = 50) -> Tuple[int, int]:
     """
     Parse and validate pagination parameters from request args.
 
@@ -102,9 +100,7 @@ def serialize_single_row(row: Any) -> Dict[str, Any]:
     return row_dict
 
 
-def paginated_response(
-    items: List[Dict[str, Any]], total: int, page: int, limit: int
-) -> Tuple[Response, int]:
+def paginated_response(items: List[Dict[str, Any]], total: int, page: int, limit: int) -> Tuple[Response, int]:
     """
     Create a standardized paginated JSON response.
 

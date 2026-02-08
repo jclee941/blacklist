@@ -62,9 +62,7 @@ class RateLimiter:
         self.total_wait_time = 0.0
         self.request_history = deque(maxlen=1000)  # 최근 1000개 요청 추적
 
-        logger.info(
-            f"🚦 레이트 리미터 초기화: {requests_per_second} req/s, 버스트={burst_size}"
-        )
+        logger.info(f"🚦 레이트 리미터 초기화: {requests_per_second} req/s, 버스트={burst_size}")
 
     def _refill_tokens(self):
         """시간 경과에 따른 토큰 재충전"""
@@ -117,9 +115,7 @@ class RateLimiter:
                         }
                     )
 
-                    logger.debug(
-                        f"✅ 토큰 획득: {tokens}개 소비, 잔여={self.tokens:.2f}, 대기={wait_time:.3f}초"
-                    )
+                    logger.debug(f"✅ 토큰 획득: {tokens}개 소비, 잔여={self.tokens:.2f}, 대기={wait_time:.3f}초")
                     return True
 
                 # 타임아웃 확인
@@ -162,20 +158,14 @@ class RateLimiter:
             self.failure_count += 1
 
             # 백오프 시간 계산 (지수적 증가)
-            self.current_backoff = min(
-                self.max_backoff, (self.backoff_factor**self.failure_count) * 0.5
-            )
+            self.current_backoff = min(self.max_backoff, (self.backoff_factor**self.failure_count) * 0.5)
 
             # Rate Limit 에러 (429) 또는 서버 과부하 (503)인 경우 더 긴 대기
             if error_code in [429, 503]:
                 self.current_backoff = min(self.max_backoff, self.current_backoff * 2)
-                logger.warning(
-                    f"⚠️ API Rate Limit 감지 (HTTP {error_code}): {self.current_backoff:.2f}초 대기"
-                )
+                logger.warning(f"⚠️ API Rate Limit 감지 (HTTP {error_code}): {self.current_backoff:.2f}초 대기")
             else:
-                logger.warning(
-                    f"⚠️ 요청 실패 #{self.failure_count}: {self.current_backoff:.2f}초 백오프"
-                )
+                logger.warning(f"⚠️ 요청 실패 #{self.failure_count}: {self.current_backoff:.2f}초 백오프")
 
             # 백오프 대기
             if self.current_backoff > 0:
@@ -185,16 +175,12 @@ class RateLimiter:
     def get_stats(self) -> Dict[str, Any]:
         """레이트 리미터 통계 반환"""
         with self.lock:
-            avg_wait_time = (
-                self.total_wait_time / self.total_waits if self.total_waits > 0 else 0
-            )
+            avg_wait_time = self.total_wait_time / self.total_waits if self.total_waits > 0 else 0
 
             # 최근 1분간 요청 수 계산
             one_minute_ago = datetime.now() - timedelta(minutes=1)
             recent_requests = sum(
-                1
-                for req in self.request_history
-                if datetime.fromisoformat(req["timestamp"]) > one_minute_ago
+                1 for req in self.request_history if datetime.fromisoformat(req["timestamp"]) > one_minute_ago
             )
 
             return {
@@ -208,9 +194,7 @@ class RateLimiter:
                 "current_backoff": round(self.current_backoff, 2),
                 "requests_last_minute": recent_requests,
                 "last_request": (
-                    datetime.fromtimestamp(self.last_request_time).isoformat()
-                    if self.last_request_time > 0
-                    else None
+                    datetime.fromtimestamp(self.last_request_time).isoformat() if self.last_request_time > 0 else None
                 ),
             }
 
@@ -257,9 +241,7 @@ class AdaptiveRateLimiter(RateLimiter):
         self.failure_streak = 0
         self.rate_adjustment_threshold = 10  # 10번 연속 성공/실패 시 조절
 
-        logger.info(
-            f"🎯 적응형 레이트 리미터 초기화: {initial_rate} req/s (범위: {min_rate}-{max_rate})"
-        )
+        logger.info(f"🎯 적응형 레이트 리미터 초기화: {initial_rate} req/s (범위: {min_rate}-{max_rate})")
 
     def on_success(self):
         """요청 성공 시 - 속도 증가 고려"""
@@ -270,10 +252,7 @@ class AdaptiveRateLimiter(RateLimiter):
             self.failure_streak = 0
 
             # 연속 성공이 임계값 초과 시 속도 증가
-            if (
-                self.success_streak >= self.rate_adjustment_threshold
-                and self.rate < self.max_rate
-            ):
+            if self.success_streak >= self.rate_adjustment_threshold and self.rate < self.max_rate:
                 old_rate = self.rate
                 self.rate = min(self.max_rate, self.rate * 1.2)  # 20% 증가
                 logger.info(
@@ -343,9 +322,7 @@ class AuthRateLimiter(RateLimiter):
         self.consecutive_failures = 0
         self.locked_until: float = 0.0
 
-        logger.info(
-            f"🔐 인증 레이트 리미터 초기화: {requests_per_second} req/s, 최대 {max_attempts}회 시도"
-        )
+        logger.info(f"🔐 인증 레이트 리미터 초기화: {requests_per_second} req/s, 최대 {max_attempts}회 시도")
 
     def wait_if_needed(self) -> bool:
         """인증 요청 전 대기 (잠금 상태 확인)"""
@@ -355,9 +332,7 @@ class AuthRateLimiter(RateLimiter):
             # 잠금 상태 확인
             if self.locked_until > now:
                 remaining = self.locked_until - now
-                logger.warning(
-                    f"🔒 인증 잠금 상태: {remaining:.0f}초 남음 (연속 {self.consecutive_failures}회 실패)"
-                )
+                logger.warning(f"🔒 인증 잠금 상태: {remaining:.0f}초 남음 (연속 {self.consecutive_failures}회 실패)")
                 return False
 
             # 연속 실패 횟수에 따른 추가 대기
@@ -372,9 +347,7 @@ class AuthRateLimiter(RateLimiter):
         """인증 성공 - 모든 상태 리셋"""
         with self.lock:
             if self.consecutive_failures > 0:
-                logger.info(
-                    f"✅ 인증 성공 - 실패 카운터 리셋 (이전: {self.consecutive_failures}회 실패)"
-                )
+                logger.info(f"✅ 인증 성공 - 실패 카운터 리셋 (이전: {self.consecutive_failures}회 실패)")
             self.consecutive_failures = 0
             self.locked_until = 0.0
             self.failure_count = 0
@@ -386,19 +359,15 @@ class AuthRateLimiter(RateLimiter):
             self.consecutive_failures += 1
             self.failure_count += 1
 
-            logger.warning(
-                f"⚠️ 인증 실패 #{self.consecutive_failures}/{self.max_attempts}"
-            )
+            logger.warning(f"⚠️ 인증 실패 #{self.consecutive_failures}/{self.max_attempts}")
 
             # 최대 시도 횟수 초과 시 잠금
             if self.consecutive_failures >= self.max_attempts:
                 self.locked_until = time.time() + self.lockout_duration
-                logger.error(
-                    f"🔒 인증 잠금 활성화: {self.lockout_duration:.0f}초 동안 인증 차단"
-                )
+                logger.error(f"🔒 인증 잠금 활성화: {self.lockout_duration:.0f}초 동안 인증 차단")
             else:
                 # 점진적 백오프
-                backoff = min(60.0, (self.backoff_factor ** self.consecutive_failures) * 2)
+                backoff = min(60.0, (self.backoff_factor**self.consecutive_failures) * 2)
                 logger.info(f"⏸️ 인증 백오프: {backoff:.0f}초 대기")
                 time.sleep(backoff)
 
@@ -407,12 +376,14 @@ class AuthRateLimiter(RateLimiter):
         stats = super().get_stats()
         with self.lock:
             now = time.time()
-            stats.update({
-                "consecutive_failures": self.consecutive_failures,
-                "max_attempts": self.max_attempts,
-                "is_locked": self.locked_until > now,
-                "locked_remaining": max(0, self.locked_until - now),
-            })
+            stats.update(
+                {
+                    "consecutive_failures": self.consecutive_failures,
+                    "max_attempts": self.max_attempts,
+                    "is_locked": self.locked_until > now,
+                    "locked_remaining": max(0, self.locked_until - now),
+                }
+            )
         return stats
 
     def reset(self):

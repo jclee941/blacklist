@@ -75,10 +75,7 @@ class CollectorConfig:
                 try:
                     from cryptography.fernet import Fernet
 
-                    key = (
-                        os.getenv("ENCRYPTION_KEY", "").encode()
-                        or Fernet.generate_key()
-                    )
+                    key = os.getenv("ENCRYPTION_KEY", "").encode() or Fernet.generate_key()
                     f = Fernet(key)
 
                     decrypted_username = f.decrypt(username.encode()).decode()
@@ -91,9 +88,7 @@ class CollectorConfig:
                     logger.info(f"✅ DB 인증정보 로드 성공: {source}")
 
                 except Exception as decrypt_error:
-                    logger.warning(
-                        f"복호화 실패 ({source}), 평문 사용: {decrypt_error}"
-                    )
+                    logger.warning(f"복호화 실패 ({source}), 평문 사용: {decrypt_error}")
                     cls._credentials_cache[source] = {
                         "username": username,
                         "password": password,
@@ -102,9 +97,7 @@ class CollectorConfig:
             cur.close()
             conn.close()
             cls._cache_loaded = True
-            logger.info(
-                f"인증정보 캐시 로드 완료: {list(cls._credentials_cache.keys())}"
-            )
+            logger.info(f"인증정보 캐시 로드 완료: {list(cls._credentials_cache.keys())}")
 
         except Exception as e:
             logger.warning(f"DB 인증정보 로드 실패 (환경변수 사용): {e}")
@@ -142,9 +135,7 @@ class CollectorConfig:
     MAX_PAGES_PER_COLLECTION = int(os.getenv("MAX_PAGES_PER_COLLECTION", "20"))
     PAGE_SIZE = int(os.getenv("PAGE_SIZE", "2000"))  # 페이지 크기 증가
     CONNECTION_POOL_SIZE = int(os.getenv("CONNECTION_POOL_SIZE", "20"))
-    MAX_MEMORY_ITEMS = int(
-        os.getenv("MAX_MEMORY_ITEMS", "1000000")
-    )  # 100만개로 대폭 증가
+    MAX_MEMORY_ITEMS = int(os.getenv("MAX_MEMORY_ITEMS", "1000000"))  # 100만개로 대폭 증가
 
     # 캐싱 설정
     CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "300"))  # 5분
@@ -166,14 +157,10 @@ class CollectorConfig:
 
     # 로그 설정
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FORMAT = os.getenv(
-        "LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    LOG_FORMAT = os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     # 모니터링 설정
-    ENABLE_PERFORMANCE_METRICS = (
-        os.getenv("ENABLE_PERFORMANCE_METRICS", "true").lower() == "true"
-    )
+    ENABLE_PERFORMANCE_METRICS = os.getenv("ENABLE_PERFORMANCE_METRICS", "true").lower() == "true"
     METRICS_COLLECTION_INTERVAL = int(os.getenv("METRICS_COLLECTION_INTERVAL", "60"))
 
     @classmethod

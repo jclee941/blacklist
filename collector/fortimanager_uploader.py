@@ -15,13 +15,10 @@ from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -30,11 +27,11 @@ class FortiManagerUploader:
 
     def __init__(self):
         """Initialize uploader with credentials from database"""
-        self.fmg_host = ''
-        self.fmg_user = 'admin'
-        self.fmg_pass = ''
-        self.api_url = os.environ.get('BLACKLIST_API_URL', 'http://blacklist-app:443') + '/api/fortinet/active-ips'
-        self.filename = 'nxtd-blacklist.txt'
+        self.fmg_host = ""
+        self.fmg_user = "admin"
+        self.fmg_pass = ""
+        self.api_url = os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:443") + "/api/fortinet/active-ips"
+        self.filename = "nxtd-blacklist.txt"
         self.enabled = False
         self.interval = 300  # 5 minutes
 
@@ -49,10 +46,10 @@ class FortiManagerUploader:
 
             # Database connection parameters
             conn = psycopg2.connect(
-                host=os.getenv('POSTGRES_HOST', 'blacklist-postgres'),
-                database=os.getenv('POSTGRES_DB', 'blacklist'),
-                user=os.getenv('POSTGRES_USER', 'postgres'),
-                password=os.getenv('POSTGRES_PASSWORD', 'postgres')
+                host=os.getenv("POSTGRES_HOST", "blacklist-postgres"),
+                database=os.getenv("POSTGRES_DB", "blacklist"),
+                user=os.getenv("POSTGRES_USER", "postgres"),
+                password=os.getenv("POSTGRES_PASSWORD", "postgres"),
             )
 
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -66,18 +63,23 @@ class FortiManagerUploader:
             cursor.close()
             conn.close()
 
-            if row and row['is_active']:
-                self.fmg_user = row['username'] or 'admin'
-                self.fmg_pass = row['password'] or ''
+            if row and row["is_active"]:
+                self.fmg_user = row["username"] or "admin"
+                self.fmg_pass = row["password"] or ""
 
-                config = row['config'] or {}
-                self.fmg_host = config.get('host', '')
-                self.enabled = config.get('enabled', False)
-                self.interval = config.get('interval', 300)
-                self.api_url = config.get('api_url', os.environ.get('BLACKLIST_API_URL', 'http://blacklist-app:443') + '/api/fortinet/active-ips')
-                self.filename = config.get('filename', 'nxtd-blacklist.txt')
+                config = row["config"] or {}
+                self.fmg_host = config.get("host", "")
+                self.enabled = config.get("enabled", False)
+                self.interval = config.get("interval", 300)
+                self.api_url = config.get(
+                    "api_url",
+                    os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:443") + "/api/fortinet/active-ips",
+                )
+                self.filename = config.get("filename", "nxtd-blacklist.txt")
 
-                logger.info(f"✅ FortiManager credentials loaded from database (host={self.fmg_host}, enabled={self.enabled})")
+                logger.info(
+                    f"✅ FortiManager credentials loaded from database (host={self.fmg_host}, enabled={self.enabled})"
+                )
             else:
                 logger.warning("⚠️ No FortiManager credentials found in database")
 
@@ -86,11 +88,11 @@ class FortiManagerUploader:
             logger.info("Falling back to environment variables (if available)")
 
             # Fallback to environment variables
-            self.fmg_host = os.getenv('FMG_HOST', '')
-            self.fmg_user = os.getenv('FMG_USER', 'admin')
-            self.fmg_pass = os.getenv('FMG_PASS', '')
-            self.enabled = os.getenv('FMG_UPLOAD_ENABLED', 'false').lower() == 'true'
-            self.interval = int(os.getenv('FMG_UPLOAD_INTERVAL', '300'))
+            self.fmg_host = os.getenv("FMG_HOST", "")
+            self.fmg_user = os.getenv("FMG_USER", "admin")
+            self.fmg_pass = os.getenv("FMG_PASS", "")
+            self.enabled = os.getenv("FMG_UPLOAD_ENABLED", "false").lower() == "true"
+            self.interval = int(os.getenv("FMG_UPLOAD_INTERVAL", "300"))
 
     def is_configured(self) -> bool:
         """Check if FortiManager is configured"""
@@ -112,7 +114,7 @@ class FortiManagerUploader:
             response.raise_for_status()
 
             content = response.text
-            ip_count = len(content.strip().split('\n'))
+            ip_count = len(content.strip().split("\n"))
             logger.info(f"✅ Downloaded {ip_count} IPs")
 
             return content
@@ -127,26 +129,15 @@ class FortiManagerUploader:
             url = f"https://{self.fmg_host}/jsonrpc"
             payload = {
                 "method": "exec",
-                "params": [{
-                    "url": "/sys/login/user",
-                    "data": {
-                        "user": self.fmg_user,
-                        "passwd": self.fmg_pass
-                    }
-                }],
-                "id": 1
+                "params": [{"url": "/sys/login/user", "data": {"user": self.fmg_user, "passwd": self.fmg_pass}}],
+                "id": 1,
             }
 
-            response = requests.post(
-                url,
-                json=payload,
-                verify=False,
-                timeout=10
-            )
+            response = requests.post(url, json=payload, verify=False, timeout=10)
             response.raise_for_status()
 
             result = response.json()
-            session_id = result.get('session')
+            session_id = result.get("session")
 
             if session_id:
                 logger.info("✅ Logged in to FortiManager")
@@ -167,30 +158,27 @@ class FortiManagerUploader:
             # Create/update external resource
             payload = {
                 "method": "set",
-                "params": [{
-                    "url": "/pm/config/adom/root/obj/system/external-resource",
-                    "data": {
-                        "name": self.filename,
-                        "type": "address",
-                        "resource": f"fmg://{self.filename}",
-                        "status": "enable",
-                        "comments": f"NXTD Blacklist - Updated {datetime.now().isoformat()}"
+                "params": [
+                    {
+                        "url": "/pm/config/adom/root/obj/system/external-resource",
+                        "data": {
+                            "name": self.filename,
+                            "type": "address",
+                            "resource": f"fmg://{self.filename}",
+                            "status": "enable",
+                            "comments": f"NXTD Blacklist - Updated {datetime.now().isoformat()}",
+                        },
                     }
-                }],
+                ],
                 "session": session_id,
-                "id": 2
+                "id": 2,
             }
 
-            response = requests.post(
-                url,
-                json=payload,
-                verify=False,
-                timeout=30
-            )
+            response = requests.post(url, json=payload, verify=False, timeout=30)
             response.raise_for_status()
 
             result = response.json()
-            code = result.get('result', [{}])[0].get('status', {}).get('code', -1)
+            code = result.get("result", [{}])[0].get("status", {}).get("code", -1)
 
             if code in [0, -2]:  # 0 = success, -2 = already exists (update)
                 logger.info(f"✅ Uploaded to FortiManager ({len(content.strip().split(chr(10)))} IPs)")
@@ -207,12 +195,7 @@ class FortiManagerUploader:
         """Logout from FortiManager"""
         try:
             url = f"https://{self.fmg_host}/jsonrpc"
-            payload = {
-                "method": "exec",
-                "params": [{"url": "/sys/logout"}],
-                "session": session_id,
-                "id": 99
-            }
+            payload = {"method": "exec", "params": [{"url": "/sys/logout"}], "session": session_id, "id": 99}
 
             requests.post(url, json=payload, verify=False, timeout=5)
             logger.debug("Logged out from FortiManager")
@@ -275,12 +258,13 @@ def main():
     """Main entry point"""
     # Disable SSL warnings
     import urllib3
+
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     uploader = FortiManagerUploader()
 
     # Check if running in scheduler mode
-    if len(sys.argv) > 1 and sys.argv[1] == 'scheduler':
+    if len(sys.argv) > 1 and sys.argv[1] == "scheduler":
         uploader.run_scheduler()
     else:
         # One-shot mode
@@ -288,5 +272,5 @@ def main():
         sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

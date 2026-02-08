@@ -42,17 +42,10 @@ def get_connection_status():
     try:
         db_service = current_app.extensions["db_service"]
         status = db_service.get_connection_status()
-        return jsonify({
-            "success": True,
-            "data": status,
-            "timestamp": datetime.now().isoformat()
-        })
+        return jsonify({"success": True, "data": status, "timestamp": datetime.now().isoformat()})
     except Exception as e:
         logger.error(f"Connection status check failed: {e}")
-        raise DatabaseError(
-            message="Failed to get connection status",
-            query="connection_status_check"
-        )
+        raise DatabaseError(message="Failed to get connection status", query="connection_status_check")
 
 
 @database_api_bp.route("/schema", methods=["GET"])
@@ -188,11 +181,7 @@ def get_table_data(table_name: str):
 
         try:
             # Total row count (using sql.Identifier for safe table name interpolation)
-            cursor.execute(
-                sql.SQL("SELECT COUNT(*) as total FROM {}").format(
-                    sql.Identifier(table_name)
-                )
-            )
+            cursor.execute(sql.SQL("SELECT COUNT(*) as total FROM {}").format(sql.Identifier(table_name)))
             total = cursor.fetchone()["total"]
 
             # Column list (filter hidden columns for UI)
@@ -376,9 +365,7 @@ def get_column_stats(table_name: str, column_name: str):
         ), 200
 
     except Exception as e:
-        logger.error(
-            f"Column stats error for {table_name}.{column_name}: {e}", exc_info=True
-        )
+        logger.error(f"Column stats error for {table_name}.{column_name}: {e}", exc_info=True)
         raise DatabaseError(
             message=f"Failed to retrieve statistics for column '{column_name}' in table '{table_name}'",
             details={

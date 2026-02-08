@@ -4,7 +4,6 @@ Authentication Decorators
 Provides decorators for marking routes as public (no JWT required).
 """
 
-from functools import wraps
 from typing import Any, Callable, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])

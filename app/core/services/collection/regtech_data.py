@@ -64,9 +64,7 @@ class REGTECHDataCollector:
                         collected_ips = self._parse_regtech_data(response.text)
 
                         if collected_ips:
-                            logger.info(
-                                f"✅ REGTECH에서 {len(collected_ips)}개 IP 수집 완료"
-                            )
+                            logger.info(f"✅ REGTECH에서 {len(collected_ips)}개 IP 수집 완료")
                             return {
                                 "success": True,
                                 "message": f"REGTECH 데이터 수집 완료: {len(collected_ips)}개 IP",
@@ -80,9 +78,7 @@ class REGTECHDataCollector:
                             logger.info(f"⚠️ 데이터 없음: {url}")
 
                     else:
-                        logger.warning(
-                            f"⚠️ 데이터 페이지 접근 실패: {response.status_code} ({url})"
-                        )
+                        logger.warning(f"⚠️ 데이터 페이지 접근 실패: {response.status_code} ({url})")
 
                 except Exception as url_error:
                     logger.warning(f"⚠️ URL 시도 실패 ({url}): {url_error}")
@@ -128,13 +124,9 @@ class REGTECHDataCollector:
                 main_response = session.get(main_url, timeout=15)
                 if main_response.status_code == 200:
                     # HTML에서 링크 추출
-                    discovered_links = self._extract_navigation_links(
-                        main_response.text
-                    )
+                    discovered_links = self._extract_navigation_links(main_response.text)
                     data_urls.extend(discovered_links)
-                    logger.info(
-                        f"📋 메인 페이지에서 {len(discovered_links)}개 링크 발견"
-                    )
+                    logger.info(f"📋 메인 페이지에서 {len(discovered_links)}개 링크 발견")
             except Exception as e:
                 logger.warning(f"⚠️ 메인 페이지 접근 실패: {e}")
 
@@ -149,13 +141,9 @@ class REGTECHDataCollector:
                 try:
                     dash_response = session.get(dash_url, timeout=10)
                     if dash_response.status_code == 200:
-                        discovered_links = self._extract_navigation_links(
-                            dash_response.text
-                        )
+                        discovered_links = self._extract_navigation_links(dash_response.text)
                         data_urls.extend(discovered_links)
-                        logger.info(
-                            f"🏠 대시보드 ({dash_url})에서 {len(discovered_links)}개 링크 발견"
-                        )
+                        logger.info(f"🏠 대시보드 ({dash_url})에서 {len(discovered_links)}개 링크 발견")
                         break
                 except Exception as e:
                     logger.debug(f"대시보드 URL 시도 실패 ({dash_url}): {e}")
@@ -220,9 +208,7 @@ class REGTECHDataCollector:
 
             # href 패턴으로 링크 추출
             link_patterns = [
-                r'href=[\'"](/[^\'"]*/(?:'
-                + "|".join(threat_keywords)
-                + r')[^\'"]*)[\'"]',
+                r'href=[\'"](/[^\'"]*/(?:' + "|".join(threat_keywords) + r')[^\'"]*)[\'"]',
                 r'href=[\'"]('
                 + re.escape(self.base_url)
                 + r'/[^\'"]*/(?:'
@@ -243,14 +229,8 @@ class REGTECHDataCollector:
 
             # JavaScript 변수에서 URL 추출 시도
             js_patterns = [
-                r'["\']('
-                + re.escape(self.base_url)
-                + r'/[^"\']*(?:'
-                + "|".join(threat_keywords)
-                + r')[^"\']*)["\']',
-                r'url[:\s]*["\']([^"\']*(?:'
-                + "|".join(threat_keywords)
-                + r')[^"\']*)["\']',
+                r'["\'](' + re.escape(self.base_url) + r'/[^"\']*(?:' + "|".join(threat_keywords) + r')[^"\']*)["\']',
+                r'url[:\s]*["\']([^"\']*(?:' + "|".join(threat_keywords) + r')[^"\']*)["\']',
             ]
 
             for pattern in js_patterns:
@@ -315,9 +295,7 @@ class REGTECHDataCollector:
             found_ips = re.findall(ip_pattern, html_content)
 
             if not found_ips:
-                logger.warning(
-                    "⚠️ HTML에서 IP 주소를 찾을 수 없음 - 테이블 구조 분석 시도"
-                )
+                logger.warning("⚠️ HTML에서 IP 주소를 찾을 수 없음 - 테이블 구조 분석 시도")
 
                 # 테이블 데이터 패턴 분석 (실제 REGTECH 포털 구조에 맞춰 조정)
                 # 예: <td>192.168.1.1</td> 형태의 IP 찾기
@@ -329,9 +307,7 @@ class REGTECHDataCollector:
                     logger.info(f"📊 테이블에서 {len(found_ips)}개 IP 발견")
                 else:
                     # JSON 형태로 데이터가 있는지 확인
-                    json_pattern = (
-                        r'"ip[Aa]ddress"\s*:\s*"(\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b)"'
-                    )
+                    json_pattern = r'"ip[Aa]ddress"\s*:\s*"(\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b)"'
                     json_ips = re.findall(json_pattern, html_content)
 
                     if json_ips:
@@ -356,9 +332,7 @@ class REGTECHDataCollector:
                 confidence = self._extract_confidence_from_html(html_content, ip)
 
                 # 탐지일/해제일 파싱
-                detection_date = self._extract_detection_date_from_html(
-                    html_content, ip
-                )
+                detection_date = self._extract_detection_date_from_html(html_content, ip)
                 removal_date = self._extract_removal_date_from_html(html_content, ip)
 
                 structured_data.append(
@@ -375,9 +349,7 @@ class REGTECHDataCollector:
                     }
                 )
 
-            logger.info(
-                f"✅ REGTECH 실제 데이터 파싱 완료: {len(structured_data)}개 IP"
-            )
+            logger.info(f"✅ REGTECH 실제 데이터 파싱 완료: {len(structured_data)}개 IP")
 
             # 데이터가 없으면 빈 리스트 반환
             if not structured_data:
@@ -416,9 +388,7 @@ class REGTECHDataCollector:
         """추가 IP 범위 생성 (시뮬레이션용 스텁)"""
         return []
 
-    def _extract_confidence_from_html(
-        self, html_content: str, ip: str
-    ) -> Optional[int]:
+    def _extract_confidence_from_html(self, html_content: str, ip: str) -> Optional[int]:
         """HTML에서 특정 IP의 신뢰도 추출"""
         try:
             import re
@@ -442,9 +412,7 @@ class REGTECHDataCollector:
         except BaseException:
             return None
 
-    def _extract_detection_date_from_html(
-        self, html_content: str, ip: str
-    ) -> Optional[date]:
+    def _extract_detection_date_from_html(self, html_content: str, ip: str) -> Optional[date]:
         """HTML에서 특정 IP의 탐지일 추출"""
         try:
             import re
@@ -470,9 +438,7 @@ class REGTECHDataCollector:
 
             # IP 주변 컨텍스트에서 날짜 검색
             ip_context_pattern = rf".{{0,200}}{re.escape(ip)}.{{0,200}}"
-            context_matches = re.findall(
-                ip_context_pattern, html_content, re.IGNORECASE | re.DOTALL
-            )
+            context_matches = re.findall(ip_context_pattern, html_content, re.IGNORECASE | re.DOTALL)
 
             if context_matches:
                 context_text = " ".join(context_matches)
@@ -498,9 +464,7 @@ class REGTECHDataCollector:
             logger.debug(f"탐지일 추출 오류 ({ip}): {e}")
             return None
 
-    def _extract_removal_date_from_html(
-        self, html_content: str, ip: str
-    ) -> Optional[date]:
+    def _extract_removal_date_from_html(self, html_content: str, ip: str) -> Optional[date]:
         """HTML에서 특정 IP의 해제일 추출"""
         try:
             import re
@@ -540,9 +504,7 @@ class REGTECHDataCollector:
 
             # IP 주변 컨텍스트에서 해제일 검색
             ip_context_pattern = rf".{{0,300}}{re.escape(ip)}.{{0,300}}"
-            context_matches = re.findall(
-                ip_context_pattern, html_content, re.IGNORECASE | re.DOTALL
-            )
+            context_matches = re.findall(ip_context_pattern, html_content, re.IGNORECASE | re.DOTALL)
 
             if context_matches:
                 context_text = " ".join(context_matches)

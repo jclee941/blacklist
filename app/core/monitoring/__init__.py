@@ -1,8 +1,9 @@
-﻿"""
+"""
 Monitoring module for Blacklist application
 
 Updated: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
 """
+
 from .metrics import (
     setup_metrics,
     metrics_view,

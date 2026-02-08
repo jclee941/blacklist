@@ -30,17 +30,13 @@ def multi_source_collection():
         date_range_days = params.get("date_range_days", 7)
         enabled_sources = params.get("enabled_sources", [])  # 특정 소스만 활성화
 
-        logger.info(
-            f"🚀 다중 소스 수집 시작: {max_ips_per_source:,}개/소스, {parallel_sources}개 병렬"
-        )
+        logger.info(f"🚀 다중 소스 수집 시작: {max_ips_per_source:,}개/소스, {parallel_sources}개 병렬")
 
         # 소스 활성화 설정
         if enabled_sources:
             # 모든 소스 비활성화 후 선택된 소스만 활성화
             for source_id, config in multi_source_collector.sources.items():
-                config.enabled = any(
-                    source_type in source_id for source_type in enabled_sources
-                )
+                config.enabled = any(source_type in source_id for source_type in enabled_sources)
 
         # 비동기 수집 실행 (동기 래퍼)
         loop = asyncio.new_event_loop()
@@ -72,9 +68,7 @@ def multi_source_collection():
                     if db.save_blacklist_ip(item):
                         saved_count += 1
 
-                logger.info(
-                    f"💾 데이터베이스 저장: {saved_count}/{len(collected_data)}개"
-                )
+                logger.info(f"💾 데이터베이스 저장: {saved_count}/{len(collected_data)}개")
 
             except Exception as db_error:
                 logger.error(f"❌ 데이터베이스 저장 오류: {db_error}")
@@ -116,9 +110,7 @@ def get_sources_status():
     """위협 정보 소스 상태 조회"""
     try:
         status = multi_source_collector.get_source_status()
-        return jsonify(
-            {"success": True, "data": status, "timestamp": datetime.now().isoformat()}
-        )
+        return jsonify({"success": True, "data": status, "timestamp": datetime.now().isoformat()})
     except Exception as e:
         logger.error(f"❌ 소스 상태 조회 오류: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -152,9 +144,7 @@ def configure_sources():
             )
 
             if not success:
-                return jsonify(
-                    {"success": False, "error": "사용자 정의 소스 추가 실패"}
-                ), 400
+                return jsonify({"success": False, "error": "사용자 정의 소스 추가 실패"}), 400
 
         return jsonify(
             {
@@ -236,9 +226,7 @@ def wide_range_collection():
                         saved_count += 1
 
                 if i + batch_size < len(final_data):
-                    logger.info(
-                        f"💾 배치 저장 진행: {i + batch_size}/{len(final_data)}"
-                    )
+                    logger.info(f"💾 배치 저장 진행: {i + batch_size}/{len(final_data)}")
 
         except Exception as db_error:
             logger.error(f"❌ 데이터베이스 저장 오류: {db_error}")
@@ -258,35 +246,24 @@ def wide_range_collection():
                 "collection_summary": {
                     "total_unique_ips": len(final_data),
                     "total_raw_collected": len(total_collected),
-                    "deduplication_rate": round(
-                        (1 - len(final_data) / max(len(total_collected), 1)) * 100, 2
-                    ),
+                    "deduplication_rate": round((1 - len(final_data) / max(len(total_collected), 1)) * 100, 2),
                     "collection_time_seconds": round(collection_time, 2),
-                    "ips_per_second": round(len(final_data) / collection_time, 2)
-                    if collection_time > 0
-                    else 0,
+                    "ips_per_second": round(len(final_data) / collection_time, 2) if collection_time > 0 else 0,
                     "saved_to_database": saved_count,
-                    "save_success_rate": round(saved_count / len(final_data) * 100, 2)
-                    if final_data
-                    else 0,
+                    "save_success_rate": round(saved_count / len(final_data) * 100, 2) if final_data else 0,
                 },
                 "stage_results": stage_results,
                 "geographical_distribution": geo_distribution,
                 "category_distribution": category_distribution,
                 "data_quality_metrics": {
-                    "multi_source_confirmations": len(
-                        [ip for ip in final_data if ip.get("multi_source", False)]
-                    ),
+                    "multi_source_confirmations": len([ip for ip in final_data if ip.get("multi_source", False)]),
                     "average_confidence": round(
-                        sum(ip.get("confidence_level", 0) for ip in final_data)
-                        / len(final_data),
+                        sum(ip.get("confidence_level", 0) for ip in final_data) / len(final_data),
                         2,
                     )
                     if final_data
                     else 0,
-                    "active_threats": len(
-                        [ip for ip in final_data if ip.get("is_active", True)]
-                    ),
+                    "active_threats": len([ip for ip in final_data if ip.get("is_active", True)]),
                 },
                 "timestamp": datetime.now().isoformat(),
             }
@@ -294,9 +271,7 @@ def wide_range_collection():
 
     except Exception as e:
         logger.error(f"❌ 넓은 범위 수집 오류: {e}")
-        return jsonify(
-            {"success": False, "error": f"넓은 범위 수집 실패: {str(e)}"}
-        ), 500
+        return jsonify({"success": False, "error": f"넓은 범위 수집 실패: {str(e)}"}), 500
 
 
 def _execute_collection_stage(
@@ -306,9 +281,7 @@ def _execute_collection_stage(
     try:
         # 선택된 소스만 활성화
         for source_id, config in multi_source_collector.sources.items():
-            config.enabled = any(
-                source_type in source_id.lower() for source_type in source_types
-            )
+            config.enabled = any(source_type in source_id.lower() for source_type in source_types)
 
         # 비동기 수집 실행
         loop = asyncio.new_event_loop()
@@ -317,9 +290,7 @@ def _execute_collection_stage(
         try:
             result = loop.run_until_complete(
                 multi_source_collector.collect_from_all_sources(
-                    max_ips_per_source=max_ips // len(source_types)
-                    if source_types
-                    else max_ips,
+                    max_ips_per_source=max_ips // len(source_types) if source_types else max_ips,
                     parallel_sources=parallel_count,
                     date_range_days=date_range_days,
                 )
@@ -367,9 +338,7 @@ def real_time_collection():
         duration_minutes = params.get("duration_minutes", 60)  # 1시간
         collection_interval = params.get("interval_seconds", 300)  # 5분마다
 
-        logger.info(
-            f"⏰ 실시간 수집 시작: {duration_minutes}분간, {collection_interval}초 간격"
-        )
+        logger.info(f"⏰ 실시간 수집 시작: {duration_minutes}분간, {collection_interval}초 간격")
 
         start_time = datetime.now()
         end_time = start_time + timedelta(minutes=duration_minutes)
@@ -409,14 +378,10 @@ def real_time_collection():
                     "duration_minutes": duration_minutes,
                     "total_collected": total_collected,
                     "collection_batches": len(real_time_results),
-                    "average_per_batch": round(
-                        total_collected / max(len(real_time_results), 1), 2
-                    ),
+                    "average_per_batch": round(total_collected / max(len(real_time_results), 1), 2),
                 },
                 "batch_results": real_time_results,
-                "next_collection": (
-                    datetime.now() + timedelta(seconds=collection_interval)
-                ).isoformat(),
+                "next_collection": (datetime.now() + timedelta(seconds=collection_interval)).isoformat(),
                 "timestamp": datetime.now().isoformat(),
             }
         )
@@ -437,15 +402,9 @@ def collection_performance_analytics():
         recent_collections = stats.get("collection_history", [])[-10:]  # 최근 10회
 
         if recent_collections:
-            avg_collection_time = sum(
-                c.get("collection_time", 0) for c in recent_collections
-            ) / len(recent_collections)
-            avg_ips_collected = sum(
-                c.get("total_collected", 0) for c in recent_collections
-            ) / len(recent_collections)
-            avg_sources_used = sum(
-                c.get("sources_used", 0) for c in recent_collections
-            ) / len(recent_collections)
+            avg_collection_time = sum(c.get("collection_time", 0) for c in recent_collections) / len(recent_collections)
+            avg_ips_collected = sum(c.get("total_collected", 0) for c in recent_collections) / len(recent_collections)
+            avg_sources_used = sum(c.get("sources_used", 0) for c in recent_collections) / len(recent_collections)
         else:
             avg_collection_time = 0
             avg_ips_collected = 0
@@ -459,9 +418,7 @@ def collection_performance_analytics():
                     "priority": config.priority,
                     "rate_limit": config.rate_limit,
                     "confidence_boost": config.confidence_boost,
-                    "estimated_daily_capacity": int(
-                        86400 / (1.0 / config.rate_limit)
-                    ),  # 일일 예상 수집량
+                    "estimated_daily_capacity": int(86400 / (1.0 / config.rate_limit)),  # 일일 예상 수집량
                 }
 
         return jsonify(
@@ -472,15 +429,11 @@ def collection_performance_analytics():
                     "average_ips_per_collection": round(avg_ips_collected, 2),
                     "average_sources_per_collection": round(avg_sources_used, 2),
                     "total_lifetime_collected": stats.get("total_collected", 0),
-                    "collection_efficiency": round(
-                        avg_ips_collected / max(avg_collection_time, 1), 2
-                    ),
+                    "collection_efficiency": round(avg_ips_collected / max(avg_collection_time, 1), 2),
                 },
                 "source_performance": source_performance,
                 "recent_collections": recent_collections,
-                "recommendations": _generate_performance_recommendations(
-                    stats, source_performance
-                ),
+                "recommendations": _generate_performance_recommendations(stats, source_performance),
                 "timestamp": datetime.now().isoformat(),
             }
         )
@@ -490,9 +443,7 @@ def collection_performance_analytics():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-def _generate_performance_recommendations(
-    stats: Dict, source_performance: Dict
-) -> List[str]:
+def _generate_performance_recommendations(stats: Dict, source_performance: Dict) -> List[str]:
     """성능 최적화 권장사항 생성"""
     recommendations = []
 
@@ -508,16 +459,12 @@ def _generate_performance_recommendations(
             )
 
         if avg_time < 30:  # 30초 미만
-            recommendations.append(
-                "수집이 빠르게 완료됩니다. 더 많은 소스를 활성화하거나 수집량을 늘릴 수 있습니다."
-            )
+            recommendations.append("수집이 빠르게 완료됩니다. 더 많은 소스를 활성화하거나 수집량을 늘릴 수 있습니다.")
 
     # 활성 소스 수 분석
     active_sources = len([s for s in source_performance.values()])
     if active_sources < 3:
-        recommendations.append(
-            "활성화된 소스가 적습니다. 더 넓은 범위의 위협 정보를 위해 추가 소스를 활성화하세요."
-        )
+        recommendations.append("활성화된 소스가 적습니다. 더 넓은 범위의 위협 정보를 위해 추가 소스를 활성화하세요.")
     elif active_sources > 7:
         recommendations.append(
             "많은 소스가 활성화되어 있습니다. 성능을 위해 우선순위가 낮은 소스를 비활성화할 수 있습니다."
@@ -525,8 +472,6 @@ def _generate_performance_recommendations(
 
     # 기본 권장사항
     if not recommendations:
-        recommendations.append(
-            "현재 수집 성능이 양호합니다. 정기적인 모니터링을 통해 성능을 유지하세요."
-        )
+        recommendations.append("현재 수집 성능이 양호합니다. 정기적인 모니터링을 통해 성능을 유지하세요.")
 
     return recommendations

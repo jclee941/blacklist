@@ -5,9 +5,7 @@ Simple, direct implementation without complex imports
 
 from flask import Blueprint, request, jsonify, current_app
 
-credentials_bp = Blueprint(
-    "credentials", __name__, url_prefix="/api/collection/credentials"
-)
+credentials_bp = Blueprint("credentials", __name__, url_prefix="/api/collection/credentials")
 
 
 # def get_db_connection():
@@ -53,9 +51,7 @@ def get_credentials(source):
                 }
             )
         else:
-            return jsonify(
-                {"username": "", "password": "", "enabled": False, "is_active": False}
-            )
+            return jsonify({"username": "", "password": "", "enabled": False, "is_active": False})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -105,9 +101,7 @@ def save_credentials(source):
         cur.close()
         db_service.return_connection(conn)
 
-        return jsonify(
-            {"success": True, "message": f"{source} 인증정보가 저장되었습니다."}
-        )
+        return jsonify({"success": True, "message": f"{source} 인증정보가 저장되었습니다."})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

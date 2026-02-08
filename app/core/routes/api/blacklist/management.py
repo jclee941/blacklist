@@ -73,15 +73,11 @@ def manual_add_ip():
         notes = data.get("notes", "").strip()
 
         if not ip_address:
-            raise BadRequestError(
-                "IP address is required", details={"field": "ip_address"}
-            )
+            raise BadRequestError("IP address is required", details={"field": "ip_address"})
 
         valid, error_msg = validate_ip_address(ip_address)
         if not valid:
-            raise BadRequestError(
-                error_msg or "Invalid IP address", details={"ip_address": ip_address}
-            )
+            raise BadRequestError(error_msg or "Invalid IP address", details={"ip_address": ip_address})
 
         existing = db_service.query(
             "SELECT COUNT(*) as count FROM blacklist_ips WHERE ip_address = %s",
@@ -110,9 +106,7 @@ def manual_add_ip():
         cursor.close()
         db_service.return_connection(conn)
 
-        logger.info(
-            f"✅ Manual IP added to blacklist: {ip_address} (country: {country})"
-        )
+        logger.info(f"✅ Manual IP added to blacklist: {ip_address} (country: {country})")
 
         return jsonify(
             {
@@ -147,9 +141,7 @@ def manual_remove_ip(ip_address):
         # IP 주소 형식 검증
         valid, error_msg = validate_ip_address(ip_address)
         if not valid:
-            raise BadRequestError(
-                error_msg or "Invalid IP address", details={"ip_address": ip_address}
-            )
+            raise BadRequestError(error_msg or "Invalid IP address", details={"ip_address": ip_address})
 
         # IP 존재 여부 확인
         existing = db_service.query(
@@ -209,15 +201,11 @@ def manual_add_whitelist_ip():
         reason = data.get("reason", "수동 등록").strip()
 
         if not ip_address:
-            raise BadRequestError(
-                "IP address is required", details={"field": "ip_address"}
-            )
+            raise BadRequestError("IP address is required", details={"field": "ip_address"})
 
         valid, error_msg = validate_ip_address(ip_address)
         if not valid:
-            raise BadRequestError(
-                error_msg or "Invalid IP address", details={"ip_address": ip_address}
-            )
+            raise BadRequestError(error_msg or "Invalid IP address", details={"ip_address": ip_address})
 
         existing = db_service.query(
             "SELECT COUNT(*) as count FROM whitelist_ips WHERE ip_address = %s",
@@ -246,9 +234,7 @@ def manual_add_whitelist_ip():
         cursor.close()
         db_service.return_connection(conn)
 
-        logger.info(
-            f"✅ Manual IP added to whitelist: {ip_address} (country: {country}, reason: {reason})"
-        )
+        logger.info(f"✅ Manual IP added to whitelist: {ip_address} (country: {country}, reason: {reason})")
 
         return jsonify(
             {
@@ -290,9 +276,7 @@ def get_whitelist_list():
             (per_page, offset),
         )
 
-        total_count = db_service.query("SELECT COUNT(*) as count FROM whitelist_ips")[
-            0
-        ]["count"]
+        total_count = db_service.query("SELECT COUNT(*) as count FROM whitelist_ips")[0]["count"]
 
         return jsonify(
             {

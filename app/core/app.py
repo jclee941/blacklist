@@ -125,9 +125,7 @@ def create_app():
         for service_name, service_instance in services.items():
             app.extensions[service_name] = service_instance
 
-        app.logger.info(
-            f"✅ Initialized {len(services)}/15 services via dependency injection"
-        )
+        app.logger.info(f"✅ Initialized {len(services)}/15 services via dependency injection")
     except Exception as e:
         app.logger.error(f"❌ Service initialization failed: {e}")
 
@@ -169,9 +167,7 @@ def create_app():
             "font-src 'self' data:; "
             "connect-src 'self'"
         )
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -185,9 +181,7 @@ def create_app():
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         elif request.path in ["/favicon.ico", "/robots.txt"]:
             response.headers["Cache-Control"] = "public, max-age=604800"
-        elif request.path.endswith(
-            (".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico")
-        ):
+        elif request.path.endswith((".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico")):
             response.headers["Cache-Control"] = "public, max-age=86400"
         elif request.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -212,9 +206,7 @@ def create_app():
             return response
 
         gzip_buffer = io.BytesIO()
-        with gzip.GzipFile(
-            mode="wb", fileobj=gzip_buffer, compresslevel=6
-        ) as gzip_file:
+        with gzip.GzipFile(mode="wb", fileobj=gzip_buffer, compresslevel=6) as gzip_file:
             gzip_file.write(response.get_data())
 
         response.set_data(gzip_buffer.getvalue())
@@ -307,9 +299,7 @@ def create_app():
 
     if regtech_admin_bp:
         try:
-            app.register_blueprint(
-                regtech_admin_bp, url_prefix="/admin", name="regtech_admin_web"
-            )
+            app.register_blueprint(regtech_admin_bp, url_prefix="/admin", name="regtech_admin_web")
         except Exception as e:
             app.logger.error(f"❌ REGTECH admin routes registration failed: {e}")
 
@@ -376,14 +366,10 @@ def create_app():
                 password=os.getenv("POSTGRES_PASSWORD", "postgres"),
             )
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-            )
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
             tables = [row[0] for row in cursor.fetchall()]
             try:
-                cursor.execute(
-                    "SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true"
-                )
+                cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
                 row = cursor.fetchone()
                 ip_count = row[0] if row else 0
             except psycopg2.Error:

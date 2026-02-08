@@ -86,9 +86,7 @@ def normalize_country_code(country_value: Any) -> Optional[str]:
         "일본": "JP",
     }
 
-    return country_mapping.get(
-        country_str, country_str[:2] if len(country_str) >= 2 else None
-    )
+    return country_mapping.get(country_str, country_str[:2] if len(country_str) >= 2 else None)
 
 
 def extract_country_info(cell_texts: List[str]) -> Optional[str]:
@@ -175,11 +173,7 @@ def parse_html_response(html_content: str) -> List[Dict[str, Any]]:
                     reason = reason_cell.get_text(strip=True)
 
                 detection_date = parse_date(cells[3].get_text(strip=True))
-                removal_date = (
-                    parse_date(cells[4].get_text(strip=True))
-                    if len(cells) > 4
-                    else None
-                )
+                removal_date = parse_date(cells[4].get_text(strip=True)) if len(cells) > 4 else None
 
                 if not reason or reason == "-":
                     reason = "REGTECH Suspicious IP"

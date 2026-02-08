@@ -33,7 +33,6 @@ class HealthStatus:
 
 
 class BlacklistService:
-
     def __init__(self, db_service=None):
         self.db_service = db_service
         self.repo = BlacklistRepository(db_service) if db_service else None

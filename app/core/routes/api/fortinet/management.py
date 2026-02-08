@@ -45,16 +45,10 @@ def get_devices():
                     "serial_number": row["serial_number"],
                     "location": row["location"],
                     "is_active": row["is_active"],
-                    "last_seen": row["last_seen"].isoformat()
-                    if row["last_seen"]
-                    else None,
+                    "last_seen": row["last_seen"].isoformat() if row["last_seen"] else None,
                     "config": row["config"],
-                    "created_at": row["created_at"].isoformat()
-                    if row["created_at"]
-                    else None,
-                    "updated_at": row["updated_at"].isoformat()
-                    if row["updated_at"]
-                    else None,
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
                 }
             )
 
@@ -206,16 +200,11 @@ def register_to_fortigate():
                 registered_count += 1
             else:
                 failed_count += 1
-                logger.warning(
-                    f"Failed to register IP {ip_address}: {addr_response.status_code}"
-                )
+                logger.warning(f"Failed to register IP {ip_address}: {addr_response.status_code}")
 
         # Update group members
         if registered_count > 0:
-            member_names = [
-                {"name": f"blacklist_{ip['ip'].replace('.', '_')}"}
-                for ip in ip_list[:registered_count]
-            ]
+            member_names = [{"name": f"blacklist_{ip['ip'].replace('.', '_')}"} for ip in ip_list[:registered_count]]
 
             update_response = requests.put(
                 f"{group_url}/{address_group}",

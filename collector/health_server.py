@@ -171,14 +171,17 @@ class HealthServer:
                         imap_server = config.get("imap_server", "imap.kakao.com")
 
                         if not email or not email_password:
-                            return jsonify({
-                                "success": False,
-                                "error": "OTP 자동 인증에 필요한 이메일 설정이 없습니다",
-                                "timestamp": datetime.now().isoformat(),
-                            })
+                            return jsonify(
+                                {
+                                    "success": False,
+                                    "error": "OTP 자동 인증에 필요한 이메일 설정이 없습니다",
+                                    "timestamp": datetime.now().isoformat(),
+                                }
+                            )
 
                         auth_result = collector.authenticate(
-                            username, password,
+                            username,
+                            password,
                             email_address=email,
                             email_password=email_password,
                             imap_server=imap_server,
@@ -193,12 +196,14 @@ class HealthServer:
                                 "username": username,
                                 "timestamp": datetime.now(),
                             }
-                            return jsonify({
-                                "success": True,
-                                "otp_required": True,
-                                "message": "OTP 입력이 필요합니다",
-                                "timestamp": datetime.now().isoformat(),
-                            })
+                            return jsonify(
+                                {
+                                    "success": True,
+                                    "otp_required": True,
+                                    "message": "OTP 입력이 필요합니다",
+                                    "timestamp": datetime.now().isoformat(),
+                                }
+                            )
                         elif step1_result == "success":
                             auth_result = True
                         else:
@@ -252,19 +257,23 @@ class HealthServer:
 
                 pending = getattr(self, "_secudium_pending_auth", None)
                 if not pending:
-                    return jsonify({
-                        "success": False,
-                        "error": "대기 중인 인증 세션이 없습니다. 먼저 연결 테스트를 실행하세요.",
-                    })
+                    return jsonify(
+                        {
+                            "success": False,
+                            "error": "대기 중인 인증 세션이 없습니다. 먼저 연결 테스트를 실행하세요.",
+                        }
+                    )
 
                 # Check timeout (5 minutes)
                 elapsed = (datetime.now() - pending["timestamp"]).total_seconds()
                 if elapsed > 300:
                     self._secudium_pending_auth = None
-                    return jsonify({
-                        "success": False,
-                        "error": "OTP 세션이 만료되었습니다. 다시 연결 테스트를 실행하세요.",
-                    })
+                    return jsonify(
+                        {
+                            "success": False,
+                            "error": "OTP 세션이 만료되었습니다. 다시 연결 테스트를 실행하세요.",
+                        }
+                    )
 
                 collector = pending["collector"]
                 result = collector.authenticate_step2(otp_code)
@@ -272,26 +281,32 @@ class HealthServer:
                 self._secudium_pending_auth = None
 
                 if result == "success":
-                    return jsonify({
-                        "success": True,
-                        "message": "SECUDIUM 인증 성공",
-                        "timestamp": datetime.now().isoformat(),
-                    })
+                    return jsonify(
+                        {
+                            "success": True,
+                            "message": "SECUDIUM 인증 성공",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
                 else:
-                    return jsonify({
-                        "success": False,
-                        "error": "OTP 인증 실패",
-                        "timestamp": datetime.now().isoformat(),
-                    })
+                    return jsonify(
+                        {
+                            "success": False,
+                            "error": "OTP 인증 실패",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
 
             except Exception as e:
                 logger.error(f"Error during Secudium OTP submission: {e}")
                 self._secudium_pending_auth = None
-                return jsonify({
-                    "success": False,
-                    "error": str(e),
-                    "timestamp": datetime.now().isoformat(),
-                })
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
         @self.app.route("/api/force-collection/<source>", methods=["POST"])
         def force_collection(source):

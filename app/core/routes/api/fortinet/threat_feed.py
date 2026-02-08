@@ -71,9 +71,7 @@ def get_threat_feed():
                 },
             )
 
-        threat_feed_json = {
-            "commands": [{"name": "ip", "command": command, "entries": ip_list}]
-        }
+        threat_feed_json = {"commands": [{"name": "ip", "command": command, "entries": ip_list}]}
 
         return (
             jsonify(threat_feed_json),
@@ -191,12 +189,8 @@ def get_json_connector():
                     "risk_level": risk,
                     "reason": row["reason"] or "unspecified",
                     "confidence": confidence,
-                    "first_seen": row["detection_date"].isoformat()
-                    if row["detection_date"]
-                    else None,
-                    "last_updated": row["updated_at"].isoformat()
-                    if row["updated_at"]
-                    else None,
+                    "first_seen": row["detection_date"].isoformat() if row["detection_date"] else None,
+                    "last_updated": row["updated_at"].isoformat() if row["updated_at"] else None,
                 }
             )
 

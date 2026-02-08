@@ -13,6 +13,7 @@ Usage:
     app = Flask(__name__)
     register_error_handlers(app)
 """
+
 from .handlers import register_error_handlers
 
-__all__ = ['register_error_handlers']
+__all__ = ["register_error_handlers"]

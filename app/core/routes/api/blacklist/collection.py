@@ -80,6 +80,4 @@ def trigger_regtech_collection():
 
     except Exception as e:
         logger.error(f"REGTECH collection trigger failed: {e}")
-        return jsonify(
-            {"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}
-        ), 500
+        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500

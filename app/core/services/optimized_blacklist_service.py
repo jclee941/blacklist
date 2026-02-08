@@ -66,23 +66,16 @@ class OptimizedBlacklistService:
                     "active_ips": stats["active_ips"] or 0,
                     "sources": stats["sources"] or 0,
                     "countries": stats["countries"] or 0,
-                    "last_update": stats["last_update"].isoformat()
-                    if stats["last_update"]
-                    else None,
-                    "first_update": stats["first_update"].isoformat()
-                    if stats["first_update"]
-                    else None,
+                    "last_update": stats["last_update"].isoformat() if stats["last_update"] else None,
+                    "first_update": stats["first_update"].isoformat() if stats["first_update"] else None,
                     "recent_additions": stats["recent_additions"] or 0,
                     "high_confidence": stats["high_confidence"] or 0,
-                    "avg_confidence": float(stats["avg_confidence"])
-                    if stats["avg_confidence"]
-                    else 0.0,
+                    "avg_confidence": float(stats["avg_confidence"]) if stats["avg_confidence"] else 0.0,
                     "collection_count": collection_stats["collection_count"] or 0,
                     "last_collection": collection_stats["last_collection"].isoformat()
                     if collection_stats["last_collection"]
                     else None,
-                    "successful_collections": collection_stats["successful_collections"]
-                    or 0,
+                    "successful_collections": collection_stats["successful_collections"] or 0,
                 },
                 "timestamp": datetime.now().isoformat(),
             }
@@ -246,18 +239,12 @@ class OptimizedBlacklistService:
                 "success": True,
                 "status": {
                     "latest_collection": {
-                        "status": latest_collection["status"]
-                        if latest_collection
-                        else "unknown",
+                        "status": latest_collection["status"] if latest_collection else "unknown",
                         "timestamp": latest_collection["created_at"].isoformat()
                         if latest_collection and latest_collection["created_at"]
                         else None,
-                        "ips_collected": latest_collection["ips_collected"]
-                        if latest_collection
-                        else 0,
-                        "error": latest_collection["error_message"]
-                        if latest_collection
-                        else None,
+                        "ips_collected": latest_collection["ips_collected"] if latest_collection else 0,
+                        "error": latest_collection["error_message"] if latest_collection else None,
                     },
                     "history": [dict(row) for row in history],
                     "services": [dict(row) for row in services],
@@ -315,6 +302,4 @@ class OptimizedBlacklistService:
 from flask import current_app
 from werkzeug.local import LocalProxy
 
-optimized_blacklist_service = LocalProxy(
-    lambda: current_app.extensions["optimized_blacklist_service"]
-)
+optimized_blacklist_service = LocalProxy(lambda: current_app.extensions["optimized_blacklist_service"])

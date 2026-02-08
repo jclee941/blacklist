@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
 import requests
 
@@ -27,6 +27,7 @@ def mock_env(monkeypatch):
 def collector(mock_env):
     with patch(f"{COLLECTOR_MODULE}.CollectorConfig", _make_mock_config()):
         from collector.core.secudium_collector import SecudiumCollector
+
         c = SecudiumCollector(db_service=MagicMock())
         c._request_delay = 0
         yield c
@@ -101,6 +102,7 @@ class TestBuildUrl:
 class TestTokenCaching:
     def test_fresh_token_is_valid(self, collector):
         from collector.core.secudium_collector import SecudiumCollector
+
         SecudiumCollector._cached_token = "cached:123:" + "d" * 64
         SecudiumCollector._token_obtained_at = datetime.now()
         with patch.object(collector, "_verify_token", return_value=True):
@@ -108,12 +110,14 @@ class TestTokenCaching:
 
     def test_expired_token_is_invalid(self, collector):
         from collector.core.secudium_collector import SecudiumCollector
+
         SecudiumCollector._cached_token = "cached:123:" + "d" * 64
         SecudiumCollector._token_obtained_at = datetime.now() - timedelta(hours=5)
         assert collector._is_token_valid() is False
 
     def test_no_cached_token(self, collector):
         from collector.core.secudium_collector import SecudiumCollector
+
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None
         assert collector._is_token_valid() is False
@@ -123,6 +127,7 @@ class TestTokenCaching:
 class TestAuthenticate:
     def test_uses_cached_valid_token(self, collector):
         from collector.core.secudium_collector import SecudiumCollector
+
         token = "cached:999:" + "e" * 64
         SecudiumCollector._cached_token = token
         SecudiumCollector._token_obtained_at = datetime.now()
@@ -136,6 +141,7 @@ class TestAuthenticate:
     @patch(f"{COLLECTOR_MODULE}.OTPEmailReader")
     def test_otp_flow(self, mock_otp_cls, collector):
         from collector.core.secudium_collector import SecudiumCollector
+
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None
 
@@ -157,6 +163,7 @@ class TestAuthenticate:
 
     def test_direct_login_success(self, collector):
         from collector.core.secudium_collector import SecudiumCollector
+
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None
 
@@ -169,6 +176,7 @@ class TestAuthenticate:
 
     def test_max_attempts_exceeded(self, collector):
         from collector.core.secudium_collector import SecudiumCollector
+
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None
 
@@ -235,13 +243,11 @@ class TestCollectData:
                 "id": 1,
                 "title": "Black IP 2026-02-06",
                 "date": "2026-02-06",
-                "download_html": "<button onclick='download(\"uuid1\", \"file.xls\");'>Down</button>",
+                "download_html": '<button onclick=\'download("uuid1", "file.xls");\'>Down</button>',
             }
         ]
         mock_extract_dl.return_value = ("uuid1", "file.xls")
-        mock_parse_xls.return_value = [
-            {"ip": "1.2.3.4", "port": 80, "description": "C2", "source_date": "2026-02-06"}
-        ]
+        mock_parse_xls.return_value = [{"ip": "1.2.3.4", "port": 80, "description": "C2", "source_date": "2026-02-06"}]
 
         mock_list_resp = MagicMock()
         mock_list_resp.status_code = 200

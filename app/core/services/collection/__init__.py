@@ -1,4 +1,4 @@
-﻿"""
+"""
 Collection Service Module
 수집 서비스 모듈 패키지 - 모듈화된 컴포넌트들
 """

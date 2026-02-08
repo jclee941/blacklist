@@ -1,4 +1,4 @@
-﻿"""
+"""
 Redis caching utility functions with metrics integration
 공통 캐시 작업 유틸리티
 
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Import cache metrics collector
 try:
     from app.core.monitoring.cache_metrics import cache_metrics
+
     METRICS_ENABLED = True
 except ImportError:
     logger.warning("Cache metrics not available - metrics collection disabled")
@@ -39,7 +40,7 @@ def get_redis_client() -> Optional[redis.Redis]:
             db=0,
             decode_responses=True,
             socket_connect_timeout=2,
-            socket_timeout=2
+            socket_timeout=2,
         )
         # 연결 테스트
         client.ping()
@@ -93,10 +94,7 @@ class CacheManager:
                 # Cache miss - record metrics
                 if METRICS_ENABLED:
                     try:
-                        cache_metrics.record_miss(
-                            cache_key=self._make_key(key),
-                            latency_ms=latency_ms
-                        )
+                        cache_metrics.record_miss(cache_key=self._make_key(key), latency_ms=latency_ms)
                     except Exception as e:
                         logger.warning(f"Failed to record cache miss metric: {e}")
 
@@ -105,10 +103,7 @@ class CacheManager:
             # Cache hit - record metrics
             if METRICS_ENABLED:
                 try:
-                    cache_metrics.record_hit(
-                        cache_key=self._make_key(key),
-                        latency_ms=latency_ms
-                    )
+                    cache_metrics.record_hit(cache_key=self._make_key(key), latency_ms=latency_ms)
                 except Exception as e:
                     logger.warning(f"Failed to record cache hit metric: {e}")
 
@@ -124,11 +119,7 @@ class CacheManager:
             # Record error metric
             if METRICS_ENABLED:
                 try:
-                    cache_metrics.record_error(
-                        cache_key=self._make_key(key),
-                        operation='get',
-                        error_message=str(e)
-                    )
+                    cache_metrics.record_error(cache_key=self._make_key(key), operation="get", error_message=str(e))
                 except Exception:
                     pass
 
@@ -161,22 +152,14 @@ class CacheManager:
                 value = str(value)
 
             # Calculate approximate size
-            size_bytes = len(str(value).encode('utf-8'))
+            size_bytes = len(str(value).encode("utf-8"))
 
-            self.redis_client.setex(
-                self._make_key(key),
-                cache_ttl,
-                value
-            )
+            self.redis_client.setex(self._make_key(key), cache_ttl, value)
 
             # Record set metric
             if METRICS_ENABLED:
                 try:
-                    cache_metrics.record_set(
-                        cache_key=self._make_key(key),
-                        ttl=cache_ttl,
-                        size_bytes=size_bytes
-                    )
+                    cache_metrics.record_set(cache_key=self._make_key(key), ttl=cache_ttl, size_bytes=size_bytes)
                 except Exception as e:
                     logger.warning(f"Failed to record cache set metric: {e}")
 
@@ -188,11 +171,7 @@ class CacheManager:
             # Record error metric
             if METRICS_ENABLED:
                 try:
-                    cache_metrics.record_error(
-                        cache_key=self._make_key(key),
-                        operation='set',
-                        error_message=str(e)
-                    )
+                    cache_metrics.record_error(cache_key=self._make_key(key), operation="set", error_message=str(e))
                 except Exception:
                     pass
 
@@ -228,11 +207,7 @@ class CacheManager:
             # Record error metric
             if METRICS_ENABLED:
                 try:
-                    cache_metrics.record_error(
-                        cache_key=self._make_key(key),
-                        operation='delete',
-                        error_message=str(e)
-                    )
+                    cache_metrics.record_error(cache_key=self._make_key(key), operation="delete", error_message=str(e))
                 except Exception:
                     pass
 
@@ -294,6 +269,7 @@ def cached(ttl: int = 300, key_prefix: str = ""):
         ttl: Time to live (초 단위)
         key_prefix: 캐시 키 접두사
     """
+
     def decorator(func: Callable) -> Callable:
         cache_manager = CacheManager(ttl=ttl, key_prefix=key_prefix)
 
@@ -316,4 +292,5 @@ def cached(ttl: int = 300, key_prefix: str = ""):
             return result
 
         return wrapper
+
     return decorator

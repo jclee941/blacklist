@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 IP 유틸리티 모듈
 고도화된 GitHub Actions 워크플로우 테스트를 위한 변경사항 추가 (2025-01-09)

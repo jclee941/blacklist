@@ -1,4 +1,4 @@
-﻿"""
+"""
 Multi-Source Threat Intelligence Collector
 다중 소스 위협 정보 수집기 - 넓은 범위 수집을 위한 통합 시스템
 """
@@ -177,18 +177,14 @@ class MultiSourceCollector:
 
     def add_source(self, source_config: SourceConfig):
         """새 소스 추가"""
-        source_id = (
-            f"{source_config.source_type.value}_{source_config.name.replace(' ', '_')}"
-        )
+        source_id = f"{source_config.source_type.value}_{source_config.name.replace(' ', '_')}"
         self.sources[source_id] = source_config
 
         if source_config.enabled:
             self.collection_stats["active_sources"] += 1
         self.collection_stats["total_sources"] += 1
 
-        logger.info(
-            f"➕ 위협 정보 소스 추가: {source_config.name} ({source_config.source_type.value})"
-        )
+        logger.info(f"➕ 위협 정보 소스 추가: {source_config.name} ({source_config.source_type.value})")
 
     async def collect_from_all_sources(
         self,
@@ -203,11 +199,7 @@ class MultiSourceCollector:
         logger.info(f"📊 설정: 소스당 최대 {max_ips_per_source:,}개, 병렬 {parallel_sources}개")
 
         # 활성화된 소스 필터링 및 우선순위 정렬
-        active_sources = [
-            (source_id, config)
-            for source_id, config in self.sources.items()
-            if config.enabled
-        ]
+        active_sources = [(source_id, config) for source_id, config in self.sources.items() if config.enabled]
         active_sources.sort(key=lambda x: x[1].priority)
 
         collected_results = {}
@@ -223,14 +215,10 @@ class MultiSourceCollector:
 
                     if config.source_type == SourceType.REGTECH:
                         # 기존 REGTECH 수집기 사용
-                        result = await self._collect_regtech_async(
-                            max_ips_per_source, date_range_days
-                        )
+                        result = await self._collect_regtech_async(max_ips_per_source, date_range_days)
                     else:
                         # 새로운 소스 수집
-                        result = await self._collect_from_external_source(
-                            source_id, config, max_ips_per_source
-                        )
+                        result = await self._collect_from_external_source(source_id, config, max_ips_per_source)
 
                     collected_results[source_id] = result
                     logger.info(f"✅ {config.name}: {len(result.get('data', []))}개 수집")
@@ -247,10 +235,7 @@ class MultiSourceCollector:
                     return {"success": False, "error": str(e), "data": []}
 
         # 모든 소스에서 병렬 수집
-        tasks = [
-            collect_from_source(source_id, config)
-            for source_id, config in active_sources
-        ]
+        tasks = [collect_from_source(source_id, config) for source_id, config in active_sources]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -273,11 +258,7 @@ class MultiSourceCollector:
                     "confidence_boost": config.confidence_boost,
                 }
             else:
-                error_msg = (
-                    result.get("error", "알 수 없는 오류")
-                    if isinstance(result, dict)
-                    else str(result)
-                )
+                error_msg = result.get("error", "알 수 없는 오류") if isinstance(result, dict) else str(result)
                 source_stats[source_id] = {"collected": 0, "error": error_msg}
 
         # 중복 제거 및 데이터 품질 향상
@@ -292,9 +273,7 @@ class MultiSourceCollector:
             "total_collected": total_collected,
             "unique_ips": len(set(item.get("ip_address") for item in unique_data)),
             "sources_attempted": len(active_sources),
-            "sources_successful": len(
-                [s for s in source_stats.values() if "error" not in s]
-            ),
+            "sources_successful": len([s for s in source_stats.values() if "error" not in s]),
             "collection_time_seconds": round(collection_time, 2),
             "source_breakdown": source_stats,
             "data": unique_data,
@@ -315,9 +294,7 @@ class MultiSourceCollector:
         logger.info(f"🎯 다중 소스 수집 완료: {total_collected:,}개 IP, {collection_time:.2f}초")
         return collection_result
 
-    async def _collect_regtech_async(
-        self, max_ips: int, date_range_days: int
-    ) -> Dict[str, Any]:
+    async def _collect_regtech_async(self, max_ips: int, date_range_days: int) -> Dict[str, Any]:
         """REGTECH 비동기 수집"""
         loop = asyncio.get_event_loop()
 
@@ -332,9 +309,7 @@ class MultiSourceCollector:
 
                 # 날짜 범위 계산
                 end_date = datetime.now().strftime("%Y-%m-%d")
-                start_date = (
-                    datetime.now() - timedelta(days=date_range_days)
-                ).strftime("%Y-%m-%d")
+                start_date = (datetime.now() - timedelta(days=date_range_days)).strftime("%Y-%m-%d")
 
                 # 데이터 수집
                 collected_data = regtech_collector.collect_blacklist_data(
@@ -364,9 +339,7 @@ class MultiSourceCollector:
 
         return await loop.run_in_executor(None, sync_collect)
 
-    async def _collect_from_external_source(
-        self, source_id: str, config: SourceConfig, max_ips: int
-    ) -> Dict[str, Any]:
+    async def _collect_from_external_source(self, source_id: str, config: SourceConfig, max_ips: int) -> Dict[str, Any]:
         """외부 소스에서 데이터 수집"""
         import aiohttp
 
@@ -383,25 +356,19 @@ class MultiSourceCollector:
                 if config.source_type == SourceType.THREATFOX:
                     # ThreatFox API 특별 처리
                     post_data = {"query": "get_iocs", "days": 7}
-                    async with session.post(
-                        config.url, json=post_data, headers=headers
-                    ) as response:
+                    async with session.post(config.url, json=post_data, headers=headers) as response:
                         data = await response.json()
                         return self._parse_threatfox_data(data, config, max_ips)
 
                 elif config.data_format == "text":
                     # 텍스트 기반 피드 (Feodo, OpenPhish 등)
-                    async with session.get(
-                        config.url, headers=headers, params=params
-                    ) as response:
+                    async with session.get(config.url, headers=headers, params=params) as response:
                         text_data = await response.text()
                         return self._parse_text_feed(text_data, config, max_ips)
 
                 elif config.data_format == "json":
                     # JSON 기반 피드
-                    async with session.get(
-                        config.url, headers=headers, params=params
-                    ) as response:
+                    async with session.get(config.url, headers=headers, params=params) as response:
                         json_data = await response.json()
                         return self._parse_json_feed(json_data, config, max_ips)
 
@@ -416,9 +383,7 @@ class MultiSourceCollector:
             logger.error(f"❌ {config.name} 수집 오류: {e}")
             return {"success": False, "error": str(e), "data": []}
 
-    def _parse_threatfox_data(
-        self, data: Dict, config: SourceConfig, max_ips: int
-    ) -> Dict[str, Any]:
+    def _parse_threatfox_data(self, data: Dict, config: SourceConfig, max_ips: int) -> Dict[str, Any]:
         """ThreatFox 데이터 파싱"""
         collected_ips = []
 
@@ -431,9 +396,7 @@ class MultiSourceCollector:
                     ioc_type = ioc_data.get("ioc_type", "")
 
                     # IP 주소만 필터링
-                    if ioc_type in ["ip:port", "ip"] and self._is_valid_ip(
-                        ioc_value.split(":")[0]
-                    ):
+                    if ioc_type in ["ip:port", "ip"] and self._is_valid_ip(ioc_value.split(":")[0]):
                         ip_address = ioc_value.split(":")[0]
 
                         collected_ips.append(
@@ -441,9 +404,7 @@ class MultiSourceCollector:
                                 "ip_address": ip_address,
                                 "source": config.name,
                                 "reason": ioc_data.get("threat_type", "ThreatFox IOC"),
-                                "category": self._determine_category_from_threat_type(
-                                    ioc_data.get("threat_type", "")
-                                ),
+                                "category": self._determine_category_from_threat_type(ioc_data.get("threat_type", "")),
                                 "confidence_level": 70 + config.confidence_boost,
                                 "detection_count": 1,
                                 "is_active": True,
@@ -461,9 +422,7 @@ class MultiSourceCollector:
         except Exception as e:
             return {"success": False, "error": str(e), "data": []}
 
-    def _parse_text_feed(
-        self, text_data: str, config: SourceConfig, max_ips: int
-    ) -> Dict[str, Any]:
+    def _parse_text_feed(self, text_data: str, config: SourceConfig, max_ips: int) -> Dict[str, Any]:
         """텍스트 피드 파싱 (IP 목록)"""
         collected_ips = []
 
@@ -514,9 +473,7 @@ class MultiSourceCollector:
         except Exception as e:
             return {"success": False, "error": str(e), "data": []}
 
-    def _parse_json_feed(
-        self, json_data: Any, config: SourceConfig, max_ips: int
-    ) -> Dict[str, Any]:
+    def _parse_json_feed(self, json_data: Any, config: SourceConfig, max_ips: int) -> Dict[str, Any]:
         """JSON 피드 파싱"""
         collected_ips = []
 
@@ -573,9 +530,7 @@ class MultiSourceCollector:
 
                 if ip_address:
                     # 추가 정보 추출
-                    reason = item.get(
-                        config.reason_field or "description", f"{config.name} 위협"
-                    )
+                    reason = item.get(config.reason_field or "description", f"{config.name} 위협")
                     detection_date = item.get(config.date_field or "date", "")
 
                     collected_ips.append(
@@ -588,9 +543,7 @@ class MultiSourceCollector:
                             "detection_count": 1,
                             "is_active": True,
                             "last_seen": datetime.now(),
-                            "detection_date": detection_date[:10]
-                            if detection_date
-                            else None,
+                            "detection_date": detection_date[:10] if detection_date else None,
                             "raw_data": json.dumps(item)[:500],  # 원본 데이터 일부
                         }
                     )
@@ -635,9 +588,7 @@ class MultiSourceCollector:
         except ValueError:
             return False
 
-    def _deduplicate_and_enhance(
-        self, all_data: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _deduplicate_and_enhance(self, all_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """중복 제거 및 데이터 품질 향상"""
 
         # IP 주소별 그룹화
@@ -675,17 +626,13 @@ class MultiSourceCollector:
 
         # 평균 신뢰도 (가중평균)
         total_confidence = sum(item.get("confidence_level", 0) for item in items)
-        avg_confidence = min(
-            100, int(total_confidence / len(items)) + len(items) * 2
-        )  # 다중 소스 보너스
+        avg_confidence = min(100, int(total_confidence / len(items)) + len(items) * 2)  # 다중 소스 보너스
 
         # 가장 상세한 이유
         best_reason = max(items, key=lambda x: len(x.get("reason", "")))["reason"]
 
         # 가장 이른 탐지일
-        detection_dates = [
-            item.get("detection_date") for item in items if item.get("detection_date")
-        ]
+        detection_dates = [item.get("detection_date") for item in items if item.get("detection_date")]
         earliest_date = min(detection_dates) if detection_dates else None
 
         # 병합된 아이템
@@ -739,9 +686,7 @@ class MultiSourceCollector:
         for source_id, config in self.sources.items():
             if source_type.lower() in source_id.lower():
                 config.enabled = enabled
-                logger.info(
-                    f"{'✅' if enabled else '❌'} 소스 {config.name} {'활성화' if enabled else '비활성화'}"
-                )
+                logger.info(f"{'✅' if enabled else '❌'} 소스 {config.name} {'활성화' if enabled else '비활성화'}")
                 return True
         return False
 

@@ -41,9 +41,7 @@ class FortiManagerPushService:
         self.fmg_user = os.getenv("FMG_USER", "admin")
         self.fmg_pass = os.getenv("FMG_PASS")
         self.fmg_adom = os.getenv("FMG_ADOM", "root")
-        self.api_url = os.getenv(
-            "BLACKLIST_API_URL", "https://localhost/api/fortinet/threat-feed?format=text"
-        )
+        self.api_url = os.getenv("BLACKLIST_API_URL", "https://localhost/api/fortinet/threat-feed?format=text")
 
         self.session_id: Optional[str] = None
         # Persistent connection for PostgreSQL LISTEN/NOTIFY (required for real-time notifications)
@@ -67,9 +65,7 @@ class FortiManagerPushService:
             db_user = os.getenv("POSTGRES_USER", "postgres")
             db_pass = os.getenv("POSTGRES_PASSWORD")
 
-            self.db_conn = psycopg2.connect(
-                host=db_host, database=db_name, user=db_user, password=db_pass
-            )
+            self.db_conn = psycopg2.connect(host=db_host, database=db_name, user=db_user, password=db_pass)
 
         self.db_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
@@ -103,9 +99,7 @@ class FortiManagerPushService:
 
             if result.get("result", [{}])[0].get("status", {}).get("code") == 0:
                 self.session_id = result.get("session")
-                logger.info(
-                    f"✅ FortiManager login successful (Session: {self.session_id[:10]}...)"
-                )
+                logger.info(f"✅ FortiManager login successful (Session: {self.session_id[:10]}...)")
                 return True
             else:
                 logger.error(f"❌ Login failed: {result}")
@@ -234,9 +228,7 @@ class FortiManagerPushService:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     # Initialize DatabaseService for standalone execution
     try:
@@ -254,6 +246,4 @@ if __name__ == "__main__":
 from flask import current_app
 from werkzeug.local import LocalProxy
 
-fortimanager_service = LocalProxy(
-    lambda: current_app.extensions["fortimanager_service"]
-)
+fortimanager_service = LocalProxy(lambda: current_app.extensions["fortimanager_service"])

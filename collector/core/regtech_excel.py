@@ -98,9 +98,7 @@ def download_excel_data(
         logger.info(f"📊 Excel 파일 크기: {file_size} bytes")
 
         if file_size < 1000:
-            with open(
-                "/tmp/regtech_data.xlsx", "r", encoding="utf-8", errors="ignore"
-            ) as f:
+            with open("/tmp/regtech_data.xlsx", "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read(500)
                 logger.warning(f"⚠️ 작은 파일 내용: {content[:200]}")
             return []

@@ -1,4 +1,4 @@
-﻿"""
+"""
 데이터 품질 관리 시스템
 기존 데이터 유지 및 품질 향상을 위한 통합 관리
 """
@@ -120,12 +120,8 @@ class DataQualityManager:
                 "missing_removal_date": stats[4],
                 "unique_ips": stats[5],
                 "duplicate_ips": stats[6],
-                "active_rate": round(stats[1] / stats[0] * 100, 2)
-                if stats[0] > 0
-                else 0,
-                "duplicate_rate": round(stats[6] / stats[0] * 100, 2)
-                if stats[0] > 0
-                else 0,
+                "active_rate": round(stats[1] / stats[0] * 100, 2) if stats[0] > 0 else 0,
+                "duplicate_rate": round(stats[6] / stats[0] * 100, 2) if stats[0] > 0 else 0,
             }
 
         except Exception as e:
@@ -218,9 +214,7 @@ class DataQualityManager:
             # 신선도 점수 계산 (최근 30일 데이터 비율 기준)
             freshness_score = 0
             if freshness_data[3] > 0:  # total > 0
-                recent_ratio = (
-                    freshness_data[1] / freshness_data[3]
-                )  # last_30_days / total
+                recent_ratio = freshness_data[1] / freshness_data[3]  # last_30_days / total
                 freshness_score = min(100, recent_ratio * 100 * 2)  # 최대 100점
 
             return {
@@ -228,12 +222,8 @@ class DataQualityManager:
                 "data_last_30_days": freshness_data[1],
                 "data_last_90_days": freshness_data[2],
                 "freshness_score": round(freshness_score, 2),
-                "latest_data_date": freshness_data[4].isoformat()
-                if freshness_data[4]
-                else None,
-                "oldest_data_date": freshness_data[5].isoformat()
-                if freshness_data[5]
-                else None,
+                "latest_data_date": freshness_data[4].isoformat() if freshness_data[4] else None,
+                "oldest_data_date": freshness_data[5].isoformat() if freshness_data[5] else None,
             }
 
         except Exception as e:
@@ -283,9 +273,7 @@ class DataQualityManager:
                 "total_duplicates": duplicate_stats[0],
                 "unique_combinations": duplicate_stats[1],
                 "duplicate_groups": duplicate_groups,
-                "duplicate_percentage": round(
-                    duplicate_stats[0] / duplicate_stats[2] * 100, 2
-                )
+                "duplicate_percentage": round(duplicate_stats[0] / duplicate_stats[2] * 100, 2)
                 if duplicate_stats[2] > 0
                 else 0,
             }
@@ -360,24 +348,15 @@ class DataQualityManager:
         metrics = quality_report.get("metrics", {})
 
         # 활성률 체크
-        if (
-            metrics.get("active_rate", 0)
-            < self.quality_thresholds["min_active_rate"] * 100
-        ):
+        if metrics.get("active_rate", 0) < self.quality_thresholds["min_active_rate"] * 100:
             recommendations.append("활성 IP 비율이 낮습니다. 데이터 수집 빈도를 늘리는 것을 고려하세요.")
 
         # 신선도 체크
-        if (
-            metrics.get("freshness_score", 0)
-            < self.quality_thresholds["min_freshness_score"]
-        ):
+        if metrics.get("freshness_score", 0) < self.quality_thresholds["min_freshness_score"]:
             recommendations.append("데이터 신선도가 낮습니다. 최근 데이터 수집을 강화하세요.")
 
         # 중복률 체크
-        if (
-            metrics.get("duplicate_rate", 0)
-            > self.quality_thresholds["max_duplicate_rate"] * 100
-        ):
+        if metrics.get("duplicate_rate", 0) > self.quality_thresholds["max_duplicate_rate"] * 100:
             recommendations.append("중복 데이터 비율이 높습니다. 정기적인 중복 제거를 권장합니다.")
 
         # 누락 필드 체크
@@ -393,20 +372,11 @@ class DataQualityManager:
         # 각 지표별 점수 계산 (0-100)
         active_score = min(100, metrics.get("active_rate", 0))
         freshness_score = metrics.get("freshness_score", 0)
-        duplicate_score = max(
-            0, 100 - metrics.get("duplicate_rate", 0) * 20
-        )  # 중복률이 높을수록 감점
-        integrity_score = max(
-            0, 100 - len(quality_report.get("issues", [])) * 10
-        )  # 이슈 당 10점 감점
+        duplicate_score = max(0, 100 - metrics.get("duplicate_rate", 0) * 20)  # 중복률이 높을수록 감점
+        integrity_score = max(0, 100 - len(quality_report.get("issues", [])) * 10)  # 이슈 당 10점 감점
 
         # 가중 평균 (활성률 30%, 신선도 30%, 중복률 20%, 무결성 20%)
-        overall_score = (
-            active_score * 0.3
-            + freshness_score * 0.3
-            + duplicate_score * 0.2
-            + integrity_score * 0.2
-        )
+        overall_score = active_score * 0.3 + freshness_score * 0.3 + duplicate_score * 0.2 + integrity_score * 0.2
 
         return int(overall_score)
 
@@ -415,18 +385,10 @@ class DataQualityManager:
         try:
             # 품질 보고서를 로그에 요약 기록
             logger.info("📊 품질 보고서 요약:")
-            logger.info(
-                f"  - 전체 점수: {quality_report.get('overall_quality_score', 0)}/100"
-            )
-            logger.info(
-                f"  - 총 IP: {quality_report.get('metrics', {}).get('total_ips', 0)}개"
-            )
-            logger.info(
-                f"  - 활성 IP: {quality_report.get('metrics', {}).get('active_ips', 0)}개"
-            )
-            logger.info(
-                f"  - 신선도: {quality_report.get('metrics', {}).get('freshness_score', 0)}"
-            )
+            logger.info(f"  - 전체 점수: {quality_report.get('overall_quality_score', 0)}/100")
+            logger.info(f"  - 총 IP: {quality_report.get('metrics', {}).get('total_ips', 0)}개")
+            logger.info(f"  - 활성 IP: {quality_report.get('metrics', {}).get('active_ips', 0)}개")
+            logger.info(f"  - 신선도: {quality_report.get('metrics', {}).get('freshness_score', 0)}")
             logger.info(f"  - 이슈: {len(quality_report.get('issues', []))}개")
             logger.info(f"  - 권장사항: {len(quality_report.get('recommendations', []))}개")
 

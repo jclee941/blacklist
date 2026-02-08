@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CacheEvent:
     """Represents a single cache operation event"""
+
     timestamp: str
     operation: str  # 'hit', 'miss', 'set', 'delete', 'error'
     cache_key: str
@@ -85,12 +86,7 @@ class CacheMetricsCollector:
 
         logger.info("Cache metrics collector initialized")
 
-    def record_hit(
-        self,
-        cache_key: str,
-        latency_ms: float,
-        endpoint: Optional[str] = None
-    ) -> None:
+    def record_hit(self, cache_key: str, latency_ms: float, endpoint: Optional[str] = None) -> None:
         """
         Record a cache hit event.
 
@@ -103,10 +99,10 @@ class CacheMetricsCollector:
             # Create cache event
             event = CacheEvent(
                 timestamp=datetime.now().isoformat(),
-                operation='hit',
+                operation="hit",
                 cache_key=cache_key,
                 endpoint=endpoint,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
             # Add to recent operations
@@ -120,15 +116,10 @@ class CacheMetricsCollector:
                 self._endpoint_hits[endpoint] += 1
 
             # Extract key prefix (before first ':')
-            prefix = cache_key.split(':')[0] if ':' in cache_key else cache_key
+            prefix = cache_key.split(":")[0] if ":" in cache_key else cache_key
             self._prefix_hits[prefix] += 1
 
-    def record_miss(
-        self,
-        cache_key: str,
-        latency_ms: float,
-        endpoint: Optional[str] = None
-    ) -> None:
+    def record_miss(self, cache_key: str, latency_ms: float, endpoint: Optional[str] = None) -> None:
         """
         Record a cache miss event.
 
@@ -141,10 +132,10 @@ class CacheMetricsCollector:
             # Create cache event
             event = CacheEvent(
                 timestamp=datetime.now().isoformat(),
-                operation='miss',
+                operation="miss",
                 cache_key=cache_key,
                 endpoint=endpoint,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
             # Add to recent operations
@@ -158,15 +149,10 @@ class CacheMetricsCollector:
                 self._endpoint_misses[endpoint] += 1
 
             # Extract key prefix
-            prefix = cache_key.split(':')[0] if ':' in cache_key else cache_key
+            prefix = cache_key.split(":")[0] if ":" in cache_key else cache_key
             self._prefix_misses[prefix] += 1
 
-    def record_set(
-        self,
-        cache_key: str,
-        ttl: int,
-        size_bytes: Optional[int] = None
-    ) -> None:
+    def record_set(self, cache_key: str, ttl: int, size_bytes: Optional[int] = None) -> None:
         """
         Record a cache set operation.
 
@@ -176,12 +162,7 @@ class CacheMetricsCollector:
             size_bytes: Optional size of cached value in bytes
         """
         with self._metrics_lock:
-            event = CacheEvent(
-                timestamp=datetime.now().isoformat(),
-                operation='set',
-                cache_key=cache_key,
-                ttl=ttl
-            )
+            event = CacheEvent(timestamp=datetime.now().isoformat(), operation="set", cache_key=cache_key, ttl=ttl)
 
             self._recent_operations.append(event)
             self._cache_sets += 1
@@ -192,21 +173,12 @@ class CacheMetricsCollector:
     def record_delete(self, cache_key: str) -> None:
         """Record a cache delete operation"""
         with self._metrics_lock:
-            event = CacheEvent(
-                timestamp=datetime.now().isoformat(),
-                operation='delete',
-                cache_key=cache_key
-            )
+            event = CacheEvent(timestamp=datetime.now().isoformat(), operation="delete", cache_key=cache_key)
 
             self._recent_operations.append(event)
             self._cache_deletes += 1
 
-    def record_error(
-        self,
-        cache_key: str,
-        operation: str,
-        error_message: str
-    ) -> None:
+    def record_error(self, cache_key: str, operation: str, error_message: str) -> None:
         """
         Record a cache error.
 
@@ -217,9 +189,7 @@ class CacheMetricsCollector:
         """
         with self._metrics_lock:
             self._cache_errors += 1
-            logger.warning(
-                f"Cache {operation} error for key '{cache_key}': {error_message}"
-            )
+            logger.warning(f"Cache {operation} error for key '{cache_key}': {error_message}")
 
     def get_statistics(self) -> Dict:
         """
@@ -241,25 +211,16 @@ class CacheMetricsCollector:
             total_ops = self._cache_hits + self._cache_misses
             hit_rate = (self._cache_hits / total_ops * 100) if total_ops > 0 else 0
 
-            avg_hit_latency = (
-                sum(self._hit_latencies) / len(self._hit_latencies)
-                if self._hit_latencies else 0
-            )
+            avg_hit_latency = sum(self._hit_latencies) / len(self._hit_latencies) if self._hit_latencies else 0
 
-            avg_miss_latency = (
-                sum(self._miss_latencies) / len(self._miss_latencies)
-                if self._miss_latencies else 0
-            )
+            avg_miss_latency = sum(self._miss_latencies) / len(self._miss_latencies) if self._miss_latencies else 0
 
             uptime = datetime.now() - self._start_time
             uptime_hours = uptime.total_seconds() / 3600
 
             # Build endpoint statistics
             endpoint_stats = {}
-            all_endpoints = set(
-                list(self._endpoint_hits.keys()) +
-                list(self._endpoint_misses.keys())
-            )
+            all_endpoints = set(list(self._endpoint_hits.keys()) + list(self._endpoint_misses.keys()))
 
             for endpoint in all_endpoints:
                 hits = self._endpoint_hits.get(endpoint, 0)
@@ -267,17 +228,14 @@ class CacheMetricsCollector:
                 total = hits + misses
 
                 endpoint_stats[endpoint] = {
-                    'hits': hits,
-                    'misses': misses,
-                    'hit_rate': round((hits / total * 100) if total > 0 else 0, 2)
+                    "hits": hits,
+                    "misses": misses,
+                    "hit_rate": round((hits / total * 100) if total > 0 else 0, 2),
                 }
 
             # Build prefix statistics
             prefix_stats = {}
-            all_prefixes = set(
-                list(self._prefix_hits.keys()) +
-                list(self._prefix_misses.keys())
-            )
+            all_prefixes = set(list(self._prefix_hits.keys()) + list(self._prefix_misses.keys()))
 
             for prefix in all_prefixes:
                 hits = self._prefix_hits.get(prefix, 0)
@@ -285,32 +243,29 @@ class CacheMetricsCollector:
                 total = hits + misses
 
                 prefix_stats[prefix] = {
-                    'hits': hits,
-                    'misses': misses,
-                    'hit_rate': round((hits / total * 100) if total > 0 else 0, 2)
+                    "hits": hits,
+                    "misses": misses,
+                    "hit_rate": round((hits / total * 100) if total > 0 else 0, 2),
                 }
 
             return {
-                'total_operations': total_ops,
-                'cache_hits': self._cache_hits,
-                'cache_misses': self._cache_misses,
-                'cache_sets': self._cache_sets,
-                'cache_deletes': self._cache_deletes,
-                'cache_errors': self._cache_errors,
-                'hit_rate': round(hit_rate, 2),
-                'avg_hit_latency_ms': round(avg_hit_latency, 2),
-                'avg_miss_latency_ms': round(avg_miss_latency, 2),
-                'by_endpoint': endpoint_stats,
-                'by_prefix': prefix_stats,
-                'uptime_hours': round(uptime_hours, 2),
-                'collection_start': self._start_time.isoformat()
+                "total_operations": total_ops,
+                "cache_hits": self._cache_hits,
+                "cache_misses": self._cache_misses,
+                "cache_sets": self._cache_sets,
+                "cache_deletes": self._cache_deletes,
+                "cache_errors": self._cache_errors,
+                "hit_rate": round(hit_rate, 2),
+                "avg_hit_latency_ms": round(avg_hit_latency, 2),
+                "avg_miss_latency_ms": round(avg_miss_latency, 2),
+                "by_endpoint": endpoint_stats,
+                "by_prefix": prefix_stats,
+                "uptime_hours": round(uptime_hours, 2),
+                "collection_start": self._start_time.isoformat(),
             }
 
     def get_recent_operations(
-        self,
-        limit: int = 50,
-        operation_type: Optional[str] = None,
-        endpoint: Optional[str] = None
+        self, limit: int = 50, operation_type: Optional[str] = None, endpoint: Optional[str] = None
     ) -> List[Dict]:
         """
         Get recent cache operations with optional filtering.
@@ -336,11 +291,7 @@ class CacheMetricsCollector:
         # Apply limit and convert to dict
         return [asdict(o) for o in operations[-limit:]]
 
-    def get_cache_trends(
-        self,
-        window_minutes: int = 60,
-        bucket_minutes: int = 5
-    ) -> Dict:
+    def get_cache_trends(self, window_minutes: int = 60, bucket_minutes: int = 5) -> Dict:
         """
         Get cache performance trends over time.
 
@@ -361,10 +312,7 @@ class CacheMetricsCollector:
         window_start = now - timedelta(minutes=window_minutes)
 
         # Filter operations within window
-        recent = [
-            o for o in operations
-            if datetime.fromisoformat(o.timestamp) >= window_start
-        ]
+        recent = [o for o in operations if datetime.fromisoformat(o.timestamp) >= window_start]
 
         # Create buckets
         buckets = []
@@ -375,37 +323,32 @@ class CacheMetricsCollector:
             bucket_end = current_bucket_start + bucket_size
 
             # Count operations in this bucket
-            bucket_ops = [
-                o for o in recent
-                if current_bucket_start <= datetime.fromisoformat(o.timestamp) < bucket_end
-            ]
+            bucket_ops = [o for o in recent if current_bucket_start <= datetime.fromisoformat(o.timestamp) < bucket_end]
 
-            hits = sum(1 for o in bucket_ops if o.operation == 'hit')
-            misses = sum(1 for o in bucket_ops if o.operation == 'miss')
+            hits = sum(1 for o in bucket_ops if o.operation == "hit")
+            misses = sum(1 for o in bucket_ops if o.operation == "miss")
             total = hits + misses
 
-            buckets.append({
-                'start': current_bucket_start.isoformat(),
-                'end': bucket_end.isoformat(),
-                'hits': hits,
-                'misses': misses,
-                'hit_rate': round((hits / total * 100) if total > 0 else 0, 2)
-            })
+            buckets.append(
+                {
+                    "start": current_bucket_start.isoformat(),
+                    "end": bucket_end.isoformat(),
+                    "hits": hits,
+                    "misses": misses,
+                    "hit_rate": round((hits / total * 100) if total > 0 else 0, 2),
+                }
+            )
 
             current_bucket_start = bucket_end
 
         return {
-            'buckets': buckets,
-            'total_in_window': len(recent),
-            'window_minutes': window_minutes,
-            'bucket_minutes': bucket_minutes
+            "buckets": buckets,
+            "total_in_window": len(recent),
+            "window_minutes": window_minutes,
+            "bucket_minutes": bucket_minutes,
         }
 
-    def get_top_keys(
-        self,
-        by: str = "hits",
-        limit: int = 10
-    ) -> List[Dict]:
+    def get_top_keys(self, by: str = "hits", limit: int = 10) -> List[Dict]:
         """
         Get top cache keys by various criteria.
 
@@ -425,16 +368,9 @@ class CacheMetricsCollector:
                 raise ValueError(f"Invalid 'by' parameter: {by}")
 
             # Sort by count descending
-            sorted_items = sorted(
-                data.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:limit]
+            sorted_items = sorted(data.items(), key=lambda x: x[1], reverse=True)[:limit]
 
-            return [
-                {'prefix': prefix, 'count': count}
-                for prefix, count in sorted_items
-            ]
+            return [{"prefix": prefix, "count": count} for prefix, count in sorted_items]
 
     def reset_metrics(self) -> None:
         """Reset all metrics (use with caution)"""

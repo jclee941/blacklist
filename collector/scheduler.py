@@ -76,7 +76,9 @@ class CollectionScheduler:
                     self.collection_stats["successful_runs"] = stats["successful_collections"]
                 if stats.get("failed_collections"):
                     self.collection_stats["failed_runs"] = stats["failed_collections"]
-                logger.info(f"📊 Loaded run counts from DB: total={self.collection_stats['total_runs']}, success={self.collection_stats['successful_runs']}, failed={self.collection_stats['failed_runs']}")
+                logger.info(
+                    f"📊 Loaded run counts from DB: total={self.collection_stats['total_runs']}, success={self.collection_stats['successful_runs']}, failed={self.collection_stats['failed_runs']}"
+                )
         except Exception as e:
             logger.warning(f"⚠️ Could not load initial stats from DB: {e}")
 

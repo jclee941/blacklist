@@ -12,9 +12,7 @@ from ...exceptions import ValidationError, InternalServerError
 
 logger = logging.getLogger(__name__)
 
-fortinet_register_bp = Blueprint(
-    "fortinet_register", __name__, url_prefix="/api/fortinet"
-)
+fortinet_register_bp = Blueprint("fortinet_register", __name__, url_prefix="/api/fortinet")
 
 
 @fortinet_register_bp.route("/register", methods=["POST"])
@@ -176,16 +174,11 @@ def register_to_fortigate():
                 registered_count += 1
             else:
                 failed_count += 1
-                logger.warning(
-                    f"Failed to register IP {ip_address}: {addr_response.status_code}"
-                )
+                logger.warning(f"Failed to register IP {ip_address}: {addr_response.status_code}")
 
         # Update group members
         if registered_count > 0:
-            member_names = [
-                {"name": f"blacklist_{ip['ip'].replace('.', '_')}"}
-                for ip in ip_list[:registered_count]
-            ]
+            member_names = [{"name": f"blacklist_{ip['ip'].replace('.', '_')}"} for ip in ip_list[:registered_count]]
 
             update_response = requests.put(
                 f"{group_url}/{address_group}",

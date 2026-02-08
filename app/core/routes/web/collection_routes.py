@@ -58,13 +58,9 @@ def api_collection_trigger(source):
         if start_date and end_date:
             # 기간별 수집
             if source.lower() == "regtech":
-                result = collection_service.trigger_regtech_collection(
-                    start_date=start_date, end_date=end_date
-                )
+                result = collection_service.trigger_regtech_collection(start_date=start_date, end_date=end_date)
             elif source.lower() == "secudium":
-                result = collection_service.trigger_secudium_collection(
-                    start_date=start_date, end_date=end_date
-                )
+                result = collection_service.trigger_secudium_collection(start_date=start_date, end_date=end_date)
 
             message = f"{source.upper()} 기간별 수집이 완료되었습니다. ({start_date} ~ {end_date})"
         else:
@@ -83,9 +79,7 @@ def api_collection_trigger(source):
                 }
             )
         else:
-            return jsonify(
-                {"success": False, "error": result.get("error", "수집 실패")}
-            )
+            return jsonify({"success": False, "error": result.get("error", "수집 실패")})
 
     except Exception as e:
         logger.error(f"Collection trigger API error for {source}: {e}")
@@ -219,12 +213,8 @@ def api_collection_history():
                     "success": row[3],
                     "execution_time_ms": row[4],
                     "error_message": row[5],
-                    "start_date": (
-                        details.get("start_date") if isinstance(details, dict) else None
-                    ),
-                    "end_date": (
-                        details.get("end_date") if isinstance(details, dict) else None
-                    ),
+                    "start_date": (details.get("start_date") if isinstance(details, dict) else None),
+                    "end_date": (details.get("end_date") if isinstance(details, dict) else None),
                     "details": details,
                 }
             )

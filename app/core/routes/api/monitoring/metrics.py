@@ -78,9 +78,7 @@ def get_cache_stats():
         return jsonify({"success": True, "data": stats})
     except Exception as e:
         logger.exception("Failed to retrieve cache statistics")
-        return jsonify(
-            {"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}
-        ), 500
+        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
 
 
 @monitoring_bp.route("/monitoring/cache/operations", methods=["GET"])
@@ -127,9 +125,7 @@ def get_cache_operations():
         operation_type = request.args.get("operation_type", None, type=str)
         endpoint = request.args.get("endpoint", None, type=str)
 
-        operations = cache_metrics.get_recent_operations(
-            limit=limit, operation_type=operation_type, endpoint=endpoint
-        )
+        operations = cache_metrics.get_recent_operations(limit=limit, operation_type=operation_type, endpoint=endpoint)
 
         return jsonify(
             {
@@ -145,9 +141,7 @@ def get_cache_operations():
         )
     except Exception as e:
         logger.exception("Failed to retrieve cache operations")
-        return jsonify(
-            {"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}
-        ), 500
+        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
 
 
 @monitoring_bp.route("/monitoring/cache/trends", methods=["GET"])
@@ -198,16 +192,12 @@ def get_cache_trends():
         bucket_minutes = request.args.get("bucket_minutes", 5, type=int)
         bucket_minutes = max(bucket_minutes, 1)  # Minimum 1 minute
 
-        trends = cache_metrics.get_cache_trends(
-            window_minutes=window_minutes, bucket_minutes=bucket_minutes
-        )
+        trends = cache_metrics.get_cache_trends(window_minutes=window_minutes, bucket_minutes=bucket_minutes)
 
         return jsonify({"success": True, "data": trends})
     except Exception as e:
         logger.exception("Failed to retrieve cache trends")
-        return jsonify(
-            {"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}
-        ), 500
+        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
 
 
 @monitoring_bp.route("/monitoring/cache/top-keys", methods=["GET"])
@@ -259,14 +249,10 @@ def get_top_cache_keys():
 
         top_keys = cache_metrics.get_top_keys(by=by, limit=limit)
 
-        return jsonify(
-            {"success": True, "data": top_keys, "sorted_by": by, "limit": limit}
-        )
+        return jsonify({"success": True, "data": top_keys, "sorted_by": by, "limit": limit})
     except Exception as e:
         logger.exception("Failed to retrieve top cache keys")
-        return jsonify(
-            {"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}
-        ), 500
+        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
 
 
 @monitoring_bp.route("/monitoring/metrics", methods=["GET"])

@@ -37,13 +37,9 @@ def get_all_settings():
     """
     try:
         category = request.args.get("category")
-        include_encrypted = (
-            request.args.get("include_encrypted", "false").lower() == "true"
-        )
+        include_encrypted = request.args.get("include_encrypted", "false").lower() == "true"
 
-        settings = settings_service.get_all_settings(
-            category=category, include_encrypted=include_encrypted
-        )
+        settings = settings_service.get_all_settings(category=category, include_encrypted=include_encrypted)
 
         return jsonify({"success": True, "count": len(settings), "settings": settings})
 
@@ -58,9 +54,7 @@ def get_settings_grouped():
     try:
         grouped = settings_service.get_settings_by_category()
 
-        return jsonify(
-            {"success": True, "categories": list(grouped.keys()), "settings": grouped}
-        )
+        return jsonify({"success": True, "categories": list(grouped.keys()), "settings": grouped})
 
     except Exception as e:
         logger.error(f"Error getting grouped settings: {e}")
@@ -74,9 +68,7 @@ def get_setting(key):
         value = settings_service.get_setting(key)
 
         if value is None:
-            return jsonify(
-                {"success": False, "error": f"Setting not found: {key}"}
-            ), 404
+            return jsonify({"success": False, "error": f"Setting not found: {key}"}), 404
 
         return jsonify({"success": True, "key": key, "value": value})
 
@@ -95,9 +87,7 @@ def update_setting(key):
         data = request.get_json()
 
         if not data or "value" not in data:
-            return jsonify(
-                {"success": False, "error": "Missing value in request body"}
-            ), 400
+            return jsonify({"success": False, "error": "Missing value in request body"}), 400
 
         value = data["value"]
         encrypt = data.get("encrypt", False)
@@ -105,9 +95,7 @@ def update_setting(key):
         success = settings_service.set_setting(key, value, encrypt=encrypt)
 
         if success:
-            return jsonify(
-                {"success": True, "key": key, "message": "Setting updated successfully"}
-            )
+            return jsonify({"success": True, "key": key, "message": "Setting updated successfully"})
         else:
             return jsonify({"success": False, "error": "Failed to update setting"}), 500
 
@@ -135,9 +123,7 @@ def create_setting():
         required_fields = ["key", "value", "type"]
         for field in required_fields:
             if field not in data:
-                return jsonify(
-                    {"success": False, "error": f"Missing required field: {field}"}
-                ), 400
+                return jsonify({"success": False, "error": f"Missing required field: {field}"}), 400
 
         success = settings_service.create_setting(
             key=data["key"],
@@ -171,13 +157,9 @@ def delete_setting(key):
         success = settings_service.delete_setting(key)
 
         if success:
-            return jsonify(
-                {"success": True, "key": key, "message": "Setting deleted successfully"}
-            )
+            return jsonify({"success": True, "key": key, "message": "Setting deleted successfully"})
         else:
-            return jsonify(
-                {"success": False, "error": "Setting not found or already deleted"}
-            ), 404
+            return jsonify({"success": False, "error": "Setting not found or already deleted"}), 404
 
     except Exception as e:
         logger.error(f"Error deleting setting {key}: {e}")
@@ -199,9 +181,7 @@ def batch_update_settings():
         data = request.get_json()
 
         if not data or "settings" not in data:
-            return jsonify(
-                {"success": False, "error": "Missing settings array in request body"}
-            ), 400
+            return jsonify({"success": False, "error": "Missing settings array in request body"}), 400
 
         results = []
         failed = []
@@ -272,9 +252,7 @@ def get_all_credentials():
                 }
             )
 
-        return jsonify(
-            {"success": True, "count": len(credentials), "credentials": credentials}
-        )
+        return jsonify({"success": True, "count": len(credentials), "credentials": credentials})
 
     except Exception as e:
         logger.error(f"Error getting credentials: {e}")
@@ -351,9 +329,7 @@ def update_credentials(service_name):
                 }
             )
         else:
-            return jsonify(
-                {"success": False, "error": f"Service not found: {service_name}"}
-            ), 404
+            return jsonify({"success": False, "error": f"Service not found: {service_name}"}), 404
 
     except Exception as e:
         logger.error(f"Error updating credentials for {service_name}: {e}")
@@ -380,9 +356,7 @@ def create_credentials():
         required_fields = ["service_name", "username", "password"]
         for field in required_fields:
             if field not in data:
-                return jsonify(
-                    {"success": False, "error": f"Missing required field: {field}"}
-                ), 400
+                return jsonify({"success": False, "error": f"Missing required field: {field}"}), 400
 
         db_service = current_app.extensions["db_service"]
         conn = db_service.get_connection()
@@ -422,9 +396,7 @@ def create_credentials():
                 }
             ), 201
         else:
-            return jsonify(
-                {"success": False, "error": "Failed to save credentials"}
-            ), 500
+            return jsonify({"success": False, "error": "Failed to save credentials"}), 500
 
     except Exception as e:
         logger.error(f"Error creating credentials: {e}")

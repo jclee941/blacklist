@@ -97,9 +97,7 @@ def create_whitelist() -> tuple[Response, int]:
     data = request.get_json() or {}
 
     if not data or "ip_address" not in data:
-        raise BadRequestError(
-            message="ip_address is required", details={"parameter": "ip_address"}
-        )
+        raise BadRequestError(message="ip_address is required", details={"parameter": "ip_address"})
 
     try:
         repo = _get_repository()
@@ -125,18 +123,14 @@ def update_whitelist(id: int) -> tuple[Response, int]:
     data = request.get_json() or {}
 
     if not data:
-        raise BadRequestError(
-            message="No data provided for update", details={"parameter": "body"}
-        )
+        raise BadRequestError(message="No data provided for update", details={"parameter": "body"})
 
     try:
         repo = _get_repository()
         result = repo.update_whitelist(id=id, data=data)
 
         if not result:
-            raise NotFoundError(
-                message=f"Whitelist entry with id={id} not found", details={"id": id}
-            )
+            raise NotFoundError(message=f"Whitelist entry with id={id} not found", details={"id": id})
 
         response, status = success_response(result)
         return jsonify(response), status
@@ -158,9 +152,7 @@ def delete_whitelist(id: int) -> tuple[Response, int]:
         deleted_ip = repo.delete_whitelist(id=id)
 
         if not deleted_ip:
-            raise NotFoundError(
-                message=f"Whitelist entry with id={id} not found", details={"id": id}
-            )
+            raise NotFoundError(message=f"Whitelist entry with id={id} not found", details={"id": id})
 
         response, status = deleted_response(deleted_ip)
         return jsonify(response), status
@@ -200,9 +192,7 @@ def create_blacklist() -> tuple[Response, int]:
     data = request.get_json() or {}
 
     if not data or "ip_address" not in data:
-        raise BadRequestError(
-            message="ip_address is required", details={"parameter": "ip_address"}
-        )
+        raise BadRequestError(message="ip_address is required", details={"parameter": "ip_address"})
 
     try:
         repo = _get_repository()
@@ -233,18 +223,14 @@ def update_blacklist(id: int) -> tuple[Response, int]:
     data = request.get_json() or {}
 
     if not data:
-        raise BadRequestError(
-            message="No data provided for update", details={"parameter": "body"}
-        )
+        raise BadRequestError(message="No data provided for update", details={"parameter": "body"})
 
     try:
         repo = _get_repository()
         result = repo.update_blacklist(id=id, data=data)
 
         if not result:
-            raise NotFoundError(
-                message=f"Blacklist entry with id={id} not found", details={"id": id}
-            )
+            raise NotFoundError(message=f"Blacklist entry with id={id} not found", details={"id": id})
 
         response, status = success_response(result)
         return jsonify(response), status
@@ -266,9 +252,7 @@ def delete_blacklist(id: int) -> tuple[Response, int]:
         deleted_ip = repo.delete_blacklist(id=id)
 
         if not deleted_ip:
-            raise NotFoundError(
-                message=f"Blacklist entry with id={id} not found", details={"id": id}
-            )
+            raise NotFoundError(message=f"Blacklist entry with id={id} not found", details={"id": id})
 
         response, status = deleted_response(deleted_ip)
         return jsonify(response), status

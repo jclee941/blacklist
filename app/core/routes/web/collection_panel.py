@@ -107,7 +107,8 @@ def save_credentials():
                     "host": fmg_host,
                     "enabled": fmg_enabled,
                     "interval": fmg_interval,
-                    "api_url": os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:443") + "/api/fortinet/active-ips",
+                    "api_url": os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:443")
+                    + "/api/fortinet/active-ips",
                     "filename": "nxtd-blacklist.txt",
                 },
             )

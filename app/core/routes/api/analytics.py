@@ -37,23 +37,22 @@ def get_analytics_overview():
         """)
 
         row = stats[0] if stats else {}
-        return jsonify({
-            "success": True,
-            "data": {
-                "total_ips": row.get("total_ips", 0),
-                "active_ips": row.get("active_ips", 0),
-                "source_count": row.get("source_count", 0),
-                "new_today": row.get("new_today", 0),
-                "new_week": row.get("new_week", 0)
-            },
-            "timestamp": datetime.now().isoformat()
-        })
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "total_ips": row.get("total_ips", 0),
+                    "active_ips": row.get("active_ips", 0),
+                    "source_count": row.get("source_count", 0),
+                    "new_today": row.get("new_today", 0),
+                    "new_week": row.get("new_week", 0),
+                },
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
     except Exception as e:
         logger.error(f"Analytics overview failed: {e}")
-        raise DatabaseError(
-            message="Failed to get analytics overview",
-            query="analytics_overview"
-        )
+        raise DatabaseError(message="Failed to get analytics overview", query="analytics_overview")
 
 
 @detection_bp.route("/detection-timeline", methods=["GET"])

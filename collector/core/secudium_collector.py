@@ -83,15 +83,17 @@ class SecudiumCollector:
         )
         session.mount("https://", adapter)
         session.mount("http://", adapter)
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                          "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-            "X-Requested-With": "XMLHttpRequest",
-            "Origin": CollectorConfig.SECUDIUM_BASE_URL.rstrip("/"),
-            "Referer": f"{CollectorConfig.SECUDIUM_BASE_URL.rstrip('/')}/",
-        })
+        session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                "X-Requested-With": "XMLHttpRequest",
+                "Origin": CollectorConfig.SECUDIUM_BASE_URL.rstrip("/"),
+                "Referer": f"{CollectorConfig.SECUDIUM_BASE_URL.rstrip('/')}/",
+            }
+        )
         session.verify = True
         return session
 
@@ -254,8 +256,10 @@ class SecudiumCollector:
 
         logger.info("secudium_step2_login_attempt", with_otp=True, otp_length=len(otp_code))
         login_result = self._login(
-            self._pending_username, self._pending_password,
-            is_otp=True, otp_value=otp_code,
+            self._pending_username,
+            self._pending_password,
+            is_otp=True,
+            otp_value=otp_code,
         )
 
         if login_result == "success":
@@ -353,14 +357,14 @@ class SecudiumCollector:
                 return token
 
         set_cookie = resp.headers.get("Set-Cookie", "")
-        token_match = re.search(r'(?:X-Auth-Token|token)=([^;]+)', set_cookie)
+        token_match = re.search(r"(?:X-Auth-Token|token)=([^;]+)", set_cookie)
         if token_match:
             token = token_match.group(1)
             if ":" in token:
                 return token
 
         text = resp.text or ""
-        token_pattern = re.search(r'([a-zA-Z0-9_]+:\d+:[a-f0-9]{64})', text)
+        token_pattern = re.search(r"([a-zA-Z0-9_]+:\d+:[a-f0-9]{64})", text)
         if token_pattern:
             return token_pattern.group(1)
 
@@ -647,7 +651,7 @@ class SecudiumCollector:
         batch_size = CollectorConfig.BATCH_SIZE
 
         for i in range(0, len(ips), batch_size):
-            batch = ips[i:i + batch_size]
+            batch = ips[i : i + batch_size]
             try:
                 count = self.db_service.upsert_blacklist_ips(batch, source="SECUDIUM")
                 inserted += count

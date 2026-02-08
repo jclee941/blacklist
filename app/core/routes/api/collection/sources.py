@@ -63,14 +63,10 @@ def list_sources():
 def get_source(source_id):
     """Get details for a specific collection source"""
     try:
-        source = next(
-            (s for s in AVAILABLE_SOURCES if s["id"] == source_id.upper()), None
-        )
+        source = next((s for s in AVAILABLE_SOURCES if s["id"] == source_id.upper()), None)
 
         if not source:
-            return jsonify(
-                {"success": False, "error": f"Source not found: {source_id}"}
-            ), 404
+            return jsonify({"success": False, "error": f"Source not found: {source_id}"}), 404
 
         return jsonify({"success": True, "source": source})
 
@@ -83,14 +79,10 @@ def get_source(source_id):
 def get_source_status(source_id):
     """Get current status and last collection info for a source"""
     try:
-        source = next(
-            (s for s in AVAILABLE_SOURCES if s["id"] == source_id.upper()), None
-        )
+        source = next((s for s in AVAILABLE_SOURCES if s["id"] == source_id.upper()), None)
 
         if not source:
-            return jsonify(
-                {"success": False, "error": f"Source not found: {source_id}"}
-            ), 404
+            return jsonify({"success": False, "error": f"Source not found: {source_id}"}), 404
 
         if not source.get("enabled", False):
             return jsonify(
@@ -132,16 +124,8 @@ def get_source_status(source_id):
                     "source_id": source_id.upper(),
                     "status": record.get("status", "unknown"),
                     "last_collection": {
-                        "started_at": (
-                            record["started_at"].isoformat()
-                            if record.get("started_at")
-                            else None
-                        ),
-                        "completed_at": (
-                            record["completed_at"].isoformat()
-                            if record.get("completed_at")
-                            else None
-                        ),
+                        "started_at": (record["started_at"].isoformat() if record.get("started_at") else None),
+                        "completed_at": (record["completed_at"].isoformat() if record.get("completed_at") else None),
                         "records_collected": record.get("records_collected", 0),
                         "error_message": record.get("error_message"),
                     },

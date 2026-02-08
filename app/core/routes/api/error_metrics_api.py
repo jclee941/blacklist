@@ -43,9 +43,7 @@ def get_recent_errors():
         try:
             limit = int(request.args.get("limit", 50))
         except ValueError:
-            raise ValidationError(
-                message="Limit must be a valid integer", field="limit"
-            )
+            raise ValidationError(message="Limit must be a valid integer", field="limit")
 
         if limit < 1 or limit > 200:
             raise ValidationError(
@@ -57,9 +55,7 @@ def get_recent_errors():
         exception_type = request.args.get("type")
         endpoint = request.args.get("endpoint")
 
-        errors = error_metrics.get_recent_errors(
-            limit=limit, exception_type=exception_type, endpoint=endpoint
-        )
+        errors = error_metrics.get_recent_errors(limit=limit, exception_type=exception_type, endpoint=endpoint)
 
         data = {
             "errors": errors,
@@ -115,9 +111,7 @@ def get_error_trends():
                 },
             )
 
-        trends = error_metrics.get_error_trends(
-            window_minutes=window_minutes, bucket_minutes=bucket_minutes
-        )
+        trends = error_metrics.get_error_trends(window_minutes=window_minutes, bucket_minutes=bucket_minutes)
 
         return success_response(
             {
@@ -156,9 +150,7 @@ def get_top_errors():
         try:
             limit = int(request.args.get("limit", 10))
         except ValueError:
-            raise ValidationError(
-                message="Limit must be a valid integer", field="limit"
-            )
+            raise ValidationError(message="Limit must be a valid integer", field="limit")
 
         if limit < 1 or limit > 50:
             raise ValidationError(

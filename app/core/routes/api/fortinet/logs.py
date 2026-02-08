@@ -65,22 +65,12 @@ def get_active_sessions():
                     "country": row["country"],
                     "reason": row["reason"],
                     "confidence_level": row["confidence_level"],
-                    "detection_date": row["detection_date"].isoformat()
-                    if row["detection_date"]
-                    else None,
-                    "removal_date": row["removal_date"].isoformat()
-                    if row["removal_date"]
-                    else None,
+                    "detection_date": row["detection_date"].isoformat() if row["detection_date"] else None,
+                    "removal_date": row["removal_date"].isoformat() if row["removal_date"] else None,
                     "is_active": row["is_active"],
-                    "created_at": row["created_at"].isoformat()
-                    if row["created_at"]
-                    else None,
-                    "updated_at": row["updated_at"].isoformat()
-                    if row["updated_at"]
-                    else None,
-                    "active_hours": round(float(row["active_hours"]), 1)
-                    if row["active_hours"]
-                    else 0,
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+                    "active_hours": round(float(row["active_hours"]), 1) if row["active_hours"] else 0,
                     "session_status": session_status,
                 }
             )
@@ -163,9 +153,7 @@ def get_pull_logs():
                     "ip_count": row["ip_count"],
                     "response_time_ms": row["response_time_ms"],
                     "status_code": row["response_status"],
-                    "created_at": row["created_at"].isoformat()
-                    if row["created_at"]
-                    else None,
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
                 }
             )
 

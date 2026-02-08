@@ -39,9 +39,7 @@ def forward_to_backend(endpoint: str, method: str = None):
 
         # Forward request with same method, headers, and body
         if method == "GET":
-            response = requests.get(
-                url, params=request.args, headers=headers, timeout=30
-            )
+            response = requests.get(url, params=request.args, headers=headers, timeout=30)
         elif method == "POST":
             data = request.get_json(silent=True) or {}
             response = requests.post(url, json=data, headers=headers, timeout=30)
@@ -51,9 +49,7 @@ def forward_to_backend(endpoint: str, method: str = None):
         elif method == "DELETE":
             response = requests.delete(url, headers=headers, timeout=30)
         else:
-            return jsonify(
-                {"success": False, "error": f"Unsupported method: {method}"}
-            ), 405
+            return jsonify({"success": False, "error": f"Unsupported method: {method}"}), 405
 
         # Return backend response with same status code
         try:

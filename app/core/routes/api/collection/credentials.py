@@ -38,20 +38,24 @@ def list_credentials():
     for source in sources:
         try:
             creds = secure_credential_service.get_credentials(source)
-            result.append({
-                "source": source,
-                "configured": creds is not None,
-                "enabled": creds.get("enabled", False) if creds else False,
-            })
+            result.append(
+                {
+                    "source": source,
+                    "configured": creds is not None,
+                    "enabled": creds.get("enabled", False) if creds else False,
+                }
+            )
         except Exception:
             result.append({"source": source, "configured": False, "enabled": False})
 
-    return jsonify({
-        "success": True,
-        "data": result,
-        "timestamp": datetime.now().isoformat(),
-        "request_id": g.request_id,
-    })
+    return jsonify(
+        {
+            "success": True,
+            "data": result,
+            "timestamp": datetime.now().isoformat(),
+            "request_id": g.request_id,
+        }
+    )
 
 
 @collection_credentials_bp.route("/credentials/<source>", methods=["GET", "PUT"])
@@ -92,17 +96,15 @@ def manage_credentials(source: str):
                 )
 
             response_data = {
-                        "service_name": credentials["service_name"],
-                        "username": credentials["username"],
-                        "password": "***masked***",
-                        "enabled": credentials.get("enabled", True),
-                        "collection_interval": interval_seconds_to_string(
-                            credentials.get("collection_interval", 86400)
-                        ),
-                        "last_collection": credentials["last_collection"].isoformat()
-                        if credentials.get("last_collection")
-                        else None,
-                    }
+                "service_name": credentials["service_name"],
+                "username": credentials["username"],
+                "password": "***masked***",
+                "enabled": credentials.get("enabled", True),
+                "collection_interval": interval_seconds_to_string(credentials.get("collection_interval", 86400)),
+                "last_collection": credentials["last_collection"].isoformat()
+                if credentials.get("last_collection")
+                else None,
+            }
 
             # Include Secudium OTP config fields
             if source_upper == "SECUDIUM":
@@ -203,11 +205,11 @@ def manage_credentials(source: str):
                     "data": {
                         "message": f"Credentials updated for {source_upper}",
                         "scheduler_restart": restart_result.get("success", False),
-                },
-                "timestamp": datetime.now().isoformat(),
-                "request_id": g.request_id,
-            }
-        ), 200
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "request_id": g.request_id,
+                }
+            ), 200
 
     except Exception:
         raise
@@ -303,11 +305,7 @@ def test_credentials(source: str):
         error_msg = collector_data.get("error", "").lower()
         error_code = collector_data.get("error_code", "")
 
-        if (
-            "잠긴" in str(error_msg)
-            or "locked" in str(error_msg)
-            or error_code == "user.is.locked"
-        ):
+        if "잠긴" in str(error_msg) or "locked" in str(error_msg) or error_code == "user.is.locked":
             raise ForbiddenError(
                 message="계정이 잠겼습니다",
                 details={"source": source_upper, "error_code": error_code},

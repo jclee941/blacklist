@@ -104,11 +104,7 @@ def collection_health():
         db_status = "healthy" if db_healthy else "unhealthy"
 
         # Overall status
-        overall_status = (
-            "healthy"
-            if (collector_status == "healthy" and db_status == "healthy")
-            else "unhealthy"
-        )
+        overall_status = "healthy" if (collector_status == "healthy" and db_status == "healthy") else "unhealthy"
 
         return jsonify(
             {

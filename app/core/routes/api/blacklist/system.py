@@ -92,9 +92,7 @@ def get_system_containers():
 
     except Exception as e:
         logger.error(f"Container status query failed: {e}")
-        return jsonify(
-            {"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}
-        ), 500
+        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
 
 
 @blacklist_system_bp.route("/credential/status", methods=["GET"])
@@ -120,15 +118,11 @@ def get_credential_status():
                 "last_check": datetime.now().isoformat(),
             }
 
-        return jsonify(
-            {"success": True, "status": status, "timestamp": datetime.now().isoformat()}
-        )
+        return jsonify({"success": True, "status": status, "timestamp": datetime.now().isoformat()})
 
     except Exception as e:
         logger.error(f"Credential status check failed: {e}")
-        return jsonify(
-            {"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}
-        ), 500
+        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
 
 
 @blacklist_system_bp.route("/credentials/regtech", methods=["GET"])
@@ -163,9 +157,7 @@ def get_regtech_credentials():
 
     except Exception as e:
         logger.error(f"REGTECH credentials check failed: {e}")
-        return jsonify(
-            {"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}
-        ), 500
+        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
 
 
 @blacklist_system_bp.route("/database/tables", methods=["GET"])
@@ -189,6 +181,4 @@ def get_database_tables():
 
     except Exception as e:
         logger.error(f"Database tables API error: {e}")
-        return jsonify(
-            {"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}
-        ), 500
+        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500

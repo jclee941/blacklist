@@ -63,12 +63,8 @@ def get_active_ips():
                     "country": row["country"],
                     "reason": row["reason"],
                     "confidence_level": row["confidence_level"],
-                    "detection_date": row["detection_date"].isoformat()
-                    if row["detection_date"]
-                    else None,
-                    "removal_date": row["removal_date"].isoformat()
-                    if row["removal_date"]
-                    else None,
+                    "detection_date": row["detection_date"].isoformat() if row["detection_date"] else None,
+                    "removal_date": row["removal_date"].isoformat() if row["removal_date"] else None,
                     "is_active": row["is_active"],
                 }
             )
@@ -188,8 +184,7 @@ def get_config():
     """
     try:
         config = {
-            "external_blocklist_url": request.url_root.rstrip("/")
-            + "/api/fortinet/blocklist",
+            "external_blocklist_url": request.url_root.rstrip("/") + "/api/fortinet/blocklist",
             "update_interval": "hourly",
             "enabled": True,
             "api_version": "1.0",

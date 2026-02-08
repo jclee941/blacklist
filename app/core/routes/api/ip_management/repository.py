@@ -16,8 +16,15 @@ class IPManagementRepository:
 
     WHITELIST_COLUMNS = {"ip_address", "reason", "source", "country"}
     BLACKLIST_COLUMNS = {
-        "ip_address", "reason", "source", "confidence_level",
-        "detection_count", "is_active", "country", "detection_date", "removal_date"
+        "ip_address",
+        "reason",
+        "source",
+        "confidence_level",
+        "detection_count",
+        "is_active",
+        "country",
+        "detection_date",
+        "removal_date",
     }
 
     def __init__(self, db_service: Any):
@@ -107,9 +114,7 @@ class IPManagementRepository:
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                "SELECT * FROM unified_ip_statistics ORDER BY list_type, source"
-            )
+            cursor.execute("SELECT * FROM unified_ip_statistics ORDER BY list_type, source")
             stats = cursor.fetchall()
             cursor.close()
             conn.close()
@@ -275,9 +280,7 @@ class IPManagementRepository:
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-            cursor.execute(
-                "SELECT COUNT(*) as total FROM blacklist_ips_with_auto_inactive"
-            )
+            cursor.execute("SELECT COUNT(*) as total FROM blacklist_ips_with_auto_inactive")
             total_result = cursor.fetchone()
             total = total_result["total"] if total_result else 0
 
@@ -345,8 +348,18 @@ class IPManagementRepository:
                           removal_date, last_seen, created_at, updated_at
                 """,
                 (
-                    ip_address, reason, source, confidence_level, detection_count,
-                    is_active, country, detection_date, removal_date, now, now, now,
+                    ip_address,
+                    reason,
+                    source,
+                    confidence_level,
+                    detection_count,
+                    is_active,
+                    country,
+                    detection_date,
+                    removal_date,
+                    now,
+                    now,
+                    now,
                 ),
             )
 

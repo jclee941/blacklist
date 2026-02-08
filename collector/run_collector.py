@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Blacklist Collector Main Entry Point
 블랙리스트 수집기 메인 실행 스크립트
@@ -134,16 +134,12 @@ class CollectorApplication:
         try:
             self.logger.info("🏥 Starting health check server")
 
-            self.health_server_thread = threading.Thread(
-                target=start_health_server, daemon=True
-            )
+            self.health_server_thread = threading.Thread(target=start_health_server, daemon=True)
             self.health_server_thread.start()
 
             # 서버 시작 대기
             time.sleep(2)
-            self.logger.info(
-                f"✅ Health server started on port {CollectorConfig.HEALTH_CHECK_PORT}"
-            )
+            self.logger.info(f"✅ Health server started on port {CollectorConfig.HEALTH_CHECK_PORT}")
 
         except Exception as e:
             self.logger.error(f"❌ Failed to start health server: {e}")

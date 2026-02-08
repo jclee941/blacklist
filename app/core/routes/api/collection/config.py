@@ -22,9 +22,7 @@ def update_collection_config():
 
     # Validate request body
     if not data:
-        raise BadRequestError(
-            message="No configuration data provided", details={"parameter": "body"}
-        )
+        raise BadRequestError(message="No configuration data provided", details={"parameter": "body"})
 
     try:
         settings_service = current_app.extensions["settings_service"]
@@ -47,9 +45,7 @@ def update_collection_config():
                     logger.warning(f"Failed to update collection config: {key}")
             except Exception as e:
                 failed_keys.append(key)
-                logger.error(
-                    f"Error updating collection config {key}: {e}", exc_info=True
-                )
+                logger.error(f"Error updating collection config {key}: {e}", exc_info=True)
 
         # Return response based on results
         if len(failed_keys) == 0:

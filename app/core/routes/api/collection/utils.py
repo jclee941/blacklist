@@ -38,9 +38,7 @@ def interval_string_to_seconds(interval_str: str) -> int:
         return 86400  # default to daily
 
 
-def call_collector_api(
-    endpoint: str, method: str = "GET", data: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+def call_collector_api(endpoint: str, method: str = "GET", data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Call collector service API"""
     try:
         url = f"{COLLECTOR_SERVICE_URL}{endpoint}"

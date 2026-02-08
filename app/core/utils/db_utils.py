@@ -1,4 +1,4 @@
-﻿"""
+"""
 Database utility functions
 공통 데이터베이스 연결 및 에러 처리 유틸리티
 """
@@ -26,8 +26,7 @@ def get_db_config() -> Dict[str, str]:
 
 @contextmanager
 def get_db_connection(
-    config: Optional[Dict[str, str]] = None,
-    cursor_factory=RealDictCursor
+    config: Optional[Dict[str, str]] = None, cursor_factory=RealDictCursor
 ) -> Generator[Any, None, None]:
     """
     데이터베이스 연결 컨텍스트 매니저
@@ -67,10 +66,7 @@ def get_db_connection(
 
 
 def execute_query(
-    query: str,
-    params: Optional[tuple] = None,
-    fetch_one: bool = False,
-    config: Optional[Dict[str, str]] = None
+    query: str, params: Optional[tuple] = None, fetch_one: bool = False, config: Optional[Dict[str, str]] = None
 ) -> Any:
     """
     쿼리 실행 헬퍼 함수
@@ -94,11 +90,7 @@ def execute_query(
             return cursor.fetchall()
 
 
-def execute_write(
-    query: str,
-    params: Optional[tuple] = None,
-    config: Optional[Dict[str, str]] = None
-) -> int:
+def execute_write(query: str, params: Optional[tuple] = None, config: Optional[Dict[str, str]] = None) -> int:
     """
     INSERT/UPDATE/DELETE 쿼리 실행 헬퍼 함수
 
@@ -136,4 +128,4 @@ def table_exists(table_name: str, config: Optional[Dict[str, str]] = None) -> bo
     """
 
     result = execute_query(query, (table_name,), fetch_one=True, config=config)
-    return result['exists'] if result else False
+    return result["exists"] if result else False

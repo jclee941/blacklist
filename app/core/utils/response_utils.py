@@ -11,11 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 
-def success_response(
-    data: Any,
-    status_code: int = 200,
-    message: Optional[str] = None
-) -> Tuple[Any, int]:
+def success_response(data: Any, status_code: int = 200, message: Optional[str] = None) -> Tuple[Any, int]:
     """
     Create standardized success response.
 
@@ -35,7 +31,7 @@ def success_response(
         "success": True,
         "data": data,
         "timestamp": datetime.now().isoformat(),
-        "request_id": getattr(request, 'id', None)
+        "request_id": getattr(request, "id", None),
     }
 
     # Add optional message to data if provided
@@ -51,7 +47,7 @@ def paginated_response(
     page: int,
     limit: int,
     status_code: int = 200,
-    additional_data: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Any, int]:
     """
     Create standardized paginated response.
@@ -82,8 +78,8 @@ def paginated_response(
             "total": total,
             "page": page,
             "limit": limit,
-            "total_pages": (total + limit - 1) // limit if limit > 0 else 0
-        }
+            "total_pages": (total + limit - 1) // limit if limit > 0 else 0,
+        },
     }
 
     # Merge additional data if provided
@@ -93,10 +89,7 @@ def paginated_response(
     return success_response(data, status_code)
 
 
-def empty_response(
-    message: str = "No content",
-    status_code: int = 204
-) -> Tuple[Any, int]:
+def empty_response(message: str = "No content", status_code: int = 204) -> Tuple[Any, int]:
     """
     Create standardized empty response (typically 204 No Content).
 
@@ -112,15 +105,12 @@ def empty_response(
         # Returns: ('', 204)
     """
     if status_code == 204:
-        return '', 204
+        return "", 204
     else:
         return success_response({"message": message}, status_code)
 
 
-def created_response(
-    data: Any,
-    location: Optional[str] = None
-) -> Tuple[Any, int]:
+def created_response(data: Any, location: Optional[str] = None) -> Tuple[Any, int]:
     """
     Create standardized 201 Created response.
 
@@ -140,14 +130,13 @@ def created_response(
     response = success_response(data, 201)
 
     if location:
-        response[0].headers['Location'] = location
+        response[0].headers["Location"] = location
 
     return response
 
 
 def deleted_response(
-    message: str = "Resource deleted successfully",
-    deleted_count: Optional[int] = None
+    message: str = "Resource deleted successfully", deleted_count: Optional[int] = None
 ) -> Tuple[Any, int]:
     """
     Create standardized delete response.
@@ -172,10 +161,7 @@ def deleted_response(
     return success_response(data, 200)
 
 
-def health_response(
-    status: str = "healthy",
-    checks: Optional[Dict[str, Any]] = None
-) -> Tuple[Any, int]:
+def health_response(status: str = "healthy", checks: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
     """
     Create standardized health check response.
     Uses graceful degradation - always returns 200 with status field.
@@ -205,11 +191,7 @@ def health_response(
 
 
 def batch_operation_response(
-    total: int,
-    successful: int,
-    failed: int,
-    errors: Optional[list] = None,
-    status_code: int = 200
+    total: int, successful: int, failed: int, errors: Optional[list] = None, status_code: int = 200
 ) -> Tuple[Any, int]:
     """
     Create standardized batch operation response.
@@ -236,7 +218,7 @@ def batch_operation_response(
         "total": total,
         "successful": successful,
         "failed": failed,
-        "success_rate": round((successful / total * 100) if total > 0 else 0, 2)
+        "success_rate": round((successful / total * 100) if total > 0 else 0, 2),
     }
 
     if errors:
@@ -245,11 +227,7 @@ def batch_operation_response(
     return success_response(data, status_code)
 
 
-def statistics_response(
-    stats: Dict[str, Any],
-    period: Optional[str] = None,
-    status_code: int = 200
-) -> Tuple[Any, int]:
+def statistics_response(stats: Dict[str, Any], period: Optional[str] = None, status_code: int = 200) -> Tuple[Any, int]:
     """
     Create standardized statistics response.
 
@@ -275,10 +253,7 @@ def statistics_response(
 
 
 def collection_response(
-    source: str,
-    items_collected: int,
-    success: bool = True,
-    errors: Optional[list] = None
+    source: str, items_collected: int, success: bool = True, errors: Optional[list] = None
 ) -> Tuple[Any, int]:
     """
     Create standardized collection operation response.
@@ -303,7 +278,7 @@ def collection_response(
         "source": source,
         "items_collected": items_collected,
         "success": success,
-        "collection_timestamp": datetime.now().isoformat()
+        "collection_timestamp": datetime.now().isoformat(),
     }
 
     if errors:

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Simple Collection Routes
 Collection trigger and config endpoints at /collection/*
 """
@@ -21,7 +21,7 @@ def trigger_collection():
     """
     try:
         # Use dependency injection via app.extensions
-        collection_service = current_app.extensions['collection_service']
+        collection_service = current_app.extensions["collection_service"]
 
         data = request.get_json() or {}
         source = data.get("source", "all")
@@ -38,10 +38,7 @@ def trigger_collection():
 
         # Trigger collection based on source
         if source.lower() == "regtech":
-            result = collection_service.trigger_regtech_collection(
-                start_date=start_date,
-                end_date=end_date
-            )
+            result = collection_service.trigger_regtech_collection(start_date=start_date, end_date=end_date)
         elif source.lower() == "all":
             result = collection_service.trigger_all_collections()
         else:
@@ -50,28 +47,28 @@ def trigger_collection():
 
         if result.get("success"):
             logger.info(f"✅ Collection completed: {result.get('collected_count', 0)} items")
-            return jsonify({
-                "success": True,
-                "message": "Collection triggered successfully",
-                "collected_count": result.get("collected_count", 0),
-                "source": source,
-                "start_date": start_date,
-                "end_date": end_date,
-                "timestamp": datetime.now().isoformat()
-            })
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Collection triggered successfully",
+                    "collected_count": result.get("collected_count", 0),
+                    "source": source,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
         else:
             logger.warning(f"Collection failed: {result.get('error', 'Unknown error')}")
-            return jsonify({
-                "success": False,
-                "error": result.get("error", "Collection failed"),
-                "source": source,
-                "timestamp": datetime.now().isoformat()
-            }), 500
+            return jsonify(
+                {
+                    "success": False,
+                    "error": result.get("error", "Collection failed"),
+                    "source": source,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ), 500
 
     except Exception as e:
         logger.error(f"Collection trigger error: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }), 500
+        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500

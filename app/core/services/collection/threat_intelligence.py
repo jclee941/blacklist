@@ -1,4 +1,4 @@
-﻿"""위협 인텔리전스 수집 모듈
+"""위협 인텔리전스 수집 모듈
 다양한 위협 인텔리전스 소스에서 데이터 수집
 """
 
@@ -141,9 +141,7 @@ class ThreatIntelligenceCollector:
                 "scanning": {"confidence": (70, 85), "countries": ["US", "CN", "DE"]},
             }
 
-            config = category_config.get(
-                category, {"confidence": (60, 80), "countries": ["US", "CN"]}
-            )
+            config = category_config.get(category, {"confidence": (60, 80), "countries": ["US", "CN"]})
 
             for i in range(count):
                 ip_parts = [str(random.randint(1, 254)) for _ in range(4)]

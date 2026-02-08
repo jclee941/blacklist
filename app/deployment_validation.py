@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Test update to trigger CI/CD pipeline with Docker builds
 This file addition should trigger all Docker image builds

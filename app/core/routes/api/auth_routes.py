@@ -28,13 +28,15 @@ def login():
     """
     data = request.get_json(silent=True)
     if not data or not data.get("username") or not data.get("password"):
-        return jsonify({
-            "type": "about:blank",
-            "title": "Bad Request",
-            "status": 400,
-            "detail": "Username and password are required",
-            "code": "AUTH_MISSING_CREDENTIALS",
-        }), 400
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "Username and password are required",
+                "code": "AUTH_MISSING_CREDENTIALS",
+            }
+        ), 400
 
     username = data["username"]
     password = data["password"]
@@ -43,13 +45,15 @@ def login():
     settings_service = current_app.extensions.get("settings_service")
     if not settings_service:
         logger.error("settings_service not available for authentication")
-        return jsonify({
-            "type": "about:blank",
-            "title": "Internal Server Error",
-            "status": 500,
-            "detail": "Authentication service unavailable",
-            "code": "AUTH_SERVICE_UNAVAILABLE",
-        }), 500
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "Authentication service unavailable",
+                "code": "AUTH_SERVICE_UNAVAILABLE",
+            }
+        ), 500
 
     # Check credentials against app settings
     try:
@@ -64,24 +68,28 @@ def login():
 
     if username != admin_username or password != admin_password:
         logger.warning(f"Failed login attempt for user: {username}")
-        return jsonify({
-            "type": "about:blank",
-            "title": "Unauthorized",
-            "status": 401,
-            "detail": "Invalid username or password",
-            "code": "AUTH_INVALID_CREDENTIALS",
-        }), 401
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Invalid username or password",
+                "code": "AUTH_INVALID_CREDENTIALS",
+            }
+        ), 401
 
     # Generate JWT token
     jwt_service = current_app.extensions["jwt_service"]
     token = jwt_service.encode_token(user_id=username, role="admin")
 
     logger.info(f"User '{username}' logged in successfully")
-    return jsonify({
-        "token": token,
-        "expires_in": 28800,
-        "user": {"id": username, "role": "admin"},
-    }), 200
+    return jsonify(
+        {
+            "token": token,
+            "expires_in": 28800,
+            "user": {"id": username, "role": "admin"},
+        }
+    ), 200
 
 
 @auth_bp.route("/me", methods=["GET"])

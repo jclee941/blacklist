@@ -38,9 +38,7 @@ def trigger_collection(source: str):
     logger.info(f"Triggering collection for {source_upper} (force={force})")
 
     # Call collector service to trigger collection
-    result = call_collector_api(
-        f"/api/force-collection/{source_upper}", method="POST", data={"force": force}
-    )
+    result = call_collector_api(f"/api/force-collection/{source_upper}", method="POST", data={"force": force})
 
     # Check if API call failed
     if result.get("success") is False:

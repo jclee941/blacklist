@@ -10,6 +10,7 @@ This module provides focused route blueprints for:
 - System status (containers, credentials, database)
 - Collection triggering (REGTECH collection)
 """
+
 from flask import jsonify
 from datetime import datetime
 
@@ -43,7 +44,8 @@ def register_blacklist_routes(app):
 
     # Exempt API blueprints from CSRF protection (API endpoints use tokens/headers for auth)
     from flask_wtf.csrf import CSRFProtect
-    csrf = app.extensions.get('csrf')
+
+    csrf = app.extensions.get("csrf")
     if csrf:
         csrf.exempt(blacklist_core_bp)
         csrf.exempt(blacklist_management_bp)
@@ -61,46 +63,47 @@ def register_error_handlers(app):
     Args:
         app: Flask application instance
     """
+
     @app.errorhandler(404)
     def api_not_found(error):
         """API 404 핸들러"""
-        return jsonify({
-            "success": False,
-            "error": "API endpoint not found",
-            "available_endpoints": [
-                "/api/blacklist/list",
-                "/api/blacklist/stats",
-                "/api/blacklist/check",
-                "/api/blacklist/manual-add",
-                "/api/whitelist/manual-add",
-                "/api/whitelist/list",
-                "/api/blacklist/batch/add",
-                "/api/blacklist/batch/remove",
-                "/api/blacklist/batch/update",
-                "/api/system/containers",
-                "/api/credential/status",
-                "/api/credentials/regtech",
-                "/api/database/tables",
-                "/api/collection/regtech/trigger"
-            ]
-        }), 404
+        return jsonify(
+            {
+                "success": False,
+                "error": "API endpoint not found",
+                "available_endpoints": [
+                    "/api/blacklist/list",
+                    "/api/blacklist/stats",
+                    "/api/blacklist/check",
+                    "/api/blacklist/manual-add",
+                    "/api/whitelist/manual-add",
+                    "/api/whitelist/list",
+                    "/api/blacklist/batch/add",
+                    "/api/blacklist/batch/remove",
+                    "/api/blacklist/batch/update",
+                    "/api/system/containers",
+                    "/api/credential/status",
+                    "/api/credentials/regtech",
+                    "/api/database/tables",
+                    "/api/collection/regtech/trigger",
+                ],
+            }
+        ), 404
 
     @app.errorhandler(500)
     def api_server_error(error):
         """API 500 핸들러"""
-        return jsonify({
-            "success": False,
-            "error": "Internal server error",
-            "timestamp": datetime.now().isoformat()
-        }), 500
+        return jsonify(
+            {"success": False, "error": "Internal server error", "timestamp": datetime.now().isoformat()}
+        ), 500
 
 
 # Export blueprints for direct access if needed
 __all__ = [
-    'register_blacklist_routes',
-    'blacklist_core_bp',
-    'blacklist_management_bp',
-    'blacklist_batch_bp',
-    'blacklist_system_bp',
-    'blacklist_collection_bp'
+    "register_blacklist_routes",
+    "blacklist_core_bp",
+    "blacklist_management_bp",
+    "blacklist_batch_bp",
+    "blacklist_system_bp",
+    "blacklist_collection_bp",
 ]

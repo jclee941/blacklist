@@ -38,9 +38,7 @@ _DOWNLOAD_RE = re.compile(
 )
 
 # IP address regex (IPv4)
-_IPV4_RE = re.compile(
-    r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"
-)
+_IPV4_RE = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b")
 
 # CIDR notation
 _CIDR_RE = re.compile(

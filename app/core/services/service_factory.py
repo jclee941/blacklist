@@ -84,9 +84,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
 
         blacklist_service = BlacklistService(db_service=services["db_service"])
         services["blacklist_service"] = blacklist_service
-        logger.info(
-            "  ✅ blacklist_service (BlacklistService) - using DatabaseService pool"
-        )
+        logger.info("  ✅ blacklist_service (BlacklistService) - using DatabaseService pool")
     except Exception as e:
         logger.error(f"  ❌ Failed to initialize blacklist_service: {e}")
 
@@ -96,9 +94,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
 
         analytics_service = AnalyticsService(db_service=services["db_service"])
         services["analytics_service"] = analytics_service
-        logger.info(
-            "  ✅ analytics_service (AnalyticsService) - using DatabaseService pool"
-        )
+        logger.info("  ✅ analytics_service (AnalyticsService) - using DatabaseService pool")
     except Exception as e:
         logger.error(f"  ❌ Failed to initialize analytics_service: {e}")
 
@@ -122,9 +118,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
 
         scheduler_service = CollectionScheduler(db_service=services["db_service"])
         services["scheduler_service"] = scheduler_service
-        logger.info(
-            "  ✅ scheduler_service (CollectionScheduler) - using DatabaseService pool"
-        )
+        logger.info("  ✅ scheduler_service (CollectionScheduler) - using DatabaseService pool")
     except Exception as e:
         logger.error(f"  ❌ Failed to initialize scheduler_service: {e}")
 
@@ -136,13 +130,9 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     try:
         from .fortimanager_push_service import FortiManagerPushService
 
-        fortimanager_service = FortiManagerPushService(
-            db_service=services["db_service"]
-        )
+        fortimanager_service = FortiManagerPushService(db_service=services["db_service"])
         services["fortimanager_service"] = fortimanager_service
-        logger.info(
-            "  ✅ fortimanager_service (FortiManagerPushService) - uses persistent LISTEN connection"
-        )
+        logger.info("  ✅ fortimanager_service (FortiManagerPushService) - uses persistent LISTEN connection")
     except Exception as e:
         logger.error(f"  ❌ Failed to initialize fortimanager_service: {e}")
 
@@ -164,9 +154,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     try:
         from .secure_credential_service import SecureCredentialService
 
-        secure_credential_service = SecureCredentialService(
-            db_service=services["db_service"]
-        )
+        secure_credential_service = SecureCredentialService(db_service=services["db_service"])
         services["secure_credential_service"] = secure_credential_service
         logger.info("  ✅ secure_credential_service (SecureCredentialService)")
     except Exception as e:
@@ -211,9 +199,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
 
         expiry_service = IPExpiryService(db_service=services["db_service"])
         services["expiry_service"] = expiry_service
-        logger.info(
-            "  ✅ expiry_service (IPExpiryService) - using DatabaseService pool"
-        )
+        logger.info("  ✅ expiry_service (IPExpiryService) - using DatabaseService pool")
     except Exception as e:
         logger.error(f"  ❌ Failed to initialize expiry_service: {e}")
 
@@ -231,13 +217,9 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     try:
         from .optimized_blacklist_service import OptimizedBlacklistService
 
-        optimized_blacklist_service = OptimizedBlacklistService(
-            db_service=services["db_service"]
-        )
+        optimized_blacklist_service = OptimizedBlacklistService(db_service=services["db_service"])
         services["optimized_blacklist_service"] = optimized_blacklist_service
-        logger.info(
-            "  ✅ optimized_blacklist_service (OptimizedBlacklistService) - using DatabaseService pool"
-        )
+        logger.info("  ✅ optimized_blacklist_service (OptimizedBlacklistService) - using DatabaseService pool")
     except Exception as e:
         logger.error(f"  ❌ Failed to initialize optimized_blacklist_service: {e}")
 
@@ -252,9 +234,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
         logger.info(f"✅ Successfully initialized all {initialized_count} services")
     else:
         failed_count = total_services - initialized_count
-        logger.warning(
-            f"⚠️  Initialized {initialized_count}/{total_services} services ({failed_count} failed)"
-        )
+        logger.warning(f"⚠️  Initialized {initialized_count}/{total_services} services ({failed_count} failed)")
 
     return services
 

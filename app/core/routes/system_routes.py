@@ -1,4 +1,4 @@
-﻿"""
+"""
 System monitoring routes
 시스템 모니터링 관련 라우트
 """
@@ -66,9 +66,7 @@ def get_system_status():
             "disk": {"usage": "정상", "available": "충분"},
         }
 
-        return jsonify(
-            {"success": True, "status": status, "timestamp": datetime.now().isoformat()}
-        )
+        return jsonify({"success": True, "status": status, "timestamp": datetime.now().isoformat()})
 
     except Exception as e:
         logging.error(f"시스템 상태 조회 실패: {e}")

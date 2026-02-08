@@ -1,4 +1,4 @@
-﻿"""
+"""
 Collection Validator
 수집 데이터 검증 및 전처리
 """
@@ -58,9 +58,7 @@ class CollectionValidator:
             return "unknown"
         return source.upper()[:50]  # 최대 50자
 
-    def validate_collection_data(
-        self, data: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def validate_collection_data(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """수집된 데이터 전체 검증"""
         validated_data = []
 
@@ -79,9 +77,7 @@ class CollectionValidator:
             return False
 
         # IP 주소는 필수
-        if "ip_address" not in item or not self._validate_ip_address(
-            item["ip_address"]
-        ):
+        if "ip_address" not in item or not self._validate_ip_address(item["ip_address"]):
             return False
 
         return True
@@ -92,19 +88,11 @@ class CollectionValidator:
             processed_item = {
                 "ip_address": item["ip_address"].strip(),
                 "source": self._validate_source(item.get("source", "REGTECH")),
-                "confidence_level": self._validate_confidence_level(
-                    item.get("confidence_level", 50)
-                ),
-                "reason": (
-                    item.get("reason", "").strip()[:500] if item.get("reason") else None
-                ),
+                "confidence_level": self._validate_confidence_level(item.get("confidence_level", 50)),
+                "reason": (item.get("reason", "").strip()[:500] if item.get("reason") else None),
                 "detection_date": self._process_date(item.get("detection_date")),
                 "removal_date": self._process_date(item.get("removal_date")),
-                "country": (
-                    item.get("country", "").strip()[:10]
-                    if item.get("country")
-                    else None
-                ),
+                "country": (item.get("country", "").strip()[:10] if item.get("country") else None),
                 "is_active": bool(item.get("is_active", True)),
             }
 
@@ -135,9 +123,7 @@ class CollectionValidator:
 
         return None
 
-    def _validate_collection_prerequisites(
-        self, username: str = None, password: str = None
-    ) -> Dict[str, Any]:
+    def _validate_collection_prerequisites(self, username: str = None, password: str = None) -> Dict[str, Any]:
         """수집 전제조건 검증"""
         validation_result = {"valid": True, "errors": [], "warnings": []}
 
@@ -157,16 +143,12 @@ class CollectionValidator:
             # 메모리 사용량 체크
             memory = psutil.virtual_memory()
             if memory.percent > 90:
-                validation_result["warnings"].append(
-                    f"High memory usage: {memory.percent}%"
-                )
+                validation_result["warnings"].append(f"High memory usage: {memory.percent}%")
 
             # 디스크 공간 체크
             disk = psutil.disk_usage("/")
             if disk.percent > 90:
-                validation_result["warnings"].append(
-                    f"Low disk space: {disk.percent}% used"
-                )
+                validation_result["warnings"].append(f"Low disk space: {disk.percent}% used")
 
         except ImportError:
             pass
