@@ -1,16 +1,18 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
 **Generated:** 2026-02-08
-**Commit:** 923a8ce
-**Branch:** master | **Version:** 3.5.36
+**Commit:** 450d20c
+**Branch:** master | **Version:** 3.5.39
 
 ## COMMANDS
 
 ```bash
 make dev                    # All services (hot reload)
 make dev-app                # API only
+make dev-frontend           # Frontend only
 make test                   # All tests (backend + frontend)
 make test-backend-unit      # Backend unit tests only
+make test-backend-coverage  # Backend with coverage
 make test-frontend          # Vitest
 make test-frontend-e2e      # Playwright E2E
 pre-commit run --all-files  # Ruff + mypy
@@ -28,6 +30,7 @@ cd frontend && npm run test -- --testNamePattern="test name"
 | TypeScript | Prettier | 100 | 2 sp | Single `'` |
 
 Type hints required (mypy). Semicolons required (TS). Import order: stdlib → third-party → first-party.
+TS: `strict: true`, `noEmit`, `target: ES2020`, `bundler` moduleResolution, `@/*` path alias.
 
 ## CRITICAL PATTERNS
 
@@ -57,18 +60,31 @@ const data = await api.get('/blacklist');
 | `as any`, `@ts-ignore` | Proper types | Type safety |
 | Hardcoded ports/hosts | Environment variables | Deployment |
 | Unguarded `resp.json()` | `try/except` or status check | 10 violations exist |
+| Cross-imports between services | DB, Redis, HTTP only | Service isolation |
 
 ## PROJECT STRUCTURE
 
 ```
-app/                    # Flask API (Manual DI, Raw SQL)   :2542
-collector/              # ETL Service (independent)        :8545
-frontend/               # Next.js 15 Dashboard             :2543
+app/                    # Flask API (Manual DI, Raw SQL)        :2542
+collector/              # ETL Service (independent)             :8545
+frontend/               # Next.js 15 Dashboard                  :2543
+cloudflare/             # Cloudflare Workers edge API (D1+KV)
 postgres/migrations/    # Raw SQL migrations (no ORM)
 tests/                  # Pytest + Playwright
+deploy/k8s/             # Kubernetes manifests
 ```
 
-No cross-imports between app/, collector/, frontend/. Communication: DB, Redis, HTTP only.
+No cross-imports between app/, collector/, frontend/, cloudflare/. Communication: DB, Redis, HTTP only.
+
+### Support Directories
+
+| Directory | Purpose | Notes |
+|-----------|---------|-------|
+| `agent/` | AI agent (regtech_agent.py) | Experimental |
+| `mock-fortigate/` | Flask mock server for testing | Test fixture |
+| `docs/` | Deliverables, architecture diagrams | 9 deliverables + guides |
+| `ssl/` | TLS certificates | **⚠ Private key committed — move to secrets** |
+| `frontend-source/` | Stale `.next/` build artifacts | Should be gitignored |
 
 ## CI/CD
 
@@ -76,6 +92,11 @@ No cross-imports between app/, collector/, frontend/. Communication: DB, Redis, 
 |----------|---------|-------|
 | `release.yml` | Tag push `v*` | Builds 5 Docker images, creates airgap bundle |
 | `ci.yml` | Push/PR | **Frontend only — NO backend tests in CI** |
+| `ci-new.yml` | Migration | Replacement CI pipeline (in progress) |
+| `release-new.yml` | Migration | Replacement release pipeline (in progress) |
+| `airgap-build.yml` | Manual | Air-gap bundle creation |
+| `build-images.yml` | Manual | Docker image builds |
+| `run-tests.yml` | Manual | Test runner |
 
 ```bash
 # Release: update VERSION → commit → tag → push
@@ -86,6 +107,7 @@ git push origin master vX.Y.Z  # GitHub Actions creates release
 ## SECURITY
 
 - **JWT auth declared but NOT enforced** — no middleware validates tokens
+- **⚠ SSL private key in `ssl/nxtd.co.kr.key`** — must move to secrets management
 - Never log tokens, passwords, API keys
 - Use `MOCK_CREDENTIALS` in tests (from `tests/test_config.py`)
 - Secrets from env vars only; AES-256-GCM for stored credentials
@@ -113,6 +135,7 @@ Mixes `localhost:8545`, `blacklist-collector:8545`, `blacklist-app:443`. Fix: en
 - Collector uses single-stage Dockerfile (includes Playwright bloat)
 - Dashboard polls 30s + collection polls 5s simultaneously (dual polling)
 - Three separate rate limiter instances (regtech, auth, Flask-Limiter)
+- Dual ESLint configs: `eslint.config.mjs` (flat) + `.eslintrc.json` (legacy) — consolidate
 
 ## COMPLEXITY HOTSPOTS
 
@@ -122,11 +145,19 @@ Mixes `localhost:8545`, `blacklist-collector:8545`, `blacklist-app:443`. Fix: en
 | `app/run_app.py` | 39.91 | HIGH |
 | `app/core/services/blacklist_service.py` | 39.43 | HIGH |
 | `collector/core/regtech_collector.py` | 961L | HIGH |
-| `app/core/routes/api/ip_management_api.py` | 1050L | HIGH |
+| `collector/core/multi_source_collector.py` | 766L | HIGH |
 | `frontend/app/ip-management/IPManagementClient.tsx` | 893L | MEDIUM |
+
+## RECENT CHANGES (v3.5.36 → v3.5.39)
+
+- `ip_management_api.py` (1050L monolith) refactored → `app/core/routes/api/ip_management/` subpackage (repository.py, routes.py, handlers.py)
+- `cloudflare/` Cloudflare Workers edge API added (D1 database, KV cache, 4 route modules)
+- CI pipeline migration in progress (`ci-new.yml`, `release-new.yml`)
 
 ## NOTES
 
 - SQLAlchemy in requirements.txt but **usage forbidden** — raw SQL only
 - Legacy `app/core/collectors/` deleted — use `collector/` service
 - Ruff(120) vs Prettier(100) — each applies to its own domain
+- 14 services registered via ServiceFactory in strict lifecycle order (see `app/core/services/AGENTS.md`)
+- `frontend-source/` contains stale build artifacts — do not use

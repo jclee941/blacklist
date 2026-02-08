@@ -1,7 +1,7 @@
 # API ROUTES KNOWLEDGE BASE
 
 **Generated:** 2026-02-08
-**Commit:** 923a8ce
+**Commit:** 450d20c
 **Role:** JSON API Surface (Flask)
 **Parent:** [../../AGENTS.md](../../AGENTS.md)
 
@@ -13,7 +13,10 @@ JSON REST API layer. **Thin Handlers** — routes do validation/parsing → serv
 
 ```
 api/
-├── ip_management_api.py    # ⚠️ 1050L (IP CRUD/bulk) — needs splitting
+├── ip_management/          # ✅ Refactored from 1050L monolith (v3.5.37)
+│   ├── routes.py           # Blueprint + endpoint definitions
+│   ├── handlers.py         # Request handling logic
+│   └── repository.py       # DB queries (raw SQL)
 ├── system_api.py           # System status
 ├── dashboard_api.py        # Dashboard stats
 ├── analytics.py            # Analytics API
@@ -37,7 +40,7 @@ api/
 
 | Issue | Severity |
 |-------|----------|
-| `ip_management_api.py` 1050L monolith | HIGH — extract helpers |
+| `ip_management/` refactored (was 1050L monolith) | ✅ RESOLVED |
 | 10 unguarded `resp.json()` calls across routes | MEDIUM — add try/except |
 | Hardcoded collector URL in `collection/utils.py:13` | MEDIUM — use env var |
 | Hardcoded URL in `blacklist/collection.py:54` | MEDIUM — use env var |

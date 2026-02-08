@@ -14,7 +14,15 @@ Tailwind CSS v4 + Radix UI 컴포넌트 시스템.
 ```
 app/                    # App Router
 ├── (auth)/             # 인증 필요 라우트
-├── ip-management/      # IP 관리 (IPManagementClient.tsx 893L ⚠️)
+├── ip-management/      # IP 관리
+│   ├── IPManagementClient.tsx  # 메인 클라이언트 (893L)
+│   └── components/     # ✅ 추출된 하위 컴포넌트 (v3.5.37)
+│       ├── IPManagementTable, IPManagementTabs, IPManagementFilters
+│       ├── IPManagementFormModal, DeleteConfirmModal
+│       └── useIPManagement (hook)
+├── collection/         # 수집 관리
+│   ├── components/     # 7 하위 컴포넌트
+│   └── hooks/          # 커스텀 훅
 ├── globals.css         # Tailwind v4
 └── page.tsx            # 대시보드 루트
 components/{ui/,features/}  # Radix UI 기반
@@ -43,11 +51,11 @@ next.config.ts          # /api/* → :2542 리라이트
 
 ## KNOWN ISSUES
 
-| 파일                     | 문제                                        |
-| ------------------------ | ------------------------------------------- |
-| `next.config.ts:7`       | Hardcoded API URL → `API_URL` 환경변수 사용 |
-| `IPManagementClient.tsx` | 893L — hooks/서브컴포넌트 분리 필요         |
-| Dashboard + Collection   | 이중 폴링 (30s + 5s 동시)                   |
+| 파일                     | 문제                                                      |
+| ------------------------ | --------------------------------------------------------- |
+| `next.config.ts:7`       | Hardcoded API URL → `API_URL` 환경변수 사용               |
+| `IPManagementClient.tsx` | 893L — 컴포넌트 추출 완료, 메인 파일 리팩토링 여전히 필요 |
+| Dashboard + Collection   | 이중 폴링 (30s + 5s 동시)                                 |
 
 ## DEPLOYMENT
 

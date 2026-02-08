@@ -1,6 +1,6 @@
 # K8S MANIFESTS KNOWLEDGE BASE
 
-**Generated:** 2026-02-06  
+**Generated:** 2026-02-08  
 **Role:** Kubernetes Deployment Manifests  
 **Parent:** ../AGENTS.md
 

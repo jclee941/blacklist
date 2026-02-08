@@ -1,7 +1,7 @@
 # COLLECTOR KNOWLEDGE BASE
 
 **Generated:** 2026-02-08
-**Commit:** 923a8ce | **Version:** 3.5.36
+**Commit:** 450d20c | **Version:** 3.5.39
 **Role:** ETL 서비스 (데이터 수집)
 **Parent:** [../AGENTS.md](../AGENTS.md)
 

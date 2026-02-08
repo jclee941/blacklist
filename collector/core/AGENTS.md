@@ -1,7 +1,7 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
 **Generated:** 2026-02-08
-**Commit:** 923a8ce | **Version:** 3.5.36
+**Commit:** 450d20c | **Version:** 3.5.39
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## OVERVIEW
