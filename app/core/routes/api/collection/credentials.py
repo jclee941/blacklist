@@ -30,7 +30,7 @@ def list_credentials():
     if not secure_credential_service:
         from core.services.secure_credential_service import secure_credential_service
 
-    sources = ["REGTECH"]
+    sources = ["REGTECH", "SECUDIUM"]
     result = []
 
     for source in sources:
@@ -59,14 +59,15 @@ def manage_credentials(source: str):
     """
     source_upper = source.upper()
 
-    # Validate source parameter - only REGTECH is supported
-    if source_upper != "REGTECH":
+    # Validate source parameter
+    allowed_sources = ["REGTECH", "SECUDIUM"]
+    if source_upper not in allowed_sources:
         raise ValidationError(
-            message=f"Invalid source: {source}. Must be 'regtech'",
+            message=f"Invalid source: {source}. Must be one of {[s.lower() for s in allowed_sources]}",
             field="source",
             details={
                 "provided_value": source,
-                "allowed_values": ["regtech"],
+                "allowed_values": [s.lower() for s in allowed_sources],
             },
         )
 
@@ -89,10 +90,7 @@ def manage_credentials(source: str):
                     details={"source": source_upper},
                 )
 
-            return jsonify(
-                {
-                    "success": True,
-                    "data": {
+            response_data = {
                         "service_name": credentials["service_name"],
                         "username": credentials["username"],
                         "password": "***masked***",
@@ -103,7 +101,19 @@ def manage_credentials(source: str):
                         "last_collection": credentials["last_collection"].isoformat()
                         if credentials.get("last_collection")
                         else None,
-                    },
+                    }
+
+            # Include Secudium OTP config fields
+            if source_upper == "SECUDIUM":
+                config = credentials.get("config", {})
+                response_data["otp_mode"] = config.get("otp_mode", "auto")
+                response_data["email"] = config.get("email", "")
+                response_data["imap_server"] = config.get("imap_server", "imap.kakao.com")
+
+            return jsonify(
+                {
+                    "success": True,
+                    "data": response_data,
                     "timestamp": datetime.now().isoformat(),
                     "request_id": g.request_id,
                 }
@@ -133,6 +143,16 @@ def manage_credentials(source: str):
             # Convert interval to seconds
             interval_seconds = interval_string_to_seconds(collection_interval)
 
+            # Build config for Secudium OTP settings
+            config = {}
+            if source_upper == "SECUDIUM":
+                config = {
+                    "otp_mode": data.get("otp_mode", "auto"),
+                    "email": data.get("email", ""),
+                    "email_password": data.get("email_password", ""),
+                    "imap_server": data.get("imap_server", "imap.kakao.com"),
+                }
+
             # Determine if we have a new password provided
             has_new_password = password and password != "***masked***"
 
@@ -141,7 +161,7 @@ def manage_credentials(source: str):
                     service_name=source_upper,
                     username=username,
                     password=password,
-                    config={},
+                    config=config,
                     enabled=enabled,
                     collection_interval=interval_seconds,
                 )
@@ -182,93 +202,131 @@ def manage_credentials(source: str):
                     "data": {
                         "message": f"Credentials updated for {source_upper}",
                         "scheduler_restart": restart_result.get("success", False),
-                    },
-                    "timestamp": datetime.now().isoformat(),
-                    "request_id": g.request_id,
-                }
-            )
-
-        else:
-            return jsonify({"success": False, "error": "Method not allowed"}), 405
-
-    except (NotFoundError, ValidationError, BadRequestError):
-        # Re-raise known exceptions to be handled by error handlers
-        raise
-    except Exception as e:
-        logger.error(f"Error managing credentials: {e}", exc_info=True)
-        raise DatabaseError(
-            message=f"Failed to manage credentials for {source_upper}: {type(e).__name__}",
-        )
-
-
-@collection_credentials_bp.route("/credentials/<source>/test", methods=["POST"])
-def test_credentials(source: str):
-    """
-    Test credentials for a specific source
-    """
-    from core.exceptions import ForbiddenError, ServiceUnavailableError
-
-    source_upper = source.upper()
-
-    # Validate source parameter - only REGTECH is supported
-    if source_upper != "REGTECH":
-        raise ValidationError(
-            message=f"Invalid source: {source}. Must be 'regtech'",
-            field="source",
-            details={
-                "provided_value": source,
-                "allowed_values": ["regtech"],
-            },
-        )
-
-    # Call collector service to test authentication
-    result = call_collector_api(f"/api/test-auth/{source_upper}", method="POST")
-
-    # Check if API call failed (connection error)
-    if result.get("success") is False and "Cannot connect" in result.get("error", ""):
-        raise ServiceUnavailableError(
-            service="Collector", details={"source": source_upper}
-        )
-
-    # Success - authentication successful
-    if result.get("success"):
-        return jsonify(
-            {
-                "success": True,
-                "data": {"status": "connected", "message": "인증 성공"},
-                "timestamp": datetime.now().isoformat(),
-                "request_id": g.request_id,
-            }
-        ), 200
-
-    # Authentication failed - check if account is locked
-    error_msg = result.get("error", "").lower()
-    error_code = result.get("error_code", "")
-
-    if (
-        "잠긴" in str(error_msg)
-        or "locked" in str(error_msg)
-        or error_code == "user.is.locked"
-    ):
-        # Account locked - return 403 Forbidden
-        raise ForbiddenError(
-            message="계정이 잠겼습니다",
-            details={"source": source_upper, "error_code": error_code},
-        )
-    else:
-        # Authentication failed - return as successful test result with failure status
-        error_detail = result.get("error", "알 수 없는 오류")
-        return jsonify(
-            {
-                "success": True,  # Test completed successfully (auth failed as expected)
-                "data": {
-                    "status": "failed",
-                    "message": f"{source_upper} 인증 실패"
-                    if error_detail == "인증 실패"
-                    else f"인증 실패: {error_detail}",
-                    "error_code": error_code,
                 },
                 "timestamp": datetime.now().isoformat(),
                 "request_id": g.request_id,
             }
         ), 200
+
+    except Exception:
+        raise
+
+
+@collection_credentials_bp.route("/credentials/secudium/otp", methods=["POST"])
+def submit_secudium_otp():
+    """Submit OTP code for Secudium manual authentication"""
+    data = request.get_json()
+    if not data:
+        raise ValidationError(message="요청 데이터가 없습니다")
+
+    otp_code = data.get("otp_code", "").strip()
+    session_id = data.get("session_id", "").strip()
+
+    if not otp_code or len(otp_code) != 6 or not otp_code.isdigit():
+        raise ValidationError(
+            message="유효하지 않은 OTP 코드입니다",
+            details={"expected": "6자리 숫자"},
+        )
+
+    result = call_collector_api(
+        "/api/test-auth/secudium/otp",
+        method="POST",
+        json_data={"otp_code": otp_code, "session_id": session_id},
+    )
+
+    if result.get("success"):
+        return jsonify(
+            {
+                "success": True,
+                "data": {"status": "connected", "message": "OTP 인증 성공"},
+                "timestamp": datetime.now().isoformat(),
+                "request_id": g.request_id,
+            }
+        ), 200
+
+    error_detail = result.get("error", "OTP 인증 실패")
+    return jsonify(
+        {
+            "success": True,
+            "data": {"status": "failed", "message": error_detail},
+            "timestamp": datetime.now().isoformat(),
+            "request_id": g.request_id,
+        }
+    ), 200
+
+
+@collection_credentials_bp.route("/credentials/<source>/test", methods=["POST"])
+def test_credentials(source: str):
+    """Test credentials by attempting to authenticate with the collector service"""
+    try:
+        source_upper = source.upper()
+        if source_upper not in allowed_sources:
+            raise ValidationError(
+                message=f"지원하지 않는 소스입니다: {source}",
+                details={"allowed_sources": list(allowed_sources)},
+            )
+
+        result = call_collector_api(
+            f"/api/test-auth/{source_upper}",
+            method="POST",
+        )
+
+        collector_data = result if isinstance(result, dict) else {}
+
+        # Handle Secudium OTP intermediate response
+        if collector_data.get("otp_required"):
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {
+                        "status": "otp_required",
+                        "message": "OTP 입력이 필요합니다",
+                        "session_id": collector_data.get("session_id", ""),
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "request_id": g.request_id,
+                }
+            ), 200
+
+        if collector_data.get("success"):
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {"status": "connected", "message": "인증 성공"},
+                    "timestamp": datetime.now().isoformat(),
+                    "request_id": g.request_id,
+                }
+            ), 200
+
+        # Authentication failed - check if account is locked
+        error_msg = collector_data.get("error", "").lower()
+        error_code = collector_data.get("error_code", "")
+
+        if (
+            "잠긴" in str(error_msg)
+            or "locked" in str(error_msg)
+            or error_code == "user.is.locked"
+        ):
+            raise ForbiddenError(
+                message="계정이 잠겼습니다",
+                details={"source": source_upper, "error_code": error_code},
+            )
+        else:
+            error_detail = collector_data.get("error", "알 수 없는 오류")
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {
+                        "status": "failed",
+                        "message": f"{source_upper} 인증 실패"
+                        if error_detail == "인증 실패"
+                        else f"인증 실패: {error_detail}",
+                        "error_code": error_code,
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "request_id": g.request_id,
+                }
+            ), 200
+
+    except Exception:
+        raise
