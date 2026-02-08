@@ -6,6 +6,7 @@ Handles threat feed generation and JSON connector formats
 import logging
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g, current_app, Response
+from core.auth.decorators import public
 from core.exceptions import ValidationError, DatabaseError
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ fortinet_feed_bp = Blueprint("fortinet_feed", __name__)
 
 
 @fortinet_feed_bp.route("/threat-feed", methods=["GET"])
+@public
 def get_threat_feed():
     """
     FortiGate Push API - Threat Feed Format (JSON)
@@ -102,6 +104,7 @@ def get_threat_feed():
 
 
 @fortinet_feed_bp.route("/json-connector", methods=["GET"])
+@public
 def get_json_connector():
     """
     FortiGate JSON Connector Format with metadata

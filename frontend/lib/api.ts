@@ -1,5 +1,21 @@
 import axios from 'axios';
 
+// JWT token management
+const TOKEN_KEY = 'blacklist_auth_token';
+
+export const getToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+};
+
+export const setToken = (token: string): void => {
+  localStorage.setItem(TOKEN_KEY, token);
+};
+
+export const removeToken = (): void => {
+  localStorage.removeItem(TOKEN_KEY);
+};
+
 // API 클라이언트 설정 - Next.js Rewrites 사용
 const api = axios.create({
   baseURL: '/api',
@@ -20,6 +36,50 @@ export const collectionApi = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor: attach JWT token
+const attachToken = (config: import('axios').InternalAxiosRequestConfig) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+};
+
+api.interceptors.request.use(attachToken);
+collectionApi.interceptors.request.use(attachToken);
+
+// Response interceptor: handle 401 unauthorized
+const handleUnauthorized = (error: unknown) => {
+  if (axios.isAxiosError(error) && error.response?.status === 401) {
+    removeToken();
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
+  }
+  return Promise.reject(error);
+};
+
+api.interceptors.response.use((r) => r, handleUnauthorized);
+collectionApi.interceptors.response.use((r) => r, handleUnauthorized);
+
+// 인증 API
+export const login = async (username: string, password: string) => {
+  const { data } = await api.post('/auth/login', { username, password });
+  if (data.token) {
+    setToken(data.token);
+  }
+  return data;
+};
+
+export const logout = () => {
+  removeToken();
+};
+
+export const verifyToken = async () => {
+  const { data } = await api.get('/auth/verify');
+  return data;
+};
 
 // 통계 API
 export const getStats = async () => {

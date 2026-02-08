@@ -135,6 +135,21 @@ def create_app():
     app.config["COMPRESS_ALGORITHM"] = "gzip"
     app.config["COMPRESS_LEVEL"] = 6
 
+    # ========================================================================
+    # JWT Authentication (Phase 1.1: Token-based API Auth)
+    # ========================================================================
+    try:
+        from core.auth.jwt_service import JWTService
+        from core.auth.middleware import jwt_required_hook
+
+        jwt_service = JWTService(app)
+        app.extensions["jwt_service"] = jwt_service
+
+        app.before_request(jwt_required_hook)
+        app.logger.info("✅ JWT authentication middleware enabled")
+    except Exception as e:
+        app.logger.error(f"❌ JWT auth setup failed: {e}")
+
     # Request ID middleware
     @app.before_request
     def generate_request_id():
@@ -221,6 +236,16 @@ def create_app():
         app.logger.info("✅ Blacklist API routes registered")
     except Exception as e:
         app.logger.error(f"❌ Blacklist API failed: {e}")
+
+    # 2. Register Auth API Routes
+    try:
+        from core.routes.api.auth_routes import auth_bp
+
+        csrf.exempt(auth_bp)
+        app.register_blueprint(auth_bp)
+        app.logger.info("✅ Auth API routes registered")
+    except Exception as e:
+        app.logger.error(f"❌ Auth API failed: {e}")
 
     # 2. Register Modular Fortinet API Routes
     try:
