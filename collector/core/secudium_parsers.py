@@ -17,11 +17,16 @@ Data field mapping (0-indexed):
   data[7] = edit_yn flag ("N")
 """
 
+from __future__ import annotations
+
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
 
 import structlog
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = structlog.get_logger(__name__)
 

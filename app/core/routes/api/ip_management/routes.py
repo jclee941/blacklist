@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 from flask import Blueprint, Response, current_app, jsonify, request
 

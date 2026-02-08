@@ -4,7 +4,7 @@ Provides HTTP health endpoint at :8545/health
 """
 
 from datetime import datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from waitress import serve
 import threading
 import logging

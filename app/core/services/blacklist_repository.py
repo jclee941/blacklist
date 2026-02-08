@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 
 class BlacklistRepository:

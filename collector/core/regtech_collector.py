@@ -125,7 +125,6 @@ class RegtechCollector:
                 "https": self.proxy_url,
             }
 
-        import urllib.parse
 
         logger.info(f"🔐 REGTECH 로그인 시도: {username}")
 

@@ -595,7 +595,7 @@ class DatabaseService:
                     )
                     history_result = cursor.fetchone()
                     cursor.close()
-                    
+
                     return {
                         "total_ips": result[0],
                         "active_ips": result[1],

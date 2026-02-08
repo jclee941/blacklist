@@ -68,7 +68,7 @@ class CollectionScheduler:
                         self.collection_stats["last_run"] = str(last_collection)
                         self.collection_stats["last_success"] = str(last_collection)
                     logger.info(f"📅 Loaded last collection time from DB: {self.collection_stats['last_run']}")
-                
+
                 # Load run counts
                 if stats.get("total_collections"):
                     self.collection_stats["total_runs"] = stats["total_collections"]
@@ -607,7 +607,7 @@ class CollectionScheduler:
         try:
             logger.info("🔄 Starting Secudium Black IP collection...")
 
-            collector = SecudiumCollector(config=config, db_service=db_service)
+            collector = SecudiumCollector(db_service=self.db_service)
             result = collector.collect_data()
 
             if result.get("success"):

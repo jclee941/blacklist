@@ -26,7 +26,7 @@ def get_analytics_overview():
     """Analytics dashboard overview with key metrics"""
     try:
         db_service = current_app.extensions["db_service"]
-        
+
         stats = db_service.query("""
             SELECT 
                 (SELECT COUNT(*) FROM blacklist_ips) as total_ips,
@@ -35,7 +35,7 @@ def get_analytics_overview():
                 (SELECT COUNT(*) FROM blacklist_ips WHERE created_at > NOW() - INTERVAL '24 hours') as new_today,
                 (SELECT COUNT(*) FROM blacklist_ips WHERE created_at > NOW() - INTERVAL '7 days') as new_week
         """)
-        
+
         row = stats[0] if stats else {}
         return jsonify({
             "success": True,
@@ -73,7 +73,7 @@ def get_detection_timeline():
     """
     # Get and validate query parameters
     days_param = request.args.get("days", "30")
-    
+
     # days=0 or days=all means no date filter (all data)
     if days_param.lower() == "all" or days_param == "0":
         days_back = None  # No limit

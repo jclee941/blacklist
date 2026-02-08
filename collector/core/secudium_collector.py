@@ -317,9 +317,10 @@ class SecudiumCollector:
                     return "failed"
 
             try:
-                body = resp.json() if resp.content else {}
+                if resp.content:
+                    resp.json()
             except (ValueError, TypeError):
-                body = {}
+                pass
 
             body_text = resp.text.lower() if resp.text else ""
             if any(indicator in body_text for indicator in ["otp", "인증", "2차인증", "is_otp"]):

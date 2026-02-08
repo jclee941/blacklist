@@ -146,15 +146,6 @@ def get_blacklist_list():
         logger.error(f"Blacklist list query failed: {e}", exc_info=True)
         raise DatabaseError(
             message=f"Failed to retrieve blacklist data (page={page}): {type(e).__name__}",
-                "timestamp": datetime.now().isoformat(),
-                "request_id": g.request_id,
-            }
-        ), 200
-
-    except Exception as e:
-        logger.error(f"Blacklist stats query failed: {e}", exc_info=True)
-        raise DatabaseError(
-            message=f"Failed to retrieve blacklist statistics: {type(e).__name__}",
         )
 
 

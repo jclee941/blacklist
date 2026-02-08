@@ -4,7 +4,6 @@
 
 import logging
 import requests
-from datetime import datetime
 from datetime import date
 from typing import Any, Dict, List, Optional
 

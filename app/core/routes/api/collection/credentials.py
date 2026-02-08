@@ -11,6 +11,7 @@ from core.exceptions import (
     BadRequestError,
     NotFoundError,
     DatabaseError,
+    ForbiddenError,
 )
 from .utils import (
     call_collector_api,
@@ -21,6 +22,7 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 collection_credentials_bp = Blueprint("collection_credentials", __name__)
+ALLOWED_SOURCES = ("REGTECH", "SECUDIUM")
 
 
 @collection_credentials_bp.route("/credentials", methods=["GET"])
@@ -60,14 +62,13 @@ def manage_credentials(source: str):
     source_upper = source.upper()
 
     # Validate source parameter
-    allowed_sources = ["REGTECH", "SECUDIUM"]
-    if source_upper not in allowed_sources:
+    if source_upper not in ALLOWED_SOURCES:
         raise ValidationError(
-            message=f"Invalid source: {source}. Must be one of {[s.lower() for s in allowed_sources]}",
+            message=f"Invalid source: {source}. Must be one of {[s.lower() for s in ALLOWED_SOURCES]}",
             field="source",
             details={
                 "provided_value": source,
-                "allowed_values": [s.lower() for s in allowed_sources],
+                "allowed_values": [s.lower() for s in ALLOWED_SOURCES],
             },
         )
 
@@ -260,10 +261,10 @@ def test_credentials(source: str):
     """Test credentials by attempting to authenticate with the collector service"""
     try:
         source_upper = source.upper()
-        if source_upper not in allowed_sources:
+        if source_upper not in ALLOWED_SOURCES:
             raise ValidationError(
                 message=f"지원하지 않는 소스입니다: {source}",
-                details={"allowed_sources": list(allowed_sources)},
+                details={"allowed_sources": list(ALLOWED_SOURCES)},
             )
 
         result = call_collector_api(

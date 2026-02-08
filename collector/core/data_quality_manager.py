@@ -142,7 +142,7 @@ class DataQualityManager:
 
             # 1. 잘못된 IP 주소 형식 검사
             cursor.execute(
-                """
+                r"""
                 SELECT COUNT(*) FROM blacklist_ips 
                 WHERE ip_address !~ '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
                 AND ip_address !~ '^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$'

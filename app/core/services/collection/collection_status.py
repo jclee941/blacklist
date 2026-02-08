@@ -4,6 +4,7 @@ Collection Status Manager
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Dict, Any, Set
 from flask import current_app

@@ -215,7 +215,7 @@ def configure_structlog():
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
-    
+
     # 루트 로거 설정
     logging.basicConfig(
         format="%(message)s",
