@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.39] - 2026-02-08
+
+### Fixed
+- **Frontend**: Secudium 수집기 카드가 인증정보 미설정 시에도 표시되도록 수정
+
+---
+
 ## [3.5.38] - 2026-02-08
 
 ### Added
