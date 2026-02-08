@@ -90,18 +90,24 @@ class CollectionScheduler:
             except Exception as e:
                 logger.error(f"REGTECH 수집 오류: {e}")
 
-            # SECUDIUM 수집 (비활성화됨 - 가짜 서비스)
-            # try:
-            #     secudium_result = secudium_collector.collect_data()
-            #     if secudium_result and secudium_result.get("success"):
-            #         collected_count = secudium_result.get("collected_count", 0)
-            #         logger.info(f"✅ SECUDIUM 수집 완료: {collected_count}개")
-            #         self.last_collection["secudium"] = datetime.now()
-            #     else:
-            #         logger.warning("❌ SECUDIUM 수집 실패")
-            # except Exception as e:
-            #     logger.error(f"SECUDIUM 수집 오류: {e}")
-            logger.info("🚫 SECUDIUM 수집 비활성화됨 (가짜 서비스)")
+            # SECUDIUM 수집
+            try:
+                import requests as req
+
+                collector_url = os.environ.get("COLLECTOR_URL", "http://blacklist-collector:8545")
+                resp = req.post(
+                    f"{collector_url}/api/scheduler/force-collection/SECUDIUM",
+                    timeout=300,
+                )
+                secudium_result = resp.json() if resp.status_code == 200 else {}
+                if secudium_result.get("success"):
+                    collected_count = secudium_result.get("collected_count", 0)
+                    logger.info(f"SECUDIUM 수집 완료: {collected_count}개")
+                    self.last_collection["secudium"] = datetime.now()
+                else:
+                    logger.warning(f"SECUDIUM 수집 실패: {secudium_result.get('error', 'unknown')}")
+            except Exception as e:
+                logger.error(f"SECUDIUM 수집 오류: {e}")
 
             # 해제일 지난 IP 비활성화
             self._deactivate_expired_ips()

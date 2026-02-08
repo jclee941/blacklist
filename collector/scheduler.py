@@ -43,6 +43,12 @@ class CollectionScheduler:
         # 자동 수집 비활성화 플래그 (환경변수)
         self.auto_collection_disabled = os.getenv("DISABLE_AUTO_COLLECTION", "false").lower() == "true"
 
+        # 지원하는 수집 소스 (scheduler_api에서 validation에 사용)
+        self.collectors = {
+            "REGTECH": "_collect_regtech_data",
+            "SECUDIUM": "_collect_secudium_data",
+        }
+
         # Load initial stats from database on init
         self._load_initial_stats()
 
@@ -580,11 +586,7 @@ class CollectionScheduler:
             if source == "REGTECH":
                 result = self._collect_regtech_data(username, password, max_pages=50)
             elif source == "SECUDIUM":
-                return {
-                    "success": False,
-                    "error": "SECUDIUM support deprecated since v3.1",
-                    "collected_count": 0,
-                }
+                result = self._collect_secudium_data(username, password)
             else:
                 return {
                     "success": False,
@@ -597,6 +599,33 @@ class CollectionScheduler:
         except Exception as e:
             logger.error(f"❌ Force collection error for {source}: {e}")
             return {"success": False, "error": str(e), "collected_count": 0}
+
+    def _collect_secudium_data(self, username: str, password: str) -> Dict[str, Any]:
+        """Secudium (ISAP) Black IP 데이터 수집"""
+        from collector.core.secudium_collector import SecudiumCollector
+
+        try:
+            logger.info("🔄 Starting Secudium Black IP collection...")
+
+            collector = SecudiumCollector(config=config, db_service=db_service)
+            result = collector.collect_data()
+
+            if result.get("success"):
+                count = result.get("collected_count", 0)
+                logger.info(f"✅ Secudium collection completed: {count} IPs collected")
+            else:
+                logger.error(f"❌ Secudium collection failed: {result.get('error')}")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Secudium collection error: {e}")
+            return {"success": False, "error": str(e), "collected_count": 0}
+        finally:
+            try:
+                collector.close()
+            except Exception:
+                pass
 
 
 # 전역 인스턴스

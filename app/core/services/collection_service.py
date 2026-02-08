@@ -3,6 +3,7 @@
 데이터 수집 트리거, 중지, 관리 기능 제공 - 모듈화된 아키텍처
 """
 
+import os
 import time
 from datetime import datetime
 from typing import Dict, List, Any
@@ -34,6 +35,7 @@ class CollectionService:
         self.active_collections = set()
         self.collection_status = {
             "regtech": {"running": False, "last_run": None},
+            "secudium": {"running": False, "last_run": None},
         }
 
     def trigger_collection(self, source: str) -> Dict[str, Any]:
@@ -486,11 +488,13 @@ class CollectionService:
             # 실제 IP 블랙리스트 데이터 수집
             if source.lower() == "regtech":
                 collected_data = regtech_collector.collect_regtech_ips()
+            elif source.lower() == "secudium":
+                return self._collect_secudium_via_http()
             else:
                 logger.warning(f"Unsupported collection source: {source}")
                 return {
                     "success": False,
-                    "error": f"지원되지 않는 수집 소스: {source}. REGTECH만 지원됩니다.",
+                    "error": f"지원되지 않는 수집 소스: {source}. REGTECH/SECUDIUM만 지원됩니다.",
                     "collected_count": 0,
                 }
 
@@ -525,6 +529,53 @@ class CollectionService:
         except Exception as e:
             logger.error(f"_collect_regtech_ips error: {e}")
             return []
+
+    def _collect_secudium_via_http(self) -> Dict[str, Any]:
+        """Secudium 수집을 collector 서비스에 HTTP 요청으로 위임"""
+        import requests as req
+
+        collector_url = os.environ.get("COLLECTOR_URL", "http://blacklist-collector:8545")
+        try:
+            resp = req.post(
+                f"{collector_url}/api/scheduler/force-collection/SECUDIUM",
+                timeout=300,
+            )
+            if resp.status_code == 200:
+                result = resp.json()
+                return {
+                    "success": result.get("success", False),
+                    "collected_count": result.get("collected_count", 0),
+                    "message": result.get("message", "Secudium 수집 완료"),
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Collector 서비스 오류: HTTP {resp.status_code}",
+                    "collected_count": 0,
+                }
+        except Exception as e:
+            logger.error(f"Secudium HTTP collection error: {e}")
+            return {"success": False, "error": str(e), "collected_count": 0}
+
+    def trigger_secudium_collection(self, start_date: str = "", end_date: str = "") -> Dict[str, Any]:
+        """Secudium Black IP 수집 트리거 (웹 UI에서 호출)"""
+        if self.collection_status.get("secudium", {}).get("is_collecting"):
+            return {"success": False, "error": "Secudium 수집이 이미 진행 중입니다."}
+
+        self.collection_status["secudium"]["is_collecting"] = True
+        self.collection_status["secudium"]["last_attempt"] = datetime.now().isoformat()
+
+        try:
+            result = self._collect_secudium_via_http()
+            if result.get("success"):
+                self.collection_status["secudium"]["last_success"] = datetime.now().isoformat()
+                self.collection_status["secudium"]["last_count"] = result.get("collected_count", 0)
+            return result
+        except Exception as e:
+            logger.error(f"trigger_secudium_collection error: {e}")
+            return {"success": False, "error": str(e), "collected_count": 0}
+        finally:
+            self.collection_status["secudium"]["is_collecting"] = False
 
     def _save_collection_data(self, source: str, data: List[Dict[str, Any]]) -> bool:
         """수집된 데이터를 데이터베이스에 저장 (v3.3.5 - detection_date/removal_date 지원)"""
