@@ -6,17 +6,17 @@ Updated: 2025-11-21 (Cache Metrics Integration - MEDIUM PRIORITY #8)
 Reference: docs/108-REDIS-CACHING-IMPLEMENTATION.md
 """
 
-import os
-import redis
 import json
 import logging
+import os
 import time
-from typing import Any, Optional, Callable
 from functools import wraps
+from typing import Any, Callable, Optional
+
+import redis
 
 logger = logging.getLogger(__name__)
 
-# Import cache metrics collector
 try:
     from app.core.monitoring.cache_metrics import cache_metrics
 
@@ -27,12 +27,7 @@ except ImportError:
 
 
 def get_redis_client() -> Optional[redis.Redis]:
-    """
-    Redis 클라이언트 생성 및 반환
-
-    Returns:
-        Redis client or None (연결 실패 시)
-    """
+    """Redis 클라이언트 생성 및 반환. 연결 실패 시 None."""
     try:
         client = redis.Redis(
             host=os.getenv("REDIS_HOST", "blacklist-redis"),
@@ -42,187 +37,117 @@ def get_redis_client() -> Optional[redis.Redis]:
             socket_connect_timeout=2,
             socket_timeout=2,
         )
-        # 연결 테스트
         client.ping()
-        logger.info("✅ Redis cache client created successfully")
+        logger.info("Redis cache client created successfully")
         return client
     except Exception as e:
-        logger.warning(f"⚠️ Redis cache unavailable: {e}")
+        logger.warning(f"Redis cache unavailable: {e}")
         return None
+
+
+def _record_metric(method_name: str, **kwargs: Any) -> None:
+    """Record cache metric safely (swallow errors)."""
+    if not METRICS_ENABLED:
+        return
+    try:
+        method = getattr(cache_metrics, method_name, None)
+        if method:
+            method(**kwargs)
+    except Exception as e:
+        logger.warning(f"Failed to record cache {method_name} metric: {e}")
+
+
+def _serialize_value(value: Any) -> str:
+    """Serialize a value for Redis storage."""
+    if isinstance(value, (dict, list, tuple, bool)):
+        return json.dumps(value)
+    return str(value)
+
+
+def _deserialize_value(raw: str) -> Any:
+    """Deserialize a Redis string, falling back to raw string."""
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return raw
 
 
 class CacheManager:
     """Redis 캐시 매니저 클래스"""
 
     def __init__(self, ttl: int = 300, key_prefix: str = ""):
-        """
-        Args:
-            ttl: Time to live (초 단위, 기본값: 300초 = 5분)
-            key_prefix: 캐시 키 접두사
-        """
         self.redis_client = get_redis_client()
         self.ttl = ttl
         self.key_prefix = key_prefix
 
     def _make_key(self, key: str) -> str:
-        """캐시 키 생성"""
         if self.key_prefix:
             return f"{self.key_prefix}:{key}"
         return key
 
     def get(self, key: str, default: Any = None) -> Any:
-        """
-        캐시에서 값 조회 (메트릭 수집 포함)
-
-        Args:
-            key: 캐시 키
-            default: 캐시 미스 시 반환할 기본값
-
-        Returns:
-            캐시된 값 또는 default
-        """
+        """캐시에서 값 조회 (메트릭 수집 포함)."""
         if not self.redis_client:
             return default
 
+        full_key = self._make_key(key)
         start_time = time.time()
 
         try:
-            cached = self.redis_client.get(self._make_key(key))
+            cached = self.redis_client.get(full_key)
             latency_ms = (time.time() - start_time) * 1000
 
             if cached is None:
-                # Cache miss - record metrics
-                if METRICS_ENABLED:
-                    try:
-                        cache_metrics.record_miss(cache_key=self._make_key(key), latency_ms=latency_ms)
-                    except Exception as e:
-                        logger.warning(f"Failed to record cache miss metric: {e}")
-
+                _record_metric("record_miss", cache_key=full_key, latency_ms=latency_ms)
                 return default
 
-            # Cache hit - record metrics
-            if METRICS_ENABLED:
-                try:
-                    cache_metrics.record_hit(cache_key=self._make_key(key), latency_ms=latency_ms)
-                except Exception as e:
-                    logger.warning(f"Failed to record cache hit metric: {e}")
-
-            # JSON 파싱 시도 (실패 시 원본 문자열 반환)
-            try:
-                return json.loads(cached)
-            except (json.JSONDecodeError, TypeError):
-                return cached
+            _record_metric("record_hit", cache_key=full_key, latency_ms=latency_ms)
+            return _deserialize_value(cached)
 
         except Exception as e:
             logger.warning(f"Cache get error for key '{key}': {e}")
-
-            # Record error metric
-            if METRICS_ENABLED:
-                try:
-                    cache_metrics.record_error(cache_key=self._make_key(key), operation="get", error_message=str(e))
-                except Exception:
-                    pass
-
+            _record_metric("record_error", cache_key=full_key, operation="get", error_message=str(e))
             return default
 
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
-        """
-        캐시에 값 저장 (메트릭 수집 포함)
-
-        Args:
-            key: 캐시 키
-            value: 저장할 값
-            ttl: Time to live (None이면 인스턴스 기본값 사용)
-
-        Returns:
-            성공 여부
-        """
+        """캐시에 값 저장 (메트릭 수집 포함)."""
         if not self.redis_client:
             return False
 
+        full_key = self._make_key(key)
+
         try:
             cache_ttl = ttl if ttl is not None else self.ttl
+            serialized = _serialize_value(value)
+            size_bytes = len(serialized.encode("utf-8"))
 
-            # JSON 직렬화 가능한 값은 JSON으로 저장
-            if isinstance(value, (dict, list, tuple)):
-                value = json.dumps(value)
-            elif isinstance(value, bool):
-                value = json.dumps(value)
-            else:
-                value = str(value)
-
-            # Calculate approximate size
-            size_bytes = len(str(value).encode("utf-8"))
-
-            self.redis_client.setex(self._make_key(key), cache_ttl, value)
-
-            # Record set metric
-            if METRICS_ENABLED:
-                try:
-                    cache_metrics.record_set(cache_key=self._make_key(key), ttl=cache_ttl, size_bytes=size_bytes)
-                except Exception as e:
-                    logger.warning(f"Failed to record cache set metric: {e}")
-
+            self.redis_client.setex(full_key, cache_ttl, serialized)
+            _record_metric("record_set", cache_key=full_key, ttl=cache_ttl, size_bytes=size_bytes)
             return True
 
         except Exception as e:
             logger.warning(f"Cache set error for key '{key}': {e}")
-
-            # Record error metric
-            if METRICS_ENABLED:
-                try:
-                    cache_metrics.record_error(cache_key=self._make_key(key), operation="set", error_message=str(e))
-                except Exception:
-                    pass
-
+            _record_metric("record_error", cache_key=full_key, operation="set", error_message=str(e))
             return False
 
     def delete(self, key: str) -> bool:
-        """
-        캐시에서 값 삭제 (메트릭 수집 포함)
-
-        Args:
-            key: 캐시 키
-
-        Returns:
-            성공 여부
-        """
+        """캐시에서 값 삭제 (메트릭 수집 포함)."""
         if not self.redis_client:
             return False
 
+        full_key = self._make_key(key)
+
         try:
-            self.redis_client.delete(self._make_key(key))
-
-            # Record delete metric
-            if METRICS_ENABLED:
-                try:
-                    cache_metrics.record_delete(cache_key=self._make_key(key))
-                except Exception as e:
-                    logger.warning(f"Failed to record cache delete metric: {e}")
-
+            self.redis_client.delete(full_key)
+            _record_metric("record_delete", cache_key=full_key)
             return True
         except Exception as e:
             logger.warning(f"Cache delete error for key '{key}': {e}")
-
-            # Record error metric
-            if METRICS_ENABLED:
-                try:
-                    cache_metrics.record_error(cache_key=self._make_key(key), operation="delete", error_message=str(e))
-                except Exception:
-                    pass
-
+            _record_metric("record_error", cache_key=full_key, operation="delete", error_message=str(e))
             return False
 
     def exists(self, key: str) -> bool:
-        """
-        캐시에 키가 존재하는지 확인
-
-        Args:
-            key: 캐시 키
-
-        Returns:
-            존재 여부
-        """
+        """캐시에 키가 존재하는지 확인."""
         if not self.redis_client:
             return False
 
@@ -233,15 +158,7 @@ class CacheManager:
             return False
 
     def clear_pattern(self, pattern: str) -> int:
-        """
-        패턴에 맞는 모든 키 삭제
-
-        Args:
-            pattern: 패턴 (예: "user:*")
-
-        Returns:
-            삭제된 키 개수
-        """
+        """패턴에 맞는 모든 키 삭제."""
         if not self.redis_client:
             return 0
 
@@ -262,12 +179,7 @@ def cached(ttl: int = 300, key_prefix: str = ""):
     사용 예시:
         @cached(ttl=600, key_prefix="stats")
         def get_statistics(user_id: str):
-            # 비용이 높은 연산
             return expensive_calculation(user_id)
-
-    Args:
-        ttl: Time to live (초 단위)
-        key_prefix: 캐시 키 접두사
     """
 
     def decorator(func: Callable) -> Callable:
@@ -275,20 +187,16 @@ def cached(ttl: int = 300, key_prefix: str = ""):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # 캐시 키 생성 (함수명 + 인자)
             cache_key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
 
-            # 캐시 확인
             cached_result = cache_manager.get(cache_key)
             if cached_result is not None:
                 logger.debug(f"Cache hit for {func.__name__}")
                 return cached_result
 
-            # 함수 실행 및 캐시 저장
             logger.debug(f"Cache miss for {func.__name__}")
             result = func(*args, **kwargs)
             cache_manager.set(cache_key, result)
-
             return result
 
         return wrapper
