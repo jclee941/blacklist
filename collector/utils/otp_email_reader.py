@@ -23,7 +23,7 @@ class OTPEmailReader:
         self,
         email_address: str,
         email_password: str,
-        imap_server: str = "imap.gmail.com",
+        imap_server: str = "imap.kakao.com",
     ):
         """
         Args:
@@ -139,9 +139,26 @@ class OTPEmailReader:
         return decoded_str
 
     def _extract_otp_from_message(self, msg) -> Optional[str]:
-        """이메일 본문에서 OTP 코드 추출"""
+        """이메일 제목 또는 본문에서 OTP 코드 추출
 
-        # 본문 추출
+        SK쉴더스 Secudium OTP 이메일은 제목에 OTP 코드를 포함:
+        예: [SK쉴더스] OTP[538542] 인증 번호
+        """
+
+        # 1) 제목에서 OTP 추출 (SK쉴더스 형식: OTP[XXXXXX])
+        subject = self._decode_header(msg.get("Subject", ""))
+        subject_patterns = [
+            r"OTP\[(\d{6})\]",  # OTP[538542]
+            r"OTP[:\s]+(\d{6})",  # OTP: 538542
+        ]
+        for pattern in subject_patterns:
+            match = re.search(pattern, subject)
+            if match:
+                otp_code = match.group(1)
+                logger.info("otp_extracted_from_subject", code=otp_code, subject=subject)
+                return otp_code
+
+        # 2) 본문에서 OTP 추출 (폴백)
         body = ""
         if msg.is_multipart():
             for part in msg.walk():
@@ -163,23 +180,23 @@ class OTPEmailReader:
 
         logger.debug("email_body_extracted", length=len(body))
 
-        # OTP 패턴 매칭 (일반적인 패턴들)
-        patterns = [
-            r"OTP[:\s]+([0-9]{6})",  # OTP: 123456
-            r"인증번호[:\s]+([0-9]{6})",  # 인증번호: 123456
-            r"확인번호[:\s]+([0-9]{6})",  # 확인번호: 123456
-            r"코드[:\s]+([0-9]{6})",  # 코드: 123456
-            r"[^0-9]([0-9]{6})[^0-9]",  # 6자리 숫자 (일반)
+        body_patterns = [
+            r"OTP\[(\d{6})\]",  # OTP[123456]
+            r"OTP[:\s]+(\d{6})",  # OTP: 123456
+            r"인증번호[:\s]+(\d{6})",  # 인증번호: 123456
+            r"확인번호[:\s]+(\d{6})",  # 확인번호: 123456
+            r"코드[:\s]+(\d{6})",  # 코드: 123456
+            r"[^0-9](\d{6})[^0-9]",  # 6자리 숫자 (일반)
         ]
 
-        for pattern in patterns:
+        for pattern in body_patterns:
             match = re.search(pattern, body)
             if match:
                 otp_code = match.group(1)
-                logger.info("otp_pattern_matched", pattern=pattern, code=otp_code)
+                logger.info("otp_extracted_from_body", pattern=pattern, code=otp_code)
                 return otp_code
 
-        logger.warning("otp_pattern_not_found", body_preview=body[:200])
+        logger.warning("otp_not_found", subject=subject, body_preview=body[:200])
         return None
 
 
