@@ -32,9 +32,12 @@ class CollectorConfig:
     REGTECH_PW = os.getenv("REGTECH_PW", "")
 
     # SECUDIUM 설정 (환경변수 우선, DB fallback)
-    SECUDIUM_BASE_URL = os.getenv("SECUDIUM_BASE_URL", "https://www.secudium.com")
+    SECUDIUM_BASE_URL = os.getenv("SECUDIUM_BASE_URL", "https://secudium.skinfosec.co.kr")
     SECUDIUM_ID = os.getenv("SECUDIUM_ID", "")
     SECUDIUM_PW = os.getenv("SECUDIUM_PW", "")
+    SECUDIUM_EMAIL = os.getenv("SECUDIUM_EMAIL", "")
+    SECUDIUM_EMAIL_PASSWORD = os.getenv("SECUDIUM_EMAIL_PASSWORD", "")
+    SECUDIUM_IMAP_SERVER = os.getenv("SECUDIUM_IMAP_SERVER", "imap.kakao.com")
 
     # 인증정보 캐시 (DB 조회 최소화)
     _credentials_cache: Dict[str, Dict[str, str]] = {}
