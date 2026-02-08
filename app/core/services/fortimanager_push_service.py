@@ -42,7 +42,7 @@ class FortiManagerPushService:
         self.fmg_pass = os.getenv("FMG_PASS")
         self.fmg_adom = os.getenv("FMG_ADOM", "root")
         self.api_url = os.getenv(
-            "API_URL", "http://localhost:443/api/fortinet/threat-feed?format=text"
+            "BLACKLIST_API_URL", "https://localhost/api/fortinet/threat-feed?format=text"
         )
 
         self.session_id: Optional[str] = None
