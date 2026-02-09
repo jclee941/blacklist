@@ -65,6 +65,8 @@ jobs:
 
       - name: Download airgap bundle
         if: steps.check.outputs.already_running != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUM="${{ steps.version.outputs.version_num }}"
@@ -72,26 +74,28 @@ jobs:
 
           cd ${{ env.DEPLOY_BASE }}
 
-          # Download from GitHub Release
           echo "⬇️  Downloading ${BUNDLE}..."
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${BUNDLE}"
 
-          if command -v gh &>/dev/null; then
-            gh release download "${VERSION}" \
-              --repo "${{ github.repository }}" \
-              --pattern "${BUNDLE}" \
-              --dir . \
-              --clobber 2>&1 || \
-            curl -sfL -o "${BUNDLE}" \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "${RELEASE_URL}"
-          else
-            curl -sfL -o "${BUNDLE}" \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "${RELEASE_URL}"
+          # Get asset download URL via GitHub API
+          ASSET_URL=$(curl -sf \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${VERSION}" \
+            | grep -B3 "\"name\": \"${BUNDLE}\"" \
+            | grep '"url"' | head -1 | sed 's/.*"url": *"//;s/".*//')
+
+          if [ -z "${ASSET_URL}" ]; then
+            echo "::error::Could not find asset ${BUNDLE} in release ${VERSION}"
+            exit 1
           fi
 
-          if [ ! -f "${BUNDLE}" ]; then
+          # Download the actual asset binary
+          curl -fL -o "${BUNDLE}" \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/octet-stream" \
+            "${ASSET_URL}"
+
+          if [ ! -f "${BUNDLE}" ] || [ ! -s "${BUNDLE}" ]; then
             echo "::error::Failed to download ${BUNDLE}"
             exit 1
           fi
