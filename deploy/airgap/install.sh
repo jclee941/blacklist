@@ -189,7 +189,15 @@ load_images() {
             img_path="${IMAGES_DIR}/blacklist-${img}"
         fi
         log_info "Loading ${name}..."
-        if gunzip -c "${img_path}" | docker load > /dev/null 2>&1; then
+        local load_output
+        if load_output=$(gunzip -c "${img_path}" | docker load 2>&1); then
+            # Extract loaded image name:tag (e.g. "blacklist-app:3.5.41") and tag as :latest
+            local loaded_image
+            loaded_image=$(echo "$load_output" | grep -oP 'Loaded image: \K.*' | head -1)
+            if [ -n "$loaded_image" ]; then
+                local repo="${loaded_image%%:*}"
+                docker tag "$loaded_image" "${repo}:latest" 2>/dev/null || true
+            fi
             log_success "${name}"
         else
             log_error "Failed to load ${name}"
