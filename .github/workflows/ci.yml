@@ -131,7 +131,7 @@ jobs:
       - run: pip install -r app/requirements.txt pytest-cov
       - name: Run tests with coverage
         run: |
-          python -m pytest tests/unit -v \
+          python -m pytest tests/unit --ignore=tests/unit/collector -v \
             --cov=app/core \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
@@ -144,8 +144,36 @@ jobs:
           path: coverage.xml
           retention-days: 30
 
+  test-collector:
+    needs: [detect-changes, lint-backend]
+    if: needs.detect-changes.outputs.collector == 'true'
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r collector/requirements.txt pytest-cov
+      - name: Run collector tests with coverage
+        env:
+          SECUDIUM_EMAIL: ${{ secrets.SECUDIUM_EMAIL }}
+          SECUDIUM_EMAIL_PASSWORD: ${{ secrets.SECUDIUM_EMAIL_PASSWORD }}
+        run: |
+          python -m pytest tests/unit/collector -v \
+            --cov=collector/core \
+            --cov-report=term-missing \
+            --cov-report=xml:collector-coverage.xml
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-coverage
+          path: collector-coverage.xml
+          retention-days: 30
+
   build:
-    needs: [detect-changes, lint-frontend, lint-backend, test-frontend, test-backend]
+    needs: [detect-changes, lint-frontend, lint-backend, test-frontend, test-backend, test-collector]
     if: >-
       always() && !failure() && !cancelled() &&
       (needs.detect-changes.outputs.frontend == 'true' ||
