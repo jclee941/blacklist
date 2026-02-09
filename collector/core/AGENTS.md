@@ -1,53 +1,59 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
 **Generated:** 2026-02-08
-**Commit:** 450d20c | **Version:** 3.5.39
+**Commit:** 841eb71 | **Version:** 3.5.39
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## OVERVIEW
 
-핵심 ETL 파이프라인. 모듈형 파싱 + DB 기반 Rate Limiting + 데이터 정규화.
+Core ETL pipeline. Modular parsing + DB-based rate limiting + data normalization.
 
 ## STRUCTURE
 
 ```
 core/
-├── regtech_collector.py      # 메인 ETL (961L ⚠️ HIGH complexity)
-├── regtech_parsers.py        # HTML/JSON 파싱 모듈
-├── regtech_excel.py          # Excel/pandas 추출
-├── multi_source_collector.py # 10+ 외부 피드 async (766L ⚠️)
-├── database.py               # 독립 DB 풀 (maxconn=20)
-├── authentication.py         # Fernet 자격증명 복호화
-└── data_normalizer.py        # IP 형식 표준화
+├── regtech/                   # Regtech collection package
+│   ├── auth.py                # Multi-stage authentication (138L)
+│   ├── collector.py           # Main collection logic (414L)
+│   └── data_processor.py      # Data processing pipeline (331L)
+├── multi_source/              # Multi-source collection package
+│   ├── collector.py           # Async feed collection (408L)
+│   ├── models.py              # Data models (47L)
+│   └── parsers.py             # Feed-specific parsers (200L)
+├── fortigate_collector.py     # FortiGate firewall data (680L)
+├── secudium_collector.py      # Secudium threat intel (676L)
+├── database.py                # Independent DB pool (maxconn=20)
+├── authentication.py          # Fernet credential decryption
+└── data_normalizer.py         # IP format standardization
 ```
 
-## HOW TO: 새 파서 추가
+## HOW TO: Add New Parser
 
-1. `regtech_parsers.py`에 파서 함수 작성 (`parse_X(html) -> list[dict]`)
-2. `regtech_collector.py`에서 import 후 `_collect_X()` 메서드에서 호출
-3. `ON CONFLICT DO UPDATE` 패턴으로 DB 저장
+1. Add parser function in appropriate module (`multi_source/parsers.py` or `regtech/data_processor.py`)
+2. Call from collector (`parse_X(html) -> list[dict]`)
+3. Store via `ON CONFLICT DO UPDATE` pattern
 
 ## CONVENTIONS
 
-| 규약 | 내용 |
-|------|------|
-| 파싱 분리 | 파싱 → `regtech_parsers.py`, Excel → `regtech_excel.py` |
-| Rate Limit | DB `SourceConfig` 기반 소스별 간격 |
-| Idempotency | `ON CONFLICT DO UPDATE` 필수 |
-| Error Recovery | Exponential Backoff (소스별 독립 실패) |
+| Convention | Description |
+|------------|-------------|
+| Parsing separation | Parsing → separate modules, not in collectors |
+| Rate limit | DB `SourceConfig`-based per-source intervals |
+| Idempotency | `ON CONFLICT DO UPDATE` required |
+| Error recovery | Exponential backoff (independent per-source failure) |
 
 ## ANTI-PATTERNS
 
-| 금지 | 대안 |
-|------|------|
-| Collector 내 파싱 로직 | 별도 파서 모듈 |
-| 직접 DB 쓰기 (트랜잭션 없이) | 트랜잭션 컨텍스트 사용 |
-| 하드코딩 수집 간격 | DB `SourceConfig` 테이블 |
-| 동기 HTTP 대량 호출 | `aiohttp` + semaphore |
+| Forbidden | Alternative |
+|-----------|-------------|
+| Parsing logic in collectors | Separate parser modules |
+| Direct DB writes (no transactions) | Transaction context |
+| Hardcoded collection intervals | DB `SourceConfig` table |
+| Sync bulk HTTP | `aiohttp` + semaphore |
 
 ## COMPLEXITY HOTSPOTS
 
-| File | Lines | Issue |
-|------|-------|-------|
-| `regtech_collector.py` | 961 | Multi-stage auth, JWT refresh, 40+ magic numbers |
-| `multi_source_collector.py` | 766 | Mixed sync/async, semaphore contention |
+| File | Lines | Status |
+|------|-------|--------|
+| `fortigate_collector.py` | 680L | Active — consider splitting |
+| `secudium_collector.py` | 676L | Active — consider splitting |

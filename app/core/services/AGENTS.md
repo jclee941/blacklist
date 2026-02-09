@@ -1,14 +1,14 @@
 # SERVICE LAYER KNOWLEDGE BASE
 
-**Generated:** 2026-02-08
-**Commit:** 450d20c | **Version:** 3.5.39
+**Generated:** 2026-02-09
+**Commit:** 841eb71 | **Version:** 3.5.39
 **Parent:** [../../AGENTS.md](../../AGENTS.md)
 
 ## OVERVIEW
 
-비즈니스 로직 중심. **Manual DI** — `ServiceFactory`가 14 서비스 의존성 주입. 순환 Import 엄금.
+Business logic core. **Manual DI** — `ServiceFactory` injects 14 service dependencies. Circular imports strictly forbidden.
 
-## LIFECYCLE (엄격한 순서)
+## LIFECYCLE (Strict Order)
 
 ```
 1. Infra       → database_service, redis_service
@@ -20,9 +20,9 @@
 7. Admin       → admin_service, monitoring_service
 ```
 
-⚠️ 순서 변경 금지 — 의존성 그래프 기반.
+⚠️ Order change FORBIDDEN — based on dependency graph.
 
-## HOW TO: 새 서비스 추가
+## HOW TO: Add New Service
 
 ```python
 # 1. app/core/services/my_service.py
@@ -30,38 +30,37 @@ class MyService:
     def __init__(self, db_service):
         self.db = db_service
 
-# 2. service_factory.py에 등록
+# 2. Register in service_factory.py
 def _init_my_service(self):
     from core.services.my_service import MyService
     self.my_service = MyService(self.db_service)
     self.app.extensions['my_service'] = self.my_service
 
-# 3. 라우트에서 사용
+# 3. Use in routes
 service = current_app.extensions['my_service']
 ```
 
 ## ANTI-PATTERNS
 
-| ❌ 금지 | ✅ 대안 |
-|---------|---------|
-| `BlacklistService()` | ServiceFactory 등록 |
+| Forbidden | Alternative |
+|-----------|-------------|
+| `BlacklistService()` | Register via ServiceFactory |
 | `from services import X` | `current_app.extensions` |
 | SQLAlchemy/Prisma | Raw SQL only |
-| 서비스 간 직접 호출 | ServiceFactory 주입 |
+| Direct cross-service calls | ServiceFactory injection |
 
 ## KNOWN ISSUES
 
 | Issue | Severity |
 |-------|----------|
 | `blacklist_service.py` complexity 39.43 | HIGH |
-| `cache_utils.py` complexity 42.01 | HIGH |
-| DI violations: `admin_routes.py`, `fortimanager_push_service.py`, `settings_service.py` 직접 인스턴스 생성 | HIGH |
+| DI violations: `admin_routes.py`, `fortimanager_push_service.py`, `settings_service.py` | INTENTIONAL |
 | `blacklist_service.py` 3 hardcoded URLs (L420, L462, L510) | CRITICAL |
 
 ## KEY FILES
 
-| 파일 | Lines | 역할 |
+| File | Lines | Role |
 |------|-------|------|
-| `service_factory.py` | 400L | DI 컨테이너 |
-| `blacklist_service.py` | 820L | IP 비즈니스 로직 ⚠️ |
-| `database_service.py` | 300L | ThreadedConnectionPool |
+| `blacklist_service.py` | 562L | IP business logic ⚠️ |
+| `database_service.py` | 460L | ThreadedConnectionPool |
+| `service_factory.py` | 278L | DI container |

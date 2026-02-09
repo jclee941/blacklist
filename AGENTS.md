@@ -1,7 +1,7 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
-**Generated:** 2026-02-08
-**Commit:** 3e9dc95
+**Generated:** 2026-02-09
+**Commit:** 841eb71
 **Branch:** master | **Version:** 3.5.39
 
 ## COMMANDS
@@ -79,23 +79,11 @@ app/                    # Flask API (Manual DI, Raw SQL)        :2542
   core/auth/            # JWT authentication (middleware, service, decorators)
 collector/              # ETL Service (independent)             :8545
 frontend/               # Next.js 15 Dashboard                  :2543
-cloudflare/             # Cloudflare Workers edge API (D1+KV)
 postgres/migrations/    # Raw SQL migrations (no ORM)
 tests/                  # Pytest + Playwright
-deploy/k8s/             # Kubernetes manifests
 ```
 
-No cross-imports between app/, collector/, frontend/, cloudflare/. Communication: DB, Redis, HTTP only.
-
-### Support Directories
-
-| Directory | Purpose | Notes |
-|-----------|---------|-------|
-| `agent/` | AI agent (regtech_agent.py) | Experimental |
-| `mock-fortigate/` | Flask mock server for testing | Test fixture |
-| `docs/` | Deliverables, architecture diagrams | 9 deliverables + guides |
-| `ssl/` | TLS certificates | `.gitignore`-d, keys in secrets management |
-| `frontend-source/` | Stale `.next/` build artifacts | Should be gitignored |
+No cross-imports between app/, collector/, frontend/. Communication: DB, Redis, HTTP only.
 
 ## AUTHENTICATION
 
@@ -117,7 +105,7 @@ Frontend sends Bearer token via Axios interceptor in `lib/api.ts`. On 401 → re
 | Workflow | Trigger | Notes |
 |----------|---------|-------|
 | `ci.yml` | Push/PR to master | Path-filtered lint→test→Docker build→E2E (backend + frontend) |
-| `release.yml` | Tag push `v*` | VERSION/tag validation→matrix Docker build (5 svc)→airgap→GH Release→GHCR |
+| `release.yml` | Tag push `v*` | VERSION/tag validation→matrix Docker build→airgap→GH Release→GHCR |
 | `build-images.yml` | Manual | Docker image builds |
 | `run-tests.yml` | Manual | Test runner |
 
@@ -150,30 +138,11 @@ git push origin master vX.Y.Z  # GitHub Actions creates release
 
 | File | Complexity | Risk |
 |------|-----------|------|
-| `app/core/utils/cache_utils.py` | 42.01 | HIGH |
 | `app/run_app.py` | 39.91 | HIGH |
 | `app/core/services/blacklist_service.py` | 39.43 | HIGH |
-| `collector/core/regtech_collector.py` | 961L | HIGH |
-| `collector/core/multi_source_collector.py` | 766L | HIGH |
-
-## RECENT CHANGES (v3.5.36 → v3.5.39)
-
-- JWT authentication middleware implemented (`app/core/auth/`)
-- SSL private key purged from Git history via `git filter-repo`
-- All hardcoded URLs replaced with environment variables + fallback
-- `ip_management_api.py` (1050L monolith) refactored → `app/core/routes/api/ip_management/` subpackage
-- `cloudflare/` Cloudflare Workers edge API added (D1 database, KV cache, 4 route modules)
-- CI/CD consolidated from 7 → 4 workflows
-- Dual ESLint configs consolidated (`.eslintrc.json` removed, `eslint.config.mjs` only)
-- Dual dashboard polling fixed (redundant 30s collection status poll removed)
-- Secudium collector fully implemented (collector + backend + frontend + tests)
-- Unguarded `.json()` calls fixed with `raise_for_status()` + narrowed exceptions
-- SECUDIUM source metadata corrected (`enabled: true`)
 
 ## NOTES
 
 - SQLAlchemy in requirements.txt but **usage forbidden** — raw SQL only
-- Legacy `app/core/collectors/` deleted — use `collector/` service
 - Ruff(120) vs Prettier(100) — each applies to its own domain
 - 14 services registered via ServiceFactory in strict lifecycle order (see `app/core/services/AGENTS.md`)
-- `frontend-source/` contains stale build artifacts — do not use

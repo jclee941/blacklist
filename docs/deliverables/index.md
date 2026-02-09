@@ -101,8 +101,8 @@
 
 | 번호 | 산출물명 | 경로 | 기술 | 상태 |
 |------|----------|------|------|------|
-| S-006 | **자동화 스크립트** | `scripts/` | Bash, Python | ✅ 완료 |
-| S-007 | **K8s 매니페스트** | `k8s/` | Kubernetes YAML | ✅ 완료 |
+| ~~S-006~~ | ~~자동화 스크립트~~ | ~~`scripts/`~~ | — | ❌ 삭제됨 |
+| ~~S-007~~ | ~~K8s 매니페스트~~ | ~~`k8s/`~~ | — | ❌ 삭제됨 |
 
 ---
 
@@ -111,8 +111,8 @@
 | 번호 | 산출물명 | 경로 | 형식 | 상태 |
 |------|----------|------|------|------|
 | P-001 | **Docker 이미지** | `dist/images/` | .tar.gz (Git LFS) | ✅ 완료 |
-| P-002 | **배포 스크립트** | `scripts/deploy/` | Bash | ✅ 완료 |
-| P-003 | **CI/CD 설정** | `.gitlab-ci.yml` | YAML | ✅ 완료 |
+| ~~P-002~~ | ~~배포 스크립트~~ | ~~`scripts/deploy/`~~ | — | ❌ 삭제됨 |
+| P-003 | **CI/CD 설정** | `.github/workflows/` | YAML | ✅ 완료 |
 | P-004 | **Docker Compose** | `docker-compose*.yml` | YAML | ✅ 완료 |
 
 ---
@@ -213,11 +213,8 @@ blacklist/
 ├── collector/                          # S-003 수집기
 ├── postgres/migrations/                # S-004 DB 마이그레이션
 ├── tests/                              # S-005 테스트 코드
-├── scripts/                            # S-006 자동화 스크립트
-├── k8s/                                # S-007 K8s 매니페스트
 ├── dist/images/                        # P-001 Docker 이미지
-├── scripts/deploy/                     # P-002 배포 스크립트
-├── .gitlab-ci.yml                      # P-003 CI/CD 설정
+├── .github/workflows/                  # P-003 CI/CD 설정
 └── docker-compose*.yml                 # P-004 Docker Compose
 ```
 

@@ -1,7 +1,7 @@
 # AGENTS.md — Flask API (`app/`)
 
-**Generated:** 2026-02-08
-**Commit:** 450d20c | **Version:** 3.5.39
+**Generated:** 2026-02-09
+**Commit:** 841eb71 | **Version:** 3.5.39
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## STRUCTURE
@@ -16,10 +16,10 @@ app/
 │   ├── routes/
 │   │   ├── api/            # JSON API (RFC 7807) → api/AGENTS.md
 │   │   │   └── ip_management/  # Refactored subpackage (v3.5.37)
-│   │   └── web/            # Jinja2 legacy admin
-│   ├── database/           # Raw SQL infrastructure
-│   └── utils/
-│       └── cache_utils.py  # Complexity: 42.01 — highest in project
+│   │   └── web/            # Jinja2 legacy admin → web/AGENTS.md
+│   ├── database/           # Raw SQL infrastructure → database/AGENTS.md
+│   ├── monitoring/         # Prometheus metrics → monitoring/AGENTS.md
+│   └── utils/              # Shared utilities → utils/AGENTS.md
 ├── templates/              # Jinja2 (legacy, minimize changes)
 └── static/                 # Static assets (legacy)
 ```
@@ -63,23 +63,14 @@ def list_items():
 
 Fix: use `COLLECTOR_URL` env var.
 
-### Unguarded `.json()` Calls
-~10 violations across route handlers. Always check `resp.status_code` before `.json()`.
-
-### JWT Auth Not Enforced
-Auth declared but no middleware validates tokens. Security risk.
-
 ## COMPLEXITY HOTSPOTS
 
 | File | Metric | Risk |
 |------|--------|------|
-| `core/utils/cache_utils.py` | 42.01 complexity | HIGH |
 | `core/app.py` | 39.91 complexity | HIGH |
 | `services/blacklist_service.py` | 39.43 complexity | HIGH |
-| `routes/api/ip_management/` | Refactored from 1050L monolith | ✅ RESOLVED |
 
 ## NOTES
 
-- `app/core/collectors/` deleted — collection moved to `collector/` service
 - Collection trigger: HTTP POST to collector or query `collection_history` table
 - Three separate rate limiter instances exist (regtech, auth, Flask-Limiter) — consolidate
