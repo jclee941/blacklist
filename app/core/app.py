@@ -150,7 +150,7 @@ def create_app():
         from core.auth.middleware import jwt_required_hook
         from core.auth.decorators import public
 
-        jwt_service = JWTService(app)
+        jwt_service = JWTService(app.config["SECRET_KEY"])
         app.extensions["jwt_service"] = jwt_service
 
         app.before_request(jwt_required_hook)
