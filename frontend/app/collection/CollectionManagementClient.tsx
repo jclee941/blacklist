@@ -95,9 +95,8 @@ export default function CollectionManagementClient() {
           const credential = credentials.find(
             (c: Credential) => c.service_name.toUpperCase() === name
           );
-          const collectorStatus = collectionStatus?.collectors?.[name.toLowerCase()] as
-            | CollectorStatus
-            | undefined;
+          const collectorStatus = (collectionStatus?.collectors?.[name] ??
+            collectionStatus?.collectors?.[name.toLowerCase()]) as CollectorStatus | undefined;
 
           if (!credential) return null;
 
