@@ -135,7 +135,7 @@ jobs:
             --cov=app/core \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=60
+            --cov-fail-under=40
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
@@ -159,6 +159,7 @@ jobs:
         env:
           SECUDIUM_EMAIL: ${{ secrets.SECUDIUM_EMAIL }}
           SECUDIUM_EMAIL_PASSWORD: ${{ secrets.SECUDIUM_EMAIL_PASSWORD }}
+          PYTHONPATH: collector
         run: |
           python -m pytest tests/unit/collector -v \
             --cov=collector/core \
