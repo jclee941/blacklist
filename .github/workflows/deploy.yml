@@ -119,6 +119,33 @@ jobs:
           echo "✅ Extracted"
           ls -la "${DEPLOY_DIR}/"
 
+      - name: Update deploy files from latest master
+        if: steps.check.outputs.already_running != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_NUM="${{ steps.version.outputs.version_num }}"
+          DEPLOY_DIR="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION_NUM}"
+          REPO="${{ github.repository }}"
+
+          echo "🔄 Updating install.sh and docker-compose.yml from latest master..."
+
+          for file in install.sh docker-compose.yml; do
+            curl -sf \
+              -H "Authorization: token ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              "https://api.github.com/repos/${REPO}/contents/deploy/airgap/${file}?ref=master" \
+              -o "${DEPLOY_DIR}/${file}"
+
+            if [ -f "${DEPLOY_DIR}/${file}" ] && [ -s "${DEPLOY_DIR}/${file}" ]; then
+              echo "  ✅ ${file} updated"
+            else
+              echo "  ⚠️  Failed to download ${file}, using bundled version"
+            fi
+          done
+
+          chmod +x "${DEPLOY_DIR}/install.sh"
+
       - name: Preserve environment
         if: steps.check.outputs.already_running != 'true'
         run: |
