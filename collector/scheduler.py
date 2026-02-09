@@ -112,10 +112,13 @@ class CollectionScheduler:
         # 24시간마다 1회 수집 (매일 오전 2시)
         schedule.every().day.at("02:00").do(self._daily_collection, "일일 정기")
 
+        # Secudium 수집 (매일 오전 3시)
+        schedule.every().day.at("03:00").do(self._daily_secudium_collection, "Secudium 정기")
+
         # 매일 자정에 만료된 IP 정리
         schedule.every().day.at("00:00").do(self._cleanup_expired_ips)
 
-        logger.info("📅 24시간 수집 스케줄 설정 완료 (매일 02:00, 만료 정리 00:00)")
+        logger.info("📅 24시간 수집 스케줄 설정 완료 (REGTECH 02:00, Secudium 03:00, 만료 정리 00:00)")
 
     def _run_adaptive_collection(self) -> bool:
         """적응형 수집 실행"""
@@ -315,6 +318,42 @@ class CollectionScheduler:
                 execution_time_ms=int((datetime.now() - start_time).total_seconds() * 1000),
                 error_message=str(e),
             )
+
+    def _daily_secudium_collection(self, schedule_name: str):
+        """Secudium 일일 정기 수집"""
+        logger.info(f"📆 Secudium 수집 시작: {schedule_name}")
+
+        try:
+            credentials = db_service.get_collection_credentials("SECUDIUM")
+            if not credentials:
+                logger.warning("⚠️ Secudium 자격증명 없음 — 수집 건너뜀")
+                return
+
+            username = credentials.get("username", "")
+            password = credentials.get("password", "")
+            if not username or not password:
+                logger.warning("⚠️ Secudium 자격증명 불완전 — 수집 건너뜀")
+                return
+
+            config = credentials.get("config", {})
+            email_address = config.get("email", "")
+            email_password = config.get("email_password", "")
+            imap_server = config.get("imap_server", "imap.kakao.com")
+
+            result = self._collect_secudium_data(
+                username,
+                password,
+                email_address=email_address,
+                email_password=email_password,
+                imap_server=imap_server,
+            )
+            if result.get("success"):
+                logger.info(f"✅ Secudium 일일 수집 완료: {result.get('collected_count', 0)}개 IP")
+            else:
+                logger.error(f"❌ Secudium 일일 수집 실패: {result.get('error')}")
+
+        except Exception as e:
+            logger.error(f"❌ Secudium 일일 수집 오류: {e}")
 
     def stop(self):
         """스케줄러 중지"""
@@ -588,7 +627,14 @@ class CollectionScheduler:
             if source == "REGTECH":
                 result = self._collect_regtech_data(username, password, max_pages=50)
             elif source == "SECUDIUM":
-                result = self._collect_secudium_data(username, password)
+                config = credentials.get("config", {})
+                result = self._collect_secudium_data(
+                    username,
+                    password,
+                    email_address=config.get("email", ""),
+                    email_password=config.get("email_password", ""),
+                    imap_server=config.get("imap_server", "imap.kakao.com"),
+                )
             else:
                 return {
                     "success": False,
@@ -602,14 +648,35 @@ class CollectionScheduler:
             logger.error(f"❌ Force collection error for {source}: {e}")
             return {"success": False, "error": str(e), "collected_count": 0}
 
-    def _collect_secudium_data(self, username: str, password: str) -> Dict[str, Any]:
+    def _collect_secudium_data(
+        self,
+        username: str,
+        password: str,
+        email_address: str = "",
+        email_password: str = "",
+        imap_server: str = "imap.kakao.com",
+    ) -> Dict[str, Any]:
         """Secudium (ISAP) Black IP 데이터 수집"""
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         try:
             logger.info("🔄 Starting Secudium Black IP collection...")
 
-            collector = SecudiumCollector(db_service=self.db_service)
+            collector = SecudiumCollector(db_service=db_service)
+
+            # 인증 (email 정보가 있으면 auto OTP 모드)
+            auth_kwargs = {}
+            if email_address and email_password:
+                auth_kwargs = {
+                    "email_address": email_address,
+                    "email_password": email_password,
+                    "imap_server": imap_server,
+                }
+                logger.info("🔑 Secudium auto OTP 인증 모드 (IMAP)")
+
+            if not collector.authenticate(username, password, **auth_kwargs):
+                return {"success": False, "error": "Secudium 인증 실패", "collected_count": 0}
+
             result = collector.collect_data()
 
             if result.get("success"):

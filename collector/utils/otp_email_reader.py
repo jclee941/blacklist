@@ -80,7 +80,7 @@ class OTPEmailReader:
 
             while time.time() - start_time < max_wait_seconds:
                 # 보낸사람 또는 제목에 "SECUDIUM" 또는 "skinfosec" 포함
-                search_criteria = '(OR FROM "secudium" FROM "skinfosec" SUBJECT "SECUDIUM" SUBJECT "OTP")'
+                search_criteria = '(OR (OR (OR FROM "secudium" FROM "skinfosec") SUBJECT "SECUDIUM") SUBJECT "OTP")'
 
                 # 최신 이메일 검색
                 status, messages = self.imap.search(None, search_criteria)
@@ -155,7 +155,7 @@ class OTPEmailReader:
             match = re.search(pattern, subject)
             if match:
                 otp_code = match.group(1)
-                logger.info("otp_extracted_from_subject", code=otp_code, subject=subject)
+                logger.info("otp_extracted_from_subject", code_length=len(otp_code), subject=subject)
                 return otp_code
 
         # 2) 본문에서 OTP 추출 (폴백)
@@ -193,7 +193,7 @@ class OTPEmailReader:
             match = re.search(pattern, body)
             if match:
                 otp_code = match.group(1)
-                logger.info("otp_extracted_from_body", pattern=pattern, code=otp_code)
+                logger.info("otp_extracted_from_body", pattern=pattern, code_length=len(otp_code))
                 return otp_code
 
         logger.warning("otp_not_found", subject=subject, body_preview=body[:200])

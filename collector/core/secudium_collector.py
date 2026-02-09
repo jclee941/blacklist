@@ -19,6 +19,7 @@ import os
 import re
 import time
 import tempfile
+import threading
 from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import urlencode
@@ -28,12 +29,13 @@ import structlog
 from requests.adapters import HTTPAdapter
 
 from collector.config import CollectorConfig
-from collector.core.secudium_parsers import (
+from core.secudium_parsers import (
     parse_black_ip_list,
     extract_download_info,
     parse_xls_file,
 )
-from collector.utils.otp_email_reader import OTPEmailReader
+from core.rate_limiter import auth_rate_limiter
+from utils.otp_email_reader import OTPEmailReader
 
 logger = structlog.get_logger(__name__)
 
@@ -51,6 +53,7 @@ class SecudiumCollector:
     # Session persistence: avoid OTP on every collection
     _cached_token: Optional[str] = None
     _token_obtained_at: Optional[datetime] = None
+    _token_lock = threading.Lock()  # Thread-safe token cache access
     TOKEN_TTL_HOURS = 4  # Re-auth after 4 hours
 
     def __init__(self, db_service=None):
@@ -153,8 +156,8 @@ class SecudiumCollector:
             logger.info("secudium_using_cached_token")
             return True
 
-        if self._auth_attempts >= self._max_auth_attempts:
-            logger.error("secudium_auth_max_attempts_exceeded", attempts=self._auth_attempts)
+        if not auth_rate_limiter.wait_if_needed():
+            logger.error("secudium_auth_rate_limited")
             return False
 
         self._auth_attempts += 1
@@ -310,21 +313,17 @@ class SecudiumCollector:
             if token:
                 self._token = token
                 self._set_token_cookie()
-                SecudiumCollector._cached_token = token
-                SecudiumCollector._token_obtained_at = datetime.now()
+                with SecudiumCollector._token_lock:
+                    SecudiumCollector._cached_token = token
+                    SecudiumCollector._token_obtained_at = datetime.now()
 
-                # Verify token by fetching user info
                 if self._verify_token():
+                    auth_rate_limiter.on_success()
                     return "success"
                 else:
+                    auth_rate_limiter.on_failure()
                     logger.warning("secudium_token_verification_failed")
                     return "failed"
-
-            try:
-                if resp.content:
-                    resp.json()
-            except (ValueError, TypeError):
-                pass
 
             body_text = resp.text.lower() if resp.text else ""
             if any(indicator in body_text for indicator in ["otp", "인증", "2차인증", "is_otp"]):
@@ -337,6 +336,7 @@ class SecudiumCollector:
             return "failed"
 
         except requests.RequestException as e:
+            auth_rate_limiter.on_failure()
             logger.error("secudium_login_request_error", error=str(e))
             return "failed"
 
@@ -390,15 +390,18 @@ class SecudiumCollector:
 
     def _is_token_valid(self) -> bool:
         """Check if cached token is still valid (within TTL)."""
-        if not SecudiumCollector._cached_token or not SecudiumCollector._token_obtained_at:
-            return False
-        age = datetime.now() - SecudiumCollector._token_obtained_at
-        if age > timedelta(hours=self.TOKEN_TTL_HOURS):
-            logger.info("secudium_token_expired", age_hours=age.total_seconds() / 3600)
-            return False
-        self._token = SecudiumCollector._cached_token
-        self._set_token_cookie()
-        return self._verify_token()
+        with SecudiumCollector._token_lock:
+            if not SecudiumCollector._cached_token or not SecudiumCollector._token_obtained_at:
+                return False
+            age = datetime.now() - SecudiumCollector._token_obtained_at
+            if age > timedelta(hours=self.TOKEN_TTL_HOURS):
+                logger.info("secudium_token_expired", age_hours=age.total_seconds() / 3600)
+                SecudiumCollector._cached_token = None
+                SecudiumCollector._token_obtained_at = None
+                return False
+            self._token = SecudiumCollector._cached_token
+            self._set_token_cookie()
+            return True
 
     def _read_otp_from_email(
         self,
@@ -421,7 +424,6 @@ class SecudiumCollector:
                 email_password=email_pw,
                 imap_server=imap_srv,
             )
-            reader.connect()
             otp_code = reader.get_latest_otp(max_wait_seconds=60)
             if otp_code:
                 logger.info("secudium_otp_received", otp_length=len(otp_code))
@@ -642,23 +644,32 @@ class SecudiumCollector:
             return []
 
     def _insert_ips(self, ips: list[dict]) -> int:
-        """Insert collected IPs into database using ON CONFLICT DO UPDATE."""
+        """Insert collected IPs into database via save_blacklist_ips (UPSERT)."""
         if not self.db_service:
             logger.warning("secudium_no_db_service")
             return 0
 
-        inserted = 0
-        batch_size = CollectorConfig.BATCH_SIZE
+        # Map parser 'ip' key to DB-expected 'ip_address' key
+        ip_data = []
+        for record in ips:
+            entry = dict(record)
+            if "ip" in entry and "ip_address" not in entry:
+                entry["ip_address"] = entry.pop("ip")
+            ip_data.append(entry)
 
-        for i in range(0, len(ips), batch_size):
-            batch = ips[i : i + batch_size]
-            try:
-                count = self.db_service.upsert_blacklist_ips(batch, source="SECUDIUM")
-                inserted += count
-            except Exception as e:
-                logger.error("secudium_db_insert_error", error=str(e), batch_start=i)
-
-        return inserted
+        try:
+            result = self.db_service.save_blacklist_ips(ip_data)
+            inserted = result.get("new_count", 0) + result.get("updated_count", 0)
+            logger.info(
+                "secudium_db_insert_complete",
+                total=result.get("total", 0),
+                new=result.get("new_count", 0),
+                updated=result.get("updated_count", 0),
+            )
+            return inserted
+        except Exception as e:
+            logger.error("secudium_db_insert_error", error=str(e), ip_count=len(ip_data))
+            return 0
 
     def _logout(self):
         """Logout from Secudium (release server session)."""

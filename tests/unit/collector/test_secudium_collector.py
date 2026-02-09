@@ -199,7 +199,7 @@ class TestLogin:
 
         with patch.object(collector, "_set_token_cookie"):
             with patch.object(collector, "_verify_token", return_value=True):
-                result = collector._login("user", "pass", is_otp="N", otp_value="")
+                result = collector._login("user", "pass", is_otp=False, otp_value="")
 
         assert result == "success"
         assert collector._token is not None
