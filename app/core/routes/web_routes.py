@@ -48,7 +48,8 @@ def index():
                     "ui_fix": True,
                 },
             )
-        except Exception:
+        except Exception as e:
+            logger.error("Homepage data retrieval failed: %s", e)
             return jsonify(
                 {
                     "status": "success",

@@ -45,7 +45,8 @@ def list_credentials():
                     "enabled": creds.get("enabled", False) if creds else False,
                 }
             )
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to get credentials for source %s: %s", source, e)
             result.append({"source": source, "configured": False, "enabled": False})
 
     return jsonify(
@@ -211,7 +212,8 @@ def manage_credentials(source: str):
                 }
             ), 200
 
-    except Exception:
+    except Exception as e:
+        logger.error("manage_credentials failed: %s", e)
         raise
 
 
@@ -327,5 +329,6 @@ def test_credentials(source: str):
                 }
             ), 200
 
-    except Exception:
+    except Exception as e:
+        logger.error("test_credentials failed: %s", e)
         raise

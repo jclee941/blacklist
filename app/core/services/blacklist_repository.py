@@ -1,4 +1,7 @@
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class BlacklistRepository:
@@ -47,7 +50,8 @@ class BlacklistRepository:
                 (ip_address, reason, source, confidence_level),
             )
             return True
-        except Exception:
+        except Exception as e:
+            logger.error("insert_blacklist failed for IP %s: %s", ip_address, e)
             return False
 
     def insert_whitelist(
@@ -69,7 +73,8 @@ class BlacklistRepository:
                 (ip_address, reason, source),
             )
             return True
-        except Exception:
+        except Exception as e:
+            logger.error("insert_whitelist failed for IP %s: %s", ip_address, e)
             return False
 
     def count_blacklist_ips(self) -> int:
@@ -141,7 +146,8 @@ class BlacklistRepository:
                 (ip_address, reason, "REGTECH", country, detection_date, True),
             )
             return True
-        except Exception:
+        except Exception as e:
+            logger.error("upsert_blacklist_from_collector failed for IP %s: %s", ip_address, e)
             return False
 
     def add_column_if_not_exists(self, column_name: str, column_type: str) -> bool:

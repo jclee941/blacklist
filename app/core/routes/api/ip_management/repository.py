@@ -103,7 +103,8 @@ class IPManagementRepository:
 
             return self._serialize_rows(data), total
 
-        except Exception:
+        except Exception as e:
+            logger.error("get_unified_list failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -121,7 +122,8 @@ class IPManagementRepository:
 
             return self._serialize_rows(stats)
 
-        except Exception:
+        except Exception as e:
+            logger.error("get_statistics failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -154,7 +156,8 @@ class IPManagementRepository:
 
             return self._serialize_rows(data), total
 
-        except Exception:
+        except Exception as e:
+            logger.error("get_whitelist failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -193,7 +196,8 @@ class IPManagementRepository:
 
             return self._serialize_row(result)
 
-        except Exception:
+        except Exception as e:
+            logger.error("create_whitelist failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -239,7 +243,8 @@ class IPManagementRepository:
             conn.close()
             return None
 
-        except Exception:
+        except Exception as e:
+            logger.error("update_whitelist failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -267,7 +272,8 @@ class IPManagementRepository:
             conn.close()
             return None
 
-        except Exception:
+        except Exception as e:
+            logger.error("delete_whitelist failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -302,7 +308,8 @@ class IPManagementRepository:
 
             return self._serialize_rows(data), total
 
-        except Exception:
+        except Exception as e:
+            logger.error("get_blacklist failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -370,7 +377,8 @@ class IPManagementRepository:
 
             return self._serialize_row(result)
 
-        except Exception:
+        except Exception as e:
+            logger.error("create_blacklist failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -418,7 +426,8 @@ class IPManagementRepository:
             conn.close()
             return None
 
-        except Exception:
+        except Exception as e:
+            logger.error("update_blacklist failed: %s", e)
             if conn:
                 conn.rollback()
             raise
@@ -446,7 +455,8 @@ class IPManagementRepository:
             conn.close()
             return None
 
-        except Exception:
+        except Exception as e:
+            logger.error("delete_blacklist failed: %s", e)
             if conn:
                 conn.rollback()
             raise

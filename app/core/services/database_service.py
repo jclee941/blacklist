@@ -191,8 +191,8 @@ class DatabaseService:
             try:
                 if conn:
                     conn.rollback()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Rollback failed during error handling: %s", e)
             raise
 
     def create_raw_connection(self):

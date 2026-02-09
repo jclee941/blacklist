@@ -59,8 +59,9 @@ def login():
     try:
         admin_username = settings_service.get_setting("admin_username", "admin")
         admin_password = settings_service.get_setting("admin_password", "")
-    except Exception:
+    except Exception as e:
         # Fallback to environment variables
+        logger.warning("Settings service unavailable, falling back to env vars: %s", e)
         import os
 
         admin_username = os.getenv("ADMIN_USERNAME", "admin")

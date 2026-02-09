@@ -77,7 +77,8 @@ def get_system_containers():
                 cursor.execute("SELECT 1")
                 cursor.close()
                 db_service.return_connection(conn)
-        except Exception:
+        except Exception as e:
+            logger.warning("Database health check failed: %s", e)
             services["blacklist-postgres"]["health"] = "unhealthy"
 
         return jsonify(

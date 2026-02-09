@@ -447,7 +447,8 @@ def api_blacklist_export_raw():
                         raw_data_str = row[11]
                     else:
                         raw_data_str = str(row[11])
-                except Exception:
+                except Exception as e:
+                    logger.debug("JSON serialization fallback for raw_data: %s", e)
                     raw_data_str = str(row[11]) if row[11] else ""
 
             writer.writerow(

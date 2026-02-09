@@ -2,8 +2,11 @@
 공통 버전 유틸리티
 """
 
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def get_app_version():
@@ -38,8 +41,8 @@ def get_app_version():
                 return f"{base_version}-{build_number}"
             else:
                 return base_version
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to read version file: %s", e)
 
     # 기본값
     return "0.0.0-dev"

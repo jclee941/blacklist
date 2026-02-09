@@ -102,8 +102,8 @@ class SecureCredentialService:
         else:
             try:
                 conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to close connection: %s", e)
 
     def _encrypt_data(self, data: str) -> str:
         """데이터 암호화"""

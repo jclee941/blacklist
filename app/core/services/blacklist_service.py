@@ -237,7 +237,8 @@ class BlacklistService:
                 try:
                     self.redis_client.ping()
                     redis_status = "healthy"
-                except Exception:
+                except Exception as e:
+                    logger.warning("Redis health check failed: %s", e)
                     redis_status = "degraded"
 
             components = {
