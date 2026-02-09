@@ -22,6 +22,16 @@ jobs:
           git fetch origin master
           git reset --hard origin/master
 
+      - name: Stop existing containers
+        run: |
+          cd ${{ env.DEPLOY_DIR }}
+          docker compose \
+            --project-directory . \
+            -f deploy/docker/docker-compose.yml \
+            --env-file .env \
+            -p blacklist \
+            down --remove-orphans || true
+
       - name: Build and deploy
         run: |
           cd ${{ env.DEPLOY_DIR }}
