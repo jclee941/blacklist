@@ -79,13 +79,14 @@ export default function Dashboard() {
       let whitelistedIps = 0;
 
       if (statsData) {
-        const data = statsData.data || {};
+        // /api/web-stats returns { success, stats: { total_ips, active_ips, ... }, last_updated }
+        const data = statsData.stats || statsData.data || {};
 
         // Ensure numbers are numbers
         totalIps = Number(data.total_ips) || 0;
         activeIps = Number(data.active_ips) || 0;
-        recentAdditions = Number(data.recent_additions) || 0;
-        lastUpdate = data.last_update || null;
+        recentAdditions = Number(data.recent_additions) || Number(data.new_today) || 0;
+        lastUpdate = data.last_update || statsData.last_updated || null;
       }
 
       if (whitelistData) {
