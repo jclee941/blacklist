@@ -106,6 +106,7 @@ services:
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
       SECRET_KEY: ${SECRET_KEY}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      DISABLE_JWT_AUTH: ${DISABLE_JWT_AUTH:-false}
       TZ: Asia/Seoul
     volumes:
       - ./data/logs:/app/logs
