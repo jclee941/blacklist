@@ -93,6 +93,8 @@ preflight_checks() {
     for img in "${required_images[@]}"; do
         if [ -f "${IMAGES_DIR}/${img}" ]; then
             log_success "${img} ($(du -h "${IMAGES_DIR}/${img}" | cut -f1))"
+        elif [ -f "${IMAGES_DIR}/blacklist-${img}" ]; then
+            log_success "blacklist-${img} ($(du -h "${IMAGES_DIR}/blacklist-${img}" | cut -f1))"
         else
             log_error "${img} not found"
         fi
@@ -168,8 +170,13 @@ load_images() {
 
     for img in "${images[@]}"; do
         local name="${img%.tar.gz}"
+        local img_path="${IMAGES_DIR}/${img}"
+        # Support both app.tar.gz and blacklist-app.tar.gz naming
+        if [ ! -f "${img_path}" ] && [ -f "${IMAGES_DIR}/blacklist-${img}" ]; then
+            img_path="${IMAGES_DIR}/blacklist-${img}"
+        fi
         log_info "Loading ${name}..."
-        if gunzip -c "${IMAGES_DIR}/${img}" | docker load > /dev/null 2>&1; then
+        if gunzip -c "${img_path}" | docker load > /dev/null 2>&1; then
             log_success "${name}"
         else
             log_error "Failed to load ${name}"
