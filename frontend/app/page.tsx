@@ -116,16 +116,22 @@ export default function Dashboard() {
     try {
       const response = await getSystemStatus();
       if (response) {
-        const data = response.data || {};
+        const data = response;
 
-        // Map backend response to frontend state
+        // API returns flat: { status, database_connected, ... }
         const status: SystemStatus = {
           service: {
-            status: data.service?.status === 'healthy' ? 'healthy' : 'unhealthy',
+            status:
+              data.service?.status === 'healthy' || data.status === 'healthy'
+                ? 'healthy'
+                : 'unhealthy',
           },
           components: {
             database: {
-              status: data.components?.database?.status === 'healthy' ? 'healthy' : 'unhealthy',
+              status:
+                data.components?.database?.status === 'healthy' || data.database_connected === true
+                  ? 'healthy'
+                  : 'unhealthy',
             },
           },
           collection: {
