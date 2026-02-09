@@ -7,34 +7,10 @@ Routes: /system/containers, /credential/status, /credentials/regtech, /database/
 from flask import Blueprint, jsonify, current_app
 from datetime import datetime
 import logging
-from functools import wraps
+
+from core.utils.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
-
-
-def rate_limit(limit_string):
-    """Rate limiting decorator - uses app.limiter from app.py"""
-
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Get limiter from current_app
-            if hasattr(current_app, "limiter"):
-                limiter = current_app.limiter
-
-                # Apply custom rate limit
-                @limiter.limit(limit_string)
-                def limited_route(*args, **kwargs):
-                    return f(*args, **kwargs)
-
-                return limited_route(*args, **kwargs)
-            else:
-                # Limiter not configured, proceed without rate limiting
-                return f(*args, **kwargs)
-
-        return decorated_function
-
-    return decorator
 
 
 blacklist_system_bp = Blueprint("blacklist_system", __name__)

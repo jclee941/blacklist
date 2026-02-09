@@ -7,36 +7,12 @@ Routes: /blacklist/manual-add, /whitelist/manual-add, /whitelist/list
 from flask import Blueprint, jsonify, request, current_app
 from datetime import datetime
 import logging
-from functools import wraps
 from ....exceptions import BadRequestError, ConflictError, NotFoundError
 import re
 
+from core.utils.rate_limit import rate_limit
+
 logger = logging.getLogger(__name__)
-
-
-def rate_limit(limit_string):
-    """Rate limiting decorator - uses app.limiter from app.py"""
-
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Get limiter from current_app
-            if hasattr(current_app, "limiter"):
-                limiter = current_app.limiter
-
-                # Apply custom rate limit
-                @limiter.limit(limit_string)
-                def limited_route(*args, **kwargs):
-                    return f(*args, **kwargs)
-
-                return limited_route(*args, **kwargs)
-            else:
-                # Limiter not configured, proceed without rate limiting
-                return f(*args, **kwargs)
-
-        return decorated_function
-
-    return decorator
 
 
 blacklist_management_bp = Blueprint("blacklist_management", __name__)

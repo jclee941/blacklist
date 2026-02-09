@@ -10,7 +10,6 @@ Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 from flask import Blueprint, jsonify, request, current_app, g
 from datetime import datetime
 import logging
-from functools import wraps
 from ipaddress import ip_address, AddressValueError
 from ....exceptions import (
     BadRequestError,
@@ -18,28 +17,9 @@ from ....exceptions import (
     DatabaseError,
 )
 
+from core.utils.rate_limit import rate_limit
+
 logger = logging.getLogger(__name__)
-
-
-def rate_limit(limit_string):
-    """Rate limiting decorator - uses app.limiter from app.py"""
-
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            limiter = getattr(current_app, "limiter", None)
-            if limiter is None:
-                return f(*args, **kwargs)
-
-            @limiter.limit(limit_string)
-            def limited_route(*args, **kwargs):
-                return f(*args, **kwargs)
-
-            return limited_route(*args, **kwargs)
-
-        return decorated_function
-
-    return decorator
 
 
 blacklist_core_bp = Blueprint("blacklist_core", __name__)
