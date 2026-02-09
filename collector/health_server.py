@@ -367,26 +367,16 @@ class HealthServer:
                 "next_run": self.scheduler._get_next_run_time(),
             }
 
-            # SECUDIUM status from scheduler collectors dict
-            secudium_info = self.scheduler.collectors.get("SECUDIUM", {})
+            # SECUDIUM status — scheduler.collectors values are method name strings,
+            # not dicts, so we build a minimal status from APScheduler job info
+            secudium_enabled = "SECUDIUM" in self.scheduler.collectors
             status["SECUDIUM"] = {
-                "enabled": True,
-                "run_count": secudium_info.get("run_count", 0),
-                "error_count": secudium_info.get("error_count", 0),
+                "enabled": secudium_enabled,
+                "run_count": 0,
+                "error_count": 0,
                 "interval_seconds": 86400,
-                "last_run": secudium_info.get("last_run").isoformat() if secudium_info.get("last_run") else None,
-                "next_run": secudium_info.get("next_run").isoformat() if secudium_info.get("next_run") else None,
-            }
-
-            # SECUDIUM status from scheduler collectors dict
-            secudium_info = self.scheduler.collectors.get("SECUDIUM", {})
-            status["SECUDIUM"] = {
-                "enabled": True,
-                "run_count": secudium_info.get("run_count", 0),
-                "error_count": secudium_info.get("error_count", 0),
-                "interval_seconds": 86400,
-                "last_run": secudium_info.get("last_run").isoformat() if secudium_info.get("last_run") else None,
-                "next_run": secudium_info.get("next_run").isoformat() if secudium_info.get("next_run") else None,
+                "last_run": None,
+                "next_run": None,
             }
         else:
             # Fallback to collectors dict (legacy, usually empty)
