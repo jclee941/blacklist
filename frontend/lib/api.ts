@@ -159,47 +159,30 @@ export const testCredential = async (source: string) => {
 
 // 데이터베이스 테이블 목록 API
 export const getDatabaseTables = async () => {
-  return { success: false, tables: {} as Record<string, unknown>, message: 'Not supported' };
+  const { data } = await api.get('/database/tables');
+  return data;
 };
 
 // 데이터베이스 스키마 조회 API
 export const getDatabaseSchema = async () => {
-  return { success: false, schema: {} as Record<string, unknown>, message: 'Not supported' };
+  const { data } = await api.get('/schema');
+  return data;
 };
 
 // Fortinet 로그 조회 API
-export const getFortinetPullLogs = async (_params?: string) => {
-  return {
-    success: false,
-    data: [] as Array<{
-      id: number;
-      device_ip: string;
-      user_agent?: string;
-      endpoint?: string;
-      ip_count?: number;
-      response_time_ms?: number;
-      status_code?: number;
-      created_at?: string;
-    }>,
-    stats: null as {
-      total_pulls: number;
-      successful_pulls: number;
-      failed_pulls: number;
-      unique_devices: number;
-    } | null,
-    error: 'Not supported',
-  };
+export const getFortinetPullLogs = async (params?: string) => {
+  const url = params ? `/fortinet/pull-logs?${params}` : '/fortinet/pull-logs';
+  const { data } = await api.get(url);
+  return data;
 };
 
-// Fortinet 차단 목록 조회 API (미지원)
+// Fortinet 차단 목록 조회 API
 export const getFortinetBlocklist = async (): Promise<{
   data: string | { success: boolean; blocklist?: string; error?: string };
   headers: Record<string, string>;
 }> => {
-  return {
-    data: { success: false, error: 'Not supported' },
-    headers: { 'content-type': 'application/json' },
-  };
+  const response = await api.get('/fortinet/blocklist?format=json');
+  return { data: response.data, headers: response.headers as Record<string, string> };
 };
 
 // 통합 IP 목록 조회 API
@@ -209,26 +192,26 @@ export const getUnifiedIPs = async (params?: string) => {
   return data;
 };
 
-// IP 추가 API (미지원 - 읽기 전용)
-export const addIP = async (
-  _type: 'whitelist' | 'blacklist',
-  _payload: Record<string, unknown>
-) => {
-  return { success: false, message: 'Not supported', error: 'Not supported' };
+// IP 추가 API
+export const addIP = async (type: 'whitelist' | 'blacklist', payload: Record<string, unknown>) => {
+  const { data } = await api.post(`/${type}`, payload);
+  return data;
 };
 
-// IP 수정 API (미지원 - 읽기 전용)
+// IP 수정 API
 export const updateIP = async (
-  _type: 'whitelist' | 'blacklist',
-  _id: number,
-  _payload: Record<string, unknown>
+  type: 'whitelist' | 'blacklist',
+  id: number,
+  payload: Record<string, unknown>
 ) => {
-  return { success: false, message: 'Not supported', error: 'Not supported' };
+  const { data } = await api.put(`/${type}/${id}`, payload);
+  return data;
 };
 
-// IP 삭제 API (미지원 - 읽기 전용)
-export const deleteIP = async (_type: 'whitelist' | 'blacklist', _id: number) => {
-  return { success: false, message: 'Not supported', error: 'Not supported' };
+// IP 삭제 API
+export const deleteIP = async (type: 'whitelist' | 'blacklist', id: number) => {
+  const { data } = await api.delete(`/${type}/${id}`);
+  return data;
 };
 
 // Raw 데이터 내보내기 API
