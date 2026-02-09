@@ -235,7 +235,7 @@ jobs:
 
           max_retries=6
           retry=0
-          until curl -sf http://localhost:2542/api/health > /dev/null 2>&1; do
+          until curl -sf http://localhost:2542/health > /dev/null 2>&1; do
             retry=$((retry + 1))
             if [ $retry -ge $max_retries ]; then
               echo "::error::Health check failed after $max_retries retries"
