@@ -19,6 +19,7 @@ class CollectionStatusManager:
         self.active_collections: Set[str] = set()
         self.collection_status = {
             "regtech": {"running": False, "last_run": None, "last_error": None},
+            "secudium": {"running": False, "last_run": None, "last_error": None},
         }
 
     @property

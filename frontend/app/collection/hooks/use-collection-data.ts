@@ -6,12 +6,7 @@ import {
   testCredential,
   triggerCollectionService,
 } from '@/lib/api';
-import type {
-  Credential,
-  CollectionStatus,
-  BlacklistStats,
-  COLLECTORS,
-} from '../types';
+import type { Credential, CollectionStatus, BlacklistStats, COLLECTORS } from '../types';
 
 interface UseCollectionDataReturn {
   credentials: Credential[];
@@ -25,7 +20,7 @@ interface UseCollectionDataReturn {
   handleTriggerCollection: (serviceName: string) => Promise<void>;
 }
 
-const COLLECTOR_LIST = ['REGTECH'] as const;
+const COLLECTOR_LIST = ['REGTECH', 'SECUDIUM'] as const;
 
 export function useCollectionData(): UseCollectionDataReturn {
   const [credentials, setCredentials] = useState<Credential[]>([]);
@@ -87,17 +82,20 @@ export function useCollectionData(): UseCollectionDataReturn {
     }
   }, []);
 
-  const handleTriggerCollection = useCallback(async (serviceName: string) => {
-    setTriggeringCollection((prev) => ({ ...prev, [serviceName]: true }));
-    try {
-      await triggerCollectionService(serviceName.toLowerCase());
-      await fetchData();
-    } catch (error) {
-      console.error('Collection trigger failed:', error);
-    } finally {
-      setTriggeringCollection((prev) => ({ ...prev, [serviceName]: false }));
-    }
-  }, [fetchData]);
+  const handleTriggerCollection = useCallback(
+    async (serviceName: string) => {
+      setTriggeringCollection((prev) => ({ ...prev, [serviceName]: true }));
+      try {
+        await triggerCollectionService(serviceName.toLowerCase());
+        await fetchData();
+      } catch (error) {
+        console.error('Collection trigger failed:', error);
+      } finally {
+        setTriggeringCollection((prev) => ({ ...prev, [serviceName]: false }));
+      }
+    },
+    [fetchData]
+  );
 
   useEffect(() => {
     fetchData();
