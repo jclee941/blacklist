@@ -61,6 +61,9 @@ class OTPEmailReader:
         """
         최신 SECUDIUM OTP 이메일에서 코드 추출
 
+        로그인 step 1 이전에 이미 존재하던 OTP 이메일을 무시하고,
+        step 1 이후에 새로 도착한 OTP 이메일만 읽습니다.
+
         Args:
             max_wait_seconds: OTP 이메일 대기 최대 시간 (초)
 
@@ -74,35 +77,49 @@ class OTPEmailReader:
             # INBOX 선택
             self.imap.select("INBOX")
 
-            # SECUDIUM에서 온 최신 이메일 검색
+            search_criteria = '(OR (OR (OR FROM "secudium" FROM "skinfosec") SUBJECT "SECUDIUM") SUBJECT "OTP")'
+
+            initial_latest_id = None
+            status, messages = self.imap.search(None, search_criteria)
+            if status == "OK" and messages[0]:
+                email_ids = messages[0].split()
+                initial_latest_id = email_ids[-1]
+                logger.info(
+                    "otp_initial_snapshot",
+                    latest_email_id=initial_latest_id.decode(),
+                    total_otp_emails=len(email_ids),
+                )
+
             start_time = time.time()
             otp_code = None
 
             while time.time() - start_time < max_wait_seconds:
-                # 보낸사람 또는 제목에 "SECUDIUM" 또는 "skinfosec" 포함
-                search_criteria = '(OR (OR (OR FROM "secudium" FROM "skinfosec") SUBJECT "SECUDIUM") SUBJECT "OTP")'
+                # IMAP NOOP으로 메일박스 새로고침 (새 이메일 감지)
+                self.imap.noop()
 
-                # 최신 이메일 검색
                 status, messages = self.imap.search(None, search_criteria)
 
                 if status == "OK" and messages[0]:
-                    # 가장 최근 이메일
                     email_ids = messages[0].split()
                     latest_email_id = email_ids[-1]
 
-                    # 이메일 가져오기
+                    if initial_latest_id and latest_email_id == initial_latest_id:
+                        logger.info(
+                            "otp_waiting_for_new_email",
+                            elapsed=int(time.time() - start_time),
+                        )
+                        time.sleep(3)
+                        continue
+
                     status, msg_data = self.imap.fetch(latest_email_id, "(RFC822)")
 
                     if status == "OK":
-                        # 이메일 파싱
                         raw_email = msg_data[0][1]
                         msg = email.message_from_bytes(raw_email)
 
-                        # 제목 확인
                         subject = self._decode_header(msg["Subject"])
-                        logger.info("email_found", subject=subject)
+                        logger.info("email_found", subject=subject, email_id=latest_email_id.decode())
 
-                        # 본문에서 OTP 코드 추출
                         otp_code = self._extract_otp_from_message(msg)
 
                         if otp_code:
@@ -113,6 +130,13 @@ class OTPEmailReader:
                 if not otp_code:
                     logger.info("otp_waiting", elapsed=int(time.time() - start_time))
                     time.sleep(3)
+
+            if not otp_code:
+                logger.warning(
+                    "otp_timeout",
+                    max_wait_seconds=max_wait_seconds,
+                    initial_id=initial_latest_id.decode() if initial_latest_id else "none",
+                )
 
             return otp_code
 

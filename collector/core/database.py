@@ -148,7 +148,7 @@ class DatabaseService:
                 cursor.execute(
                     """
                     SELECT service_name, username, password, encrypted, 
-                           enabled, collection_interval, last_collection
+                           enabled, collection_interval, last_collection, config
                     FROM collection_credentials
                     WHERE service_name = %s
                 """,
@@ -166,6 +166,7 @@ class DatabaseService:
                         enabled,
                         interval,
                         last_collection,
+                        config,
                     ) = result
 
                     # 암호화된 경우 복호화
@@ -174,6 +175,14 @@ class DatabaseService:
                         logger.info(f"🔐 {service_name} 암호화된 비밀번호 복호화 중...")
                         final_password = self._decrypt_password(password)
 
+                    if isinstance(config, str):
+                        try:
+                            config = json.loads(config)
+                        except (json.JSONDecodeError, TypeError):
+                            config = {}
+                    elif config is None:
+                        config = {}
+
                     return {
                         "service_name": service_name,
                         "username": username,
@@ -181,6 +190,7 @@ class DatabaseService:
                         "enabled": enabled,
                         "collection_interval": interval,
                         "last_collection": last_collection,
+                        "config": config,
                     }
 
                 return None

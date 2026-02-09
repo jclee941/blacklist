@@ -54,6 +54,8 @@ export function useCollectionManagement() {
     CredentialFormState | SecudiumCredentialFormState
   >(INITIAL_FORM_STATE);
 
+  const [saving, setSaving] = useState(false);
+
   const [showOtpDialog, setShowOtpDialog] = useState(false);
   const [otpServiceName, setOtpServiceName] = useState<string | null>(null);
 
@@ -271,6 +273,32 @@ export function useCollectionManagement() {
   const saveCredentials = useCallback(async () => {
     if (!editingService) return;
 
+    if (!credentialForm.username.trim()) {
+      setNotification({ type: 'error', message: '사용자명을 입력하세요.' });
+      return;
+    }
+
+    const existingCred = credentials.find((c) => c.service_name === editingService);
+    if (!existingCred?.username && !credentialForm.password.trim()) {
+      setNotification({ type: 'error', message: '비밀번호를 입력하세요.' });
+      return;
+    }
+
+    if (editingService === 'SECUDIUM') {
+      const form = credentialForm as SecudiumCredentialFormState;
+      if (form.otp_mode === 'auto') {
+        if (!form.email?.trim()) {
+          setNotification({ type: 'error', message: '이메일을 입력하세요.' });
+          return;
+        }
+        if (!form.email_password?.trim()) {
+          setNotification({ type: 'error', message: '이메일 비밀번호를 입력하세요.' });
+          return;
+        }
+      }
+    }
+
+    setSaving(true);
     try {
       const data = await updateCredential(
         editingService.toLowerCase(),
@@ -292,8 +320,10 @@ export function useCollectionManagement() {
       }
     } catch {
       setNotification({ type: 'error', message: '저장 중 오류 발생' });
+    } finally {
+      setSaving(false);
     }
-  }, [editingService, credentialForm, closeEditModal, fetchData]);
+  }, [editingService, credentialForm, credentials, closeEditModal, fetchData]);
 
   const clearNotification = useCallback(() => {
     setNotification(null);
@@ -319,6 +349,7 @@ export function useCollectionManagement() {
     collectionStatus,
     blacklistStats,
     loading,
+    saving,
     testingConnection,
     triggeringCollection,
     showCredentialModal,

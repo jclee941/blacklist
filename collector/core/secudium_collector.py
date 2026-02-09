@@ -306,6 +306,8 @@ class SecudiumCollector:
                 "secudium_login_response",
                 status_code=resp.status_code,
                 content_length=len(resp.content),
+                is_otp=is_otp,
+                body_preview=resp.text[:500] if resp.text else "",
             )
 
             token = self._extract_token(resp)
@@ -326,10 +328,20 @@ class SecudiumCollector:
                     return "failed"
 
             body_text = resp.text.lower() if resp.text else ""
-            if any(indicator in body_text for indicator in ["otp", "인증", "2차인증", "is_otp"]):
-                return "otp_required"
+            otp_indicators = any(indicator in body_text for indicator in ["otp", "인증", "2차인증", "is_otp"])
+            redirect_otp = resp.status_code in (302, 303) and "otp" in resp.headers.get("Location", "").lower()
 
-            if resp.status_code in (302, 303) and "otp" in resp.headers.get("Location", "").lower():
+            if otp_indicators or redirect_otp:
+                if is_otp:
+                    # Already submitted OTP but server still wants OTP → OTP was wrong/expired/stale
+                    logger.warning(
+                        "secudium_otp_submission_rejected",
+                        body=resp.text[:500] if resp.text else "",
+                        status=resp.status_code,
+                        otp_value_length=len(otp_value) if otp_value else 0,
+                        cookies=dict(self.session.cookies),
+                    )
+                    return "failed"
                 return "otp_required"
 
             logger.warning("secudium_login_unexpected_response", status=resp.status_code, body=body_text[:200])
