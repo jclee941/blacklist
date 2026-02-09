@@ -70,7 +70,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUM="${{ steps.version.outputs.version_num }}"
-          BUNDLE="blacklist-${VERSION}-airgap.tar.gz"
+          BUNDLE="blacklist-airgap-${VERSION_NUM}.tar.gz"
 
           cd ${{ env.DEPLOY_BASE }}
 
@@ -107,7 +107,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUM="${{ steps.version.outputs.version_num }}"
-          BUNDLE="blacklist-${VERSION}-airgap.tar.gz"
+          BUNDLE="blacklist-airgap-${VERSION_NUM}.tar.gz"
           DEPLOY_DIR="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION_NUM}"
 
           cd ${{ env.DEPLOY_BASE }}
