@@ -1,8 +1,8 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
 **Generated:** 2026-02-09
-**Commit:** 841eb71
-**Branch:** master | **Version:** 3.5.39
+**Commit:** a41bcac
+**Branch:** master | **Version:** 3.5.44
 
 ## COMMANDS
 
@@ -96,7 +96,7 @@ JWT-based authentication via `app/core/auth/`:
 | Decorators | `decorators.py` | `@public` — marks endpoint as no-auth-required |
 | Routes | `routes/api/auth_routes.py` | POST `/api/auth/login`, GET `/me`, GET `/verify` |
 
-**Public endpoints** (no JWT): `/health`, `/metrics`, `/api/auth/login`, `/api/fortinet/threat-feed`, `/api/fortinet/json-connector`
+**Public endpoints** (no JWT): `/health`, `/api/health`, `/metrics`, `/api/auth/login`, `/api/fortinet/threat-feed`, `/api/fortinet/json-connector`
 
 Frontend sends Bearer token via Axios interceptor in `lib/api.ts`. On 401 → redirect to login.
 
@@ -106,6 +106,7 @@ Frontend sends Bearer token via Axios interceptor in `lib/api.ts`. On 401 → re
 |----------|---------|-------|
 | `ci.yml` | Push/PR to master | Path-filtered lint→test→Docker build→E2E (backend + frontend) |
 | `release.yml` | Tag push `v*` | VERSION/tag validation→matrix Docker build→airgap→GH Release→GHCR |
+| `deploy.yml` | Release completion / manual | Airgap deploy to self-hosted runner (`/opt/blacklist/`) |
 | `build-images.yml` | Manual | Docker image builds |
 | `run-tests.yml` | Manual | Test runner |
 
@@ -125,14 +126,9 @@ git push origin master vX.Y.Z  # GitHub Actions creates release
 
 ## KNOWN ISSUES
 
-### DI Violations (8 instances) — Intentional
+### DI Violations (1 active instance) — Intentional
 
-`admin_routes.py`, `fortimanager_push_service.py`, `settings_service.py` directly instantiate services. This is intentional fallback for standalone/test execution outside Flask context.
-
-### Other
-
-- Collector uses single-stage Dockerfile (includes Playwright bloat) — [#5](https://github.com/qws941/blacklist/issues/5)
-- Three separate rate limiter instances (regtech, auth, Flask-Limiter) — [#13](https://github.com/qws941/blacklist/issues/13)
+`fortimanager_push_service.py` directly instantiates services. This is intentional fallback for standalone execution outside Flask context.
 
 ## COMPLEXITY HOTSPOTS
 

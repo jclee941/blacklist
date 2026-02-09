@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Database, Table2, RefreshCw } from 'lucide-react';
-import { getDatabaseTables } from '@/lib/api';
+import { getDatabaseTables, getSystemStatus } from '@/lib/api';
 
 interface SchemaTable {
   name: string;
@@ -10,8 +10,21 @@ interface SchemaTable {
   row_count: number;
 }
 
+interface DbConnection {
+  host: string;
+  port: string;
+  database: string;
+  status: string;
+}
+
 export default function DatabaseOverviewClient() {
   const [tables, setTables] = useState<SchemaTable[]>([]);
+  const [dbInfo, setDbInfo] = useState<DbConnection>({
+    host: '-',
+    port: '-',
+    database: '-',
+    status: 'unknown',
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +32,19 @@ export default function DatabaseOverviewClient() {
     setLoading(true);
     setError(null);
     try {
-      const payload = await getDatabaseTables();
+      const [payload, connStatus] = await Promise.all([
+        getDatabaseTables(),
+        getSystemStatus().catch(() => null),
+      ]);
+
+      if (connStatus) {
+        setDbInfo({
+          host: connStatus.host || '-',
+          port: connStatus.port || '-',
+          database: connStatus.database || '-',
+          status: connStatus.status || 'unknown',
+        });
+      }
 
       if (!payload || !payload.success || !payload.tables) {
         setError('테이블 데이터가 올바르지 않습니다.');
@@ -148,11 +173,13 @@ export default function DatabaseOverviewClient() {
           </div>
           <div>
             <dt className="text-sm font-medium text-gray-500">호스트</dt>
-            <dd className="mt-1 text-sm text-gray-900">blacklist-postgres:5432</dd>
+            <dd className="mt-1 text-sm text-gray-900">
+              {dbInfo.host}:{dbInfo.port}
+            </dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-gray-500">데이터베이스명</dt>
-            <dd className="mt-1 text-sm text-gray-900">blacklist</dd>
+            <dd className="mt-1 text-sm text-gray-900">{dbInfo.database}</dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-gray-500">총 테이블 수</dt>

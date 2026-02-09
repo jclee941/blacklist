@@ -60,7 +60,16 @@ def create_app():
     # ========================================================================
 
     # Secret key for session management and CSRF protection
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
+    flask_secret = os.getenv("FLASK_SECRET_KEY")
+    if not flask_secret:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "FLASK_SECRET_KEY not set — using random key. "
+            "JWTs will be invalidated on restart. Set FLASK_SECRET_KEY in production."
+        )
+        flask_secret = secrets.token_hex(32)
+    app.config["SECRET_KEY"] = flask_secret
 
     # CSRF Protection Configuration
     app.config["WTF_CSRF_CHECK_DEFAULT"] = False
