@@ -1,15 +1,11 @@
 # Blacklist Service Management Makefile
 
-.PHONY: help setup setup-hooks setup-offline package-deps build up down logs clean test deploy dev prod restart health
+.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health
 
 # Default environment
 ENV ?= development
 
 # Setup commands
-setup: ## Setup complete development environment (Python + Node.js + VSCode config + extensions)
-	@echo "🚀 Setting up development environment..."
-	@bash scripts/setup/setup-dev-environment.sh
-
 setup-hooks: ## Setup git hooks (pre-commit + husky)
 	@echo "🔧 Setting up git hooks..."
 	@pip install pre-commit --quiet
@@ -20,14 +16,6 @@ setup-hooks: ## Setup git hooks (pre-commit + husky)
 	@echo "   - Pre-commit: Python linting (Ruff, mypy), secret detection"
 	@echo "   - Commit-msg: Conventional commits enforcement"
 	@echo "   - Husky: Frontend linting (ESLint, Prettier)"
-
-setup-offline: ## Setup development environment from offline packages (Python + Node.js + VSCode)
-	@echo "🚀 Setting up from offline packages..."
-	@bash scripts/setup/setup-offline.sh
-
-package-deps: ## Package all dependencies for offline installation
-	@echo "📦 Packaging dependencies for offline installation..."
-	@bash scripts/package/package-dependencies.sh
 
 # Help target
 help: ## Show this help message
@@ -215,14 +203,6 @@ test-all-markers: ## Run all tests by marker (unit, integration, e2e, slow, db, 
 	@echo "📋 API tests:"
 	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m api --no-cov || true
 
-test-comprehensive: ## Run comprehensive tests (legacy script)
-	@echo "🧪 Running comprehensive tests (legacy)..."
-	@python3 scripts/testing/comprehensive_test.py
-
-test-endpoints: ## Test API endpoints (legacy)
-	@echo "🔍 Testing API endpoints (legacy)..."
-	@python3 scripts/testing/verify_endpoints.py
-
 test-ci: ## Run tests in CI/CD mode (with coverage and reports)
 	@echo "🤖 Running tests in CI/CD mode..."
 	@docker compose exec -T blacklist-app python -m pytest tests/ -v \
@@ -283,22 +263,6 @@ deploy: ## Deploy to production (builds and starts prod environment)
 	@$(MAKE) health
 	@echo "✅ Production deployment completed"
 
-deploy-k8s-dev: ## Deploy to Kubernetes (Development)
-	@echo "🚀 Deploying to Kubernetes (Dev)..."
-	@bash scripts/deploy/deploy-k8s-dev.sh
-
-deploy-k8s-airgap: ## Deploy to Kubernetes (Air-Gap)
-	@echo "🚀 Deploying to Kubernetes (Air-Gap)..."
-	@bash scripts/deploy/deploy-k8s-airgap.sh
-
-deploy-airgap: ## Deploy in air-gapped environment (load images from dist/images/)
-	@echo "🚀 Air-gapped deployment..."
-	@bash scripts/deploy/deploy-airgap.sh
-
-deploy-airgap-skip-load: ## Start services without loading images (images already loaded)
-	@echo "🚀 Air-gapped deployment (skip image load)..."
-	@bash scripts/deploy/deploy-airgap.sh --skip-load
-
 # Status and information
 status: ## Show detailed status of all services
 	@echo "📊 Service Status Report"
@@ -320,8 +284,8 @@ info: ## Show project information
 	@echo "Blacklist Service Information"
 	@echo "============================="
 	@echo "Project: REGTECH Blacklist Intelligence Platform"
-	@echo "Version: 3.0.0 (Microservices Architecture)"
-	@echo "Services: 4 containers (app, collector, postgres, redis)"
+	@echo "Version: $$(cat VERSION) (Microservices Architecture)"
+	@echo "Services: 5 containers (app, collector, frontend, postgres, redis)"
 	@echo "Registry: $${REGISTRY_DOMAIN:-registry.example.com}"
 	@echo "Local URL: http://localhost:2542"
 	@echo "Production URL: https://${PROD_DOMAIN:-blacklist.example.com}"
