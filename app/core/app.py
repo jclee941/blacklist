@@ -139,6 +139,7 @@ def create_app():
     try:
         from core.auth.jwt_service import JWTService
         from core.auth.middleware import jwt_required_hook
+        from core.auth.decorators import public
 
         jwt_service = JWTService(app)
         app.extensions["jwt_service"] = jwt_service
@@ -355,6 +356,7 @@ def create_app():
         app.logger.warning(f"⚠️ Prometheus metrics not available: {e}")
 
     @app.route("/health")
+    @public
     def health_check():
         """Health check endpoint"""
         try:
