@@ -8,7 +8,7 @@ continue to work unchanged.
 Refactored: 960L monolith → regtech/ package (auth.py, data_processor.py, collector.py)
 """
 
-from collector.core.regtech.collector import RegtechCollector  # noqa: F401
+from core.regtech.collector import RegtechCollector  # noqa: F401
 
 # Global singleton instance (backward-compat)
 regtech_collector = RegtechCollector()

@@ -23,8 +23,8 @@ from requests.adapters import HTTPAdapter
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from collector.config import CollectorConfig
-from collector.core.regtech.auth import RegtechAuthMixin
-from collector.core.regtech.data_processor import RegtechDataProcessorMixin
+from core.regtech.auth import RegtechAuthMixin
+from core.regtech.data_processor import RegtechDataProcessorMixin
 from core.rate_limiter import auth_rate_limiter, regtech_rate_limiter
 from core.regtech_excel import download_excel_data
 

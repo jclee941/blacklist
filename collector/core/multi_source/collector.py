@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 from collector.config import CollectorConfig
-from collector.core.multi_source.models import SourceConfig, SourceType
-from collector.core.multi_source.parsers import MultiSourceParserMixin
-from collector.core.regtech_collector import regtech_collector
+from core.multi_source.models import SourceConfig, SourceType
+from core.multi_source.parsers import MultiSourceParserMixin
+from core.regtech_collector import regtech_collector
 
 logger = logging.getLogger(__name__)
 

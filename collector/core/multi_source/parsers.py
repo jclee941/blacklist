@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict
 
-from collector.core.multi_source.models import SourceConfig
+from core.multi_source.models import SourceConfig
 
 logger = logging.getLogger(__name__)
 
