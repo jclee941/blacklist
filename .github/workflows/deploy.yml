@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+
+env:
+  DEPLOY_DIR: /opt/blacklist-deploy
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: [self-hosted, deploy]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Pull latest code
+        run: |
+          cd ${{ env.DEPLOY_DIR }}
+          git fetch origin master
+          git reset --hard origin/master
+
+      - name: Build and deploy
+        run: |
+          cd ${{ env.DEPLOY_DIR }}
+          GIT_COMMIT=$(git rev-parse HEAD) \
+          docker compose \
+            --project-directory . \
+            -f deploy/docker/docker-compose.yml \
+            --env-file .env \
+            -p blacklist \
+            up -d --build --remove-orphans
+
+      - name: Wait for services
+        run: sleep 15
+
+      - name: Health check
+        run: |
+          max_retries=5
+          retry=0
+          until curl -sf http://localhost:2542/health > /dev/null 2>&1; do
+            retry=$((retry + 1))
+            if [ $retry -ge $max_retries ]; then
+              echo "::error::Health check failed after $max_retries retries"
+              docker compose -f ${{ env.DEPLOY_DIR }}/deploy/docker/docker-compose.yml -p blacklist logs --tail=50
+              exit 1
+            fi
+            echo "Retry $retry/$max_retries..."
+            sleep 10
+          done
+          echo "✅ Health check passed"
+
+      - name: Cleanup old images
+        if: success()
+        run: docker image prune -f
