@@ -67,6 +67,7 @@ services:
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
       SECRET_KEY: ${SECRET_KEY}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-blacklist-regtech-salt-2025}
       TZ: Asia/Seoul
     volumes:
       - ./data/collector:/app/data
@@ -106,6 +107,7 @@ services:
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
       SECRET_KEY: ${SECRET_KEY}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-blacklist-regtech-salt-2025}
       DISABLE_JWT_AUTH: ${DISABLE_JWT_AUTH:-false}
       TZ: Asia/Seoul
     volumes:

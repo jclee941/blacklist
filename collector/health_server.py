@@ -366,6 +366,28 @@ class HealthServer:
                 "last_run": stats.get("last_run"),  # Already ISO string or None
                 "next_run": self.scheduler._get_next_run_time(),
             }
+
+            # SECUDIUM status from scheduler collectors dict
+            secudium_info = self.scheduler.collectors.get("SECUDIUM", {})
+            status["SECUDIUM"] = {
+                "enabled": True,
+                "run_count": secudium_info.get("run_count", 0),
+                "error_count": secudium_info.get("error_count", 0),
+                "interval_seconds": 86400,
+                "last_run": secudium_info.get("last_run").isoformat() if secudium_info.get("last_run") else None,
+                "next_run": secudium_info.get("next_run").isoformat() if secudium_info.get("next_run") else None,
+            }
+
+            # SECUDIUM status from scheduler collectors dict
+            secudium_info = self.scheduler.collectors.get("SECUDIUM", {})
+            status["SECUDIUM"] = {
+                "enabled": True,
+                "run_count": secudium_info.get("run_count", 0),
+                "error_count": secudium_info.get("error_count", 0),
+                "interval_seconds": 86400,
+                "last_run": secudium_info.get("last_run").isoformat() if secudium_info.get("last_run") else None,
+                "next_run": secudium_info.get("next_run").isoformat() if secudium_info.get("next_run") else None,
+            }
         else:
             # Fallback to collectors dict (legacy, usually empty)
             for name, collector in self.collectors.items():

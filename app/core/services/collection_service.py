@@ -488,7 +488,7 @@ class CollectionService:
         """Secudium 수집을 collector 서비스에 HTTP 요청으로 위임"""
         import requests as req
 
-        collector_url = os.environ.get("COLLECTOR_URL", "http://blacklist-collector:8545")
+        collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
         try:
             resp = req.post(
                 f"{collector_url}/api/scheduler/force-collection/SECUDIUM",

@@ -12,6 +12,8 @@ from cryptography.fernet import Fernet
 import base64
 from datetime import datetime
 
+from core.utils.encryption import encryption_service
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +21,7 @@ class CredentialService:
     """인증정보 관리 서비스 - 데이터베이스 기반"""
 
     def __init__(self, db_service=None):
-        """인증정보 서비스 초기화 - 환경변수 기반 암호화 키 사용"""
+        """인증정보 서비스 초기화 - CredentialEncryption 통합 암호화 사용"""
         self.db_service = db_service
 
         # 파일 경로 초기화
@@ -29,27 +31,10 @@ class CredentialService:
         # 데이터 디렉토리 생성
         self.credentials_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # 환경변수에서 암호화 키 가져오기 (없으면 생성하여 저장)
-        import os
-
-        encryption_key = os.getenv("CREDENTIAL_ENCRYPTION_KEY")
-
-        if not encryption_key:
-            # 새 키 생성
-            key = Fernet.generate_key()
-            encryption_key = key.decode()
-            logger.warning("⚠️ 새로운 암호화 키가 생성되었습니다. 환경변수 CREDENTIAL_ENCRYPTION_KEY에 저장하세요.")
-            logger.warning(f"CREDENTIAL_ENCRYPTION_KEY={encryption_key}")
-
-        try:
-            self.cipher_suite = Fernet(encryption_key.encode())
-            logger.info("✅ 암호화 키 로드 완료")
-        except Exception as e:
-            logger.error(f"❌ 암호화 키 로드 실패: {e}")
-            # 폴백: 새 키 생성
-            key = Fernet.generate_key()
-            self.cipher_suite = Fernet(key)
-            logger.warning("⚠️ 폴백으로 새 암호화 키 생성됨")
+        # 통합 암호화 서비스 사용 (encryption.py의 CredentialEncryption)
+        # CREDENTIAL_MASTER_KEY 또는 파일 기반 키 자동 관리 — 재시작 시에도 키 유지
+        self.cipher_suite = encryption_service.fernet
+        logger.info("✅ 통합 암호화 서비스(CredentialEncryption) 연동 완료")
 
         self._setup_database()
 

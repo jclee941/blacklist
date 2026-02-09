@@ -75,8 +75,30 @@ class CollectorConfig:
                 try:
                     from cryptography.fernet import Fernet
 
-                    key = os.getenv("ENCRYPTION_KEY", "").encode() or Fernet.generate_key()
-                    f = Fernet(key)
+                    key = os.getenv("CREDENTIAL_MASTER_KEY", "").encode()
+                    if not key:
+                        logger.warning(f"CREDENTIAL_MASTER_KEY 미설정, {source} 복호화 건너뜀")
+                        cls._credentials_cache[source] = {
+                            "username": username,
+                            "password": password,
+                        }
+                        continue
+
+                    # PBKDF2로 Fernet 키 파생 (database.py와 동일한 방식)
+                    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+                    from cryptography.hazmat.primitives import hashes
+                    import base64
+
+                    salt_env = os.getenv("ENCRYPTION_SALT")
+                    salt = salt_env.encode() if salt_env else b"blacklist-regtech-salt-2025"
+                    kdf = PBKDF2HMAC(
+                        algorithm=hashes.SHA256(),
+                        length=32,
+                        salt=salt,
+                        iterations=100000,
+                    )
+                    derived_key = base64.urlsafe_b64encode(kdf.derive(key))
+                    f = Fernet(derived_key)
 
                     decrypted_username = f.decrypt(username.encode()).decode()
                     decrypted_password = f.decrypt(password.encode()).decode()
