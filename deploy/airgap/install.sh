@@ -105,10 +105,16 @@ preflight_checks() {
     fi
     log_success "docker-compose.yml"
 
+    # Support both checksum filenames (legacy: SHA256SUMS, current: checksums.sha256)
+    local CHECKSUM_FILE=""
     if [ -f "${IMAGES_DIR}/checksums.sha256" ]; then
+        CHECKSUM_FILE="checksums.sha256"
         log_success "checksums.sha256"
+    elif [ -f "${IMAGES_DIR}/SHA256SUMS" ]; then
+        CHECKSUM_FILE="SHA256SUMS"
+        log_success "SHA256SUMS"
     else
-        log_warning "checksums.sha256 not found (integrity check will be skipped)"
+        log_warning "Checksum file not found (integrity check will be skipped)"
     fi
 
     local available_gb=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
@@ -128,13 +134,20 @@ preflight_checks() {
 verify_checksums() {
     log_step "Verify Image Integrity (SHA256)"
 
-    if [ ! -f "${IMAGES_DIR}/checksums.sha256" ]; then
-        log_warning "checksums.sha256 not found, skipping verification"
+    local CHECKSUM_FILE=""
+    if [ -f "${IMAGES_DIR}/checksums.sha256" ]; then
+        CHECKSUM_FILE="checksums.sha256"
+    elif [ -f "${IMAGES_DIR}/SHA256SUMS" ]; then
+        CHECKSUM_FILE="SHA256SUMS"
+    fi
+
+    if [ -z "$CHECKSUM_FILE" ]; then
+        log_warning "Checksum file not found, skipping verification"
         return 0
     fi
 
     cd "${IMAGES_DIR}"
-    if sha256sum -c checksums.sha256 --status 2>/dev/null; then
+    if sha256sum -c "$CHECKSUM_FILE" --status 2>/dev/null; then
         log_success "All checksums verified"
     else
         log_info "Verifying individual files..."
@@ -149,7 +162,7 @@ verify_checksums() {
                     failed=1
                 fi
             fi
-        done < checksums.sha256
+        done < "$CHECKSUM_FILE"
         if [ "$failed" -eq 1 ]; then
             log_error "Integrity check failed. Re-download the airgap package."
         fi
