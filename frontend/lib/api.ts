@@ -191,9 +191,8 @@ export const getFortinetBlocklist = async (): Promise<{
   return { data: response.data, headers: response.headers as Record<string, string> };
 };
 
-// 통합 IP 목록 조회 API
 export const getUnifiedIPs = async (params?: string) => {
-  const url = params ? `/ip-management/unified?${params}` : '/ip-management/unified';
+  const url = params ? `/ip-management/blacklist?${params}` : '/ip-management/blacklist';
   const { data } = await api.get(url);
   return data;
 };
