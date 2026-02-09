@@ -18,6 +18,9 @@ proxy_bp = Blueprint("proxy", __name__, url_prefix="/api/proxy")
 # Backend API base URL (localhost since proxy runs in same container as API)
 BACKEND_API_URL = os.getenv("BLACKLIST_API_URL", "http://localhost:2542/api")
 
+# Collector service URL (separate container, same host via network_mode: host)
+COLLECTOR_API_URL = os.getenv("COLLECTOR_API_URL", "http://localhost:8545")
+
 
 def forward_to_backend(endpoint: str, method: str = None):
     """
@@ -86,8 +89,22 @@ def proxy_test_credentials(source: str):
 
 @proxy_bp.route("/collection/trigger/<source>", methods=["POST"])
 def proxy_trigger_collection(source: str):
-    """Proxy: POST /api/collection/trigger/<source>"""
-    return forward_to_backend(f"/collection/trigger/{source}")
+    """Proxy: POST trigger to collector service (port 8545)"""
+    try:
+        url = f"{COLLECTOR_API_URL}/api/scheduler/force-collection/{source}"
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        data = request.get_json(silent=True) or {}
+        response = requests.post(url, json=data, headers=headers, timeout=60)
+        try:
+            return response.json(), response.status_code
+        except ValueError:
+            return {"success": False, "error": response.text}, response.status_code
+    except requests.exceptions.ConnectionError:
+        logger.error(f"Cannot connect to collector service: {COLLECTOR_API_URL}")
+        return jsonify({"success": False, "error": "Collector service unavailable"}), 503
+    except Exception as e:
+        logger.error(f"Collector proxy error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @proxy_bp.route("/collection/history", methods=["GET"])
