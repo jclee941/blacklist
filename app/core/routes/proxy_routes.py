@@ -91,10 +91,11 @@ def proxy_test_credentials(source: str):
 def proxy_trigger_collection(source: str):
     """Proxy: POST trigger to collector service (port 8545)"""
     try:
-        url = f"{COLLECTOR_API_URL}/api/scheduler/force-collection/{source}"
+        url = f"{COLLECTOR_API_URL}/trigger"
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = request.get_json(silent=True) or {}
-        response = requests.post(url, json=data, headers=headers, timeout=60)
+        data["source"] = source
+        response = requests.post(url, json=data, headers=headers, timeout=120)
         try:
             return response.json(), response.status_code
         except ValueError:
