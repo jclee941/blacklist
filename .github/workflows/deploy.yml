@@ -112,6 +112,12 @@ jobs:
 
           cd ${{ env.DEPLOY_BASE }}
 
+          # Clean existing directory to avoid stale files (e.g. from manual deploys)
+          if [ -d "${DEPLOY_DIR}" ]; then
+            echo "🧹 Removing existing ${DEPLOY_DIR}..."
+            rm -rf "${DEPLOY_DIR}"
+          fi
+
           echo "📂 Extracting to ${DEPLOY_DIR}..."
           mkdir -p "${DEPLOY_DIR}"
           tar -xzf "${BUNDLE}" -C "${DEPLOY_DIR}" --strip-components=1
@@ -266,7 +272,7 @@ jobs:
           done
 
           # Remove old bundles (keep latest 2)
-          ls -t blacklist-*-airgap.tar.gz 2>/dev/null | tail -n +3 | while read bundle; do
+          ls -t blacklist-airgap-*.tar.gz 2>/dev/null | tail -n +3 | while read bundle; do
             echo "🗑️  Removing old bundle: ${bundle}"
             rm -f "${bundle}"
           done
