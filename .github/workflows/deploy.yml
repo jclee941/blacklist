@@ -122,6 +122,16 @@ jobs:
           mkdir -p "${DEPLOY_DIR}"
           tar -xzf "${BUNDLE}" -C "${DEPLOY_DIR}" --strip-components=1
 
+          # Fix checksum filename: older bundles used SHA256SUMS, newer use checksums.sha256
+          # If both exist, SHA256SUMS is the correct build-generated one
+          IMG_DIR="${DEPLOY_DIR}/images"
+          if [ -f "${IMG_DIR}/SHA256SUMS" ] && [ -f "${IMG_DIR}/checksums.sha256" ]; then
+            echo "🔧 Replacing stale checksums.sha256 with build-generated SHA256SUMS"
+            mv -f "${IMG_DIR}/SHA256SUMS" "${IMG_DIR}/checksums.sha256"
+          elif [ -f "${IMG_DIR}/SHA256SUMS" ]; then
+            mv "${IMG_DIR}/SHA256SUMS" "${IMG_DIR}/checksums.sha256"
+          fi
+
           echo "✅ Extracted"
           ls -la "${DEPLOY_DIR}/"
 
