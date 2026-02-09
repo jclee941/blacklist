@@ -74,8 +74,15 @@ export default function FortinetClient() {
       const data = response.data;
 
       if (typeof data === 'object' && data !== null) {
-        // Handle JSON response object
+        // Handle JSON response: {success:true, data:{blocklist:"...", total:N}}
         if (
+          'success' in data &&
+          data.success &&
+          data.data?.blocklist &&
+          typeof data.data.blocklist === 'string'
+        ) {
+          blocklistText = data.data.blocklist;
+        } else if (
           'success' in data &&
           data.success &&
           'blocklist' in data &&

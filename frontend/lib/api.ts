@@ -93,10 +93,9 @@ export const getSystemStatus = async () => {
   return data;
 };
 
-// 화이트리스트 조회 API (현재 미지원 - blacklist/list 사용)
+// 화이트리스트 조회 API
 export const getWhitelist = async (params?: string) => {
-  // Backend에 whitelist 전용 API 없음, blacklist/list로 대체
-  const url = params ? `/blacklist/list?${params}` : '/blacklist/list';
+  const url = params ? `/ip-management/whitelist?${params}` : '/ip-management/whitelist';
   const { data } = await api.get(url);
   return data;
 };
@@ -128,7 +127,7 @@ export const getCollectionStatistics = async () => {
 
 // 블랙리스트 목록 조회 API
 export const getBlacklist = async (params?: string) => {
-  const url = params ? `/blacklist/list?${params}` : '/blacklist/list';
+  const url = params ? `/ip-management/blacklist?${params}` : '/ip-management/blacklist';
   const { data } = await api.get(url);
   return data;
 };
@@ -178,7 +177,14 @@ export const getFortinetPullLogs = async (params?: string) => {
 
 // Fortinet 차단 목록 조회 API
 export const getFortinetBlocklist = async (): Promise<{
-  data: string | { success: boolean; blocklist?: string; error?: string };
+  data:
+    | string
+    | {
+        success: boolean;
+        data?: { blocklist?: string; total?: number };
+        blocklist?: string;
+        error?: string;
+      };
   headers: Record<string, string>;
 }> => {
   const response = await api.get('/fortinet/blocklist?format=json');
@@ -187,14 +193,14 @@ export const getFortinetBlocklist = async (): Promise<{
 
 // 통합 IP 목록 조회 API
 export const getUnifiedIPs = async (params?: string) => {
-  const url = params ? `/blacklist/list?${params}` : '/blacklist/list';
+  const url = params ? `/ip-management/unified?${params}` : '/ip-management/unified';
   const { data } = await api.get(url);
   return data;
 };
 
 // IP 추가 API
 export const addIP = async (type: 'whitelist' | 'blacklist', payload: Record<string, unknown>) => {
-  const { data } = await api.post(`/${type}`, payload);
+  const { data } = await api.post(`/ip-management/${type}`, payload);
   return data;
 };
 
@@ -204,13 +210,13 @@ export const updateIP = async (
   id: number,
   payload: Record<string, unknown>
 ) => {
-  const { data } = await api.put(`/${type}/${id}`, payload);
+  const { data } = await api.put(`/ip-management/${type}/${id}`, payload);
   return data;
 };
 
 // IP 삭제 API
 export const deleteIP = async (type: 'whitelist' | 'blacklist', id: number) => {
-  const { data } = await api.delete(`/${type}/${id}`);
+  const { data } = await api.delete(`/ip-management/${type}/${id}`);
   return data;
 };
 
