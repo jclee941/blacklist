@@ -25,10 +25,19 @@ export interface CollectionStatus {
   collectors: Record<string, CollectorStatus>;
 }
 
+export interface SourceStats {
+  count?: number;
+  total_collections?: number;
+  cumulative_collected?: number;
+}
+
 export interface BlacklistStats {
-  total_ips: number;
-  sources: Array<{ source: string; count: number }>;
-  last_update: string;
+  current_total_ips: number;
+  current_active_ips: number;
+  today_collected: number;
+  week_collected: number;
+  month_collected: number;
+  sources: Record<string, SourceStats>;
 }
 
 export interface CredentialFormState {

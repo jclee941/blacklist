@@ -31,7 +31,7 @@ export function CollectionStats({
       />
       <StatCard
         title="현재 등록 IP"
-        value={blacklistStats?.total_ips?.toLocaleString() ?? '0'}
+        value={blacklistStats?.current_total_ips?.toLocaleString() ?? '0'}
         icon={Database}
         loading={loading}
       />
@@ -44,8 +44,15 @@ export function CollectionStats({
       <StatCard
         title="마지막 업데이트"
         value={
-          blacklistStats?.last_update
-            ? new Date(blacklistStats.last_update).toLocaleString('ko-KR')
+          collectionStatus?.collectors
+            ? (() => {
+                const lastRuns = Object.values(collectionStatus.collectors)
+                  .map((c) => c.last_run)
+                  .filter(Boolean) as string[];
+                if (lastRuns.length === 0) return '-';
+                const latest = lastRuns.sort().reverse()[0];
+                return new Date(latest).toLocaleString('ko-KR');
+              })()
             : '-'
         }
         icon={Clock}

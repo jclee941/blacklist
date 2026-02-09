@@ -134,7 +134,7 @@ export const getBlacklist = async (params?: string) => {
 
 // 블랙리스트 통계 API
 export const getBlacklistStats = async () => {
-  const { data } = await api.get('/collection/stats');
+  const { data } = await api.get('/collection/statistics');
   return data;
 };
 

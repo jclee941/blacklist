@@ -302,8 +302,8 @@ export function useCollectionManagement() {
   const getSourceCount = useCallback(
     (source: string) => {
       if (!blacklistStats?.sources) return 0;
-      const found = blacklistStats.sources.find((s) => s.source === source);
-      return found?.count || 0;
+      const entry = blacklistStats.sources[source];
+      return entry?.count ?? entry?.cumulative_collected ?? 0;
     },
     [blacklistStats]
   );
