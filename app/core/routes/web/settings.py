@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify, render_template, current_app
 import logging
 from datetime import datetime
 
+from core.auth.decorators import public
 from ...services.settings_service import settings_service
 # from ...services.database_service import DatabaseService
 
@@ -407,6 +408,7 @@ def create_credentials():
 
 # Health check
 @settings_bp.route("/api/health", methods=["GET"])
+@public
 def settings_health():
     """Health check for settings service"""
     try:
