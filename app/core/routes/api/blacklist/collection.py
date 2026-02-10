@@ -4,7 +4,7 @@ Collection Triggering
 Routes: /collection/regtech/trigger
 """
 
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request
 from datetime import datetime
 import logging
 import os

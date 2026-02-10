@@ -8,8 +8,6 @@ from flask import Blueprint, jsonify, current_app
 from datetime import datetime
 import logging
 
-from core.utils.rate_limit import rate_limit
-
 logger = logging.getLogger(__name__)
 
 
