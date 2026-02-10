@@ -231,26 +231,26 @@ jobs:
           sleep 20
 
           check_endpoint() {
-            local url="\$1"
-            local name="\$2"
-            for i in \$(seq 1 6); do
-              if curl -sf -k --max-time 5 "\${url}" > /dev/null 2>&1; then
-                echo "✅ \${name} (\${url})"
+            local url="$1"
+            local name="$2"
+            for i in $(seq 1 6); do
+              if curl -sf -k --max-time 5 "${url}" > /dev/null 2>&1; then
+                echo "✅ ${name} (${url})"
                 return 0
               fi
-              echo "  ⏳ Waiting for \${name}... (\${i}/6)"
+              echo "  ⏳ Waiting for ${name}... (${i}/6)"
               sleep 10
             done
-            echo "❌ \${name} failed (\${url})"
+            echo "❌ ${name} failed (${url})"
             return 1
           }
 
           FAILED=0
-          check_endpoint "http://\${HOST}:2542/api/health" "API" || FAILED=1
-          check_endpoint "http://\${HOST}:8545/health" "Collector" || FAILED=1
-          check_endpoint "https://\${HOST}:443" "Frontend" || FAILED=1
+          check_endpoint "http://${HOST}:2542/api/health" "API" || FAILED=1
+          check_endpoint "http://${HOST}:8545/health" "Collector" || FAILED=1
+          check_endpoint "https://${HOST}:443" "Frontend" || FAILED=1
 
-          if [ \$FAILED -ne 0 ]; then
+          if [ $FAILED -ne 0 ]; then
             echo ""
             echo "=== Debug: Container status ==="
             ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
