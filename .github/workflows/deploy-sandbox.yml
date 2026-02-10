@@ -140,11 +140,17 @@ jobs:
             sudo docker pull "\${IMAGE}"
           done
 
-          # --- Find previous deployment (current symlink or latest dir) ---
+          # --- Find previous deployment (resolve symlinks to avoid self-copy) ---
           PREV_DIR=""
-          if [ -d "\${DEPLOY_BASE}/current" ]; then
+          if [ -L "\${DEPLOY_BASE}/current" ]; then
+            RESOLVED=\$(readlink -f "\${DEPLOY_BASE}/current" 2>/dev/null || echo "")
+            if [ -n "\${RESOLVED}" ] && [ "\${RESOLVED}" != "\${DEPLOY_DIR}" ]; then
+              PREV_DIR="\${RESOLVED}"
+            fi
+          elif [ -d "\${DEPLOY_BASE}/current" ]; then
             PREV_DIR="\${DEPLOY_BASE}/current"
-          else
+          fi
+          if [ -z "\${PREV_DIR}" ]; then
             PREV_DIR=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | grep -v "blacklist-v\${VERSION}/" | head -1 | sed 's:/$::')
           fi
           echo "📂 Previous deployment: \${PREV_DIR:-none}"
