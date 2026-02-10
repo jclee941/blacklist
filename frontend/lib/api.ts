@@ -49,19 +49,14 @@ const attachToken = (config: import('axios').InternalAxiosRequestConfig) => {
 api.interceptors.request.use(attachToken);
 collectionApi.interceptors.request.use(attachToken);
 
-// Response interceptor: handle 401 unauthorized
-const handleUnauthorized = (error: unknown) => {
-  if (axios.isAxiosError(error) && error.response?.status === 401) {
-    removeToken();
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login';
-    }
-  }
-  return Promise.reject(error);
-};
-
-api.interceptors.response.use((r) => r, handleUnauthorized);
-collectionApi.interceptors.response.use((r) => r, handleUnauthorized);
+api.interceptors.response.use(
+  (r) => r,
+  (error: unknown) => Promise.reject(error)
+);
+collectionApi.interceptors.response.use(
+  (r) => r,
+  (error: unknown) => Promise.reject(error)
+);
 
 // 인증 API
 export const login = async (username: string, password: string) => {
