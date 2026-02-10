@@ -30,28 +30,51 @@ jobs:
           if [ -n "${{ inputs.version }}" ]; then
             VERSION="${{ inputs.version }}"
           else
-            VERSION=$(gh release list --limit 1 --json tagName -q '.[0].tagName' | sed 's/^v//')
+            LATEST=$(curl -sf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null || echo "")
+            VERSION="${LATEST#v}"
+          fi
+          if [ -z "${VERSION}" ]; then
+            echo "❌ Could not determine version"
+            exit 1
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "📦 Deploying version: ${VERSION}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download release bundle
         run: |
           VERSION=${{ steps.version.outputs.version }}
+          BUNDLE="blacklist-airgap-v${VERSION}.tar.gz"
           mkdir -p ./bundle
-          gh release download "v${VERSION}" \
-            --pattern "blacklist-airgap-v${VERSION}.tar.gz" \
-            --dir ./bundle || {
-              echo "❌ Failed to download release v${VERSION}"
-              echo "Available releases:"
-              gh release list --limit 5
-              exit 1
-            }
+
+          # Get asset download URL from release
+          ASSET_URL=$(curl -sf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${VERSION}" \
+            | python3 -c "
+          import sys, json
+          release = json.load(sys.stdin)
+          for asset in release.get('assets', []):
+              if asset['name'] == '${BUNDLE}':
+                  print(asset['url'])
+                  break
+          " 2>/dev/null || echo "")
+
+          if [ -z "${ASSET_URL}" ]; then
+            echo "❌ Release v${VERSION} or asset ${BUNDLE} not found"
+            echo "Available releases:"
+            curl -sf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases?per_page=5" \
+              | python3 -c "import sys,json; [print(r['tag_name']) for r in json.load(sys.stdin)]" 2>/dev/null || true
+            exit 1
+          fi
+
+          # Download the asset
+          curl -sL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/octet-stream" \
+            "${ASSET_URL}" -o "./bundle/${BUNDLE}"
+
           ls -lh ./bundle/
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup SSH
         run: |
