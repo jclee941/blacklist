@@ -692,12 +692,14 @@ class SecudiumCollector:
             logger.warning("secudium_no_db_service")
             return 0
 
-        # Map parser 'ip' key to DB-expected 'ip_address' key
+        # Map parser 'ip' key to DB-expected 'ip_address' key and set source
         ip_data = []
         for record in ips:
             entry = dict(record)
             if "ip" in entry and "ip_address" not in entry:
                 entry["ip_address"] = entry.pop("ip")
+            entry.setdefault("source", "SECUDIUM")
+            entry.setdefault("data_source", "SECUDIUM")
             ip_data.append(entry)
 
         try:
