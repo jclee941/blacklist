@@ -30,7 +30,7 @@ const useHTTPS = sslPaths !== null;
 const defaultPort = useHTTPS ? 443 : 3000;
 const port = parseInt(process.env.PORT, 10) || defaultPort;
 const hostname = process.env.HOSTNAME || '0.0.0.0';
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://blacklist-app:2542';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:2542';
 
 const NextServer = require('next/dist/server/next-server').default;
 const nextConfig = require('./.next/required-server-files.json');

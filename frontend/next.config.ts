@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://blacklist-app:2542';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:2542';
     return [
       {
         source: '/api/:path*',

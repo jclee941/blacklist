@@ -187,7 +187,7 @@ export const getFortinetBlocklist = async (): Promise<{
 };
 
 export const getUnifiedIPs = async (params?: string) => {
-  const url = params ? `/ip-management/blacklist?${params}` : '/ip-management/blacklist';
+  const url = params ? `/ip-management/unified?${params}` : '/ip-management/unified';
   const { data } = await api.get(url);
   return data;
 };

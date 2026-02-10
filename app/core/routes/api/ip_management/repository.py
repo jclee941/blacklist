@@ -58,6 +58,21 @@ class IPManagementRepository:
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
 
+            # Build UNION of blacklist + whitelist instead of querying empty unified_ip_list table
+            union_sql = """
+                SELECT 'blacklist' AS list_type, id, ip_address, reason, source,
+                       confidence_level, detection_count, is_active,
+                       country, detection_date, removal_date, last_seen,
+                       created_at, updated_at
+                FROM blacklist_ips_with_auto_inactive
+                UNION ALL
+                SELECT 'whitelist' AS list_type, id, ip_address, reason, source,
+                       NULL AS confidence_level, NULL AS detection_count, TRUE AS is_active,
+                       country, NULL AS detection_date, NULL AS removal_date, NULL AS last_seen,
+                       created_at, updated_at
+                FROM whitelist_ips
+            """
+
             where_clauses = []
             params: list[Any] = []
 
@@ -76,7 +91,7 @@ class IPManagementRepository:
             where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
             cursor.execute(
-                f"SELECT COUNT(*) as total FROM unified_ip_list WHERE {where_sql}",
+                f"SELECT COUNT(*) as total FROM ({union_sql}) AS unified WHERE {where_sql}",
                 params,
             )
             total_result = cursor.fetchone()
@@ -89,7 +104,7 @@ class IPManagementRepository:
                     confidence_level, detection_count, is_active,
                     country, detection_date, removal_date, last_seen,
                     created_at, updated_at
-                FROM unified_ip_list
+                FROM ({union_sql}) AS unified
                 WHERE {where_sql}
                 ORDER BY created_at DESC
                 LIMIT %s OFFSET %s
