@@ -293,3 +293,35 @@ jobs:
       - name: Cleanup SSH key
         if: always()
         run: rm -f ~/.ssh/sandbox_key
+
+  notify:
+    name: Notify
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    needs: [deploy-sandbox]
+    if: always()
+    steps:
+      - name: Send notification
+        if: vars.SLACK_WEBHOOK_URL
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "${{ needs.deploy-sandbox.result }}" == "success" ]; then
+            EMOJI="✅"
+            STATUS="succeeded"
+            COLOR="#36a64f"
+          elif [ "${{ needs.deploy-sandbox.result }}" == "skipped" ]; then
+            exit 0
+          else
+            EMOJI="❌"
+            STATUS="FAILED"
+            COLOR="#dc3545"
+          fi
+
+          curl -sf -X POST "${SLACK_WEBHOOK_URL}" \
+            -H "Content-type: application/json" \
+            -d "{
+              \"attachments\": [{
+                \"color\": \"${COLOR}\",
+                \"text\": \"${EMOJI} *Deploy to Sandbox (220)* ${STATUS}\n• Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|#${{ github.run_number }}>\"
+              }]
+            }" || true

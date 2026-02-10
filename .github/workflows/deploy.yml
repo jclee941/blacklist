@@ -30,11 +30,11 @@ jobs:
           if [ -n "${{ inputs.version }}" ]; then
             VERSION="${{ inputs.version }}"
           else
-            # Get latest release tag from GitHub API
+            # Get latest release tag from GitHub API (python3 for reliable JSON parsing)
             VERSION=$(curl -sf \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
-              | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null || echo "")
           fi
 
           if [ -z "$VERSION" ]; then
@@ -76,13 +76,19 @@ jobs:
 
           echo "⬇️  Downloading ${BUNDLE}..."
 
-          # Get asset download URL via GitHub API
+          # Get asset download URL via GitHub API (python3 for reliable JSON parsing)
           ASSET_URL=$(curl -sf \
             -H "Authorization: token ${GH_TOKEN}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/${VERSION}" \
-            | grep -B3 "\"name\": \"${BUNDLE}\"" \
-            | grep '"url"' | head -1 | sed 's/.*"url": *"//;s/".*//')
+            | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for asset in data.get('assets', []):
+              if asset['name'] == '${BUNDLE}':
+                  print(asset['url'])
+                  break
+          " 2>/dev/null || echo "")
 
           if [ -z "${ASSET_URL}" ]; then
             echo "::error::Could not find asset ${BUNDLE} in release ${VERSION}"
@@ -134,33 +140,6 @@ jobs:
 
           echo "✅ Extracted"
           ls -la "${DEPLOY_DIR}/"
-
-      - name: Update deploy files from latest master
-        if: steps.check.outputs.already_running != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION_NUM="${{ steps.version.outputs.version_num }}"
-          DEPLOY_DIR="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION_NUM}"
-          REPO="${{ github.repository }}"
-
-          echo "🔄 Updating install.sh and docker-compose.yml from latest master..."
-
-          for file in install.sh docker-compose.yml; do
-            curl -sf \
-              -H "Authorization: token ${GH_TOKEN}" \
-              -H "Accept: application/vnd.github.v3.raw" \
-              "https://api.github.com/repos/${REPO}/contents/deploy/airgap/${file}?ref=master" \
-              -o "${DEPLOY_DIR}/${file}"
-
-            if [ -f "${DEPLOY_DIR}/${file}" ] && [ -s "${DEPLOY_DIR}/${file}" ]; then
-              echo "  ✅ ${file} updated"
-            else
-              echo "  ⚠️  Failed to download ${file}, using bundled version"
-            fi
-          done
-
-          chmod +x "${DEPLOY_DIR}/install.sh"
 
       - name: Preserve environment
         if: steps.check.outputs.already_running != 'true'
@@ -228,6 +207,14 @@ jobs:
           cd "${DEPLOY_DIR}"
           bash install.sh --skip-ssl 2>&1
 
+      - name: Update current symlink
+        if: steps.check.outputs.already_running != 'true'
+        run: |
+          VERSION_NUM="${{ steps.version.outputs.version_num }}"
+          DEPLOY_DIR="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION_NUM}"
+          ln -sfn "${DEPLOY_DIR}" "${{ env.DEPLOY_BASE }}/current"
+          echo "🔗 Symlink: current → blacklist-v${VERSION_NUM}"
+
       - name: Health check
         run: |
           echo "⏳ Waiting for services to start..."
@@ -269,19 +256,18 @@ jobs:
         if: success()
         run: |
           VERSION_NUM="${{ steps.version.outputs.version_num }}"
-          CURRENT="blacklist-v${VERSION_NUM}"
+          CURRENT="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION_NUM}"
 
           cd ${{ env.DEPLOY_BASE }}
 
-          # Keep current + one previous, remove older
           ls -dt blacklist-v*/ 2>/dev/null | tail -n +3 | while read dir; do
-            if [ "$(basename $dir)" != "${CURRENT}" ]; then
+            FULL=$(readlink -f "$dir")
+            if [ "$FULL" != "$CURRENT" ]; then
               echo "🗑️  Removing old deployment: ${dir}"
               rm -rf "${dir}"
             fi
           done
 
-          # Remove old bundles (keep latest 2)
           ls -t blacklist-airgap-*.tar.gz 2>/dev/null | tail -n +3 | while read bundle; do
             echo "🗑️  Removing old bundle: ${bundle}"
             rm -f "${bundle}"
@@ -289,3 +275,35 @@ jobs:
 
           docker image prune -f > /dev/null 2>&1 || true
           echo "✅ Cleanup complete"
+
+  notify:
+    name: Notify
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    needs: [deploy]
+    if: always()
+    steps:
+      - name: Send notification
+        if: vars.SLACK_WEBHOOK_URL
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            EMOJI="✅"
+            STATUS="succeeded"
+            COLOR="#36a64f"
+          elif [ "${{ needs.deploy.result }}" == "skipped" ]; then
+            exit 0
+          else
+            EMOJI="❌"
+            STATUS="FAILED"
+            COLOR="#dc3545"
+          fi
+
+          curl -sf -X POST "${SLACK_WEBHOOK_URL}" \
+            -H "Content-type: application/json" \
+            -d "{
+              \"attachments\": [{
+                \"color\": \"${COLOR}\",
+                \"text\": \"${EMOJI} *Deploy (Airgap)* ${STATUS}\n• Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|#${{ github.run_number }}>\"
+              }]
+            }" || true
