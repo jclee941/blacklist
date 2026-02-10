@@ -153,8 +153,9 @@ def create_app():
         jwt_service = JWTService(app.config["SECRET_KEY"])
         app.extensions["jwt_service"] = jwt_service
 
-        app.before_request(jwt_required_hook)
-        app.logger.info("✅ JWT authentication middleware enabled")
+        # JWT auth disabled — internal-only deployment, no auth required
+        # app.before_request(jwt_required_hook)
+        app.logger.info("ℹ️ JWT authentication middleware DISABLED")
     except Exception as e:
         app.logger.error(f"❌ JWT auth setup failed: {e}")
 
