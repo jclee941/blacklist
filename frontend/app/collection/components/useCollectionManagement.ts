@@ -212,6 +212,29 @@ export function useCollectionManagement() {
     async (serviceName: string) => {
       setTriggeringCollection((prev) => ({ ...prev, [serviceName]: true }));
       try {
+        // SECUDIUM manual OTP: authenticate first, then trigger collection
+        if (serviceName === 'SECUDIUM') {
+          const authData = await testCredential(serviceName.toLowerCase());
+
+          if (authData.code === 'otp_required') {
+            setOtpServiceName(serviceName);
+            setShowOtpDialog(true);
+            setNotification({
+              type: 'success',
+              message: `${serviceName}: OTP 인증이 필요합니다. 인증 후 수집이 시작됩니다.`,
+            });
+            return;
+          }
+
+          if (!authData.success) {
+            setNotification({
+              type: 'error',
+              message: `${serviceName} 인증 실패: ${authData.message || authData.error || '알 수 없는 오류'}`,
+            });
+            return;
+          }
+        }
+
         const data = await triggerCollectionService(serviceName.toLowerCase(), { force: true });
 
         if (data.success) {
