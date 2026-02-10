@@ -56,7 +56,7 @@ export default function DatabaseOverviewClient() {
       ).map(([name, info]) => ({
         name,
         column_count: info.columns?.length || 0,
-        row_count: info.record_count || -1,
+        row_count: info.record_count ?? -1,
       }));
 
       setTables(tablesData);
