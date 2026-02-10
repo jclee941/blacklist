@@ -158,10 +158,19 @@ jobs:
             sudo cp "\${DEPLOY_BASE}/env-backup-latest.env" "\${DEPLOY_DIR}/.env"
           fi
 
-          # --- Backup .env ---
-          if [ -f "\${DEPLOY_DIR}/.env" ]; then
-            sudo cp "\${DEPLOY_DIR}/.env" "\${DEPLOY_BASE}/env-backup-latest.env"
+          # --- Generate .env if missing ---
+          if [ ! -f "\${DEPLOY_DIR}/.env" ] || [ ! -s "\${DEPLOY_DIR}/.env" ]; then
+            echo "⚠️  No .env found — generating secrets..."
+            sudo bash -c "printf '%s\n' 'FLASK_ENV=production' 'POSTGRES_PASSWORD=blacklist' 'POSTGRES_HOST=localhost' 'REDIS_HOST=localhost' 'REDIS_PORT=6379' > \${DEPLOY_DIR}/.env"
+            sudo sh -c "echo \"CREDENTIAL_MASTER_KEY=\$(openssl rand -hex 32)\" >> \${DEPLOY_DIR}/.env"
+            sudo sh -c "echo \"SECRET_KEY=\$(openssl rand -hex 32)\" >> \${DEPLOY_DIR}/.env"
+            sudo sh -c "echo \"CREDENTIAL_ENCRYPTION_KEY=\$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || openssl rand -base64 32)\" >> \${DEPLOY_DIR}/.env"
+            sudo sh -c "echo \"ENCRYPTION_SALT=\$(openssl rand -hex 16)\" >> \${DEPLOY_DIR}/.env"
+            echo "✅ .env generated with fresh secrets"
           fi
+
+          # --- Backup .env ---
+          sudo cp "\${DEPLOY_DIR}/.env" "\${DEPLOY_BASE}/env-backup-latest.env"
 
           # --- Preserve data volumes ---
           if [ -n "\${PREV_DIR}" ] && [ -d "\${PREV_DIR}/data" ]; then

@@ -41,6 +41,9 @@ services:
       redis:
         condition: service_healthy
     env_file: .env
+    environment:
+      POSTGRES_HOST: localhost
+      REDIS_HOST: localhost
     volumes:
       - ./data/collector:/app/data
     healthcheck:
@@ -60,6 +63,9 @@ services:
       redis:
         condition: service_healthy
     env_file: .env
+    environment:
+      POSTGRES_HOST: localhost
+      REDIS_HOST: localhost
     volumes:
       - ./data/app:/app/data
     healthcheck:
