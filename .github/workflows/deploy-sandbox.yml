@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to deploy (leave empty for latest release)'
+        description: "Version to deploy (leave empty for latest release)"
         required: false
         type: string
 
@@ -12,18 +12,21 @@ env:
   SANDBOX_HOST: 192.168.50.220
   SANDBOX_USER: jclee
   DEPLOY_BASE: /opt/blacklist
+  REGISTRY: ghcr.io
 
 jobs:
   deploy-sandbox:
     name: Deploy to Sandbox (VM 220)
     runs-on: [self-hosted, deploy]
-    timeout-minutes: 20
+    timeout-minutes: 15
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      # --- Determine version ---
       - name: Determine version
         id: version
         run: |
@@ -35,47 +38,49 @@ jobs:
               | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null || echo "")
             VERSION="${LATEST#v}"
           fi
+
           if [ -z "${VERSION}" ]; then
-            echo "❌ Could not determine version"
+            echo "::error::Could not determine version"
             exit 1
           fi
+
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "📦 Deploying version: ${VERSION}"
+          echo "repo=${REPO_LC}" >> "$GITHUB_OUTPUT"
+          echo "📦 Version: ${VERSION}"
+          echo "📦 Registry: ${{ env.REGISTRY }}/${REPO_LC}"
 
-      - name: Download release bundle
+      # --- GHCR Login (runner) ---
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # --- Verify GHCR images ---
+      - name: Verify images exist in GHCR
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REPO: ${{ steps.version.outputs.repo }}
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          BUNDLE="blacklist-airgap-v${VERSION}.tar.gz"
-          mkdir -p ./bundle
+          SERVICES="postgres redis collector app frontend"
+          MISSING=0
 
-          # Get asset download URL from release
-          ASSET_URL=$(curl -sf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${VERSION}" \
-            | python3 -c "
-          import sys, json
-          release = json.load(sys.stdin)
-          for asset in release.get('assets', []):
-              if asset['name'] == '${BUNDLE}':
-                  print(asset['url'])
-                  break
-          " 2>/dev/null || echo "")
+          for svc in ${SERVICES}; do
+            IMAGE="${{ env.REGISTRY }}/${REPO}/blacklist-${svc}:${VERSION}"
+            if docker manifest inspect "${IMAGE}" > /dev/null 2>&1; then
+              echo "✅ ${IMAGE}"
+            else
+              echo "❌ Missing: ${IMAGE}"
+              MISSING=1
+            fi
+          done
 
-          if [ -z "${ASSET_URL}" ]; then
-            echo "❌ Release v${VERSION} or asset ${BUNDLE} not found"
-            echo "Available releases:"
-            curl -sf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/releases?per_page=5" \
-              | python3 -c "import sys,json; [print(r['tag_name']) for r in json.load(sys.stdin)]" 2>/dev/null || true
+          if [ $MISSING -ne 0 ]; then
+            echo ""
+            echo "::error::One or more images not found in GHCR for v${VERSION}"
+            echo "Run the release workflow first, or check the version number."
             exit 1
           fi
 
-          # Download the asset
-          curl -sL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/octet-stream" \
-            "${ASSET_URL}" -o "./bundle/${BUNDLE}"
-
-          ls -lh ./bundle/
-
+      # --- Setup SSH ---
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -83,137 +88,195 @@ jobs:
           chmod 600 ~/.ssh/sandbox_key
           ssh-keyscan -H ${{ env.SANDBOX_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Verify sandbox connectivity
+      - name: Verify connectivity
         run: |
           ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
             ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
-            "echo '✅ SSH connection OK'; uptime; sudo docker --version"
+            "echo '✅ SSH OK'; uptime; sudo docker --version; sudo docker compose version"
 
-      - name: Upload bundle to sandbox
+      # --- Upload deploy files ---
+      - name: Upload compose file
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          echo "📤 Uploading airgap bundle..."
-          scp -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
-            ./bundle/blacklist-airgap-v${VERSION}.tar.gz \
-            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }}:/tmp/
-          echo "✅ Upload complete"
+          DEPLOY_DIR="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION}"
+          SSH="ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }}"
+          SCP="scp -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no"
 
-      - name: Deploy on sandbox
+          ${SSH} "sudo mkdir -p ${DEPLOY_DIR} && sudo chown \$(whoami):\$(whoami) ${DEPLOY_DIR}"
+          ${SCP} deploy/sandbox/docker-compose.yml \
+            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }}:${DEPLOY_DIR}/docker-compose.yml
+
+          echo "✅ Deploy files uploaded to ${DEPLOY_DIR}"
+
+      # --- Deploy ---
+      - name: Pull images and deploy
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REPO: ${{ steps.version.outputs.repo }}
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          DEPLOY_BASE=${{ env.DEPLOY_BASE }}
-
           ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
-            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
-            "VERSION=${VERSION} DEPLOY_BASE=${DEPLOY_BASE} bash -s" << 'DEPLOY_SCRIPT'
+            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} << DEPLOY_SCRIPT
           set -euo pipefail
 
-          DEPLOY_DIR="${DEPLOY_BASE}/blacklist-v${VERSION}"
-          echo "=== Deploying Blacklist v${VERSION} to sandbox ==="
+          VERSION="${VERSION}"
+          DEPLOY_BASE="${{ env.DEPLOY_BASE }}"
+          DEPLOY_DIR="\${DEPLOY_BASE}/blacklist-v\${VERSION}"
+          REGISTRY="${{ env.REGISTRY }}"
+          REPO="${REPO}"
 
-          # --- Extract bundle ---
-          echo "📦 Extracting bundle..."
-          sudo mkdir -p "${DEPLOY_DIR}"
-          sudo tar xzf "/tmp/blacklist-airgap-v${VERSION}.tar.gz" -C "${DEPLOY_DIR}"
-          sudo chown -R "$(whoami):$(whoami)" "${DEPLOY_DIR}"
+          echo "=== Deploying Blacklist v\${VERSION} (GHCR Pull) ==="
 
-          # --- Update deploy files from bundle ---
-          cd "${DEPLOY_DIR}"
+          # --- GHCR Login ---
+          echo "🔐 Docker login to GHCR..."
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login "\${REGISTRY}" -u "${{ github.actor }}" --password-stdin
 
-          # --- Preserve .env from previous deployment ---
-          if [ -f "${DEPLOY_BASE}/current/.env" ]; then
-            echo "🔒 Preserving existing .env"
-            cp "${DEPLOY_BASE}/current/.env" "${DEPLOY_DIR}/.env"
-          elif [ -f "${DEPLOY_BASE}/env-backup-latest.env" ]; then
+          # --- Pull images ---
+          echo "📥 Pulling images from GHCR..."
+          for svc in postgres redis collector app frontend; do
+            IMAGE="\${REGISTRY}/\${REPO}/blacklist-\${svc}:\${VERSION}"
+            echo "  Pulling \${IMAGE}..."
+            sudo docker pull "\${IMAGE}"
+          done
+
+          # --- Find previous deployment (current symlink or latest dir) ---
+          PREV_DIR=""
+          if [ -d "\${DEPLOY_BASE}/current" ]; then
+            PREV_DIR="\${DEPLOY_BASE}/current"
+          else
+            PREV_DIR=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | head -1 | sed 's:/$::')
+          fi
+          echo "📂 Previous deployment: \${PREV_DIR:-none}"
+
+          # --- Preserve .env ---
+          if [ -f "\${DEPLOY_BASE}/current/.env" ]; then
+            echo "🔒 Preserving .env from current deployment"
+            cp "\${DEPLOY_BASE}/current/.env" "\${DEPLOY_DIR}/.env"
+          elif [ -f "\${DEPLOY_BASE}/env-backup-latest.env" ]; then
             echo "🔒 Restoring .env from backup"
-            cp "${DEPLOY_BASE}/env-backup-latest.env" "${DEPLOY_DIR}/.env"
+            cp "\${DEPLOY_BASE}/env-backup-latest.env" "\${DEPLOY_DIR}/.env"
+          else
+            PREV_DIR=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | head -1)
+            if [ -n "\${PREV_DIR}" ] && [ -f "\${PREV_DIR}/.env" ]; then
+              echo "🔒 Preserving .env from \${PREV_DIR}"
+              cp "\${PREV_DIR}/.env" "\${DEPLOY_DIR}/.env"
+            fi
           fi
 
-          # --- Backup current .env ---
-          if [ -f "${DEPLOY_DIR}/.env" ]; then
-            cp "${DEPLOY_DIR}/.env" "${DEPLOY_BASE}/env-backup-latest.env"
+          # --- Backup .env ---
+          if [ -f "\${DEPLOY_DIR}/.env" ]; then
+            cp "\${DEPLOY_DIR}/.env" "\${DEPLOY_BASE}/env-backup-latest.env"
           fi
 
           # --- Preserve data volumes ---
-          if [ -d "${DEPLOY_BASE}/current/data" ]; then
-            echo "💾 Preserving data volumes..."
-            cp -a "${DEPLOY_BASE}/current/data" "${DEPLOY_DIR}/data" 2>/dev/null || true
+          PREV_SRC="\${DEPLOY_BASE}/current"
+          if [ ! -d "\${PREV_SRC}/data" ]; then
+            PREV_SRC=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | grep -v "blacklist-v\${VERSION}" | head -1)
+          fi
+          if [ -n "\${PREV_SRC}" ] && [ -d "\${PREV_SRC}/data" ]; then
+            echo "💾 Preserving data volumes from \${PREV_SRC}..."
+            cp -a "\${PREV_SRC}/data" "\${DEPLOY_DIR}/data" 2>/dev/null || true
+          fi
+
+          # --- Preserve SSL ---
+          if [ -n "\${PREV_SRC}" ] && [ -d "\${PREV_SRC}/ssl" ]; then
+            echo "🔑 Preserving SSL certificates from \${PREV_SRC}..."
+            cp -a "\${PREV_SRC}/ssl" "\${DEPLOY_DIR}/ssl" 2>/dev/null || true
+          fi
+
+          # --- Preserve SSL ---
+          if [ -n "\${PREV_DIR}" ] && [ -d "\${PREV_DIR}/ssl" ]; then
+            echo "🔑 Preserving SSL certificates from \${PREV_DIR}..."
+            cp -a "\${PREV_DIR}/ssl" "\${DEPLOY_DIR}/ssl" 2>/dev/null || true
           fi
 
           # --- Stop existing deployment ---
-          if [ -f "${DEPLOY_BASE}/current/docker-compose.yml" ]; then
+          if [ -n "\${PREV_DIR}" ] && [ -f "\${PREV_DIR}/docker-compose.yml" ]; then
             echo "⏹️  Stopping existing containers..."
-            cd "${DEPLOY_BASE}/current"
+            cd "\${PREV_DIR}"
             sudo docker compose down --timeout 30 2>/dev/null || true
           fi
 
           # --- Force remove named containers ---
           for svc in app collector frontend postgres redis; do
-            sudo docker rm -f "blacklist-${svc}" 2>/dev/null || true
+            sudo docker rm -f "blacklist-\${svc}" 2>/dev/null || true
           done
 
-          # --- Install ---
-          echo "🚀 Running install.sh..."
-          cd "${DEPLOY_DIR}"
-          sudo bash install.sh --skip-ssl
+          # --- Inject GHCR env vars ---
+          cd "\${DEPLOY_DIR}"
+          if ! grep -q "GITHUB_REPOSITORY" .env 2>/dev/null; then
+            echo "" >> .env
+            echo "# --- GHCR Deploy (auto-generated) ---" >> .env
+            echo "GITHUB_REPOSITORY=\${REPO}" >> .env
+          fi
+          sed -i '/^VERSION=/d' .env 2>/dev/null || true
+          echo "VERSION=\${VERSION}" >> .env
+          sed -i '/^REGISTRY=/d' .env 2>/dev/null || true
+          echo "REGISTRY=\${REGISTRY}" >> .env
 
-          # --- Update current symlink ---
-          sudo ln -sfn "${DEPLOY_DIR}" "${DEPLOY_BASE}/current"
+          # --- Start services ---
+          echo "🚀 Starting services..."
+          sudo docker compose up -d
 
-          # --- Cleanup ---
-          rm -f "/tmp/blacklist-airgap-v${VERSION}.tar.gz"
+          # --- Update symlink ---
+          sudo ln -sfn "\${DEPLOY_DIR}" "\${DEPLOY_BASE}/current"
 
-          echo "✅ Deployment complete"
+          echo "✅ Containers started"
+          sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | grep blacklist || true
           DEPLOY_SCRIPT
 
+      # --- Health check ---
       - name: Health check
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           HOST=${{ env.SANDBOX_HOST }}
-          echo "⏳ Waiting 30s for services to start..."
-          sleep 30
+          echo "⏳ Waiting 20s for services to initialize..."
+          sleep 20
 
           check_endpoint() {
-            local url="$1"
-            local name="$2"
-            for i in $(seq 1 6); do
-              if curl -sf -k --max-time 5 "${url}" > /dev/null 2>&1; then
-                echo "✅ ${name} (${url})"
+            local url="\$1"
+            local name="\$2"
+            for i in \$(seq 1 6); do
+              if curl -sf -k --max-time 5 "\${url}" > /dev/null 2>&1; then
+                echo "✅ \${name} (\${url})"
                 return 0
               fi
-              echo "  ⏳ Waiting for ${name}... (${i}/6)"
+              echo "  ⏳ Waiting for \${name}... (\${i}/6)"
               sleep 10
             done
-            echo "❌ ${name} failed (${url})"
+            echo "❌ \${name} failed (\${url})"
             return 1
           }
 
           FAILED=0
-          check_endpoint "http://${HOST}:2542/api/health" "API" || FAILED=1
-          check_endpoint "http://${HOST}:8545/health" "Collector" || FAILED=1
-          check_endpoint "https://${HOST}:443" "Frontend" || FAILED=1
+          check_endpoint "http://\${HOST}:2542/api/health" "API" || FAILED=1
+          check_endpoint "http://\${HOST}:8545/health" "Collector" || FAILED=1
+          check_endpoint "https://\${HOST}:443" "Frontend" || FAILED=1
 
-          if [ $FAILED -ne 0 ]; then
+          if [ \$FAILED -ne 0 ]; then
             echo ""
             echo "=== Debug: Container status ==="
             ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
               ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
-              "sudo docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep blacklist || echo 'No blacklist containers found'"
+              "sudo docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | grep blacklist || echo 'No containers found'; echo ''; for svc in app collector frontend postgres redis; do echo \"--- blacklist-\${svc} ---\"; sudo docker logs --tail 10 blacklist-\${svc} 2>&1 || true; done"
             exit 1
           fi
 
           echo ""
-          echo "🎉 Sandbox deployment v${{ steps.version.outputs.version }} successful!"
+          echo "🎉 Sandbox deployment v${VERSION} successful!"
 
-      - name: Cleanup old sandbox versions
+      # --- Cleanup ---
+      - name: Cleanup old versions
         if: success()
         run: |
           ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
-            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
-            "DEPLOY_BASE=${{ env.DEPLOY_BASE }} bash -s" << 'CLEANUP'
-          # Keep current + 1 previous version
+            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} << 'CLEANUP'
+          DEPLOY_BASE=/opt/blacklist
           cd "${DEPLOY_BASE}" || exit 0
           CURRENT=$(readlink -f current 2>/dev/null || echo "")
+
           ls -dt blacklist-v*/ 2>/dev/null | tail -n +3 | while read -r dir; do
             FULL=$(readlink -f "$dir")
             if [ "$FULL" != "$CURRENT" ]; then
@@ -221,6 +284,9 @@ jobs:
               sudo rm -rf "$dir"
             fi
           done
+
+          echo "🧹 Pruning unused images..."
+          sudo docker image prune -af --filter "until=168h" 2>/dev/null || true
           CLEANUP
 
       - name: Cleanup SSH key

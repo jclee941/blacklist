@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: ${REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY}/blacklist-postgres:${VERSION:-latest}
+    container_name: blacklist-postgres
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blacklist}
+      POSTGRES_DB: blacklist
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: ${REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY}/blacklist-redis:${VERSION:-latest}
+    container_name: blacklist-redis
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  collector:
+    image: ${REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY}/blacklist-collector:${VERSION:-latest}
+    container_name: blacklist-collector
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./data/collector:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8545/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  app:
+    image: ${REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY}/blacklist-app:${VERSION:-latest}
+    container_name: blacklist-app
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./data/app:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:2542/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY}/blacklist-frontend:${VERSION:-latest}
+    container_name: blacklist-frontend
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      SSL_KEY_PATH: /app/ssl/server.key
+      SSL_CERT_PATH: /app/ssl/server.crt
+    volumes:
+      - ./ssl:/app/ssl:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sfk https://localhost:443 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
