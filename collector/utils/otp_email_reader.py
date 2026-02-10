@@ -94,8 +94,8 @@ class OTPEmailReader:
             otp_code = None
 
             while time.time() - start_time < max_wait_seconds:
-                # IMAP NOOP으로 메일박스 새로고침 (새 이메일 감지)
-                self.imap.noop()
+                # IMAP SELECT로 메일박스 강제 새로고침 (NOOP은 일부 서버에서 새 이메일 미감지)
+                self.imap.select("INBOX")
 
                 status, messages = self.imap.search(None, search_criteria)
 

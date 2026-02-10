@@ -272,7 +272,7 @@ class SecudiumCollector:
 
         return login_result
 
-    def _login(self, user_id: str, password: str, is_otp: bool, otp_value: str) -> str:
+    def _login(self, user_id: str, password: str, is_otp: bool, otp_value: str, is_duplicate: bool = False) -> str:
         """
         Execute login request.
 
@@ -328,6 +328,37 @@ class SecudiumCollector:
                     return "failed"
 
             body_text = resp.text.lower() if resp.text else ""
+
+            # Handle duplicate login — force expire existing session and retry
+            if "already.login" in body_text and not is_duplicate:
+                logger.info("secudium_already_login_detected", message="기존 세션 만료 후 재로그인 시도 (is_expire=Y)")
+                form_data["is_expire"] = "Y"
+                self._rate_limit()
+                retry_resp = self.session.post(
+                    login_url,
+                    data=form_data,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    timeout=CollectorConfig.REQUEST_TIMEOUT,
+                    allow_redirects=False,
+                )
+                token = self._extract_token(retry_resp)
+                if token:
+                    self._token = token
+                    self._set_token_cookie()
+                    with SecudiumCollector._token_lock:
+                        SecudiumCollector._cached_token = token
+                        SecudiumCollector._token_obtained_at = datetime.now()
+                    if self._verify_token():
+                        auth_rate_limiter.on_success()
+                        return "success"
+                retry_body = retry_resp.text.lower() if retry_resp.text else ""
+                if any(ind in retry_body for ind in ["otp", "인증", "2차인증", "is_otp"]):
+                    return "otp_required"
+                logger.warning(
+                    "secudium_duplicate_login_retry_failed", status=retry_resp.status_code, body=retry_body[:200]
+                )
+                return "failed"
+
             otp_indicators = any(indicator in body_text for indicator in ["otp", "인증", "2차인증", "is_otp"])
             redirect_otp = resp.status_code in (302, 303) and "otp" in resp.headers.get("Location", "").lower()
 
