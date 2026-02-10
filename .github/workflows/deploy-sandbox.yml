@@ -65,7 +65,7 @@ jobs:
           ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
             ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
-            "echo '✅ SSH connection OK'; uptime; docker --version"
+            "echo '✅ SSH connection OK'; uptime; sudo docker --version"
 
       - name: Upload bundle to sandbox
         run: |
@@ -122,21 +122,21 @@ jobs:
           if [ -f "${DEPLOY_BASE}/current/docker-compose.yml" ]; then
             echo "⏹️  Stopping existing containers..."
             cd "${DEPLOY_BASE}/current"
-            docker compose down --timeout 30 2>/dev/null || true
+            sudo docker compose down --timeout 30 2>/dev/null || true
           fi
 
           # --- Force remove named containers ---
           for svc in app collector frontend postgres redis; do
-            docker rm -f "blacklist-${svc}" 2>/dev/null || true
+            sudo docker rm -f "blacklist-${svc}" 2>/dev/null || true
           done
 
           # --- Install ---
           echo "🚀 Running install.sh..."
           cd "${DEPLOY_DIR}"
-          bash install.sh --skip-ssl
+          sudo bash install.sh --skip-ssl
 
           # --- Update current symlink ---
-          ln -sfn "${DEPLOY_DIR}" "${DEPLOY_BASE}/current"
+          sudo ln -sfn "${DEPLOY_DIR}" "${DEPLOY_BASE}/current"
 
           # --- Cleanup ---
           rm -f "/tmp/blacklist-airgap-v${VERSION}.tar.gz"
@@ -175,7 +175,7 @@ jobs:
             echo "=== Debug: Container status ==="
             ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
               ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
-              "docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep blacklist || echo 'No blacklist containers found'"
+              "sudo docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep blacklist || echo 'No blacklist containers found'"
             exit 1
           fi
 
@@ -195,7 +195,7 @@ jobs:
             FULL=$(readlink -f "$dir")
             if [ "$FULL" != "$CURRENT" ]; then
               echo "🗑️  Removing old version: $dir"
-              rm -rf "$dir"
+              sudo rm -rf "$dir"
             fi
           done
           CLEANUP
