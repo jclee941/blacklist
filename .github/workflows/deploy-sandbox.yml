@@ -145,12 +145,12 @@ jobs:
           if [ -d "\${DEPLOY_BASE}/current" ]; then
             PREV_DIR="\${DEPLOY_BASE}/current"
           else
-            PREV_DIR=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | head -1 | sed 's:/$::')
+            PREV_DIR=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | grep -v "blacklist-v\${VERSION}/" | head -1 | sed 's:/$::')
           fi
           echo "📂 Previous deployment: \${PREV_DIR:-none}"
 
           # --- Preserve .env ---
-          if [ -f "\${PREV_DIR}/.env" ]; then
+          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -f "\${PREV_DIR}/.env" ]; then
             echo "🔒 Preserving .env from \${PREV_DIR}"
             sudo cp "\${PREV_DIR}/.env" "\${DEPLOY_DIR}/.env"
           elif [ -f "\${DEPLOY_BASE}/env-backup-latest.env" ]; then
@@ -173,19 +173,19 @@ jobs:
           sudo cp "\${DEPLOY_DIR}/.env" "\${DEPLOY_BASE}/env-backup-latest.env"
 
           # --- Preserve data volumes ---
-          if [ -n "\${PREV_DIR}" ] && [ -d "\${PREV_DIR}/data" ]; then
+          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -d "\${PREV_DIR}/data" ]; then
             echo "💾 Preserving data volumes from \${PREV_DIR}..."
             sudo cp -a "\${PREV_DIR}/data" "\${DEPLOY_DIR}/data" 2>/dev/null || true
           fi
 
           # --- Preserve SSL ---
-          if [ -n "\${PREV_DIR}" ] && [ -d "\${PREV_DIR}/ssl" ]; then
+          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -d "\${PREV_DIR}/ssl" ]; then
             echo "🔑 Preserving SSL certificates from \${PREV_DIR}..."
             sudo cp -a "\${PREV_DIR}/ssl" "\${DEPLOY_DIR}/ssl" 2>/dev/null || true
           fi
 
           # --- Stop existing deployment ---
-          if [ -n "\${PREV_DIR}" ] && [ -f "\${PREV_DIR}/docker-compose.yml" ]; then
+          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -f "\${PREV_DIR}/docker-compose.yml" ]; then
             echo "⏹️  Stopping existing containers..."
             cd "\${PREV_DIR}"
             sudo docker compose down --timeout 30 2>/dev/null || true
