@@ -77,13 +77,13 @@ class HealthServer:
 
         @self.app.route("/trigger", methods=["POST"])
         def trigger_collection():
-            """Trigger manual collection for REGTECH"""
+            """Trigger manual collection for specified source (REGTECH or SECUDIUM)"""
             try:
                 from flask import request as flask_request
 
                 data = flask_request.get_json() or {}
 
-                source = data.get("source", "regtech_api_trigger")
+                source = data.get("source", "regtech").upper()
                 start_date = data.get("start_date")
                 end_date = data.get("end_date")
 
@@ -92,7 +92,10 @@ class HealthServer:
 
                 logger.info(f"Manual collection triggered: {source}, {start_date} ~ {end_date}")
 
-                result = self.scheduler.trigger_manual_collection()
+                if source in ("SECUDIUM", "REGTECH"):
+                    result = self.scheduler.force_collection(source)
+                else:
+                    result = self.scheduler.trigger_manual_collection()
 
                 return jsonify(
                     {
