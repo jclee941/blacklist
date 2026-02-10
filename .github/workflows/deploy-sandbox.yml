@@ -150,45 +150,29 @@ jobs:
           echo "📂 Previous deployment: \${PREV_DIR:-none}"
 
           # --- Preserve .env ---
-          if [ -f "\${DEPLOY_BASE}/current/.env" ]; then
-            echo "🔒 Preserving .env from current deployment"
-            cp "\${DEPLOY_BASE}/current/.env" "\${DEPLOY_DIR}/.env"
+          if [ -f "\${PREV_DIR}/.env" ]; then
+            echo "🔒 Preserving .env from \${PREV_DIR}"
+            sudo cp "\${PREV_DIR}/.env" "\${DEPLOY_DIR}/.env"
           elif [ -f "\${DEPLOY_BASE}/env-backup-latest.env" ]; then
             echo "🔒 Restoring .env from backup"
-            cp "\${DEPLOY_BASE}/env-backup-latest.env" "\${DEPLOY_DIR}/.env"
-          else
-            PREV_DIR=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | head -1)
-            if [ -n "\${PREV_DIR}" ] && [ -f "\${PREV_DIR}/.env" ]; then
-              echo "🔒 Preserving .env from \${PREV_DIR}"
-              cp "\${PREV_DIR}/.env" "\${DEPLOY_DIR}/.env"
-            fi
+            sudo cp "\${DEPLOY_BASE}/env-backup-latest.env" "\${DEPLOY_DIR}/.env"
           fi
 
           # --- Backup .env ---
           if [ -f "\${DEPLOY_DIR}/.env" ]; then
-            cp "\${DEPLOY_DIR}/.env" "\${DEPLOY_BASE}/env-backup-latest.env"
+            sudo cp "\${DEPLOY_DIR}/.env" "\${DEPLOY_BASE}/env-backup-latest.env"
           fi
 
           # --- Preserve data volumes ---
-          PREV_SRC="\${DEPLOY_BASE}/current"
-          if [ ! -d "\${PREV_SRC}/data" ]; then
-            PREV_SRC=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | grep -v "blacklist-v\${VERSION}" | head -1)
-          fi
-          if [ -n "\${PREV_SRC}" ] && [ -d "\${PREV_SRC}/data" ]; then
-            echo "💾 Preserving data volumes from \${PREV_SRC}..."
-            cp -a "\${PREV_SRC}/data" "\${DEPLOY_DIR}/data" 2>/dev/null || true
-          fi
-
-          # --- Preserve SSL ---
-          if [ -n "\${PREV_SRC}" ] && [ -d "\${PREV_SRC}/ssl" ]; then
-            echo "🔑 Preserving SSL certificates from \${PREV_SRC}..."
-            cp -a "\${PREV_SRC}/ssl" "\${DEPLOY_DIR}/ssl" 2>/dev/null || true
+          if [ -n "\${PREV_DIR}" ] && [ -d "\${PREV_DIR}/data" ]; then
+            echo "💾 Preserving data volumes from \${PREV_DIR}..."
+            sudo cp -a "\${PREV_DIR}/data" "\${DEPLOY_DIR}/data" 2>/dev/null || true
           fi
 
           # --- Preserve SSL ---
           if [ -n "\${PREV_DIR}" ] && [ -d "\${PREV_DIR}/ssl" ]; then
             echo "🔑 Preserving SSL certificates from \${PREV_DIR}..."
-            cp -a "\${PREV_DIR}/ssl" "\${DEPLOY_DIR}/ssl" 2>/dev/null || true
+            sudo cp -a "\${PREV_DIR}/ssl" "\${DEPLOY_DIR}/ssl" 2>/dev/null || true
           fi
 
           # --- Stop existing deployment ---
@@ -205,6 +189,8 @@ jobs:
 
           # --- Inject GHCR env vars ---
           cd "\${DEPLOY_DIR}"
+          sudo touch .env
+          sudo chown \$(whoami):\$(whoami) .env
           if ! grep -q "GITHUB_REPOSITORY" .env 2>/dev/null; then
             echo "" >> .env
             echo "# --- GHCR Deploy (auto-generated) ---" >> .env
