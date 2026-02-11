@@ -676,7 +676,7 @@ class SecudiumCollector:
                 if entry_date and not ip_record.get("source_date"):
                     ip_record["source_date"] = entry_date
 
-            from collector.core.archive_manager import archive_file
+            from core.archive_manager import archive_file
 
             archive_file("SECUDIUM", tmp_path, filename, period_start=entry_date, period_end=entry_date)
 

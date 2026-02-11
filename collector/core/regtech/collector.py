@@ -322,7 +322,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
             response_text = result.stdout
             logger.info(f"📊 응답 길이: {len(response_text)}")
 
-            from collector.core.archive_manager import archive_content
+            from core.archive_manager import archive_content
 
             archive_content(
                 "REGTECH",

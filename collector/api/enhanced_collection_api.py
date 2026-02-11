@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List
 import time
 
-from collector.core.multi_source_collector import multi_source_collector, SourceType
+from core.multi_source_collector import multi_source_collector, SourceType
 
 logger = logging.getLogger(__name__)
 
