@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 from unittest.mock import patch
-from collector.core.secudium_parsers import (
+from core.secudium_parsers import (
     parse_black_ip_list,
     extract_download_info,
     parse_xls_file,
@@ -142,7 +142,7 @@ class TestIsValidIpOrCidr:
 
 @pytest.mark.unit
 class TestParseXlsFile:
-    @patch("collector.core.secudium_parsers._parse_xls_with_pandas")
+    @patch("core.secudium_parsers._parse_xls_with_pandas")
     def test_pandas_success(self, mock_pandas):
         mock_pandas.return_value = [
             {"ip": "1.2.3.4", "port": 80, "description": "Malware C2", "source_date": "2026-01-01"}
@@ -152,8 +152,8 @@ class TestParseXlsFile:
         assert result[0]["ip"] == "1.2.3.4"
         mock_pandas.assert_called_once_with("/fake/path.xls")
 
-    @patch("collector.core.secudium_parsers._parse_xls_as_text")
-    @patch("collector.core.secudium_parsers._parse_xls_with_pandas")
+    @patch("core.secudium_parsers._parse_xls_as_text")
+    @patch("core.secudium_parsers._parse_xls_with_pandas")
     def test_fallback_to_text_on_pandas_error(self, mock_pandas, mock_text):
         mock_pandas.side_effect = Exception("pandas failed")
         mock_text.return_value = [{"ip": "5.6.7.8", "port": None, "description": "", "source_date": None}]
@@ -163,7 +163,7 @@ class TestParseXlsFile:
         assert result[0]["ip"] == "5.6.7.8"
         mock_text.assert_called_once()
 
-    @patch("collector.core.secudium_parsers._parse_xls_with_pandas")
+    @patch("core.secudium_parsers._parse_xls_with_pandas")
     def test_empty_result(self, mock_pandas):
         mock_pandas.return_value = []
         result = parse_xls_file("/fake/path.xls")

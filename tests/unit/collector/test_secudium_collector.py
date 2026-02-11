@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 import requests
 
 
-COLLECTOR_MODULE = "collector.core.secudium_collector"
+COLLECTOR_MODULE = "core.secudium_collector"
 
 
 def _make_mock_config():
@@ -27,7 +27,7 @@ def mock_env(monkeypatch):
 @pytest.fixture
 def collector(mock_env):
     with patch(f"{COLLECTOR_MODULE}.CollectorConfig", _make_mock_config()):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         c = SecudiumCollector(db_service=MagicMock())
         c._request_delay = 0
@@ -102,7 +102,7 @@ class TestBuildUrl:
 @pytest.mark.unit
 class TestTokenCaching:
     def test_fresh_token_is_valid(self, collector):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         SecudiumCollector._cached_token = "cached:123:" + "d" * 64
         SecudiumCollector._token_obtained_at = datetime.now()
@@ -110,14 +110,14 @@ class TestTokenCaching:
             assert collector._is_token_valid() is True
 
     def test_expired_token_is_invalid(self, collector):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         SecudiumCollector._cached_token = "cached:123:" + "d" * 64
         SecudiumCollector._token_obtained_at = datetime.now() - timedelta(hours=5)
         assert collector._is_token_valid() is False
 
     def test_no_cached_token(self, collector):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None
@@ -127,7 +127,7 @@ class TestTokenCaching:
 @pytest.mark.unit
 class TestAuthenticate:
     def test_uses_cached_valid_token(self, collector):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         token = "cached:999:" + "e" * 64
         SecudiumCollector._cached_token = token
@@ -141,7 +141,7 @@ class TestAuthenticate:
 
     @patch(f"{COLLECTOR_MODULE}.OTPEmailReader")
     def test_otp_flow(self, mock_otp_cls, collector):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None
@@ -163,7 +163,7 @@ class TestAuthenticate:
         assert result is True
 
     def test_direct_login_success(self, collector):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None
@@ -176,7 +176,7 @@ class TestAuthenticate:
         assert result is True
 
     def test_max_attempts_exceeded(self, collector):
-        from collector.core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector
 
         SecudiumCollector._cached_token = None
         SecudiumCollector._token_obtained_at = None

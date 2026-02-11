@@ -262,4 +262,20 @@ export const getDailyDetectionStats = async (days: number = 30) => {
   return data;
 };
 
+// 설정 API
+export const getSettingsGrouped = async () => {
+  const { data } = await api.get('/settings/grouped');
+  return data;
+};
+
+export const updateSettingsBatch = async (settings: { key: string; value: string }[]) => {
+  const { data } = await api.put('/settings/batch', { settings });
+  return data;
+};
+
+export const getSetting = async (key: string) => {
+  const { data } = await api.get(`/settings/${key}`);
+  return data;
+};
+
 export default api;
