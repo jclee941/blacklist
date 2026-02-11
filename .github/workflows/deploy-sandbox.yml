@@ -102,11 +102,8 @@ jobs:
         run: |
           DEPLOY_DIR="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION}"
           SSH="ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }}"
-          SCP="scp -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no"
-
-          ${SSH} "sudo mkdir -p ${DEPLOY_DIR} && sudo chown \$(whoami):\$(whoami) ${DEPLOY_DIR}"
-          ${SCP} deploy/sandbox/docker-compose.yml \
-            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }}:${DEPLOY_DIR}/docker-compose.yml
+          ${SSH} "sudo mkdir -p ${DEPLOY_DIR} && sudo chown -R \$(whoami):\$(whoami) ${DEPLOY_DIR}"
+          cat deploy/sandbox/docker-compose.yml | ${SSH} "cat > ${DEPLOY_DIR}/docker-compose.yml"
 
           echo "✅ Deploy files uploaded to ${DEPLOY_DIR}"
 
