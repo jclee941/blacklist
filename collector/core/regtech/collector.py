@@ -322,12 +322,15 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
             response_text = result.stdout
             logger.info(f"📊 응답 길이: {len(response_text)}")
 
-            try:
-                with open("/tmp/regtech_debug.html", "w", encoding="utf-8") as f:
-                    f.write(response_text)
-                logger.info("💾 디버그 HTML 저장 완료: /tmp/regtech_debug.html")
-            except Exception as e:
-                logger.warning(f"⚠️ 디버그 HTML 저장 실패: {e}")
+            from collector.core.archive_manager import archive_content
+
+            archive_content(
+                "REGTECH",
+                response_text,
+                f"regtech_page{page_num}.html",
+                period_start=start_date,
+                period_end=end_date,
+            )
 
             try:
 

@@ -39,6 +39,10 @@ class CollectorConfig:
     SECUDIUM_EMAIL_PASSWORD = os.getenv("SECUDIUM_EMAIL_PASSWORD", "")
     SECUDIUM_IMAP_SERVER = os.getenv("SECUDIUM_IMAP_SERVER", "imap.kakao.com")
 
+    # 수집 원본 아카이빙 설정
+    ARCHIVE_DIR = os.getenv("COLLECTOR_ARCHIVE_DIR", "/app/data/archive")
+    ARCHIVE_ENABLED = os.getenv("COLLECTOR_ARCHIVE_ENABLED", "true").lower() == "true"
+
     # 인증정보 캐시 (DB 조회 최소화)
     _credentials_cache: Dict[str, Dict[str, str]] = {}
     _cache_loaded = False
