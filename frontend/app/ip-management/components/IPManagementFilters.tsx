@@ -6,9 +6,11 @@ import { TabType } from './types';
 interface IPManagementFiltersProps {
   activeTab: TabType;
   filterType: string;
+  filterSource: string;
   searchIP: string;
   isDownloading: boolean;
   onFilterTypeChange: (value: string) => void;
+  onFilterSourceChange: (value: string) => void;
   onSearchIPChange: (value: string) => void;
   onSearch: () => void;
   onReset: () => void;
@@ -19,9 +21,11 @@ interface IPManagementFiltersProps {
 export function IPManagementFilters({
   activeTab,
   filterType,
+  filterSource,
   searchIP,
   isDownloading,
   onFilterTypeChange,
+  onFilterSourceChange,
   onSearchIPChange,
   onSearch,
   onReset,
@@ -39,6 +43,32 @@ export function IPManagementFilters({
           <option value="">전체</option>
           <option value="whitelist">화이트리스트만</option>
           <option value="blacklist">블랙리스트만</option>
+        </select>
+      )}
+
+      {activeTab === 'unified' && (
+        <select
+          value={filterSource}
+          onChange={(e) => onFilterSourceChange(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg"
+        >
+          <option value="">소스 전체</option>
+          <option value="SECUDIUM">SECUDIUM</option>
+          <option value="REGTECH">REGTECH</option>
+          <option value="MANUAL">수동등록</option>
+        </select>
+      )}
+
+      {activeTab === 'unified' && (
+        <select
+          value={filterSource}
+          onChange={(e) => onFilterSourceChange(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg"
+        >
+          <option value="">소스 전체</option>
+          <option value="SECUDIUM">SECUDIUM</option>
+          <option value="REGTECH">REGTECH</option>
+          <option value="MANUAL">수동등록</option>
         </select>
       )}
 

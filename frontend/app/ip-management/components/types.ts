@@ -9,6 +9,7 @@ export interface IPRecord {
   last_seen?: string;
   country?: string;
   is_active?: boolean;
+  auto_active?: boolean;
   detection_date?: string;
   removal_date?: string;
   created_at: string;

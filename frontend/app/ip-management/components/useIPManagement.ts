@@ -12,6 +12,24 @@ import {
 } from '@/lib/api';
 import { IPRecord, IPFormData, TabType, ListType, INITIAL_FORM_DATA, IPRequestBody } from './types';
 
+interface ApiPagination {
+  total?: number;
+  total_pages?: number;
+  pages?: number;
+}
+
+interface ApiResponse {
+  success?: boolean;
+  error?: string;
+  data?:
+    | {
+        items?: IPRecord[];
+        pagination?: ApiPagination;
+      }
+    | IPRecord[];
+  pagination?: ApiPagination;
+}
+
 export function useIPManagement() {
   const [activeTab, setActiveTab] = useState<TabType>('unified');
   const [data, setData] = useState<IPRecord[]>([]);
@@ -32,6 +50,7 @@ export function useIPManagement() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [filterType, setFilterType] = useState<string>('');
+  const [filterSource, setFilterSource] = useState<string>('');
   const [searchIP, setSearchIP] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -39,10 +58,11 @@ export function useIPManagement() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: '20' });
-      let json;
+      let json: ApiResponse | undefined;
 
       if (activeTab === 'unified') {
         if (filterType) params.append('type', filterType);
+        if (filterSource) params.append('source', filterSource);
         if (searchIP) params.append('ip', searchIP);
         json = await getUnifiedIPs(params.toString());
       } else if (activeTab === 'whitelist') {
@@ -52,8 +72,18 @@ export function useIPManagement() {
       }
 
       if (json && json.success !== false) {
-        const items = json.data?.items || json.data || [];
-        const pagination = json.data?.pagination || json.pagination || {};
+        const responseData = json.data;
+        let items: IPRecord[] = [];
+        let pagination: ApiPagination = {};
+
+        if (Array.isArray(responseData)) {
+          items = responseData;
+          pagination = json.pagination || {};
+        } else if (responseData) {
+          items = responseData.items || [];
+          pagination = responseData.pagination || json.pagination || {};
+        }
+
         setData(items);
         setTotal(pagination.total || 0);
         setTotalPages(pagination.total_pages || pagination.pages || 0);
@@ -63,7 +93,7 @@ export function useIPManagement() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, filterType, searchIP]);
+  }, [activeTab, page, filterType, filterSource, searchIP]);
 
   useEffect(() => {
     fetchData();
@@ -271,11 +301,13 @@ export function useIPManagement() {
     submitSuccess,
     submitError,
     filterType,
+    filterSource,
     searchIP,
     isDownloading,
     setPage,
     setFormData,
     setFilterType,
+    setFilterSource,
     setSearchIP,
     changeTab,
     fetchData,

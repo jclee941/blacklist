@@ -51,6 +51,7 @@ class IPManagementRepository:
         list_type: Optional[str] = None,
         search_ip: Optional[str] = None,
         is_active: Optional[bool] = True,
+        source: Optional[str] = None,
     ) -> tuple[list[dict], int]:
         """Get unified IP list with pagination. Returns (items, total_count)."""
         offset = (page - 1) * limit
@@ -64,13 +65,13 @@ class IPManagementRepository:
                 SELECT 'blacklist' AS list_type, id, ip_address, reason, source,
                        data_source, confidence_level, detection_count, is_active,
                        country, detection_date, removal_date, last_seen,
-                       created_at, updated_at
+                       created_at, updated_at, auto_active
                 FROM blacklist_ips_with_auto_inactive
                 UNION ALL
                 SELECT 'whitelist' AS list_type, id, ip_address, reason, source,
                        NULL AS data_source, NULL AS confidence_level, NULL AS detection_count, TRUE AS is_active,
                        country, NULL AS detection_date, NULL AS removal_date, NULL AS last_seen,
-                       created_at, updated_at
+                       created_at, updated_at, TRUE AS auto_active
                 FROM whitelist_ips
             """
 
@@ -89,6 +90,10 @@ class IPManagementRepository:
                 where_clauses.append("is_active = %s")
                 params.append(is_active)
 
+            if source:
+                where_clauses.append("source = %s")
+                params.append(source)
+
             where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
             cursor.execute(
@@ -104,7 +109,7 @@ class IPManagementRepository:
                     list_type, id, ip_address, reason, source,
                     data_source, confidence_level, detection_count, is_active,
                     country, detection_date, removal_date, last_seen,
-                    created_at, updated_at
+                    created_at, updated_at, auto_active
                 FROM ({union_sql}) AS unified
                 WHERE {where_sql}
                 ORDER BY created_at DESC
@@ -312,7 +317,7 @@ class IPManagementRepository:
                 SELECT id, ip_address, reason, source, data_source,
                        confidence_level, detection_count, is_active, country,
                        detection_date, removal_date, last_seen,
-                       created_at, updated_at
+                       created_at, updated_at, auto_active
                 FROM blacklist_ips_with_auto_inactive
                 ORDER BY created_at DESC
                 LIMIT %s OFFSET %s

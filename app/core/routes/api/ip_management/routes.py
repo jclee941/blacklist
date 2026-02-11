@@ -37,6 +37,7 @@ def get_unified_ip_list() -> tuple[Response, int]:
     list_type = validate_list_type(request.args.get("type"))
     search_ip = request.args.get("ip")
     is_active = parse_bool_param(request.args.get("is_active"), default=True)
+    source = request.args.get("source")
 
     try:
         repo = _get_repository()
@@ -46,6 +47,7 @@ def get_unified_ip_list() -> tuple[Response, int]:
             list_type=list_type,
             search_ip=search_ip,
             is_active=is_active,
+            source=source,
         )
         return jsonify(paginated_response(items, total, page, limit)), 200
 

@@ -27,11 +27,13 @@ export default function IPManagementClient() {
     submitSuccess,
     submitError,
     filterType,
+    filterSource,
     searchIP,
     isDownloading,
     setPage,
     setFormData,
     setFilterType,
+    setFilterSource,
     setSearchIP,
     changeTab,
     fetchData,
@@ -101,9 +103,11 @@ export default function IPManagementClient() {
       <IPManagementFilters
         activeTab={activeTab}
         filterType={filterType}
+        filterSource={filterSource}
         searchIP={searchIP}
         isDownloading={isDownloading}
         onFilterTypeChange={setFilterType}
+        onFilterSourceChange={setFilterSource}
         onSearchIPChange={setSearchIP}
         onSearch={fetchData}
         onReset={handleSearchReset}

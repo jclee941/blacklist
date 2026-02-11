@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { IPRecord, TabType } from './types';
 
 interface IPManagementTableProps {
@@ -114,9 +114,25 @@ export function IPManagementTable({
                     <td className="px-4 py-3 text-sm">
                       {record.is_active !== undefined &&
                         (record.is_active ? (
-                          <CheckCircle className="h-5 w-5 text-green-500 inline" />
+                          record.auto_active === false ? (
+                            <span
+                              className="inline-flex items-center gap-1"
+                              title="30일 이상 미탐지"
+                            >
+                              <AlertTriangle className="h-5 w-5 text-orange-500 inline" />
+                              <span className="text-xs text-orange-600">비활동</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <CheckCircle className="h-5 w-5 text-green-500 inline" />
+                              <span className="text-xs text-green-600">활성</span>
+                            </span>
+                          )
                         ) : (
-                          <XCircle className="h-5 w-5 text-gray-400 inline" />
+                          <span className="inline-flex items-center gap-1">
+                            <XCircle className="h-5 w-5 text-gray-400 inline" />
+                            <span className="text-xs text-gray-500">해제</span>
+                          </span>
                         ))}
                     </td>
                     <td className="px-4 py-3 text-sm whitespace-nowrap">
