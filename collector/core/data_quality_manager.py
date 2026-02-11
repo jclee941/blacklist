@@ -169,7 +169,7 @@ class DataQualityManager:
                 SELECT COUNT(*) FROM blacklist_ips 
                 WHERE is_active = true 
                 AND removal_date IS NOT NULL 
-                AND removal_date <= CURRENT_DATE
+                AND removal_date < CURRENT_DATE
             """
             )
             expired_active = cursor.fetchone()[0]
@@ -297,7 +297,7 @@ class DataQualityManager:
                 SET is_active = false 
                 WHERE is_active = true 
                 AND removal_date IS NOT NULL 
-                AND removal_date <= CURRENT_DATE
+                AND removal_date < CURRENT_DATE
             """
             )
             expired_deactivated = cursor.rowcount
