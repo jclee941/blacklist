@@ -95,7 +95,7 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sfk https://localhost:443 || exit 1"]
+      test: ["CMD-SHELL", "node -e \"const https=require('https');const r=https.request({hostname:'localhost',port:443,path:'/health',rejectUnauthorized:false},(res)=>{process.exit(res.statusCode===200?0:1)});r.on('error',()=>process.exit(1));r.end();\""]
       interval: 30s
       timeout: 10s
       retries: 3
