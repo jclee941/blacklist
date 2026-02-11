@@ -27,7 +27,12 @@ def mock_env(monkeypatch):
 @pytest.fixture
 def collector(mock_env):
     with patch(f"{COLLECTOR_MODULE}.CollectorConfig", _make_mock_config()):
-        from core.secudium_collector import SecudiumCollector
+        from core.secudium_collector import SecudiumCollector, auth_rate_limiter
+
+        # Reset module-level rate limiter to prevent cross-test contamination
+        auth_rate_limiter.consecutive_failures = 0
+        auth_rate_limiter.locked_until = 0.0
+        auth_rate_limiter.last_request_time = 0
 
         c = SecudiumCollector(db_service=MagicMock())
         c._request_delay = 0
