@@ -114,6 +114,7 @@ services:
       WATCHTOWER_HTTP_API_UPDATE: "true"
       WATCHTOWER_HTTP_API_TOKEN: "${WATCHTOWER_TOKEN:-watchtower-sandbox}"
       WATCHTOWER_HTTP_API_PERIODIC_POLLS: "true"
+      DOCKER_API_VERSION: "1.44"
       DOCKER_CONFIG: /config
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
