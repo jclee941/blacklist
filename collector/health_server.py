@@ -253,10 +253,10 @@ class HealthServer:
                 otp_code = data.get("otp_code", "").strip()
 
                 if not otp_code:
-                    return jsonify({"success": False, "error": "OTP 코드가 필요합니다"})
+                    return jsonify({"success": False, "error": "OTP 코드가 필요합니다"}), 400
 
                 if len(otp_code) != 6 or not otp_code.isdigit():
-                    return jsonify({"success": False, "error": "OTP는 6자리 숫자여야 합니다"})
+                    return jsonify({"success": False, "error": "OTP는 6자리 숫자여야 합니다"}), 400
 
                 pending = getattr(self, "_secudium_pending_auth", None)
                 if not pending:
@@ -265,7 +265,7 @@ class HealthServer:
                             "success": False,
                             "error": "대기 중인 인증 세션이 없습니다. 먼저 연결 테스트를 실행하세요.",
                         }
-                    )
+                    ), 400
 
                 # Check timeout (5 minutes)
                 elapsed = (datetime.now() - pending["timestamp"]).total_seconds()
@@ -276,7 +276,7 @@ class HealthServer:
                             "success": False,
                             "error": "OTP 세션이 만료되었습니다. 다시 연결 테스트를 실행하세요.",
                         }
-                    )
+                    ), 400
 
                 collector = pending["collector"]
                 result = collector.authenticate_step2(otp_code)
