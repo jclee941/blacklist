@@ -647,35 +647,259 @@ CI=true npx playwright test
 
 ### Test Fixtures & Patterns
 
-**Location:** `tests/conftest.py`
+**Location:** `tests/unit/services/*.py` and `tests/unit/collector/*.py` (inline fixtures, no central conftest.py)
 
-Common patterns:
+**Fixture Pattern 1: Simple Flask App**
 ```python
 @pytest.fixture
-def mock_service():
-    """Mock blacklist service"""
-    with patch('app.core.services.blacklist_service') as mock:
-        yield mock
+def app():
+    """Create Flask app in test mode"""
+    app = create_app()
+    app.config["TESTING"] = True
+    return app
 
-@pytest.mark.service
-def test_blacklist_service(mock_service):
-    """Test service behavior"""
-    assert mock_service.called
-
-@pytest.mark.parametrize("input,expected", [
-    ("192.168.1.1", True),
-    ("invalid", False),
-])
-def test_ip_validation(input, expected):
-    """Test IP validation with multiple inputs"""
-    assert validate_ip(input) == expected
+@pytest.fixture()
+def client():
+    """Test client with Flask test context"""
+    app = create_app()
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        yield c  # Cleanup on test completion
 ```
 
-**Run with specific marker:**
+**Fixture Pattern 2: Mock Service Dependency**
+```python
+@pytest.fixture
+def mock_db_service():
+    """Mock database service"""
+    service = Mock()
+    service.query = Mock(return_value=Mock())
+    service.execute = Mock(return_value=[])
+    return service
+
+@pytest.fixture
+def mock_redis():
+    """Mock Redis client"""
+    with patch('redis.Redis') as mock:
+        mock.return_value.ping.return_value = True
+        yield mock
+```
+
+**Fixture Pattern 3: Dependency Injection via Fixture Parameters**
+```python
+@pytest.fixture
+def blacklist_service(mock_db_service, mock_redis):
+    """Inject mocked dependencies into service"""
+    with patch('app.core.services.blacklist_service.redis') as mock_redis:
+        mock_redis.Redis.return_value.ping.return_value = True
+        service = BlacklistService(db_service=mock_db_service)
+        return service
+
+def test_blacklist_service(blacklist_service):
+    """Test receives fully mocked service"""
+    result = blacklist_service.validate_ip("192.168.1.1")
+    assert result is True
+```
+
+**Mocking Patterns:**
+
+1. **@patch Decorator:**
+```python
+@patch('app.core.services.blacklist_service')
+def test_with_patch(mock_service):
+    """Patch external dependency"""
+    mock_service.validate_ip.return_value = True
+    assert mock_service.validate_ip("192.168.1.1")
+```
+
+2. **Mock with Side Effect (Exception Raising):**
+```python
+@patch('app.core.services.database_service.query')
+def test_error_handling(mock_query):
+    """Mock error condition"""
+    mock_query.side_effect = DatabaseError("Connection failed")
+    with pytest.raises(DatabaseError):
+        service.fetch_blacklist()
+```
+
+3. **Mock with Return Values:**
+```python
+mock_service = Mock()
+mock_service.method.return_value = {"status": "ok"}
+mock_service.method.return_value = [1, 2, 3]  # Sequential calls return different values
+```
+
+**Test Markers:**
 ```bash
 pytest tests/unit -m service       # Only @pytest.mark.service tests
 pytest tests/unit -m collector     # Only @pytest.mark.collector tests
+pytest tests/unit -m integration   # Integration tests
+pytest tests/unit -m security      # Security tests
 ```
+
+**Key Pattern: Yield for Cleanup**
+
+Fixtures must use `yield` instead of `return` to ensure proper cleanup:
+```python
+@pytest.fixture
+def database_connection():
+    """Fixture with cleanup"""
+    conn = create_connection()  # Setup
+    yield conn                   # Provide to test
+    conn.close()                 # Cleanup (always runs)
+```
+
+### Mock FortiGate API Server
+
+**Location:** `tests/mock-fortigate/`
+
+**Purpose:** Simulate FortiManager/FortiGate environment for integration testing without requiring actual hardware.
+
+**Server Details:**
+- Framework: Flask-based JSON-RPC 2.0 server
+- Port: 8000 (configurable)
+- Endpoints:
+  - `GET /health` — Server health check (returns service name, status, version)
+  - `GET /debug/status` — In-memory data summary (count of all objects)
+  - `POST /jsonrpc` — JSON-RPC 2.0 API (main endpoint)
+
+**Authentication:**
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "exec",
+  "params": ["/sys/login/user", {"username": "admin", "password": "admin"}],
+  "id": 1
+}
+```
+Returns: `{"status": 0, "response": {"session": "uuid-string"}}`
+
+Session stored in-memory: `{session_id: {user: "admin", login_time: timestamp}}`
+
+**JSON-RPC Methods:**
+- `exec` — Execute actions (login, logout, update external resources)
+- `add` — Create new object (address, address group, policy)
+- `get` — Retrieve object (read-only)
+- `set` — Modify object properties
+- `delete` — Remove object
+
+**API Endpoints:**
+```
+POST /jsonrpc
+├─ /sys/login/user (exec) — Authenticate, get session token
+├─ /sys/logout (exec) — End session
+├─ /obj/system/external-resource (add/get/delete) — External IP data sources
+├─ /obj/system/sdn-connector (add/get/set) — SDN connector sync
+├─ /obj/firewall/address (add/get/delete) — IP address objects
+├─ /obj/firewall/addrgrp (add/get/delete) — Address groups
+└─ /firewall/policy (add/get/delete) — Firewall policies
+```
+
+**In-Memory Storage Structure:**
+```python
+mock_server.sessions = {
+    "session_uuid": {
+        "user": "admin",
+        "login_time": 1707523200
+    }
+}
+mock_server.resources = {
+    "resource_id": {
+        "name": "blacklist-feed",
+        "type": "remote",
+        "src": "http://api/feed"
+    }
+}
+mock_server.connectors = {...}  # SDN connectors
+mock_server.addresses = {...}   # Firewall addresses
+mock_server.policies = {...}    # Firewall policies
+```
+
+**Configuration:**
+```python
+# tests/mock-fortigate/config.py
+MOCK_ADMIN_USER = "admin"
+MOCK_ADMIN_PASSWORD = "admin"
+MOCK_API_VERSION = "7.4.0"
+MOCK_SESSION_TIMEOUT = 3600  # 1 hour
+```
+
+**Usage in Tests:**
+```python
+def test_fortimanager_integration():
+    """Test integration with mock FortiManager"""
+    # Mock server already running on localhost:8000
+    client = FortiManagerClient(url="http://localhost:8000")
+    session = client.login("admin", "admin")
+    
+    # Create address object
+    client.add_address("192.168.1.0/24", "test-network")
+    
+    # Verify it was created
+    addresses = client.get_addresses()
+    assert "test-network" in [a["name"] for a in addresses]
+    
+    # Logout
+    client.logout(session)
+```
+
+### E2E Test Inventory
+
+**Framework:** Playwright (20 test files)  
+**Config:** `frontend/playwright.config.ts`  
+**Location:** `frontend/e2e/`
+
+**Test Files by Category:**
+
+| Category | Count | Files | Purpose |
+|----------|-------|-------|---------|
+| **Core Features** | 9 | accessibility, analytics-features, auth, collection, collection-features, dashboard-features, database-features, error-handling, fortinet-features | Test main application functionality |
+| **IP Management** | 2 | ip-management, ip-management-features | IP list creation, modification, deletion |
+| **UI Navigation** | 2 | homepage, navigation-features | Page routing, menu interaction |
+| **Infrastructure** | 2 | performance, settings-features | Load times, responsive design, settings UI |
+| **Quality Assurance** | 2 | smoke, views | Quick health checks, page rendering |
+| **Visual Regression** | 1 | visual-regression | Multi-browser snapshot comparison (Chrome, Safari) |
+| **Regression Testing** | 2 | issue-001-example-navigation, _template-issue-XXX | Bug prevention from past issues |
+
+**Directory Structure:**
+```
+frontend/e2e/
+├── accessibility.spec.ts               # WCAG compliance
+├── analytics-features.spec.ts           # Analytics module
+├── auth.spec.ts                         # Login/logout flows
+├── collection.spec.ts                   # Data collection
+├── collection-features.spec.ts          # Collection management
+├── dashboard-features.spec.ts           # Dashboard UI
+├── database-features.spec.ts            # Database operations
+├── error-handling.spec.ts               # Error page rendering
+├── fortinet-features.spec.ts            # FortiGate integration
+├── homepage.spec.ts                     # Landing page
+├── ip-management.spec.ts                # IP CRUD operations
+├── ip-management-features.spec.ts       # Advanced IP features
+├── navigation-features.spec.ts          # Navigation flows
+├── performance.spec.ts                  # Load time metrics
+├── settings-features.spec.ts            # Settings UI
+├── smoke.spec.ts                        # Quick health check
+├── views.spec.ts                        # Page rendering
+├── visual-regression.spec.ts            # Browser-specific visuals
+└── regression/
+    ├── issue-001-example-navigation.spec.ts  # Past bug: navigation broken
+    └── _template-issue-XXX.spec.ts          # Template for new regression tests
+```
+
+**Run Commands:**
+```bash
+make test-e2e                          # All E2E tests
+npx playwright test                    # Or directly
+npx playwright test --project=smoke    # Only smoke tests
+CI=true npx playwright test            # CI mode (1 worker, sequential)
+```
+
+**Test Execution:**
+- **Local:** Parallel (multiple workers for speed)
+- **CI:** Sequential (1 worker to prevent flakiness)
+- **Timeout:** 60 seconds per test
+- **Projects:** smoke (fast), chromium (desktop), webkit (safari)
 
 ## RELEASE PROCESS
 
