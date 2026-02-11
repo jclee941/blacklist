@@ -159,9 +159,6 @@ LABEL buildtime=${BUILDTIME:-unknown}
 LABEL description="Flask Blacklist Management System v3.3.9"
 LABEL maintainer="qws941"
 
-# Removed Watchtower labels - Using Portainer-based deployment
-
-# Container management labels (Portainer controlled)
 LABEL com.docker.compose.project=blacklist
 LABEL com.docker.compose.service=app
 

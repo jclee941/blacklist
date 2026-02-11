@@ -129,10 +129,10 @@ jobs:
           echo "🔐 Docker login to GHCR..."
           echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login "\${REGISTRY}" -u "${{ github.actor }}" --password-stdin
 
-          # --- Pull images ---
-          echo "📥 Pulling images from GHCR..."
+          # --- Pull images (always :latest for Watchtower compatibility) ---
+          echo "📥 Pulling :latest images from GHCR..."
           for svc in postgres redis collector app frontend; do
-            IMAGE="\${REGISTRY}/\${REPO}/blacklist-\${svc}:\${VERSION}"
+            IMAGE="\${REGISTRY}/\${REPO}/blacklist-\${svc}:latest"
             echo "  Pulling \${IMAGE}..."
             sudo docker pull "\${IMAGE}"
           done
@@ -209,7 +209,6 @@ jobs:
             echo "GITHUB_REPOSITORY=\${REPO}" >> .env
           fi
           sed -i '/^VERSION=/d' .env 2>/dev/null || true
-          echo "VERSION=\${VERSION}" >> .env
           sed -i '/^REGISTRY=/d' .env 2>/dev/null || true
           echo "REGISTRY=\${REGISTRY}" >> .env
 
