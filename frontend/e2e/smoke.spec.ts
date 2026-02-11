@@ -56,14 +56,14 @@ test.describe('Smoke Tests @smoke', () => {
       expect(res.status()).toBe(200);
     });
 
-    test('GET /api/system/status - 시스템 상태', async ({ page }) => {
+    test('GET /api/dashboard/status - 시스템 상태', async ({ page }) => {
       const token = await getToken(page);
-      const res = await page.request.get(`${API_BASE}/api/system/status`, {
+      const res = await page.request.get(`${API_BASE}/api/dashboard/status`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       expect(res.status()).toBe(200);
       const body = await res.json();
-      expect(body).toHaveProperty('status');
+      expect(body).toHaveProperty('success');
     });
   });
 
@@ -108,14 +108,15 @@ test.describe('Smoke Tests @smoke', () => {
       expect(typeof body === 'object').toBeTruthy();
     });
 
-    test('GET /api/status - 상태 API 응답', async ({ page }) => {
+    test('GET /api/dashboard/stats - 대시보드 통계 응답', async ({ page }) => {
       const token = await getToken(page);
-      const res = await page.request.get(`${API_BASE}/api/status`, {
+      const res = await page.request.get(`${API_BASE}/api/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       expect(res.status()).toBe(200);
       const body = await res.json();
       expect(body).toBeDefined();
+      expect(body).toHaveProperty('success');
     });
   });
 });
