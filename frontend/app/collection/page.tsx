@@ -20,7 +20,7 @@ export default function CollectionPage() {
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <PageHeader
         title="데이터 수집"
-        description="REGTECH 데이터 수집 관리 및 이력"
+        description="블랙리스트 데이터 수집 관리 및 이력"
         icon={Database}
       />
 

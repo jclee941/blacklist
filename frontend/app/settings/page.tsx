@@ -273,7 +273,23 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-4">
-              <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/health');
+                    const data = await res.json();
+                    alert(
+                      data.status === 'healthy'
+                        ? '데이터베이스 연결 성공'
+                        : '데이터베이스 연결 실패'
+                    );
+                  } catch {
+                    alert('연결 테스트 실패: 서버에 연결할 수 없습니다');
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
                 <RefreshCw className="w-4 h-4" />
                 연결 테스트
               </button>

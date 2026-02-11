@@ -273,9 +273,4 @@ export const updateSettingsBatch = async (settings: { key: string; value: string
   return data;
 };
 
-export const getSetting = async (key: string) => {
-  const { data } = await api.get(`/settings/${key}`);
-  return data;
-};
-
 export default api;
