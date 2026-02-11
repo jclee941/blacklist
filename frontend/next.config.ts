@@ -3,6 +3,15 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  async redirects() {
+    return [
+      {
+        source: '/monitoring',
+        destination: '/',
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:2542';
     return [

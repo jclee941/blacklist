@@ -83,14 +83,9 @@ test.describe('설정 페이지', () => {
     const saveBtn = page.getByRole('button', { name: /저장/ });
     if (await saveBtn.isVisible().catch(() => false)) {
       await saveBtn.click();
-      await page.waitForTimeout(1000);
 
-      const successMsg = page.getByText('설정이 저장되었습니다.');
-      const errorMsg = page.getByText('설정 저장에 실패했습니다.');
-
-      const hasSuccess = await successMsg.isVisible().catch(() => false);
-      const hasError = await errorMsg.isVisible().catch(() => false);
-      expect(hasSuccess || hasError).toBe(true);
+      const responseMsg = page.getByText(/설정이 저장되었습니다|설정 저장에 실패했습니다/);
+      await expect(responseMsg).toBeVisible({ timeout: 10000 });
     }
   });
 
