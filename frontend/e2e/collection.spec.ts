@@ -23,7 +23,7 @@ test.describe('Collection Page - Basic Navigation', () => {
 
   test('should display collection page with header', async ({ page }) => {
     await expect(page.locator('h1').filter({ hasText: '데이터 수집' })).toBeVisible();
-    await expect(page.getByText('REGTECH 데이터 수집 관리 및 이력')).toBeVisible();
+    await expect(page.getByText('블랙리스트 데이터 수집 관리 및 이력')).toBeVisible();
   });
 
   test('should display all 2 tabs', async ({ page }) => {
