@@ -281,17 +281,8 @@ class HealthServer:
                 collector = pending["collector"]
                 result = collector.authenticate_step2(otp_code)
 
-                self._secudium_pending_auth = None
-
-                if result == "success":
-                    return jsonify(
-                        {
-                            "success": True,
-                            "message": "SECUDIUM 인증 성공",
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                    )
-                else:
+                if result != "success":
+                    self._secudium_pending_auth = None
                     return jsonify(
                         {
                             "success": False,
@@ -299,6 +290,46 @@ class HealthServer:
                             "timestamp": datetime.now().isoformat(),
                         }
                     )
+
+                # Auth succeeded — check if collection was requested
+                trigger_collect = data.get("trigger_collect", False)
+                if trigger_collect:
+                    try:
+                        logger.info("OTP auth success + trigger_collect: starting Secudium collection")
+                        collect_result = collector.collect_data()
+                        self._secudium_pending_auth = None
+                        return jsonify(
+                            {
+                                "success": True,
+                                "message": "SECUDIUM 인증 및 수집 완료",
+                                "collection": True,
+                                "collected_count": collect_result.get("total_ips", 0)
+                                if isinstance(collect_result, dict)
+                                else 0,
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                        )
+                    except Exception as collect_err:
+                        logger.error(f"Collection after OTP auth failed: {collect_err}")
+                        self._secudium_pending_auth = None
+                        return jsonify(
+                            {
+                                "success": True,
+                                "message": "SECUDIUM 인증 성공, 수집 실패",
+                                "collection": False,
+                                "error": str(collect_err),
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                        )
+
+                self._secudium_pending_auth = None
+                return jsonify(
+                    {
+                        "success": True,
+                        "message": "SECUDIUM 인증 성공",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error during Secudium OTP submission: {e}")

@@ -33,7 +33,7 @@ const SECUDIUM_INITIAL_FORM_STATE: SecudiumCredentialFormState = {
   password: '',
   enabled: true,
   collection_interval: 'daily',
-  otp_mode: 'auto',
+  otp_mode: 'manual',
   email: '',
   email_password: '',
   imap_server: 'imap.kakao.com',
@@ -169,6 +169,7 @@ export function useCollectionManagement() {
           `/proxy/collection/credentials/${otpServiceName.toLowerCase()}/test`,
           {
             otp_code: otpCode,
+            trigger_collect: true,
           }
         );
 
@@ -185,7 +186,15 @@ export function useCollectionManagement() {
         );
 
         if (data.success) {
-          setNotification({ type: 'success', message: `${otpServiceName} OTP 인증 및 연결 성공!` });
+          if (data.collection) {
+            setNotification({
+              type: 'success',
+              message: `${otpServiceName} OTP 인증 및 수집 완료! (${data.collected_count || 0}건)`,
+            });
+            setTimeout(fetchData, 2000);
+          } else {
+            setNotification({ type: 'success', message: `${otpServiceName} OTP 인증 성공!` });
+          }
           setShowOtpDialog(false);
           setOtpServiceName(null);
         } else {
