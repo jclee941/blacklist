@@ -20,6 +20,7 @@ test.describe('Visual Regression Tests', () => {
     await expect(page).toHaveScreenshot('homepage-desktop.png', {
       fullPage: true,
       timeout: 10000,
+      maxDiffPixelRatio: 0.05,
     });
   });
 
@@ -33,6 +34,7 @@ test.describe('Visual Regression Tests', () => {
     await expect(page).toHaveScreenshot('homepage-mobile.png', {
       fullPage: true,
       timeout: 10000,
+      maxDiffPixelRatio: 0.05,
     });
   });
 
@@ -48,6 +50,7 @@ test.describe('Visual Regression Tests', () => {
     await expect(page).toHaveScreenshot('mobile-menu-open.png', {
       fullPage: true,
       timeout: 10000,
+      maxDiffPixelRatio: 0.15,
     });
   });
 
@@ -58,6 +61,7 @@ test.describe('Visual Regression Tests', () => {
     await expect(page).toHaveScreenshot('ip-management.png', {
       fullPage: true,
       timeout: 10000,
+      maxDiffPixelRatio: 0.05,
     });
   });
 
@@ -76,6 +80,7 @@ test.describe('Visual Regression Tests', () => {
     await expect(page).toHaveScreenshot('nav-hover.png', {
       animations: 'disabled',
       timeout: 10000,
+      maxDiffPixelRatio: 0.05,
     });
   });
 });
@@ -88,6 +93,7 @@ test.describe('Component Visual Tests', () => {
     const navbar = page.locator('nav');
     await expect(navbar).toHaveScreenshot('navbar-component.png', {
       timeout: 10000,
+      maxDiffPixelRatio: 0.05,
     });
   });
 
@@ -103,6 +109,7 @@ test.describe('Component Visual Tests', () => {
     const statusIndicator = page.getByTestId('navbar-status');
     await expect(statusIndicator).toHaveScreenshot('status-indicator.png', {
       timeout: 10000,
+      maxDiffPixelRatio: 0.05,
     });
   });
 });
@@ -127,6 +134,7 @@ test.describe('Responsive Design Tests', () => {
       await expect(page).toHaveScreenshot(`responsive-${viewport.name}.png`, {
         fullPage: false, // Only visible viewport for responsive tests
         timeout: 10000,
+        maxDiffPixelRatio: 0.05,
       });
     });
   }

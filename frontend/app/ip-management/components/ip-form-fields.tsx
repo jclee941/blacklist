@@ -47,7 +47,10 @@ export function IPFormFields({
       </div>
 
       <div>
-        <label htmlFor={`${idPrefix}-reason`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor={`${idPrefix}-reason`}
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           사유 <span className="text-red-500">*</span>
         </label>
         <input
@@ -62,7 +65,10 @@ export function IPFormFields({
       </div>
 
       <div>
-        <label htmlFor={`${idPrefix}-source`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor={`${idPrefix}-source`}
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           소스
         </label>
         <select
@@ -79,7 +85,10 @@ export function IPFormFields({
 
       {onCountryChange && (
         <div>
-          <label htmlFor={`${idPrefix}-country`} className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor={`${idPrefix}-country`}
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             국가 코드
           </label>
           <input
@@ -113,7 +122,10 @@ export function IPFormFields({
 
           {onDetectionDateChange && (
             <div>
-              <label htmlFor={`${idPrefix}-detection`} className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor={`${idPrefix}-detection`}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 탐지일 <span className="text-red-500">*</span>
               </label>
               <input
@@ -129,8 +141,12 @@ export function IPFormFields({
 
           {onRemovalDateChange && (
             <div>
-              <label htmlFor={`${idPrefix}-removal`} className="block text-sm font-medium text-gray-700 mb-1">
-                해제일 (자동: 탐지일 + 3개월) <span className="text-red-500">*</span>
+              <label
+                htmlFor={`${idPrefix}-removal`}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                해제일{formData.source !== 'REGTECH' ? ' (자동: 탐지일 + 3개월)' : ''}{' '}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 id={`${idPrefix}-removal`}

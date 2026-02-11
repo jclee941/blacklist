@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 /**
  * Smoke Tests - Deployment Verification
@@ -9,6 +9,16 @@ import { test, expect } from '@playwright/test';
  * Run: npm run test:e2e -- --grep "@smoke"
  * Run with custom URL: BASE_URL=https://staging.example.com npm run test:e2e -- --grep "@smoke"
  */
+
+const API_BASE = process.env.API_URL || 'http://localhost:2542';
+
+async function getToken(page: Page): Promise<string> {
+  const res = await page.request.post(`${API_BASE}/api/auth/login`, {
+    data: { username: 'admin', password: 'admin' },
+  });
+  const body = await res.json();
+  return body.data?.token ?? body.token ?? '';
+}
 
 test.describe('Smoke Tests @smoke', () => {
   test.describe.configure({ mode: 'parallel' });
@@ -21,27 +31,38 @@ test.describe('Smoke Tests @smoke', () => {
       expect(body).toHaveProperty('status');
     });
 
-    test('GET /api/health - API 헬스체크', async ({ request }) => {
-      const response = await request.get('/api/health');
-      expect(response.status()).toBe(200);
-    });
-
-    test('GET /api/collection/health - 수집기 헬스체크', async ({ request }) => {
-      const response = await request.get('/api/collection/health');
-      expect(response.status()).toBe(200);
-      const body = await response.json();
+    test('GET /health - API 헬스체크 (direct)', async ({ page }) => {
+      const res = await page.request.get(`${API_BASE}/health`);
+      expect(res.status()).toBe(200);
+      const body = await res.json();
       expect(body).toHaveProperty('status');
     });
 
-    test('GET /api/blacklist/health - 블랙리스트 서비스 헬스체크', async ({ request }) => {
-      const response = await request.get('/api/blacklist/health');
-      expect(response.status()).toBe(200);
+    test('GET /api/collection/health - 수집기 헬스체크', async ({ page }) => {
+      const token = await getToken(page);
+      const res = await page.request.get(`${API_BASE}/api/collection/health`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(res.status()).toBe(200);
+      const body = await res.json();
+      expect(body).toHaveProperty('status');
     });
 
-    test('GET /api/system/status - 시스템 상태', async ({ request }) => {
-      const response = await request.get('/api/system/status');
-      expect(response.status()).toBe(200);
-      const body = await response.json();
+    test('GET /api/blacklist/health - 블랙리스트 서비스 헬스체크', async ({ page }) => {
+      const token = await getToken(page);
+      const res = await page.request.get(`${API_BASE}/api/blacklist/health`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(res.status()).toBe(200);
+    });
+
+    test('GET /api/system/status - 시스템 상태', async ({ page }) => {
+      const token = await getToken(page);
+      const res = await page.request.get(`${API_BASE}/api/system/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(res.status()).toBe(200);
+      const body = await res.json();
       expect(body).toHaveProperty('status');
     });
   });
@@ -56,7 +77,6 @@ test.describe('Smoke Tests @smoke', () => {
     test('IP 관리 페이지 로드', async ({ page }) => {
       await page.goto('/ip-management');
       await expect(page.locator('body')).toBeVisible();
-      // Check page-specific element exists
       await expect(page.locator('h1, [data-testid="page-title"]').first()).toBeVisible();
     });
 
@@ -77,18 +97,24 @@ test.describe('Smoke Tests @smoke', () => {
   });
 
   test.describe('API Basic Response', () => {
-    test('GET /api/blacklist/list - 블랙리스트 데이터 응답', async ({ request }) => {
-      const response = await request.get('/api/blacklist/list');
-      expect(response.status()).toBe(200);
-      const body = await response.json();
+    test('GET /api/blacklist/list - 블랙리스트 데이터 응답', async ({ page }) => {
+      const token = await getToken(page);
+      const res = await page.request.get(`${API_BASE}/api/blacklist/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(res.status()).toBe(200);
+      const body = await res.json();
       expect(body).toBeDefined();
       expect(typeof body === 'object').toBeTruthy();
     });
 
-    test('GET /api/status - 상태 API 응답', async ({ request }) => {
-      const response = await request.get('/api/status');
-      expect(response.status()).toBe(200);
-      const body = await response.json();
+    test('GET /api/status - 상태 API 응답', async ({ page }) => {
+      const token = await getToken(page);
+      const res = await page.request.get(`${API_BASE}/api/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(res.status()).toBe(200);
+      const body = await res.json();
       expect(body).toBeDefined();
     });
   });

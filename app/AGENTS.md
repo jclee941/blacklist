@@ -1,7 +1,7 @@
 # AGENTS.md — Flask API (`app/`)
 
-**Generated:** 2026-02-09
-**Commit:** 841eb71 | **Version:** 3.5.39
+**Generated:** 2026-02-11
+**Commit:** 6cd4c24 | **Version:** 3.5.53
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## STRUCTURE

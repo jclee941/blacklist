@@ -247,7 +247,7 @@ CREATE INDEX IF NOT EXISTS idx_system_settings_key ON system_settings(setting_ke
 CREATE INDEX IF NOT EXISTS idx_credentials_service ON credentials(service_name);
 
 CREATE OR REPLACE VIEW active_blacklist AS
-SELECT ip_address, reason, source, category, confidence_level, country, detection_date, detection_count, last_seen, created_at
+SELECT ip_address, reason, source, category, confidence_level, country, detection_date, removal_date, detection_count, last_seen, created_at
 FROM blacklist_ips WHERE is_active = TRUE ORDER BY last_seen DESC, confidence_level DESC;
 
 CREATE OR REPLACE VIEW collection_statistics AS

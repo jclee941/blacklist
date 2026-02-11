@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import requests
 
 
@@ -267,3 +268,68 @@ class TestCollectData:
                     result = collector.collect_data()
 
         assert result["success"] is True
+
+
+@pytest.mark.unit
+class TestInsertIps:
+    def test_source_date_sets_detection_and_removal_date(self, collector):
+        collector.db_service.save_blacklist_ips = MagicMock(return_value={"new_count": 1, "updated_count": 0})
+
+        inserted = collector._insert_ips([{"ip": "1.2.3.4", "source_date": "2025-01-15"}])
+
+        assert inserted == 1
+        saved = collector.db_service.save_blacklist_ips.call_args[0][0]
+        assert saved[0]["detection_date"] == "2025-01-15"
+        assert saved[0]["removal_date"] == "2025-04-15"
+
+    def test_missing_source_date_uses_today_and_plus_three_months(self, collector):
+        collector.db_service.save_blacklist_ips = MagicMock(return_value={"new_count": 1, "updated_count": 0})
+
+        inserted = collector._insert_ips([{"ip": "5.6.7.8"}])
+
+        assert inserted == 1
+        saved = collector.db_service.save_blacklist_ips.call_args[0][0]
+        detection_date = datetime.strptime(saved[0]["detection_date"], "%Y-%m-%d")
+        removal_date = datetime.strptime(saved[0]["removal_date"], "%Y-%m-%d")
+        expected_today = datetime.now().strftime("%Y-%m-%d")
+        assert saved[0]["detection_date"] == expected_today
+        assert removal_date == detection_date + relativedelta(months=3)
+
+    def test_description_sets_reason(self, collector):
+        collector.db_service.save_blacklist_ips = MagicMock(return_value={"new_count": 1, "updated_count": 0})
+
+        inserted = collector._insert_ips([{"ip": "9.9.9.9", "description": "악성 봇넷"}])
+
+        assert inserted == 1
+        saved = collector.db_service.save_blacklist_ips.call_args[0][0]
+        assert saved[0]["reason"] == "악성 봇넷"
+
+    def test_missing_description_and_reason_uses_default_reason(self, collector):
+        collector.db_service.save_blacklist_ips = MagicMock(return_value={"new_count": 1, "updated_count": 0})
+
+        inserted = collector._insert_ips([{"ip": "10.10.10.10"}])
+
+        assert inserted == 1
+        saved = collector.db_service.save_blacklist_ips.call_args[0][0]
+        assert saved[0]["reason"] == "Secudium Black IP"
+
+    def test_existing_reason_is_preserved(self, collector):
+        collector.db_service.save_blacklist_ips = MagicMock(return_value={"new_count": 1, "updated_count": 0})
+
+        inserted = collector._insert_ips(
+            [{"ip": "11.11.11.11", "reason": "기존 사유", "description": "덮어쓰기되면안됨"}]
+        )
+
+        assert inserted == 1
+        saved = collector.db_service.save_blacklist_ips.call_args[0][0]
+        assert saved[0]["reason"] == "기존 사유"
+
+    def test_ip_key_is_renamed_to_ip_address(self, collector):
+        collector.db_service.save_blacklist_ips = MagicMock(return_value={"new_count": 1, "updated_count": 0})
+
+        inserted = collector._insert_ips([{"ip": "12.12.12.12"}])
+
+        assert inserted == 1
+        saved = collector.db_service.save_blacklist_ips.call_args[0][0]
+        assert saved[0]["ip_address"] == "12.12.12.12"
+        assert "ip" not in saved[0]

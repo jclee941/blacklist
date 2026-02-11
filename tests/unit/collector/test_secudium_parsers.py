@@ -1,10 +1,12 @@
 import pytest
+import pandas as pd
 from unittest.mock import patch
 from collector.core.secudium_parsers import (
     parse_black_ip_list,
     extract_download_info,
     parse_xls_file,
     _is_valid_ip_or_cidr,
+    _extract_reason,
 )
 
 
@@ -170,3 +172,54 @@ class TestParseXlsFile:
     def test_nonexistent_file(self):
         result = parse_xls_file("/nonexistent/file.xls")
         assert result == []
+
+
+@pytest.mark.unit
+class TestExtractReason:
+    def test_korean_detect_reason_column_returns_value(self):
+        columns = pd.Index(["IP", "탐지사유"])
+        row = pd.Series({"IP": "1.2.3.4", "탐지사유": "악성 트래픽 탐지"})
+
+        result = _extract_reason(row, columns)
+
+        assert result == "악성 트래픽 탐지"
+
+    def test_reason_column_case_insensitive_returns_value(self):
+        columns = pd.Index(["Reason", "IP"])
+        row = pd.Series({"Reason": "C2 Activity", "IP": "5.6.7.8"})
+
+        result = _extract_reason(row, columns)
+
+        assert result == "C2 Activity"
+
+    def test_threat_column_with_nan_string_returns_empty(self):
+        columns = pd.Index(["위협", "IP"])
+        row = pd.Series({"위협": "nan", "IP": "8.8.8.8"})
+
+        result = _extract_reason(row, columns)
+
+        assert result == ""
+
+    def test_no_matching_column_returns_empty(self):
+        columns = pd.Index(["description", "category"])
+        row = pd.Series({"description": "test", "category": "malware"})
+
+        result = _extract_reason(row, columns)
+
+        assert result == ""
+
+    def test_multiple_matching_columns_returns_first_match(self):
+        columns = pd.Index(["차단사유", "reason", "위협"])
+        row = pd.Series({"차단사유": "첫 번째", "reason": "두 번째", "위협": "세 번째"})
+
+        result = _extract_reason(row, columns)
+
+        assert result == "첫 번째"
+
+    def test_empty_string_value_returns_empty(self):
+        columns = pd.Index(["block_reason", "IP"])
+        row = pd.Series({"block_reason": "", "IP": "9.9.9.9"})
+
+        result = _extract_reason(row, columns)
+
+        assert result == ""

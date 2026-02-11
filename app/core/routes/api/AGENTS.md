@@ -1,7 +1,7 @@
 # API ROUTES KNOWLEDGE BASE
 
-**Generated:** 2026-02-08
-**Commit:** 841eb71
+**Generated:** 2026-02-11
+**Commit:** 6cd4c24 | **Version:** 3.5.53
 **Role:** JSON API Surface (Flask)
 **Parent:** [../../AGENTS.md](../../AGENTS.md)
 
@@ -22,7 +22,7 @@ api/
 ├── analytics.py            # Analytics API
 ├── database_api.py         # DB utilities
 ├── migration.py            # Schema endpoints (sensitive)
-├── collection/             # Collection control → delegates to collector
+├── collection/             # Collection control → delegates to collector (→ AGENTS.md)
 ├── blacklist/              # Core threat intel
 ├── fortinet/               # FortiManager integration
 └── monitoring/             # Monitoring/metrics
@@ -42,6 +42,7 @@ api/
 |-------|----------|
 | Hardcoded collector URL in `collection/utils.py:13` | MEDIUM — use env var |
 | Hardcoded URL in `blacklist/collection.py:54` | MEDIUM — use env var |
+| `app/core/schemas/` (4 files, 280 LOC) — UNUSED | LOW — routes do manual validation |
 
 ## ANTI-PATTERNS
 

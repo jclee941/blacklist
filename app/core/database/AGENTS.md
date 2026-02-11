@@ -1,6 +1,7 @@
 # AGENTS.md — Database Connection Layer
 
-**Generated:** 2026-02-09
+**Generated:** 2026-02-11
+**Commit:** 6cd4c24 | **Version:** 3.5.53
 **Parent:** `app/core/` | **Total:** 403 lines + schema
 
 ## OVERVIEW

@@ -67,6 +67,11 @@ def login():
         admin_username = os.getenv("ADMIN_USERNAME", "admin")
         admin_password = os.getenv("ADMIN_PASSWORD", "admin")
 
+    if not admin_password:
+        import os as _os
+
+        admin_password = _os.getenv("ADMIN_PASSWORD", "admin")
+
     if username != admin_username or password != admin_password:
         logger.warning(f"Failed login attempt for user: {username}")
         return jsonify(

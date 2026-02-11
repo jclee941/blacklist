@@ -1,8 +1,8 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
-**Generated:** 2026-02-09
-**Commit:** a41bcac
-**Branch:** master | **Version:** 3.5.44
+**Generated:** 2026-02-11
+**Commit:** 6cd4c24
+**Branch:** master | **Version:** 3.5.53
 
 ## COMMANDS
 
@@ -92,7 +92,7 @@ JWT-based authentication via `app/core/auth/`:
 | Component | File | Purpose |
 |-----------|------|---------|
 | JWTService | `jwt_service.py` | Token encode/decode (HS256, 8hr expiry) |
-| Middleware | `middleware.py` | `before_request` hook — all routes require JWT by default |
+| Middleware | `middleware.py` | `before_request` hook — **CURRENTLY DISABLED** (commented out in `app.py:156`) |
 | Decorators | `decorators.py` | `@public` — marks endpoint as no-auth-required |
 | Routes | `routes/api/auth_routes.py` | POST `/api/auth/login`, GET `/me`, GET `/verify` |
 

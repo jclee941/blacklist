@@ -26,7 +26,7 @@ class RegtechDataProcessorMixin:
             enhanced_item = self._enhance_data_quality(item)
             enhanced_data.append(enhanced_item)
 
-        logger.info(f"✅ 후처리 완료: {len(enhanced_data)}개 고품질 IP")
+        logger.info(f"✅ 후처리 완료: {len(enhanced_data)}개 IP")
         return enhanced_data
 
     def _fast_deduplication(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
