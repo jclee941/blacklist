@@ -3,8 +3,11 @@ export interface IPRecord {
   ip_address: string;
   reason: string;
   source: string;
-  country?: string;
+  data_source?: string;
+  confidence_level?: number;
   detection_count?: number;
+  last_seen?: string;
+  country?: string;
   is_active?: boolean;
   detection_date?: string;
   removal_date?: string;

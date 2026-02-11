@@ -79,6 +79,7 @@ export function IPFormFields({
         >
           <option value="MANUAL">수동 입력</option>
           <option value="REGTECH">REGTECH</option>
+          <option value="SECUDIUM">SECUDIUM</option>
           <option value="AUTO">자동</option>
         </select>
       </div>

@@ -56,6 +56,7 @@ export function IPManagementTable({
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 소스
               </th>
+
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 국가
               </th>
@@ -69,6 +70,9 @@ export function IPManagementTable({
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     해제일
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    탐지횟수
                   </th>
                 </>
               )}
@@ -103,6 +107,7 @@ export function IPManagementTable({
                   <div className="whitespace-normal break-words">{record.reason}</div>
                 </td>
                 <td className="px-4 py-3 text-sm">{record.source}</td>
+
                 <td className="px-4 py-3 text-sm">{record.country || '-'}</td>
                 {showBlacklistColumns && (
                   <>
@@ -124,6 +129,10 @@ export function IPManagementTable({
                         ? new Date(record.removal_date).toLocaleDateString('ko-KR')
                         : '-'}
                     </td>
+
+                    <td className="px-4 py-3 text-sm text-center">
+                      {record.detection_count ?? '-'}
+                    </td>
                   </>
                 )}
                 <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -135,6 +144,7 @@ export function IPManagementTable({
                   <td className="px-4 py-3 text-sm">
                     <div className="flex gap-2">
                       <button
+                        type="button"
                         onClick={() => onEdit(record)}
                         className="text-blue-600 hover:text-blue-800"
                       >
@@ -165,6 +175,7 @@ export function IPManagementTable({
           <div className="flex gap-2">
             {page > 1 && (
               <button
+                type="button"
                 onClick={() => onPageChange(page - 1)}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
@@ -173,6 +184,7 @@ export function IPManagementTable({
             )}
             {page < totalPages && (
               <button
+                type="button"
                 onClick={() => onPageChange(page + 1)}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >

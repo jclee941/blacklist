@@ -19,6 +19,7 @@ class IPManagementRepository:
         "ip_address",
         "reason",
         "source",
+        "data_source",
         "confidence_level",
         "detection_count",
         "is_active",
@@ -61,13 +62,13 @@ class IPManagementRepository:
             # Build UNION of blacklist + whitelist instead of querying empty unified_ip_list table
             union_sql = """
                 SELECT 'blacklist' AS list_type, id, ip_address, reason, source,
-                       confidence_level, detection_count, is_active,
+                       data_source, confidence_level, detection_count, is_active,
                        country, detection_date, removal_date, last_seen,
                        created_at, updated_at
                 FROM blacklist_ips_with_auto_inactive
                 UNION ALL
                 SELECT 'whitelist' AS list_type, id, ip_address, reason, source,
-                       NULL AS confidence_level, NULL AS detection_count, TRUE AS is_active,
+                       NULL AS data_source, NULL AS confidence_level, NULL AS detection_count, TRUE AS is_active,
                        country, NULL AS detection_date, NULL AS removal_date, NULL AS last_seen,
                        created_at, updated_at
                 FROM whitelist_ips
@@ -101,7 +102,7 @@ class IPManagementRepository:
                 f"""
                 SELECT
                     list_type, id, ip_address, reason, source,
-                    confidence_level, detection_count, is_active,
+                    data_source, confidence_level, detection_count, is_active,
                     country, detection_date, removal_date, last_seen,
                     created_at, updated_at
                 FROM ({union_sql}) AS unified
@@ -195,8 +196,9 @@ class IPManagementRepository:
                 """
                 INSERT INTO whitelist_ips (ip_address, reason, source, country, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (ip_address, source) DO UPDATE SET
+                ON CONFLICT (ip_address) DO UPDATE SET
                     reason = EXCLUDED.reason,
+                    source = EXCLUDED.source,
                     country = COALESCE(EXCLUDED.country, whitelist_ips.country),
                     updated_at = EXCLUDED.updated_at
                 RETURNING id, ip_address, reason, source, country, created_at, updated_at
@@ -307,9 +309,10 @@ class IPManagementRepository:
 
             cursor.execute(
                 """
-                SELECT id, ip_address, reason, source, confidence_level,
-                       detection_count, is_active, country, detection_date,
-                       removal_date, last_seen, created_at, updated_at
+                SELECT id, ip_address, reason, source, data_source,
+                       confidence_level, detection_count, is_active, country,
+                       detection_date, removal_date, last_seen,
+                       created_at, updated_at
                 FROM blacklist_ips_with_auto_inactive
                 ORDER BY created_at DESC
                 LIMIT %s OFFSET %s
@@ -334,6 +337,7 @@ class IPManagementRepository:
         ip_address: str,
         reason: str = "Malicious Activity",
         source: str = "MANUAL",
+        data_source: str = "REGTECH",
         confidence_level: int = 50,
         detection_count: int = 1,
         is_active: bool = True,
@@ -351,12 +355,13 @@ class IPManagementRepository:
             cursor.execute(
                 """
                 INSERT INTO blacklist_ips
-                (ip_address, reason, source, confidence_level, detection_count,
-                 is_active, country, detection_date, removal_date, last_seen,
-                 created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (ip_address, reason, source, data_source, confidence_level,
+                 detection_count, is_active, country, detection_date,
+                 removal_date, last_seen, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (ip_address, source) DO UPDATE SET
                     reason = EXCLUDED.reason,
+                    data_source = EXCLUDED.data_source,
                     confidence_level = EXCLUDED.confidence_level,
                     detection_count = blacklist_ips.detection_count + 1,
                     is_active = EXCLUDED.is_active,
@@ -365,14 +370,16 @@ class IPManagementRepository:
                     removal_date = EXCLUDED.removal_date,
                     last_seen = EXCLUDED.last_seen,
                     updated_at = EXCLUDED.updated_at
-                RETURNING id, ip_address, reason, source, confidence_level,
-                          detection_count, is_active, country, detection_date,
-                          removal_date, last_seen, created_at, updated_at
+                RETURNING id, ip_address, reason, source, data_source,
+                          confidence_level, detection_count, is_active, country,
+                          detection_date, removal_date, last_seen,
+                          created_at, updated_at
                 """,
                 (
                     ip_address,
                     reason,
                     source,
+                    data_source,
                     confidence_level,
                     detection_count,
                     is_active,
@@ -422,9 +429,10 @@ class IPManagementRepository:
                 UPDATE blacklist_ips
                 SET {", ".join(update_fields)}
                 WHERE id = %s
-                RETURNING id, ip_address, reason, source, confidence_level,
-                          detection_count, is_active, country, detection_date,
-                          removal_date, last_seen, created_at, updated_at
+                RETURNING id, ip_address, reason, source, data_source,
+                          confidence_level, detection_count, is_active, country,
+                          detection_date, removal_date, last_seen,
+                          created_at, updated_at
                 """,
                 params,
             )
