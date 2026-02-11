@@ -1,7 +1,7 @@
 # AGENTS.md — Flask API (`app/`)
 
 **Generated:** 2026-02-11
-**Commit:** f082182 | **Version:** 3.5.57
+**Commit:** 3f44350 | **Version:** 3.5.57
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## STRUCTURE
@@ -43,8 +43,6 @@ def list_items():
 
 | Forbidden | Use Instead |
 |-----------|-------------|
-| `from app.core.services import X` | `current_app.extensions['x']` |
-| `BlacklistService()` | ServiceFactory DI |
 | `from run_app import app` | `current_app` proxy |
 | SQL string concatenation | Parameterized `%s` queries |
 | `resp.json()` without guard | `try/except` or status check first |

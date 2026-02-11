@@ -1,7 +1,7 @@
 # COLLECTOR KNOWLEDGE BASE
 
 **Generated:** 2026-02-11
-**Commit:** f082182 | **Version:** 3.5.57
+**Commit:** 3f44350 | **Version:** 3.5.57
 **Role:** ETL Service (Data Collection)
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
@@ -38,7 +38,6 @@ core/                   # Collection logic (→ core/AGENTS.md)
 | `time.sleep()` loops | APScheduler | Main thread blocking |
 | Infinite retry | Backoff + max count | Resource exhaustion |
 | Sync bulk HTTP | `aiohttp` / ThreadPool | Performance |
-| Hardcoded URLs | Environment variables | Docker compatibility |
 
 ## KNOWN ISSUES
 

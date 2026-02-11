@@ -1,14 +1,13 @@
 # POSTGRES KNOWLEDGE BASE
 
 **Generated:** 2026-02-11
-**Commit:** f082182 | **Version:** 3.5.57
+**Commit:** 3f44350 | **Version:** 3.5.57
 **Role:** Database Schema & Migrations
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## OVERVIEW
 
-PostgreSQL 15 with Raw SQL only. **ORM forbidden** — SQLAlchemy/Prisma not allowed.
-Migrations are sequential numbered SQL files.
+PostgreSQL 16 with Raw SQL only. Migrations are sequential numbered SQL files.
 
 ## STRUCTURE
 
@@ -40,8 +39,7 @@ Include comment header with purpose and date. Use `IF NOT EXISTS` for idempotenc
 
 | Convention | Description |
 |------------|-------------|
-| SQL only | No ORM, no query builders |
-| Parameterized | Always `%s` placeholders (never string concat) |
+| Parameterized | Always `%s` placeholders |
 | Sequential | Never skip migration numbers |
 | Idempotent | `IF NOT EXISTS` where possible |
 | No DROP | Add columns only, never destructive |
