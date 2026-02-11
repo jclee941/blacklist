@@ -90,7 +90,7 @@ def archive_file(
         return None
 
     if not os.path.exists(src_path):
-        logger.warning("archive.source_not_found", path=src_path)
+        logger.warning("archive.source_not_found: path=%s", src_path)
         return None
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -99,7 +99,7 @@ def archive_file(
     try:
         os.makedirs(archive_dir, exist_ok=True)
     except OSError as e:
-        logger.error("archive.mkdir_failed", dir=archive_dir, error=str(e))
+        logger.error("archive.mkdir_failed: dir=%s error=%s", archive_dir, e)
         return None
 
     original_name = filename or os.path.basename(src_path)
@@ -108,10 +108,10 @@ def archive_file(
 
     try:
         shutil.copy2(src_path, dest_path)
-        logger.info("archive.saved", source=source, path=dest_path)
+        logger.info("archive.saved: source=%s path=%s", source, dest_path)
         return dest_path
     except OSError as e:
-        logger.error("archive.copy_failed", source=source, error=str(e))
+        logger.error("archive.copy_failed: source=%s error=%s", source, e)
         return None
 
 
@@ -143,7 +143,7 @@ def archive_content(
     try:
         os.makedirs(archive_dir, exist_ok=True)
     except OSError as e:
-        logger.error("archive.mkdir_failed", dir=archive_dir, error=str(e))
+        logger.error("archive.mkdir_failed: dir=%s error=%s", archive_dir, e)
         return None
 
     dest_filename = generate_archive_filename(source, filename, period_start, period_end)
@@ -152,8 +152,8 @@ def archive_content(
     try:
         with open(dest_path, "w", encoding="utf-8") as f:
             f.write(content)
-        logger.info("archive.saved", source=source, path=dest_path)
+        logger.info("archive.saved: source=%s path=%s", source, dest_path)
         return dest_path
     except OSError as e:
-        logger.error("archive.write_failed", source=source, error=str(e))
+        logger.error("archive.write_failed: source=%s error=%s", source, e)
         return None
