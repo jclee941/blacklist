@@ -337,9 +337,9 @@ class CollectionScheduler:
                 return
 
             config = credentials.get("config", {})
-            email_address = config.get("email", "")
-            email_password = config.get("email_password", "")
-            imap_server = config.get("imap_server", "imap.kakao.com")
+            email_address = config.get("email", "") or CollectorConfig.SECUDIUM_EMAIL
+            email_password = config.get("email_password", "") or CollectorConfig.SECUDIUM_EMAIL_PASSWORD
+            imap_server = config.get("imap_server", "") or CollectorConfig.SECUDIUM_IMAP_SERVER
 
             result = self._collect_secudium_data(
                 username,
@@ -632,9 +632,9 @@ class CollectionScheduler:
                 result = self._collect_secudium_data(
                     username,
                     password,
-                    email_address=config.get("email", ""),
-                    email_password=config.get("email_password", ""),
-                    imap_server=config.get("imap_server", "imap.kakao.com"),
+                    email_address=config.get("email", "") or CollectorConfig.SECUDIUM_EMAIL,
+                    email_password=config.get("email_password", "") or CollectorConfig.SECUDIUM_EMAIL_PASSWORD,
+                    imap_server=config.get("imap_server", "") or CollectorConfig.SECUDIUM_IMAP_SERVER,
                 )
             else:
                 return {

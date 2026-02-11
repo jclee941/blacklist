@@ -9,6 +9,7 @@ from waitress import serve
 import threading
 import logging
 from collections import deque
+from config import CollectorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -169,9 +170,9 @@ class HealthServer:
 
                     if otp_mode == "auto":
                         # Auto mode: full auth with IMAP OTP reading
-                        email = config.get("email", "")
-                        email_password = config.get("email_password", "")
-                        imap_server = config.get("imap_server", "imap.kakao.com")
+                        email = config.get("email", "") or CollectorConfig.SECUDIUM_EMAIL
+                        email_password = config.get("email_password", "") or CollectorConfig.SECUDIUM_EMAIL_PASSWORD
+                        imap_server = config.get("imap_server", "") or CollectorConfig.SECUDIUM_IMAP_SERVER
 
                         if not email or not email_password:
                             return jsonify(
