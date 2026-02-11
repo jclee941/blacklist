@@ -1,7 +1,7 @@
 # FRONTEND LIB KNOWLEDGE BASE
 
 **Generated:** 2026-02-11  
-**Commit:** f082182 | **Version:** 3.5.57  
+**Commit:** 3f44350 | **Version:** 3.5.57  
 **Role:** API Client & Utilities  
 **Parent:** ../AGENTS.md
 
@@ -28,6 +28,5 @@ Centralized API client (Axios). ALL backend communication MUST go through `api.t
 | Forbidden                  | Why                              |
 | -------------------------- | -------------------------------- |
 | `fetch()` in components    | Bypasses error handling, CSRF    |
-| `localhost:2542`           | Hardcoded port breaks deployment |
 | `axios.create()` elsewhere | Must use shared instance         |
 | Ignoring API errors        | Always handle with user feedback |

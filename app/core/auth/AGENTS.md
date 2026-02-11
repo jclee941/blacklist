@@ -1,7 +1,7 @@
 # AGENTS.md — JWT Authentication
 
 **Generated:** 2026-02-11
-**Commit:** f082182 | **Version:** 3.5.57
+**Commit:** 3f44350 | **Version:** 3.5.57
 **Parent:** `app/core/` | **Total:** 163 lines (4 files)
 
 ## FILES

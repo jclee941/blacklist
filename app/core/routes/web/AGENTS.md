@@ -1,7 +1,7 @@
 # AGENTS.md — Web Routes (Server-Rendered + Legacy API)
 
 **Generated:** 2026-02-11
-**Commit:** f082182 | **Version:** 3.5.57
+**Commit:** 3f44350 | **Version:** 3.5.57
 **Parent:** `app/core/routes/` | **Total:** 3,139 lines
 
 ## OVERVIEW
@@ -37,11 +37,9 @@ Jinja2-rendered admin panels and legacy web API endpoints. Korean UI strings thr
 ## CONVENTIONS
 
 - **Blueprint pattern**: Each major feature gets its own Blueprint (e.g., `regtech_admin`, `simple_collection`)
-- **DI**: Always `current_app.extensions['service_name']` — never direct imports
 - **Korean UI**: All user-facing strings in Korean (comments too)
 - **CSRF**: Collection panel uses `@csrf.exempt` for its API-like endpoints
 - **Dual field support**: `admin.py` accepts both `username/password` AND `regtech_id/regtech_pw` field names
-- **Raw SQL**: All DB queries use `%s` parameterized queries via `db_service`
 
 ## ANTI-PATTERNS
 
@@ -49,8 +47,6 @@ Jinja2-rendered admin panels and legacy web API endpoints. Korean UI strings thr
 |-----------|-----|
 | Business logic in route handlers | Belongs in services layer |
 | HTML responses in `/api/` routes | `/api/` = JSON only; this dir's `api_routes.py` is the exception (legacy) |
-| Direct service instantiation | Must use `current_app.extensions` DI |
-| String concatenation in SQL | Use `%s` params always |
 
 ## COMPLEXITY HOTSPOTS
 

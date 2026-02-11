@@ -1,7 +1,7 @@
 # AGENTS.md — Database Connection Layer
 
 **Generated:** 2026-02-11
-**Commit:** f082182 | **Version:** 3.5.57
+**Commit:** 3f44350 | **Version:** 3.5.57
 **Parent:** `app/core/` | **Total:** 403 lines + schema
 
 ## OVERVIEW
@@ -39,9 +39,7 @@ PostgreSQL connection management for the Flask app. Two connection manager class
 
 | Forbidden | Alternative |
 |-----------|-------------|
-| SQLAlchemy / ORM | Raw SQL via `psycopg2` — project policy |
 | Hardcoded connection strings | Always env vars |
-| Creating connections directly | Use service layer (`database_service`) via DI |
 | Schema changes here | Use `postgres/migrations/` for DDL |
 
 ## NOTES

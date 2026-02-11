@@ -1,7 +1,7 @@
 # SERVICE LAYER KNOWLEDGE BASE
 
 **Generated:** 2026-02-11
-**Commit:** f082182 | **Version:** 3.5.57
+**Commit:** 3f44350 | **Version:** 3.5.57
 **Parent:** [../../AGENTS.md](../../AGENTS.md)
 
 ## OVERVIEW
@@ -44,9 +44,6 @@ service = current_app.extensions['my_service']
 
 | Forbidden | Alternative |
 |-----------|-------------|
-| `BlacklistService()` | Register via ServiceFactory |
-| `from services import X` | `current_app.extensions` |
-| SQLAlchemy/Prisma | Raw SQL only |
 | Direct cross-service calls | ServiceFactory injection |
 
 ## KNOWN ISSUES
