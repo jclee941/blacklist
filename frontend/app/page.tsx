@@ -97,8 +97,6 @@ export default function Dashboard() {
           0;
       }
 
-      console.log('Dashboard Stats:', { totalIps, activeIps, recentAdditions, whitelistedIps }); // Debug log
-
       setStats({
         total_ips: totalIps,
         active_ips: activeIps,
