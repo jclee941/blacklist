@@ -98,6 +98,26 @@ const proxyRequest = (req, res, targetPath) => {
   req.pipe(proxyReq);
 };
 
+// Load redirects from Next.js routes manifest
+const loadRedirects = () => {
+  try {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '.next', 'routes-manifest.json'), 'utf8')
+    );
+    return (manifest.redirects || [])
+      .filter((r) => !r.internal)
+      .map((r) => ({
+        regex: new RegExp(r.regex),
+        destination: r.destination,
+        statusCode: r.statusCode || 307,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const redirects = loadRedirects();
+
 const requestHandler = async (req, res) => {
   const parsedUrl = parse(req.url, true);
   const { pathname } = parsedUrl;
@@ -113,6 +133,15 @@ const requestHandler = async (req, res) => {
   if (pathname.startsWith('/uiview/')) {
     const targetPath = pathname.replace('/uiview', '');
     return proxyRequest(req, res, targetPath);
+  }
+
+  // Handle redirects from next.config.ts
+  for (const redirect of redirects) {
+    if (redirect.regex.test(pathname)) {
+      res.writeHead(redirect.statusCode, { Location: redirect.destination });
+      res.end();
+      return;
+    }
   }
 
   if (pathname.startsWith('/_next/static/')) {

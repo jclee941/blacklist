@@ -71,7 +71,7 @@ test.describe('네비게이션 기능 검증', () => {
     await page.goto('/monitoring');
     await page.waitForLoadState('networkidle');
     const url = page.url();
-    expect(url.endsWith('/') || url.endsWith(':2543')).toBe(true);
+    expect(url.endsWith('/') || !url.includes('/monitoring')).toBe(true);
   });
 
   test('각 페이지 이동 후 뒤로 가기가 동작한다', async ({ page }) => {
@@ -82,7 +82,7 @@ test.describe('네비게이션 기능 검증', () => {
     await page.goBack();
     await page.waitForLoadState('networkidle');
     const url = page.url();
-    expect(url.endsWith('/') || url.endsWith(':2543/')).toBe(true);
+    expect(url.endsWith('/')).toBe(true);
   });
 
   test('모바일 메뉴 토글이 작은 화면에서 동작한다', async ({ page }) => {

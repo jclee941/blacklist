@@ -81,6 +81,6 @@ test.describe('Monitoring Page Redirect', () => {
     await page.waitForLoadState('networkidle');
 
     const url = page.url();
-    expect(url.endsWith('/') || url.includes('/monitoring') === false).toBe(true);
+    expect(url.endsWith('/') || !url.includes('/monitoring')).toBe(true);
   });
 });
