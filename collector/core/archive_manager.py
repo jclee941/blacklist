@@ -11,6 +11,8 @@ Archive Manager — 수집 원본 파일 보관
     기간 정보 없을 시: SECUDIUM_20260211T143022_blacklist.xls
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import shutil
