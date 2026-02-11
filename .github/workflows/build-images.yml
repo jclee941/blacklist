@@ -65,9 +65,10 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: ${{ inputs.push }}
           load: ${{ !inputs.push }}
-          tags: |
-            blacklist-${{ matrix.service }}:${{ inputs.version }}
-            ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}:${{ inputs.version }}
+          tags: >-
+            ${{ inputs.push
+              && format('ghcr.io/{0}/blacklist-{1}:{2}', github.repository, matrix.service, inputs.version)
+              || format('blacklist-{0}:{1}', matrix.service, inputs.version) }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
