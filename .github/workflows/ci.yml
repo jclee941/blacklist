@@ -94,7 +94,8 @@ jobs:
           retention-days: 30
 
   test-backend:
-    needs: lint-backend
+    needs: [detect-changes, lint-backend]
+    if: needs.detect-changes.outputs.backend == 'true'
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     services:
       postgres:
