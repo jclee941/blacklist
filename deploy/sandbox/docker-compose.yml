@@ -46,6 +46,8 @@ services:
       REDIS_HOST: localhost
     volumes:
       - ./data/collector:/app/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8545/health || exit 1"]
       interval: 30s
@@ -68,6 +70,8 @@ services:
       REDIS_HOST: localhost
     volumes:
       - ./data/app:/app/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:2542/api/health || exit 1"]
       interval: 30s
@@ -88,8 +92,26 @@ services:
       SSL_CERT_PATH: /app/ssl/server.crt
     volumes:
       - ./ssl:/app/ssl:ro
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD-SHELL", "curl -sfk https://localhost:443 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      DOCKER_CONFIG: /config
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.docker:/config:ro
