@@ -9,6 +9,7 @@ import time
 import threading
 import os
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from typing import Dict, Any, Optional
 from core.database import db_service
 from core.regtech_collector import regtech_collector
@@ -449,9 +450,9 @@ class CollectionScheduler:
                 start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
                 logger.info(f"🚀 REGTECH 스케줄 수집 (1일: {start_date} ~ {end_date})")
             else:
-                # 수동 수집: 90일 범위
-                start_date = (today - timedelta(days=90)).strftime("%Y-%m-%d")
-                logger.info(f"🚀 REGTECH 수동 수집 (90일: {start_date} ~ {end_date})")
+                # 수동 수집: 3개월 범위
+                start_date = (today - relativedelta(months=3)).strftime("%Y-%m-%d")
+                logger.info(f"🚀 REGTECH 수동 수집 (3개월: {start_date} ~ {end_date})")
 
             collected_data = regtech_collector.collect_blacklist_data(
                 page_size=2000,

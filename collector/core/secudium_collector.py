@@ -21,6 +21,7 @@ import time
 import tempfile
 import threading
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -700,6 +701,20 @@ class SecudiumCollector:
                 entry["ip_address"] = entry.pop("ip")
             entry.setdefault("source", "SECUDIUM")
             entry.setdefault("data_source", "SECUDIUM")
+
+            # Enforce detection_date and removal_date = detection_date + 3 months
+            detection_date_str = entry.get("source_date") or datetime.now().strftime("%Y-%m-%d")
+            entry.setdefault("detection_date", detection_date_str[:10])
+            try:
+                det_date = datetime.strptime(entry["detection_date"][:10], "%Y-%m-%d")
+                entry.setdefault("removal_date", (det_date + relativedelta(months=3)).strftime("%Y-%m-%d"))
+            except (ValueError, TypeError):
+                entry.setdefault("removal_date", (datetime.now() + relativedelta(months=3)).strftime("%Y-%m-%d"))
+
+            # Map description/reason to reason field
+            if not entry.get("reason"):
+                entry["reason"] = entry.get("description") or "Secudium Black IP"
+
             ip_data.append(entry)
 
         try:

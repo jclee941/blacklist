@@ -162,6 +162,7 @@ def _parse_xls_with_pandas(file_path: str) -> list[dict[str, Any]]:
             "ip": ip_value,
             "port": _extract_port(row, df.columns),
             "description": _extract_description(row, df.columns),
+            "reason": _extract_reason(row, df.columns),
             "source_date": _extract_date(row, df.columns),
             "raw_row": {str(k): str(v) for k, v in row.items() if pd.notna(v)},
         }
@@ -261,6 +262,17 @@ def _extract_date(row: "pd.Series", columns: "pd.Index") -> str | None:
             if val and val.lower() != "nan" and len(val) >= 8:
                 return val
     return None
+
+
+def _extract_reason(row: "pd.Series", columns: "pd.Index") -> str:
+    """Try to extract detection reason from row."""
+    reason_keywords = ["사유", "reason", "원인", "cause", "탐지사유", "차단사유", "block_reason", "위협", "threat"]
+    for col in columns:
+        if any(k.lower() in str(col).lower() for k in reason_keywords):
+            val = str(row[col]).strip()
+            if val and val.lower() != "nan":
+                return val
+    return ""
 
 
 def _is_valid_ip_or_cidr(value: str) -> bool:

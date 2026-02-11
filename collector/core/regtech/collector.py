@@ -16,6 +16,7 @@ import sys
 import time
 import urllib.parse
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -183,8 +184,8 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         recent_start = (today - timedelta(days=1)).strftime("%Y-%m-%d")
         strategies.append(("최근 1일 일일", recent_start, end_date))
 
-        quarter_start = (today - timedelta(days=90)).strftime("%Y-%m-%d")
-        strategies.append(("최근 90일 분기", quarter_start, end_date))
+        quarter_start = (today - relativedelta(months=3)).strftime("%Y-%m-%d")
+        strategies.append(("최근 3개월 분기", quarter_start, end_date))
 
         if start_date:
             strategies.insert(0, ("사용자 지정", start_date, end_date))
