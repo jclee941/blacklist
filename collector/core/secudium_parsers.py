@@ -163,6 +163,7 @@ def _parse_xls_with_pandas(file_path: str) -> list[dict[str, Any]]:
             "port": _extract_port(row, df.columns),
             "description": _extract_description(row, df.columns),
             "reason": _extract_reason(row, df.columns),
+            "country": _extract_country(row, df.columns),
             "source_date": _extract_date(row, df.columns),
             "raw_row": {str(k): str(v) for k, v in row.items() if pd.notna(v)},
         }
@@ -269,6 +270,17 @@ def _extract_reason(row: "pd.Series", columns: "pd.Index") -> str:
     reason_keywords = ["사유", "reason", "원인", "cause", "탐지사유", "차단사유", "block_reason", "위협", "threat"]
     for col in columns:
         if any(k.lower() in str(col).lower() for k in reason_keywords):
+            val = str(row[col]).strip()
+            if val and val.lower() != "nan":
+                return val
+    return ""
+
+
+def _extract_country(row: "pd.Series", columns: "pd.Index") -> str:
+    """Try to extract country/region from row."""
+    country_keywords = ["국가", "country", "nation", "지역", "region", "소재지", "소재국", "location"]
+    for col in columns:
+        if any(k.lower() in str(col).lower() for k in country_keywords):
             val = str(row[col]).strip()
             if val and val.lower() != "nan":
                 return val
