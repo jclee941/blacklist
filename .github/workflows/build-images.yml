@@ -59,16 +59,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image tags
+        id: meta
+        run: |
+          SERVICE="${{ matrix.service }}"
+          VERSION="${{ inputs.version }}"
+          if [ "${{ inputs.push }}" = "true" ]; then
+            REGISTRY="ghcr.io/${{ github.repository }}"
+            TAGS="${REGISTRY}/blacklist-${SERVICE}:${VERSION}"
+            if [ "${VERSION}" != "latest" ]; then
+              TAGS="${TAGS},${REGISTRY}/blacklist-${SERVICE}:latest"
+            fi
+          else
+            TAGS="blacklist-${SERVICE}:${VERSION}"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: ${{ inputs.push }}
           load: ${{ !inputs.push }}
-          tags: >-
-            ${{ inputs.push
-              && format('ghcr.io/{0}/blacklist-{1}:{2}', github.repository, matrix.service, inputs.version)
-              || format('blacklist-{0}:{1}', matrix.service, inputs.version) }}
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
