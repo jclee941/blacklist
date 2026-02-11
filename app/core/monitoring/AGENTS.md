@@ -1,7 +1,7 @@
 # AGENTS.md — Monitoring & Metrics
 
 **Generated:** 2026-02-11
-**Commit:** 6cd4c24 | **Version:** 3.5.53
+**Commit:** f082182 | **Version:** 3.5.57
 **Parent:** `app/core/` | **Total:** 1,124 lines
 
 ## OVERVIEW

@@ -1,7 +1,7 @@
 # AGENTS.md — Core Utilities
 
 **Generated:** 2026-02-11
-**Commit:** 6cd4c24 | **Version:** 3.5.53
+**Commit:** f082182 | **Version:** 3.5.57
 **Parent:** `app/core/` | **Total:** 1,198 lines
 
 ## OVERVIEW
@@ -54,4 +54,4 @@ Cross-cutting utilities used by services and routes. Standardized response forma
 
 - `error_handlers.py` is minimal (26L) — just registers Flask error handlers, actual error classes in `errors/` and `exceptions/`
 - `encryption.py` uses Fernet (AES-256-GCM) — encryption key from `ENCRYPTION_KEY` env var
-- `version.py` reads from root `VERSION` file (currently `3.5.53`)
+- `version.py` reads from root `VERSION` file (currently `3.5.57`)

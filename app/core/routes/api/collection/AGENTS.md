@@ -1,7 +1,7 @@
 # AGENTS.md — Collection API Routes
 
 **Generated:** 2026-02-11
-**Commit:** 6cd4c24 | **Version:** 3.5.53
+**Commit:** f082182 | **Version:** 3.5.57
 **Parent:** `app/core/routes/api/` | **Total:** 1,194 lines (9 files)
 
 ## FILES

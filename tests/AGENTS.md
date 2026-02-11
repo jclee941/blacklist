@@ -1,7 +1,7 @@
 # TESTS KNOWLEDGE BASE
 
 **Generated:** 2026-02-11
-**Commit:** 6cd4c24 | **Version:** 3.5.53
+**Commit:** f082182 | **Version:** 3.5.57
 **Role:** Test Infrastructure & Patterns
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
@@ -76,5 +76,6 @@ cd frontend && npx playwright test --update-snapshots
 ## NOTES
 
 - No `conftest.py` — fixtures defined inline in test files
+- v3.5.54+: Comprehensive unit tests added for 14+ core services and 11 collector modules
 - E2E timeout: 60s default, multi-browser (Chromium, Firefox, Mobile Chrome)
 - `make coverage` generates HTML report

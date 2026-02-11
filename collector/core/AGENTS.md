@@ -1,7 +1,7 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
 **Generated:** 2026-02-11
-**Commit:** 6cd4c24 | **Version:** 3.5.53
+**Commit:** f082182 | **Version:** 3.5.57
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## OVERVIEW
@@ -56,4 +56,4 @@ core/
 | File | Lines | Status |
 |------|-------|--------|
 | `fortigate_collector.py` | 680L | Active — consider splitting |
-| `secudium_collector.py` | 676L | Active — consider splitting |
+| `secudium_collector.py` | 676L | Active — manual OTP login flow added v3.5.55; consider splitting |

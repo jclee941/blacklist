@@ -1,7 +1,7 @@
 # POSTGRES KNOWLEDGE BASE
 
 **Generated:** 2026-02-11
-**Commit:** 6cd4c24 | **Version:** 3.5.53
+**Commit:** f082182 | **Version:** 3.5.57
 **Role:** Database Schema & Migrations
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
@@ -22,15 +22,16 @@ postgres/
 └── migrations/             # Incremental changes
     ├── 001_add_data_source_column.sql
     ├── 002_add_missing_columns.sql
-    └── 003_add_display_order.sql
+    ├── 003_add_display_order.sql
+    └── 004_update_active_blacklist_view.sql
 ```
 
 ## HOW TO: Add Migration
 
 ```bash
-# 1. Create: migrations/004_description.sql (NNN sequential, snake_case)
+# 1. Create: migrations/005_description.sql (NNN sequential, snake_case)
 # 2. Apply:
-docker compose exec blacklist-db psql -U blacklist -d blacklist -f /migrations/004_description.sql
+docker compose exec blacklist-db psql -U blacklist -d blacklist -f /migrations/005_description.sql
 ```
 
 Include comment header with purpose and date. Use `IF NOT EXISTS` for idempotency.
