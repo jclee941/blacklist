@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useCallback, useRef } from 'react';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -15,6 +16,17 @@ interface CredentialEditModalProps {
   loading?: boolean;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const HOSTNAME_REGEX =
+  /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/;
+
+interface ValidationErrors {
+  email?: string;
+  email_password?: string;
+  imap_server?: string;
+  username?: string;
+}
+
 export function CredentialEditModal({
   show,
   onClose,
@@ -26,6 +38,7 @@ export function CredentialEditModal({
 }: CredentialEditModalProps) {
   const isSecudium = editingService === 'SECUDIUM';
   const secudiumForm = isSecudium ? (credentialForm as SecudiumCredentialFormState) : null;
+  const savingRef = useRef(false);
 
   const handleOtpModeChange = (mode: OtpMode) => {
     if (secudiumForm) {
@@ -33,12 +46,53 @@ export function CredentialEditModal({
     }
   };
 
+  const errors = useMemo<ValidationErrors>(() => {
+    const errs: ValidationErrors = {};
+
+    if (!credentialForm.username.trim()) {
+      errs.username = '사용자명을 입력하세요';
+    }
+
+    if (isSecudium && secudiumForm?.otp_mode === 'auto') {
+      const email = secudiumForm.email?.trim() || '';
+      if (!email) {
+        errs.email = '이메일을 입력하세요';
+      } else if (!EMAIL_REGEX.test(email)) {
+        errs.email = '올바른 이메일 형식이 아닙니다';
+      }
+
+      if (!secudiumForm.email_password?.trim()) {
+        errs.email_password = '이메일 비밀번호를 입력하세요';
+      }
+
+      const imapServer = secudiumForm.imap_server?.trim() || '';
+      if (!imapServer) {
+        errs.imap_server = 'IMAP 서버를 입력하세요';
+      } else if (!HOSTNAME_REGEX.test(imapServer)) {
+        errs.imap_server = '올바른 호스트명 형식이 아닙니다 (예: imap.kakao.com)';
+      }
+    }
+
+    return errs;
+  }, [credentialForm, isSecudium, secudiumForm]);
+
+  const isValid = Object.keys(errors).length === 0;
+
+  const handleSave = useCallback(() => {
+    if (loading || savingRef.current || !isValid) return;
+    savingRef.current = true;
+    onSave();
+    setTimeout(() => {
+      savingRef.current = false;
+    }, 1000);
+  }, [loading, isValid, onSave]);
+
   return (
     <Modal isOpen={show} onClose={onClose} title={`${editingService} 인증정보 수정`} size="md">
       <div className="space-y-4">
         {isSecudium && secudiumForm && (
           <div className="space-y-4 border-b border-gray-700 pb-4 mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">OTP 인증 방식</label>
+            <span className="block text-sm font-medium text-gray-300 mb-2">OTP 인증 방식</span>
             <div className="flex space-x-2 mb-4">
               <button
                 type="button"
@@ -68,24 +122,30 @@ export function CredentialEditModal({
               <div className="p-4 border border-gray-700 rounded-lg space-y-3 bg-gray-800/50">
                 <Input
                   label="이메일 (카카오 계정)"
+                  required
                   value={secudiumForm.email || ''}
                   onChange={(e) => onFormChange({ ...secudiumForm, email: e.target.value })}
                   placeholder="example@kakao.com"
+                  error={errors.email}
                 />
                 <Input
                   label="이메일 비밀번호"
                   type="password"
+                  required
                   value={secudiumForm.email_password || ''}
                   onChange={(e) =>
                     onFormChange({ ...secudiumForm, email_password: e.target.value })
                   }
                   placeholder="이메일 비밀번호"
+                  error={errors.email_password}
                 />
                 <Input
                   label="IMAP 서버"
+                  required
                   value={secudiumForm.imap_server || 'imap.kakao.com'}
                   onChange={(e) => onFormChange({ ...secudiumForm, imap_server: e.target.value })}
                   placeholder="imap.kakao.com"
+                  error={errors.imap_server}
                 />
               </div>
             ) : (
@@ -98,9 +158,11 @@ export function CredentialEditModal({
 
         <Input
           label="사용자명"
+          required
           value={credentialForm.username}
           onChange={(e) => onFormChange({ ...credentialForm, username: e.target.value })}
           placeholder="사용자명"
+          error={errors.username}
         />
         <Input
           label="비밀번호"
@@ -137,7 +199,7 @@ export function CredentialEditModal({
           <Button variant="secondary" onClick={onClose}>
             취소
           </Button>
-          <Button onClick={onSave} loading={loading}>
+          <Button onClick={handleSave} loading={loading} disabled={!isValid || loading}>
             저장
           </Button>
         </div>

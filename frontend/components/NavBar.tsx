@@ -14,6 +14,8 @@ export default function NavBar() {
     { href: '/fortinet', label: 'FortiGate' },
     { href: '/collection', label: '데이터 수집' },
     { href: '/database', label: '데이터베이스' },
+    { href: '/analytics', label: '분석' },
+    { href: '/settings', label: '설정' },
   ];
 
   return (
@@ -22,13 +24,7 @@ export default function NavBar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center flex-shrink-0" data-testid="navbar-logo">
-            <Image
-              src="/nextrade_logo.svg"
-              alt="Nextrade"
-              width={120}
-              height={40}
-              priority
-            />
+            <Image src="/nextrade_logo.svg" alt="Nextrade" width={120} height={40} priority />
           </Link>
 
           {/* Desktop Menu */}
@@ -44,7 +40,10 @@ export default function NavBar() {
             ))}
 
             {/* System Status */}
-            <div className="flex items-center space-x-2 ml-4 px-3 py-2 bg-gray-800 rounded-md" data-testid="navbar-status">
+            <div
+              className="flex items-center space-x-2 ml-4 px-3 py-2 bg-gray-800 rounded-md"
+              data-testid="navbar-status"
+            >
               <Activity className="h-4 w-4 text-green-500" aria-hidden="true" />
               <span className="text-xs">정상</span>
             </div>
@@ -71,7 +70,7 @@ export default function NavBar() {
 
       {/* Mobile Menu Dropdown */}
       {isMenuOpen && (
-        <div 
+        <div
           id="navbar-mobile-menu"
           className="md:hidden bg-gray-800 border-t border-gray-700"
           data-testid="navbar-mobile-menu"
