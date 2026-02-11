@@ -69,7 +69,7 @@ Tag v* → release.yml (build → airgap bundle → GitHub Release → GHCR push
 ### Auto-Deploy Flow (Sandbox)
 
 ```
-Tag push → release.yml → GHCR :latest → Watchtower (5min poll) → auto pull & restart
+Tag push → release.yml → GHCR :latest → HTTP trigger → Watchtower → auto pull & restart
 ```
 
 Watchtower monitors `collector`, `app`, `frontend` images. Postgres and Redis are excluded (label-filtered).
@@ -95,6 +95,6 @@ Full documentation: [API Reference](https://github.com/jclee-homelab/blacklist/w
 
 ## Version
 
-**v3.5.57** (February 2026) - Production Stable
+**v3.5.59** (February 2026) - Production Stable
 
 [Releases](https://github.com/jclee-homelab/blacklist/releases) · [Changelog](CHANGELOG.md)

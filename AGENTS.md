@@ -1,8 +1,8 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
 **Generated:** 2026-02-11
-**Commit:** 3f44350
-**Branch:** master | **Version:** 3.5.57
+**Commit:** 2b9662f
+**Branch:** master | **Version:** 3.5.59
 
 ## COMMANDS
 
@@ -137,7 +137,7 @@ tests/mock-fortigate/   # Mock FortiManager API server
 
 - **CI:** push → detect-changes → lint/test (parallel) → build → e2e (smoke/chromium/webkit)
 - **Release:** tag `v*` → validate VERSION==tag → build → airgap bundle → GitHub Release → GHCR
-- **Deploy:** prod=manual airgap `docker load` | sandbox=GHCR pull via SSH
+- **Deploy:** prod=manual airgap `docker load` | sandbox=Watchtower HTTP API auto-pull
 
 ## NOTES
 

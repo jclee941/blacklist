@@ -1,7 +1,7 @@
 # POSTGRES KNOWLEDGE BASE
 
 **Generated:** 2026-02-11
-**Commit:** 3f44350 | **Version:** 3.5.57
+**Commit:** 2b9662f | **Version:** 3.5.59
 **Role:** Database Schema & Migrations
 **Parent:** [../AGENTS.md](../AGENTS.md)
 

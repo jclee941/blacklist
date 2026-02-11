@@ -7,6 +7,231 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Infra**: Watchtower Docker API 호환성 수정 (`DOCKER_API_VERSION=1.44` for Docker 27+)
+- **Frontend**: 컨테이너 healthcheck를 `curl` → `node` 기반으로 변경 (alpine 호환)
+
+### Changed
+- **CI/CD**: Airgap 프로덕션 배포를 `workflow_dispatch` 수동 전용으로 변경 (자동 트리거 제거)
+
+---
+
+## [3.5.59] - 2026-02-11
+
+### Added
+- **Infra**: Watchtower HTTP API 실시간 pull 트리거 (기존 5분 polling → release 완료 시 즉시 업데이트)
+- **CI/CD**: `release.yml`에 `trigger-sandbox-update` job 추가 — GHCR push 후 Watchtower API 호출
+
+### Changed
+- **Infra**: Sandbox Watchtower 설정 변경 — HTTP API 활성화 (포트 8080), Bearer token 인증, 1시간 safety net polling
+
+---
+
+## [3.5.58] - 2026-02-11
+
+### Added
+- **Frontend**: IP 관리 auto_active 3-state 상태 표시 (활성/비활성/미설정)
+- **Frontend**: IP 관리 소스 필터 기능 (REGTECH/SECUDIUM/수동 필터링)
+- **Infra**: Prometheus + Grafana 모니터링 스택 (Sandbox용)
+- **Infra**: Watchtower 자동 배포 설정 (Sandbox → GHCR :latest 자동 pull)
+- **Docs**: 전체 17개 AGENTS.md 파일 재생성 (`/init-deep`)
+
+### Fixed
+- **E2E**: 4개 테스트 실패 수정 — 모니터링 리다이렉트, 설정 저장 toast 타이밍, 비주얼 스냅샷
+- **CI/CD**: GHCR 전용 태그 사용으로 Docker Hub 401 에러 방지
+- **Tests**: `auth_rate_limiter` fixture 격리 — 테스트 간 오염 방지
+- **Tests**: `credential_service`, `health_server` CI 테스트 실패 수정
+- **Backend**: IP 관리 데이터 정합성 개선
+
+---
+
+## [3.5.57] - 2026-02-11
+
+### Added
+- **Backend**: 설정 API 통합 (시스템 설정 CRUD)
+- **Tests**: Collector 테스트 스위트 추가
+
+### Fixed
+- **CI/CD**: Sandbox 배포 시 SCP → SSH stdin 방식으로 변경 (권한 문제 해결)
+- **CI/CD**: `recursive chown` 추가로 배포 디렉토리 권한 정리
+
+---
+
+## [3.5.56] - 2026-02-11
+
+### Fixed
+- **GitHub Issues**: #16 #17 #18 #32 #33 #36 일괄 해결
+  - #16: 수집 현황 API 응답 구조 정규화
+  - #17: 블랙리스트 해제 시 removal_date 설정
+  - #18: FortiManager 업로드 대상 IP 필터링 수정
+  - #32: 설정 페이지 API 연동 (저장/로드)
+  - #33: 수집기 인증정보 수정 시 기존 값 유지
+  - #36: 대시보드 통계 null 처리
+
+---
+
+## [3.5.55] - 2026-02-11
+
+### Fixed
+- **Database**: Migration 004 — `active_blacklist` 뷰에 `removal_date` 컬럼 추가
+
+---
+
+## [3.5.54] - 2026-02-11
+
+### Added
+- **Backend**: Secudium 수동 OTP 로그인 + 자동 수집 트리거
+- **Tests**: 14개 이상 코어 서비스 단위 테스트 추가 (포괄적 커버리지)
+- **E2E**: 테스트 범위 확장
+
+### Fixed
+- **Backend**: REGTECH removal_date 처리 수정
+- **Backend**: 데이터 정합성 강화 — 3개월 일관성 검증 + 백엔드 강제 적용
+- **Backend**: FortiManager uploader 하드코딩 포트 443 → 2542 수정
+
+---
+
+## [3.5.53] - 2026-02-10
+
+### Changed
+- **Backend**: 내부 코드 정리 및 안정화
+
+---
+
+## [3.5.52] - 2026-02-10
+
+### Fixed
+- **Frontend**: 데이터베이스 페이지 0건 테이블 '집계중' 표시 수정 → 정상 건수 표시
+- **Collector**: Secudium 수집 IP에 `source='SECUDIUM'` 명시적 설정
+
+---
+
+## [3.5.51] - 2026-02-10
+
+### Added
+- **Collector**: SECUDIUM 수집 트리거에 OTP 인증 추가
+
+### Fixed
+- **Backend**: 수동 수집 트리거가 올바른 소스로 라우팅되도록 수정
+
+---
+
+## [3.5.50] - 2026-02-10
+
+### Changed
+- **Backend**: JWT 인증 미들웨어 비활성화 (내부 배포 환경용)
+
+---
+
+## [3.5.49] - 2026-02-10
+
+### Added
+- **Tests**: Smoke 테스트 추가
+
+### Changed
+- **CI/CD**: 커버리지 임계값 조정 (CI 부트스트랩용)
+
+### Fixed
+- **Backend**: 미사용 import 제거 (F401 ruff lint)
+
+---
+
+## [3.5.48] - 2026-02-10
+
+### Fixed
+- **Backend**: 통합 IP 목록 쿼리, 프론트엔드 API 설정, Sandbox 환경변수 수정
+- **Collector**: Secudium OTP 인증 개선 — 중복 로그인 처리, IMAP 새로고침, 환경변수 추가
+- **CI/CD**: 배포 파이프라인 강화 — python3 JSON 파싱, Slack 알림, 심볼릭 링크 해석
+- **CI/CD**: health check 이스케이프 수정, `.env` 자동 생성
+
+---
+
+## [3.5.47] - 2026-02-10
+
+### Added
+- **CI/CD**: Sandbox 배포 워크플로우 추가 (SSH → GHCR pull 기반)
+- **Collector**: SECUDIUM OTP 수집 플로우 개선
+
+### Fixed
+- **Frontend**: 401 → `/login` 리다이렉트 제거 (인증 미들웨어 비활성 환경)
+
+### Changed
+- **Repo**: 저장소 구조 정리
+
+---
+
+## [3.5.46] - 2026-02-09
+
+### Fixed
+- **Backend**: JWTService에 Flask app 객체 대신 `SECRET_KEY` 문자열 전달 (#23)
+
+---
+
+## [3.5.45] - 2026-02-09
+
+### Changed
+- **Backend**: `rate_limit` 데코레이터 공유 유틸리티로 중앙화 (#21)
+- **Backend**: 코드베이스 위생 정리 (#22)
+
+---
+
+## [3.5.44] - 2026-02-09
+
+### Fixed
+- **CI/CD**: 배포 health check 경로 `/api/health` → `/health`로 수정
+
+---
+
+## [3.5.43] - 2026-02-09
+
+### Fixed
+- **Backend**: `/api/health` 엔드포인트에 `@public` 데코레이터 추가 — 배포 health check 용 (#20)
+- **Backend**: 모든 bare `except Exception` 블록에 예외 변수 캡처 (#19)
+
+---
+
+## [3.5.42] - 2026-02-09
+
+### Fixed
+- **Collector**: SECUDIUM health 상태에서 문자열 타입 `scheduler.collectors` 처리
+- **Infra**: `install.sh`에서 로드된 이미지를 `:latest` 태그로 지정 (docker-compose 호환)
+
+---
+
+## [3.5.41] - 2026-02-09
+
+### Fixed
+- **CI/CD**: Airgap 배포 수정 — 체크섬 파일명 정렬, 번들 이름 패턴, 이미지 태깅
+- **CI/CD**: `install.sh` 양방향 체크섬/이미지 이름 패턴 호환
+- **CI/CD**: GitHub API 기반 에셋 다운로드, stale 배포 디렉토리 정리
+
+---
+
+## [3.5.40] - 2026-02-09
+
+### Added
+- **CI/CD**: 워크플로우 통합 (7개 → 4개: ci, release, deploy, deploy-sandbox)
+- **Backend**: JWT 인증 미들웨어 (#1)
+- **Backend**: Multi-stage Dockerfile (이미지 크기 최적화)
+- **Frontend**: SECUDIUM 수집기 지원 (수집 상태, 인증 UI)
+
+### Changed
+- **Backend**: Ruff 린터 도입 — 86개 린트 에러 수정
+- **Collector**: `regtech_collector.py` (960L) + `multi_source_collector.py` (711L) → 모듈형 패키지로 리팩토링
+- **Backend**: `cache_utils.py` 복잡도 감소 (42 → 20)
+
+### Fixed
+- **Frontend**: 대시보드 통계 `statsData.stats` → `.data` 읽기 수정
+- **Frontend**: 수집 통계 프론트엔드와 백엔드 API 정렬
+- **Frontend**: 화이트리스트/블랙리스트 CRUD, FortiNet 다운로드 응답 처리
+- **Frontend**: 7개 스텁 API 함수를 실제 백엔드 호출로 교체
+- **Backend**: 암호화 키, Collector URL 기본값, SECUDIUM health 상태 정렬
+- **CI/CD**: 배포 시 컨테이너 이름 충돌 방지 (`docker compose down` 추가)
+
+---
+
 ## [3.5.39] - 2026-02-08
 
 ### Fixed
