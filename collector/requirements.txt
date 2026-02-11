@@ -8,6 +8,7 @@ redis==4.6.0
 pandas>=2.2.0  # Python 3.13 compatible
 numpy>=1.26.0  # Python 3.13 compatible
 openpyxl==3.1.2
+xlrd>=2.0.1  # Required for parsing .xls (old Excel) files from SECUDIUM
 
 # Web Automation for REGTECH
 selenium==4.15.2

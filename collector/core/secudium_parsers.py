@@ -138,10 +138,11 @@ def parse_xls_file(file_path: str) -> list[dict[str, Any]]:
 
 
 def _parse_xls_with_pandas(file_path: str) -> list[dict[str, Any]]:
-    """Parse XLS using pandas (primary method)."""
+    """Parse XLS/XLSX using pandas (primary method)."""
     import pandas as pd
 
-    df = pd.read_excel(file_path, engine="xlrd")
+    engine = "xlrd" if file_path.endswith(".xls") else "openpyxl"
+    df = pd.read_excel(file_path, engine=engine)
     logger.info("secudium.parse.xls_loaded", rows=len(df), columns=list(df.columns))
 
     if df.empty:
