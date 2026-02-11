@@ -9,7 +9,7 @@ from waitress import serve
 import threading
 import logging
 from collections import deque
-from config import CollectorConfig
+from collector.config import CollectorConfig
 
 logger = logging.getLogger(__name__)
 
