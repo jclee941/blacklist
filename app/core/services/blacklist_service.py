@@ -324,27 +324,6 @@ class BlacklistService:
             logger.error(f"Active blacklist retrieval failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def get_statistics(self) -> Dict[str, Any]:
-        try:
-            total_ips = self.repo.count_blacklist_ips()
-            active_ips = self.repo.count_active_blacklist_ips()
-            sources = self.repo.get_source_counts()
-            categories = {}
-
-            statistics = {
-                "total_ips": total_ips,
-                "active_ips": active_ips,
-                "sources": sources,
-                "categories": categories,
-                "last_updated": datetime.now().isoformat(),
-            }
-
-            return {"success": True, "statistics": statistics}
-
-        except Exception as e:
-            logger.error(f"Statistics retrieval failed: {e}")
-            return {"success": False, "error": str(e)}
-
     def get_system_stats(self) -> Dict[str, Any]:
         try:
             total_ips = self.repo.count_blacklist_ips()
@@ -462,7 +441,7 @@ class BlacklistService:
                 collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
                 health_response = requests.get(f"{collector_url}/health", timeout=5)
                 collector_healthy = health_response.status_code == 200
-            except BaseException:
+            except Exception:
                 collector_healthy = False
 
             stats = self.get_system_stats()
