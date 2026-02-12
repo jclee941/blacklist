@@ -62,8 +62,6 @@ def create_app():
     # Secret key for session management and CSRF protection
     flask_secret = os.getenv("FLASK_SECRET_KEY")
     if not flask_secret:
-        import logging
-
         logging.getLogger(__name__).warning(
             "FLASK_SECRET_KEY not set — using random key. "
             "JWTs will be invalidated on restart. Set FLASK_SECRET_KEY in production."
