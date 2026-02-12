@@ -16,7 +16,7 @@ import sys
 import time
 import urllib.parse
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -169,7 +169,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
     def _generate_date_strategies(
         self, start_date: Optional[str] = None, end_date: Optional[str] = None
     ) -> List[tuple]:
-        strategies = []
+        strategies: List[tuple[str, Optional[str], Optional[str]]] = []
 
         if start_date is None and end_date is None:
             strategies.append(("전체 데이터", None, None))

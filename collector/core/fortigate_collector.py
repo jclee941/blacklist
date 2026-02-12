@@ -12,7 +12,7 @@ import re
 import socket
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-import paramiko
+import paramiko  # type: ignore[import-untyped]
 import requests
 
 logger = logging.getLogger(__name__)
@@ -633,7 +633,7 @@ def collect_fortigate_sessions(
     Returns:
         Collection results dictionary
     """
-    results = {
+    results: Dict[str, Any] = {
         "timestamp": datetime.now().isoformat(),
         "devices_checked": 0,
         "devices_success": 0,

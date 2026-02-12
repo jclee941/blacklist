@@ -334,7 +334,7 @@ class MultiSourceCollector(MultiSourceParserMixin):
 
         best_reason = max(items, key=lambda x: len(x.get("reason", "")))["reason"]
 
-        detection_dates = [item.get("detection_date") for item in items if item.get("detection_date")]
+        detection_dates: list[str] = [item["detection_date"] for item in items if item.get("detection_date")]
         earliest_date = min(detection_dates) if detection_dates else None
 
         merged = base_item.copy()

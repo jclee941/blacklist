@@ -306,7 +306,7 @@ def _execute_collection_stage(
 
 def _analyze_geographical_distribution(data: List[Dict[str, Any]]) -> Dict[str, int]:
     """지리적 분포 분석"""
-    geo_counts = {}
+    geo_counts: Dict[str, int] = {}
 
     for item in data:
         country = item.get("country") or "Unknown"
@@ -319,7 +319,7 @@ def _analyze_geographical_distribution(data: List[Dict[str, Any]]) -> Dict[str, 
 
 def _analyze_category_distribution(data: List[Dict[str, Any]]) -> Dict[str, int]:
     """위협 카테고리 분포 분석"""
-    category_counts = {}
+    category_counts: Dict[str, int] = {}
 
     for item in data:
         category = item.get("category", "unknown")

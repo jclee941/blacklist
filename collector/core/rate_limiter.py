@@ -60,7 +60,7 @@ class RateLimiter:
         self.total_requests = 0
         self.total_waits = 0
         self.total_wait_time = 0.0
-        self.request_history = deque(maxlen=1000)  # 최근 1000개 요청 추적
+        self.request_history: deque[dict[str, Any]] = deque(maxlen=1000)  # 최근 1000개 요청 추적
 
         logger.info(f"🚦 레이트 리미터 초기화: {requests_per_second} req/s, 버스트={burst_size}")
 

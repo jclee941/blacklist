@@ -1,12 +1,25 @@
 import logging
 import time
-from typing import Optional
+from typing import Any, Optional
+
+import requests
 
 logger = logging.getLogger(__name__)
 
 
 class RegtechAuthMixin:
     """Authentication methods for RegtechCollector (mixin)."""
+
+    # Mixin protocol: attributes provided by the concrete class (RegtechCollector)
+    base_url: str
+    session: requests.Session
+    _auth_cache: dict
+    _cache_ttl: int
+    auth_rate_limiter: Any
+    proxy_url: Optional[str]
+    authenticated: bool
+    _jwt_expiry: Optional[float]
+    _last_credentials: Optional[tuple]
 
     def _find_member(self, username: str) -> Optional[str]:
         try:

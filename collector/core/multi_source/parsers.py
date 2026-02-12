@@ -74,7 +74,7 @@ class MultiSourceParserMixin:
                 else:
                     potential_ip = line.split(":")[0]
 
-                if self._is_valid_ip(potential_ip):
+                if potential_ip is not None and self._is_valid_ip(potential_ip):
                     collected_ips.append(
                         {
                             "ip_address": potential_ip,
@@ -137,11 +137,11 @@ class MultiSourceParserMixin:
                                 from urllib.parse import urlparse
 
                                 parsed = urlparse(ip_candidate)
-                                ip_candidate = parsed.hostname
+                                ip_candidate = parsed.hostname or ""
                             except Exception:
                                 continue
 
-                        if self._is_valid_ip(ip_candidate):
+                        if ip_candidate is not None and self._is_valid_ip(ip_candidate):
                             ip_address = ip_candidate
                             break
 

@@ -4,8 +4,9 @@ Provides HTTP health endpoint at :8545/health
 """
 
 from datetime import datetime
+from typing import Any
 from flask import Flask, jsonify, request
-from waitress import serve
+from waitress import serve  # type: ignore[import-untyped]
 import threading
 import logging
 from collections import deque
@@ -14,7 +15,7 @@ from collector.config import CollectorConfig
 logger = logging.getLogger(__name__)
 
 # Global log buffer for recent logs (circular buffer)
-LOG_BUFFER = deque(maxlen=100)
+LOG_BUFFER: deque[dict[str, Any]] = deque(maxlen=100)
 
 
 class LogBufferHandler(logging.Handler):

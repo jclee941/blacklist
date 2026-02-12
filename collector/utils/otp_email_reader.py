@@ -34,7 +34,7 @@ class OTPEmailReader:
         self.email_address = email_address
         self.email_password = email_password
         self.imap_server = imap_server
-        self.imap = None
+        self.imap: Optional[imaplib.IMAP4_SSL] = None
 
     def connect(self) -> bool:
         """IMAP 서버 연결"""
@@ -74,6 +74,7 @@ class OTPEmailReader:
             return None
 
         try:
+            assert self.imap is not None  # guaranteed by connect()
             # INBOX 선택
             self.imap.select("INBOX")
 
@@ -113,8 +114,9 @@ class OTPEmailReader:
 
                     status, msg_data = self.imap.fetch(latest_email_id, "(RFC822)")
 
-                    if status == "OK":
+                    if status == "OK" and msg_data and isinstance(msg_data[0], tuple):
                         raw_email = msg_data[0][1]
+                        assert isinstance(raw_email, bytes)
                         msg = email.message_from_bytes(raw_email)
 
                         subject = self._decode_header(msg["Subject"])

@@ -10,11 +10,11 @@ import logging
 import hashlib
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import requests
-from bs4 import BeautifulSoup
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from bs4 import BeautifulSoup  # type: ignore[import-untyped]
+import psycopg2  # type: ignore[import-untyped]
+from psycopg2.extras import RealDictCursor  # type: ignore[import-untyped]
 
 
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ class REGTECHPolicyMonitor:
             soup = BeautifulSoup(response.text, "html.parser")
 
             # 구조 요소 추출
-            structure_data = {
+            structure_data: Dict[str, Any] = {
                 "forms": len(soup.find_all("form")),
                 "tables": len(soup.find_all("table")),
                 "inputs": len(soup.find_all("input")),
@@ -169,7 +169,7 @@ class REGTECHPolicyMonitor:
             response = self.session.post(blacklist_url, data=search_data)
             soup = BeautifulSoup(response.text, "html.parser")
 
-            availability_info = {
+            availability_info: Dict[str, Any] = {
                 "timestamp": datetime.now().isoformat(),
                 "status": "unknown",
                 "data_count": 0,
@@ -214,7 +214,7 @@ class REGTECHPolicyMonitor:
         if not baseline:
             return {"change_detected": False, "message": "No baseline to compare"}
 
-        changes = {
+        changes: Dict[str, Any] = {
             "change_detected": False,
             "changes": [],
             "change_percentage": 0.0,
@@ -318,7 +318,7 @@ class REGTECHPolicyMonitor:
         except Exception as e:
             logger.error(f"모니터링 데이터 저장 중 오류: {e}")
 
-    def _send_alert(self, alert_type: str, message: str, details: Dict = None):
+    def _send_alert(self, alert_type: str, message: str, details: Optional[Dict[str, Any]] = None):
         """관리자 알림 전송"""
         try:
             # 데이터베이스에 알림 로그 저장

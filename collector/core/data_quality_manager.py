@@ -37,7 +37,7 @@ class DataQualityManager:
         """포괄적 데이터 품질 검사"""
         logger.info("🔍 포괄적 데이터 품질 검사 시작")
 
-        quality_report = {
+        quality_report: Dict[str, Any] = {
             "check_timestamp": datetime.now().isoformat(),
             "metrics": {},
             "issues": [],
@@ -89,28 +89,26 @@ class DataQualityManager:
     def _collect_basic_statistics(self) -> Dict[str, Any]:
         """기본 통계 수집"""
         try:
-            conn = db_service.get_connection()
-            cursor = conn.cursor()
+            with db_service.get_connection() as conn:
+                cursor = conn.cursor()
 
-            # 전체 IP 통계
-            cursor.execute(
+                # 전체 IP 통계
+                cursor.execute(
+                    """
+                    SELECT 
+                        COUNT(*) as total_ips,
+                        COUNT(*) FILTER (WHERE is_active = true) as active_ips,
+                        COUNT(*) FILTER (WHERE is_active = false) as inactive_ips,
+                        COUNT(*) FILTER (WHERE detection_date IS NULL) as missing_detection_date,
+                        COUNT(*) FILTER (WHERE removal_date IS NULL) as missing_removal_date,
+                        COUNT(DISTINCT ip_address) as unique_ips,
+                        COUNT(*) - COUNT(DISTINCT ip_address) as duplicate_count
+                    FROM blacklist_ips
                 """
-                SELECT 
-                    COUNT(*) as total_ips,
-                    COUNT(*) FILTER (WHERE is_active = true) as active_ips,
-                    COUNT(*) FILTER (WHERE is_active = false) as inactive_ips,
-                    COUNT(*) FILTER (WHERE detection_date IS NULL) as missing_detection_date,
-                    COUNT(*) FILTER (WHERE removal_date IS NULL) as missing_removal_date,
-                    COUNT(DISTINCT ip_address) as unique_ips,
-                    COUNT(*) - COUNT(DISTINCT ip_address) as duplicate_count
-                FROM blacklist_ips
-            """
-            )
+                )
 
-            stats = cursor.fetchone()
-
-            cursor.close()
-            db_service.return_connection(conn)
+                stats = cursor.fetchone()
+                cursor.close()
 
             return {
                 "total_ips": stats[0],
@@ -133,52 +131,51 @@ class DataQualityManager:
         issues = []
 
         try:
-            conn = db_service.get_connection()
-            cursor = conn.cursor()
+            with db_service.get_connection() as conn:
+                cursor = conn.cursor()
 
-            # 1. 잘못된 IP 주소 형식 검사
-            cursor.execute(
-                r"""
-                SELECT COUNT(*) FROM blacklist_ips 
-                WHERE ip_address !~ '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
-                AND ip_address !~ '^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$'
-            """
-            )
-            invalid_ips = cursor.fetchone()[0]
-
-            if invalid_ips > 0:
-                issues.append(f"잘못된 IP 주소 형식: {invalid_ips}개")
-
-            # 2. 논리적 모순 검사 (removal_date < detection_date)
-            cursor.execute(
+                # 1. 잘못된 IP 주소 형식 검사
+                cursor.execute(
+                    r"""
+                    SELECT COUNT(*) FROM blacklist_ips 
+                    WHERE ip_address !~ '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+                    AND ip_address !~ '^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$'
                 """
-                SELECT COUNT(*) FROM blacklist_ips 
-                WHERE detection_date IS NOT NULL 
-                AND removal_date IS NOT NULL 
-                AND removal_date < detection_date
-            """
-            )
-            logical_errors = cursor.fetchone()[0]
+                )
+                invalid_ips = cursor.fetchone()[0]
 
-            if logical_errors > 0:
-                issues.append(f"논리적 모순 (해제일 < 탐지일): {logical_errors}개")
+                if invalid_ips > 0:
+                    issues.append(f"잘못된 IP 주소 형식: {invalid_ips}개")
 
-            # 3. 만료된 IP가 여전히 활성 상태인 경우
-            cursor.execute(
+                # 2. 논리적 모순 검사 (removal_date < detection_date)
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) FROM blacklist_ips 
+                    WHERE detection_date IS NOT NULL 
+                    AND removal_date IS NOT NULL 
+                    AND removal_date < detection_date
                 """
-                SELECT COUNT(*) FROM blacklist_ips 
-                WHERE is_active = true 
-                AND removal_date IS NOT NULL 
-                AND removal_date < CURRENT_DATE
-            """
-            )
-            expired_active = cursor.fetchone()[0]
+                )
+                logical_errors = cursor.fetchone()[0]
 
-            if expired_active > 0:
-                issues.append(f"만료되었지만 활성 상태인 IP: {expired_active}개")
+                if logical_errors > 0:
+                    issues.append(f"논리적 모순 (해제일 < 탐지일): {logical_errors}개")
 
-            cursor.close()
-            db_service.return_connection(conn)
+                # 3. 만료된 IP가 여전히 활성 상태인 경우
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) FROM blacklist_ips 
+                    WHERE is_active = true 
+                    AND removal_date IS NOT NULL 
+                    AND removal_date < CURRENT_DATE
+                """
+                )
+                expired_active = cursor.fetchone()[0]
+
+                if expired_active > 0:
+                    issues.append(f"만료되었지만 활성 상태인 IP: {expired_active}개")
+
+                cursor.close()
 
         except Exception as e:
             logger.error(f"❌ 데이터 무결성 검사 실패: {e}")
@@ -189,27 +186,25 @@ class DataQualityManager:
     def _analyze_data_freshness(self) -> Dict[str, Any]:
         """데이터 신선도 분석"""
         try:
-            conn = db_service.get_connection()
-            cursor = conn.cursor()
+            with db_service.get_connection() as conn:
+                cursor = conn.cursor()
 
-            # 최신 데이터 분포 분석
-            cursor.execute(
+                # 최신 데이터 분포 분석
+                cursor.execute(
+                    """
+                    SELECT 
+                        COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '7 days') as last_7_days,
+                        COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '30 days') as last_30_days,
+                        COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '90 days') as last_90_days,
+                        COUNT(*) as total,
+                        MAX(created_at) as latest_data,
+                        MIN(created_at) as oldest_data
+                    FROM blacklist_ips
                 """
-                SELECT 
-                    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '7 days') as last_7_days,
-                    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '30 days') as last_30_days,
-                    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '90 days') as last_90_days,
-                    COUNT(*) as total,
-                    MAX(created_at) as latest_data,
-                    MIN(created_at) as oldest_data
-                FROM blacklist_ips
-            """
-            )
+                )
 
-            freshness_data = cursor.fetchone()
-
-            cursor.close()
-            db_service.return_connection(conn)
+                freshness_data = cursor.fetchone()
+                cursor.close()
 
             # 신선도 점수 계산 (최근 30일 데이터 비율 기준)
             freshness_score = 0
@@ -233,41 +228,39 @@ class DataQualityManager:
     def _detect_duplicates(self) -> Dict[str, Any]:
         """중복 데이터 검출"""
         try:
-            conn = db_service.get_connection()
-            cursor = conn.cursor()
+            with db_service.get_connection() as conn:
+                cursor = conn.cursor()
 
-            # 중복 IP 검출
-            cursor.execute(
+                # 중복 IP 검출
+                cursor.execute(
+                    """
+                    SELECT 
+                        ip_address, 
+                        source, 
+                        COUNT(*) as duplicate_count
+                    FROM blacklist_ips 
+                    GROUP BY ip_address, source 
+                    HAVING COUNT(*) > 1
+                    ORDER BY duplicate_count DESC
+                    LIMIT 10
                 """
-                SELECT 
-                    ip_address, 
-                    source, 
-                    COUNT(*) as duplicate_count
-                FROM blacklist_ips 
-                GROUP BY ip_address, source 
-                HAVING COUNT(*) > 1
-                ORDER BY duplicate_count DESC
-                LIMIT 10
-            """
-            )
+                )
 
-            duplicate_groups = cursor.fetchall()
+                duplicate_groups = cursor.fetchall()
 
-            # 전체 중복 통계
-            cursor.execute(
+                # 전체 중복 통계
+                cursor.execute(
+                    """
+                    SELECT 
+                        COUNT(*) - COUNT(DISTINCT ip_address, source) as total_duplicates,
+                        COUNT(DISTINCT ip_address, source) as unique_combinations,
+                        COUNT(*) as total_records
+                    FROM blacklist_ips
                 """
-                SELECT 
-                    COUNT(*) - COUNT(DISTINCT ip_address, source) as total_duplicates,
-                    COUNT(DISTINCT ip_address, source) as unique_combinations,
-                    COUNT(*) as total_records
-                FROM blacklist_ips
-            """
-            )
+                )
 
-            duplicate_stats = cursor.fetchone()
-
-            cursor.close()
-            db_service.return_connection(conn)
+                duplicate_stats = cursor.fetchone()
+                cursor.close()
 
             return {
                 "total_duplicates": duplicate_stats[0],
@@ -287,54 +280,53 @@ class DataQualityManager:
         actions = []
 
         try:
-            conn = db_service.get_connection()
-            cursor = conn.cursor()
+            with db_service.get_connection() as conn:
+                cursor = conn.cursor()
 
-            # 1. 만료된 IP 비활성화
-            cursor.execute(
+                # 1. 만료된 IP 비활성화
+                cursor.execute(
+                    """
+                    UPDATE blacklist_ips 
+                    SET is_active = false 
+                    WHERE is_active = true 
+                    AND removal_date IS NOT NULL 
+                    AND removal_date < CURRENT_DATE
                 """
-                UPDATE blacklist_ips 
-                SET is_active = false 
-                WHERE is_active = true 
-                AND removal_date IS NOT NULL 
-                AND removal_date < CURRENT_DATE
-            """
-            )
-            expired_deactivated = cursor.rowcount
-            if expired_deactivated > 0:
-                actions.append(f"만료된 IP {expired_deactivated}개 비활성화")
-
-            # 2. 오래된 비활성 데이터 정리 (90일 이상)
-            cursor.execute(
-                """
-                DELETE FROM blacklist_ips 
-                WHERE is_active = false 
-                AND (removal_date IS NULL OR removal_date < CURRENT_DATE - INTERVAL '90 days')
-                AND created_at < CURRENT_DATE - INTERVAL '90 days'
-            """
-            )
-            old_deleted = cursor.rowcount
-            if old_deleted > 0:
-                actions.append(f"오래된 비활성 데이터 {old_deleted}개 정리")
-
-            # 3. 중복 데이터 정리 (최신 데이터 유지)
-            cursor.execute(
-                """
-                DELETE FROM blacklist_ips 
-                WHERE id NOT IN (
-                    SELECT DISTINCT ON (ip_address, source) id 
-                    FROM blacklist_ips 
-                    ORDER BY ip_address, source, created_at DESC
                 )
-            """
-            )
-            duplicates_removed = cursor.rowcount
-            if duplicates_removed > 0:
-                actions.append(f"중복 데이터 {duplicates_removed}개 정리")
+                expired_deactivated = cursor.rowcount
+                if expired_deactivated > 0:
+                    actions.append(f"만료된 IP {expired_deactivated}개 비활성화")
 
-            conn.commit()
-            cursor.close()
-            db_service.return_connection(conn)
+                # 2. 오래된 비활성 데이터 정리 (90일 이상)
+                cursor.execute(
+                    """
+                    DELETE FROM blacklist_ips 
+                    WHERE is_active = false 
+                    AND (removal_date IS NULL OR removal_date < CURRENT_DATE - INTERVAL '90 days')
+                    AND created_at < CURRENT_DATE - INTERVAL '90 days'
+                """
+                )
+                old_deleted = cursor.rowcount
+                if old_deleted > 0:
+                    actions.append(f"오래된 비활성 데이터 {old_deleted}개 정리")
+
+                # 3. 중복 데이터 정리 (최신 데이터 유지)
+                cursor.execute(
+                    """
+                    DELETE FROM blacklist_ips 
+                    WHERE id NOT IN (
+                        SELECT DISTINCT ON (ip_address, source) id 
+                        FROM blacklist_ips 
+                        ORDER BY ip_address, source, created_at DESC
+                    )
+                """
+                )
+                duplicates_removed = cursor.rowcount
+                if duplicates_removed > 0:
+                    actions.append(f"중복 데이터 {duplicates_removed}개 정리")
+
+                conn.commit()
+                cursor.close()
 
         except Exception as e:
             logger.error(f"❌ 자동 정제 실패: {e}")
@@ -400,26 +392,24 @@ class DataQualityManager:
         logger.info("🗂️ 데이터 보존 정책 적용 시작")
 
         try:
-            conn = db_service.get_connection()
-            cursor = conn.cursor()
+            with db_service.get_connection() as conn:
+                cursor = conn.cursor()
 
-            # 50,000개 IP 데이터 보존 (최신순)
-            cursor.execute(
+                # 50,000개 IP 데이터 보존 (최신순)
+                cursor.execute(
+                    """
+                    DELETE FROM blacklist_ips 
+                    WHERE id NOT IN (
+                        SELECT id FROM blacklist_ips 
+                        ORDER BY created_at DESC, id DESC 
+                        LIMIT 1000000
+                    )
                 """
-                DELETE FROM blacklist_ips 
-                WHERE id NOT IN (
-                    SELECT id FROM blacklist_ips 
-                    ORDER BY created_at DESC, id DESC 
-                    LIMIT 1000000
                 )
-            """
-            )
 
-            deleted_count = cursor.rowcount
-            conn.commit()
-
-            cursor.close()
-            db_service.return_connection(conn)
+                deleted_count = cursor.rowcount
+                conn.commit()
+                cursor.close()
 
             if deleted_count > 0:
                 logger.info(f"📦 데이터 보존 정책 적용: {deleted_count}개 오래된 레코드 삭제")

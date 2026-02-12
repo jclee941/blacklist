@@ -21,8 +21,8 @@ import time
 import tempfile
 import threading
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
-from typing import Optional
+from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
+from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
 import requests
@@ -63,6 +63,8 @@ class SecudiumCollector:
         self.db_service = db_service
         self._token: Optional[str] = None
         self._user_info: dict = {}
+        self._pending_username: Optional[str] = None
+        self._pending_password: Optional[str] = None
 
         # OTP email reader config
         self._otp_email = CollectorConfig.SECUDIUM_EMAIL
@@ -259,6 +261,7 @@ class SecudiumCollector:
             return "failed"
 
         logger.info("secudium_step2_login_attempt", with_otp=True, otp_length=len(otp_code))
+        assert self._pending_password is not None
         login_result = self._login(
             self._pending_username,
             self._pending_password,
@@ -497,7 +500,7 @@ class SecudiumCollector:
         Returns:
             dict with keys: success, total_entries, total_ips, files_downloaded, errors
         """
-        result = {
+        result: Dict[str, Any] = {
             "success": False,
             "total_entries": 0,
             "total_ips": 0,

@@ -9,7 +9,7 @@ import time
 import threading
 import os
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
 from typing import Dict, Any, Optional
 from core.database import db_service
 from core.regtech_collector import regtech_collector

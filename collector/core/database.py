@@ -364,7 +364,7 @@ class DatabaseService:
         if not ip_addresses:
             return set()
 
-        existing_ips = set()
+        existing_ips: set[str] = set()
 
         try:
             with self.get_connection() as conn:
