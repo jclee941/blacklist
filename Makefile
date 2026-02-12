@@ -8,7 +8,7 @@ ENV ?= development
 # Docker Compose Configuration
 COMPOSE_FILE := deploy/docker/docker-compose.yml
 COMPOSE_PROD_FILE := deploy/docker/docker-compose.prod.yml
-COMPOSE_CMD := $(COMPOSE_CMD) -f $(COMPOSE_FILE) --project-directory .
+COMPOSE_CMD := docker compose -f $(COMPOSE_FILE) --project-directory .
 
 # Setup commands
 setup-hooks: ## Setup git hooks (pre-commit + husky)
