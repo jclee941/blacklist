@@ -5,6 +5,11 @@
 # Default environment
 ENV ?= development
 
+# Docker Compose Configuration
+COMPOSE_FILE := deploy/docker/docker-compose.yml
+COMPOSE_PROD_FILE := deploy/docker/docker-compose.prod.yml
+COMPOSE_CMD := $(COMPOSE_CMD) -f $(COMPOSE_FILE) --project-directory .
+
 # Setup commands
 setup-hooks: ## Setup git hooks (pre-commit + husky)
 	@echo "🔧 Setting up git hooks..."
@@ -26,34 +31,34 @@ help: ## Show this help message
 # Development commands
 dev: ## Start development environment with hot reload (rebuilds changed images)
 	@echo "🚀 Starting development environment..."
-	@docker compose up -d --build
+	@$(COMPOSE_CMD) up -d --build
 	@echo "✅ Development environment started (hot reload enabled)"
 	@echo "🌐 Application: http://localhost:${PORT:-2542}"
 	@echo "💡 Code changes auto-reload via volume mounts"
 
 dev-no-build: ## Start without rebuild (faster, use existing images)
 	@echo "🚀 Starting development environment (no rebuild)..."
-	@docker compose up -d
+	@$(COMPOSE_CMD) up -d
 	@echo "✅ Started with existing images"
 
 dev-prod: ## Start production-like (no override, no hot reload)
 	@echo "🚀 Starting production-like environment..."
-	@docker compose -f docker-compose.yml up -d --build
+	@$(COMPOSE_CMD) up -d --build
 	@echo "✅ Production-like environment started (no hot reload)"
 
 dev-app: ## Restart only app service (quick iteration)
 	@echo "🔄 Rebuilding and restarting app..."
-	@docker compose up -d --build --no-deps blacklist-app
+	@$(COMPOSE_CMD) up -d --build --no-deps blacklist-app
 	@echo "✅ App restarted"
 
 dev-frontend: ## Restart only frontend service
 	@echo "🔄 Rebuilding and restarting frontend..."
-	@docker compose up -d --build --no-deps blacklist-frontend
+	@$(COMPOSE_CMD) up -d --build --no-deps blacklist-frontend
 	@echo "✅ Frontend restarted"
 
 prod: ## Start production environment
 	@echo "🚀 Starting production environment..."
-	@docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	@$(COMPOSE_CMD) -f docker-compose.prod.yml up -d
 	@echo "✅ Production environment started"
 
 # Build commands
@@ -70,7 +75,7 @@ build: check-clean ## Build all Docker images
 	@GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		APP_VERSION=$$(cat VERSION 2>/dev/null || echo "0.0.0-dev") \
 		BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-		docker compose build --parallel \
+		$(COMPOSE_CMD) build --parallel \
 			--build-arg APP_VERSION=$$(cat VERSION 2>/dev/null || echo "0.0.0-dev") \
 			--build-arg GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 			--build-arg BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -78,7 +83,7 @@ build: check-clean ## Build all Docker images
 
 rebuild: ## Rebuild all images from scratch
 	@echo "🏗️ Rebuilding Docker images from scratch..."
-	@docker compose build --no-cache --parallel
+	@$(COMPOSE_CMD) build --no-cache --parallel
 	@echo "✅ Rebuild completed"
 
 # Service management
@@ -91,7 +96,7 @@ endif
 
 down: ## Stop all services
 	@echo "🛑 Stopping all services..."
-	@docker compose down
+	@$(COMPOSE_CMD) down
 	@echo "✅ All services stopped"
 
 restart: ## Restart all services
@@ -102,20 +107,20 @@ restart: ## Restart all services
 
 # Monitoring and logs
 logs: ## Show logs for all services
-	@docker compose logs -f
+	@$(COMPOSE_CMD) logs -f
 
 logs-app: ## Show logs for app service only
-	@docker compose logs -f blacklist-app
+	@$(COMPOSE_CMD) logs -f blacklist-app
 
 logs-db: ## Show logs for database service only
-	@docker compose logs -f blacklist-postgres
+	@$(COMPOSE_CMD) logs -f blacklist-postgres
 
 logs-collector: ## Show logs for collector service only
-	@docker compose logs -f blacklist-collector
+	@$(COMPOSE_CMD) logs -f blacklist-collector
 
 health: ## Check health of all services
 	@echo "🏥 Checking service health..."
-	@docker compose ps
+	@$(COMPOSE_CMD) ps
 	@echo ""
 	@echo "🌐 Testing application health:"
 	@curl -s http://localhost:${PORT:-2542}/health | python3 -m json.tool || echo "❌ Application not responding"
@@ -135,19 +140,19 @@ test-backend: ## Run backend tests (unit + integration)
 
 test-backend-unit: ## Run backend unit tests
 	@echo "🧪 Running backend unit tests..."
-	@docker compose exec -T blacklist-app env COVERAGE_FILE=/tmp/.coverage python -m pytest tests/unit -v --cov=app/core --cov-report=term --cov-report=html:htmlcov || echo "⚠️  Some unit tests failed"
+	@$(COMPOSE_CMD) exec -T blacklist-app env COVERAGE_FILE=/tmp/.coverage python -m pytest tests/unit -v --cov=app/core --cov-report=term --cov-report=html:htmlcov || echo "⚠️  Some unit tests failed"
 
 test-backend-integration: ## Run backend integration tests
 	@echo "🧪 Running backend integration tests..."
-	@docker compose exec -T blacklist-app python -m pytest tests/integration -v || echo "⚠️  Some integration tests failed"
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/integration -v || echo "⚠️  Some integration tests failed"
 
 test-backend-e2e: ## Run backend E2E tests
 	@echo "🧪 Running backend E2E tests..."
-	@docker compose exec -T blacklist-app python -m pytest tests/e2e -v || echo "⚠️  Some E2E tests failed"
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/e2e -v || echo "⚠️  Some E2E tests failed"
 
 test-backend-coverage: ## Run backend tests with coverage report
 	@echo "🧪 Running backend tests with coverage..."
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v \
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v \
 		--cov=app/core \
 		--cov-report=term \
 		--cov-report=html:htmlcov \
@@ -174,44 +179,44 @@ test-frontend-coverage: ## Run frontend tests with coverage
 
 test-watch: ## Run backend tests in watch mode
 	@echo "🧪 Running tests in watch mode..."
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v --watch
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v --watch
 
 test-quick: ## Run quick smoke tests only
 	@echo "🧪 Running quick smoke tests..."
-	@docker compose exec -T blacklist-app python -m pytest tests/unit -v -k "test_health or test_check" --no-cov
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/unit -v -k "test_health or test_check" --no-cov
 
 test-security: ## Run security-focused tests
 	@echo "🔒 Running security tests..."
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m security
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m security
 
 test-db: ## Run database-related tests
 	@echo "💾 Running database tests..."
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m db
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m db
 
 test-api: ## Run API endpoint tests
 	@echo "🌐 Running API tests..."
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m api
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m api
 
 test-all-markers: ## Run all tests by marker (unit, integration, e2e, slow, db, security, api, cache, asyncio)
 	@echo "🧪 Running all test markers..."
 	@echo "📋 Unit tests:"
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m unit --no-cov || true
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m unit --no-cov || true
 	@echo ""
 	@echo "📋 Integration tests:"
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m integration --no-cov || true
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m integration --no-cov || true
 	@echo ""
 	@echo "📋 E2E tests:"
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m e2e --no-cov || true
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m e2e --no-cov || true
 	@echo ""
 	@echo "📋 Security tests:"
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m security --no-cov || true
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m security --no-cov || true
 	@echo ""
 	@echo "📋 API tests:"
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v -m api --no-cov || true
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m api --no-cov || true
 
 test-ci: ## Run tests in CI/CD mode (with coverage and reports)
 	@echo "🤖 Running tests in CI/CD mode..."
-	@docker compose exec -T blacklist-app python -m pytest tests/ -v \
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v \
 		--cov=app/core \
 		--cov-report=term \
 		--cov-report=html:htmlcov \
@@ -223,13 +228,13 @@ test-ci: ## Run tests in CI/CD mode (with coverage and reports)
 # Maintenance
 clean: ## Clean up containers, networks, and volumes
 	@echo "🧹 Cleaning up Docker resources..."
-	@docker compose down -v --remove-orphans
+	@$(COMPOSE_CMD) down -v --remove-orphans
 	@docker system prune -f
 	@echo "✅ Cleanup completed"
 
 clean-all: ## Clean everything including images
 	@echo "🧹 Cleaning up all Docker resources..."
-	@docker compose down -v --remove-orphans --rmi all
+	@$(COMPOSE_CMD) down -v --remove-orphans --rmi all
 	@docker system prune -af
 	@echo "✅ Complete cleanup finished"
 
@@ -259,7 +264,7 @@ shell-db: ## Get shell access to database container
 # CI/CD helpers
 ci-build: ## Build for CI/CD (production images)
 	@echo "🏗️ Building for CI/CD..."
-	@docker compose -f docker-compose.yml -f docker-compose.prod.yml build --parallel
+	@$(COMPOSE_CMD) -f docker-compose.prod.yml build --parallel
 	@echo "✅ CI/CD build completed"
 
 deploy: ## Deploy to production (builds and starts prod environment)
@@ -275,7 +280,7 @@ status: ## Show detailed status of all services
 	@echo "======================="
 	@echo ""
 	@echo "🐳 Docker Containers:"
-	@docker compose ps
+	@$(COMPOSE_CMD) ps
 	@echo ""
 	@echo "📊 Resource Usage:"
 	@docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
