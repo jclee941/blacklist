@@ -94,6 +94,49 @@ function mockCollectionApis(page: Page) {
         await route.continue();
       }
     }),
+    page.route('**/proxy/collection/credentials/regtech', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            data: {
+              service_name: 'REGTECH',
+              username: 'regtech_user',
+              enabled: true,
+              collection_interval: 'daily',
+              connection_status: 'connected',
+              status_message: '연결됨',
+            },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    }),
+    page.route('**/proxy/collection/credentials/secudium', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            data: {
+              service_name: 'SECUDIUM',
+              username: 'secudium_user',
+              enabled: true,
+              collection_interval: 'daily',
+              connection_status: 'connected',
+              status_message: '연결됨',
+              otp_mode: 'manual',
+            },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    }),
     page.route('**/api/collection/sources**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -121,7 +164,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       await page.goto('/collection');
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('수집 관리')).toBeVisible();
+      await expect(page.getByRole('heading', { name: '수집 관리' })).toBeVisible();
       await expect(page.getByText('수집 이력')).toBeVisible();
 
       const body = await page.textContent('body');
