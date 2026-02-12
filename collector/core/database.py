@@ -527,8 +527,8 @@ class DatabaseService:
                     """
                     INSERT INTO collection_history
                     (service_name, success, items_collected, execution_time_ms, 
-                     error_message, collection_date, collection_type, details)
-                    VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, 'manual', %s)
+                     error_message, collection_date, details)
+                    VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s)
                 """,
                     (
                         source,

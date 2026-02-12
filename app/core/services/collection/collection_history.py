@@ -58,13 +58,12 @@ class CollectionHistoryManager:
             cursor.execute(
                 """
                 INSERT INTO collection_history
-                (service_name, collection_type, collection_date, items_collected, 
+                (service_name, collection_date, items_collected, 
                  success, error_message, execution_time_ms, details)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
                 (
                     collection_type,  # service_name
-                    "scheduled" if not additional_info else additional_info.get("type", "manual"),
                     datetime.now(),  # collection_date
                     collected_count,  # items_collected
                     success,
