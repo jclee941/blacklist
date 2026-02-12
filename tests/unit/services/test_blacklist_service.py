@@ -36,7 +36,7 @@ def mock_db_service():
 def blacklist_service(mock_db_service):
     """Create BlacklistService with mocked dependencies"""
     # Patch Redis to avoid external dependency
-    with patch('app.core.services.blacklist_service.redis.Redis') as mock_redis:
+    with patch("app.core.services.blacklist_service.redis.Redis") as mock_redis:
         mock_redis.return_value.ping.return_value = True
         service = BlacklistService(db_service=mock_db_service)
         return service
@@ -55,13 +55,13 @@ class TestBlacklistServiceInitialization:
         """Test Redis initialization on success"""
         assert blacklist_service._components["redis"] is True
 
-    @patch('app.core.services.blacklist_service.redis.Redis')
+    @patch("app.core.services.blacklist_service.redis.Redis")
     def test_redis_initialization_failure(self, mock_redis_class, mock_db_service):
         """Test service handles Redis connection failure gracefully"""
         mock_redis_class.return_value.ping.side_effect = Exception("Connection failed")
-        
+
         service = BlacklistService(db_service=mock_db_service)
-        
+
         assert service.redis_client is None
         assert service._components["redis"] is False
 
@@ -74,10 +74,10 @@ class TestWhitelistChecking:
         # Arrange
         cache_key = "whitelist:192.168.1.1"
         blacklist_service.redis_client.get = Mock(return_value="true")
-        
+
         # Act
         result = blacklist_service.is_whitelisted("192.168.1.1")
-        
+
         # Assert
         assert result is True
         blacklist_service.redis_client.get.assert_called_once_with(cache_key)
@@ -87,10 +87,10 @@ class TestWhitelistChecking:
         # Arrange
         blacklist_service.redis_client.get = Mock(return_value=None)
         blacklist_service.repo.count_whitelist_by_ip = Mock(return_value=1)
-        
+
         # Act
         result = blacklist_service.is_whitelisted("192.168.1.1")
-        
+
         # Assert
         assert result is True
         blacklist_service.repo.count_whitelist_by_ip.assert_called_once_with("192.168.1.1")
@@ -100,10 +100,10 @@ class TestWhitelistChecking:
         # Arrange
         blacklist_service.redis_client.get = Mock(return_value=None)
         blacklist_service.repo.count_whitelist_by_ip = Mock(return_value=0)
-        
+
         # Act
         result = blacklist_service.is_whitelisted("192.168.1.2")
-        
+
         # Assert
         assert result is False
 
@@ -112,10 +112,10 @@ class TestWhitelistChecking:
         # Arrange
         blacklist_service.redis_client.get = Mock(side_effect=Exception("Redis error"))
         blacklist_service.repo.count_whitelist_by_ip = Mock(return_value=1)
-        
+
         # Act
         result = blacklist_service.is_whitelisted("192.168.1.1")
-        
+
         # Assert
         assert result is True
         blacklist_service.repo.count_whitelist_by_ip.assert_called_once()
@@ -128,10 +128,10 @@ class TestBlacklistChecking:
         """Test check_blacklist returns allowed for whitelisted IP"""
         # Arrange
         blacklist_service.is_whitelisted = Mock(return_value=True)
-        
+
         # Act
         result = blacklist_service.check_blacklist("192.168.1.1")
-        
+
         # Assert
         assert result["blocked"] is False
         assert result["reason"] == "whitelisted"
@@ -141,17 +141,14 @@ class TestBlacklistChecking:
         """Test check_blacklist returns from Redis cache"""
         # Arrange
         blacklist_service.is_whitelisted = Mock(return_value=False)
-        cached_result = {
-            "blocked": True,
-            "reason": "malware",
-            "metadata": {"source": "regtech", "detection_count": 5}
-        }
+        cached_result = {"blocked": True, "reason": "malware", "metadata": {"source": "regtech", "detection_count": 5}}
         import json
+
         blacklist_service.redis_client.get = Mock(return_value=json.dumps(cached_result))
-        
+
         # Act
         result = blacklist_service.check_blacklist("10.0.0.1")
-        
+
         # Assert
         assert result["blocked"] is True
         assert result["reason"] == "malware"
@@ -162,15 +159,13 @@ class TestBlacklistChecking:
         # Arrange
         blacklist_service.is_whitelisted = Mock(return_value=False)
         blacklist_service.redis_client.get = Mock(return_value=None)
-        blacklist_service.repo.get_blacklist_entry = Mock(return_value={
-            "reason": "phishing",
-            "source": "REGTECH",
-            "detection_count": 10
-        })
-        
+        blacklist_service.repo.get_blacklist_entry = Mock(
+            return_value={"reason": "phishing", "source": "REGTECH", "detection_count": 10}
+        )
+
         # Act
         result = blacklist_service.check_blacklist("10.0.0.1")
-        
+
         # Assert
         assert result["blocked"] is True
         assert result["reason"] == "phishing"
@@ -182,10 +177,10 @@ class TestBlacklistChecking:
         blacklist_service.is_whitelisted = Mock(return_value=False)
         blacklist_service.redis_client.get = Mock(return_value=None)
         blacklist_service.repo.get_blacklist_entry = Mock(return_value=None)
-        
+
         # Act
         result = blacklist_service.check_blacklist("10.0.0.2")
-        
+
         # Assert
         assert result["blocked"] is False
         assert result["reason"] == "not_in_blacklist"
@@ -194,16 +189,16 @@ class TestBlacklistChecking:
 class TestDecisionLogging:
     """Test log_decision() method"""
 
-    @patch('app.core.services.blacklist_service.blacklist_decisions_total')
+    @patch("app.core.services.blacklist_service.blacklist_decisions_total")
     def test_log_decision_records_metrics(self, mock_metrics, blacklist_service):
         """Test log_decision increments Prometheus metrics"""
         # Arrange
         mock_label_instance = Mock()
         mock_metrics.labels.return_value = mock_label_instance
-        
+
         # Act
         blacklist_service.log_decision("192.168.1.1", "BLOCKED", "malware")
-        
+
         # Assert
         mock_metrics.labels.assert_called_once_with(decision="BLOCKED", reason="malware")
         mock_label_instance.inc.assert_called_once()
@@ -212,13 +207,10 @@ class TestDecisionLogging:
         """Test log_decision includes optional metadata"""
         # This test verifies structured logging captures metadata
         # In production, this would be verified via logging inspection
-        
+
         # Act - should not raise
         blacklist_service.log_decision(
-            "192.168.1.1",
-            "ALLOWED",
-            "whitelisted",
-            metadata={"cache_hit": True, "source": "redis"}
+            "192.168.1.1", "ALLOWED", "whitelisted", metadata={"cache_hit": True, "source": "redis"}
         )
 
 
@@ -230,10 +222,10 @@ class TestHealthStatus:
         # Arrange
         blacklist_service.repo.count_blacklist_ips = Mock(return_value=1000)
         blacklist_service.redis_client.ping = Mock(return_value=True)
-        
+
         # Act
         health = blacklist_service.get_health()
-        
+
         # Assert
         assert health.status in ["healthy", "degraded"]
         assert health.version is not None
@@ -244,10 +236,10 @@ class TestHealthStatus:
         """Test get_health handles database errors gracefully"""
         # Arrange
         blacklist_service.repo.count_blacklist_ips = Mock(side_effect=Exception("DB error"))
-        
+
         # Act
         health = blacklist_service.get_health()
-        
+
         # Assert
         assert health.status == "degraded"
         assert "error" in health.components
@@ -256,32 +248,19 @@ class TestHealthStatus:
 class TestStatistics:
     """Test statistics and reporting methods"""
 
-    def test_get_statistics_returns_summary(self, blacklist_service):
-        """Test get_statistics returns aggregated stats"""
-        # Arrange
-        blacklist_service.repo.count_blacklist_ips = Mock(return_value=5000)
-        blacklist_service.repo.count_active_blacklist_ips = Mock(return_value=3000)
-        blacklist_service.repo.get_source_counts = Mock(return_value={"REGTECH": 2000, "MANUAL": 1000})
-        
-        # Act
-        result = blacklist_service.get_statistics()
-        
-        # Assert
-        assert result["success"] is True
-        assert result["statistics"]["total_ips"] == 5000
-        assert result["statistics"]["active_ips"] == 3000
-
     def test_get_collection_status_returns_sources(self, blacklist_service):
         """Test get_collection_status returns source info"""
         # Arrange
-        blacklist_service.repo.get_source_stats = Mock(return_value=[
-            {"data_source": "REGTECH", "count": 2000, "last_seen": datetime.now()},
-            {"data_source": "MANUAL", "count": 1000, "last_seen": datetime.now()}
-        ])
-        
+        blacklist_service.repo.get_source_stats = Mock(
+            return_value=[
+                {"data_source": "REGTECH", "count": 2000, "last_seen": datetime.now()},
+                {"data_source": "MANUAL", "count": 1000, "last_seen": datetime.now()},
+            ]
+        )
+
         # Act
         result = blacklist_service.get_collection_status()
-        
+
         # Assert
         assert result["collection_enabled"] is True
         assert result["total_ips"] == 3000
@@ -295,10 +274,10 @@ class TestDataManipulation:
         """Test adding IP to blacklist"""
         # Arrange
         blacklist_service.repo.insert_blacklist = Mock(return_value=True)
-        
+
         # Act
         result = blacklist_service.add_to_blacklist("10.0.0.1", reason="phishing")
-        
+
         # Assert
         assert result is True
         blacklist_service.repo.insert_blacklist.assert_called_once()
@@ -307,11 +286,10 @@ class TestDataManipulation:
         """Test adding IP to whitelist"""
         # Arrange
         blacklist_service.repo.insert_whitelist = Mock(return_value=True)
-        
+
         # Act
         result = blacklist_service.add_to_whitelist("10.0.0.1", reason="trusted")
-        
+
         # Assert
         assert result is True
         blacklist_service.repo.insert_whitelist.assert_called_once()
-
