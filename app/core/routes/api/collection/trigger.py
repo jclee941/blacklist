@@ -21,14 +21,14 @@ def trigger_collection(source: str):
     """
     source_upper = source.upper()
 
-    # Validate source parameter (only REGTECH supported)
-    if source_upper not in ["REGTECH", "ALL"]:
+    # Validate source parameter
+    if source_upper not in ["REGTECH", "SECUDIUM", "ALL"]:
         raise ValidationError(
-            message=f"Invalid source: {source}. Only 'regtech' or 'all' is supported",
+            message=f"Invalid source: {source}. Only 'regtech', 'secudium', or 'all' is supported",
             field="source",
             details={
                 "provided_value": source,
-                "allowed_values": ["regtech", "all"],
+                "allowed_values": ["regtech", "secudium", "all"],
             },
         )
 
