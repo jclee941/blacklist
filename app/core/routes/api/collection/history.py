@@ -50,7 +50,7 @@ def get_collection_history():
         """
 
         params = []
-        if source and source == "REGTECH":
+        if source:
             query += " WHERE service_name = %s"
             params.append(source)
 
@@ -83,7 +83,7 @@ def get_collection_history():
         if limit and len(history) == limit:
             count_query = "SELECT COUNT(*) as total FROM collection_history"
             params_count = []
-            if source and source == "REGTECH":
+            if source:
                 count_query += " WHERE service_name = %s"
                 params_count.append(source)
 

@@ -58,10 +58,7 @@ def create_scheduler_api(scheduler_instance):
             # Stop current scheduler
             scheduler_instance.stop()
 
-            # Re-initialize collectors (will pick up new credentials from DB)
-            scheduler_instance._initialize_collectors()
-
-            # Start scheduler
+            # Start scheduler (will re-setup schedules and pick up new configuration)
             scheduler_instance.start()
 
             logger.info("✅ Scheduler restarted successfully")
@@ -84,19 +81,30 @@ def create_scheduler_api(scheduler_instance):
         """List all available collectors"""
         try:
             collectors_info = {}
+            stats = scheduler_instance.collection_stats
 
-            for name, info in scheduler_instance.collectors.items():
+            for name, method_name in scheduler_instance.collectors.items():
                 collectors_info[name] = {
-                    "enabled": info["enabled"],
-                    "type": info["type"],
-                    "interval": info["interval"],
-                    "run_count": info["run_count"],
-                    "error_count": info["error_count"],
-                    "last_run": info["last_run"].isoformat() if info["last_run"] else None,
-                    "next_run": info["next_run"].isoformat() if info["next_run"] else None,
+                    "name": name,
+                    "method": method_name,
+                    "enabled": scheduler_instance.running,
                 }
 
-            return jsonify({"success": True, "collectors": collectors_info, "total": len(collectors_info)})
+            return jsonify(
+                {
+                    "success": True,
+                    "collectors": collectors_info,
+                    "total": len(collectors_info),
+                    "scheduler_running": scheduler_instance.running,
+                    "stats": {
+                        "total_runs": stats.get("total_runs", 0),
+                        "successful_runs": stats.get("successful_runs", 0),
+                        "failed_runs": stats.get("failed_runs", 0),
+                        "last_run": stats.get("last_run"),
+                        "last_success": stats.get("last_success"),
+                    },
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error listing collectors: {e}")
