@@ -27,8 +27,12 @@ export interface CollectionStatus {
 
 export interface SourceStats {
   count?: number;
+  total_items?: number;
   total_collections?: number;
   cumulative_collected?: number;
+  success_rate?: number;
+  last_collection?: string;
+  avg_duration?: number;
 }
 
 export interface BlacklistStats {

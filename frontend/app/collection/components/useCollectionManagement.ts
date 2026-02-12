@@ -121,8 +121,9 @@ export function useCollectionManagement() {
     setTestingConnection((prev) => ({ ...prev, [serviceName]: true }));
     try {
       const data = await testCredential(serviceName.toLowerCase());
+      const innerData = data?.data;
 
-      if (data.code === 'otp_required') {
+      if (innerData?.status === 'otp_required') {
         setOtpServiceName(serviceName);
         setShowOtpDialog(true);
         setNotification({
@@ -130,24 +131,25 @@ export function useCollectionManagement() {
           message: `${serviceName}: OTP 인증이 필요합니다.`,
         });
       } else {
+        const isConnected = innerData?.status === 'connected';
         setCredentials((prev) =>
           prev.map((cred) =>
             cred.service_name === serviceName
               ? {
                   ...cred,
-                  connection_status: data.success ? 'connected' : 'failed',
-                  status_message: data.message || data.error,
+                  connection_status: isConnected ? 'connected' : 'failed',
+                  status_message: innerData?.message || innerData?.error_code,
                 }
               : cred
           )
         );
 
-        if (data.success) {
+        if (isConnected) {
           setNotification({ type: 'success', message: `${serviceName} 연결 테스트 성공!` });
         } else {
           setNotification({
             type: 'error',
-            message: `${serviceName} 연결 실패: ${data.message || data.error}`,
+            message: `${serviceName} 연결 실패: ${innerData?.message || innerData?.error_code || '알 수 없는 오류'}`,
           });
         }
       }
@@ -224,8 +226,9 @@ export function useCollectionManagement() {
         // SECUDIUM manual OTP: authenticate first, then trigger collection
         if (serviceName === 'SECUDIUM') {
           const authData = await testCredential(serviceName.toLowerCase());
+          const authInnerData = authData?.data;
 
-          if (authData.code === 'otp_required') {
+          if (authInnerData?.status === 'otp_required') {
             setOtpServiceName(serviceName);
             setShowOtpDialog(true);
             setNotification({
@@ -235,10 +238,10 @@ export function useCollectionManagement() {
             return;
           }
 
-          if (!authData.success) {
+          if (!authData.success || authInnerData?.status === 'failed') {
             setNotification({
               type: 'error',
-              message: `${serviceName} 인증 실패: ${authData.message || authData.error || '알 수 없는 오류'}`,
+              message: `${serviceName} 인증 실패: ${authInnerData?.message || authInnerData?.error_code || '알 수 없는 오류'}`,
             });
             return;
           }
@@ -365,7 +368,7 @@ export function useCollectionManagement() {
     (source: string) => {
       if (!blacklistStats?.sources) return 0;
       const entry = blacklistStats.sources[source];
-      return entry?.count ?? entry?.cumulative_collected ?? 0;
+      return entry?.total_items ?? entry?.count ?? entry?.cumulative_collected ?? 0;
     },
     [blacklistStats]
   );
