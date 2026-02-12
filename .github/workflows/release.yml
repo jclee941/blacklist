@@ -76,6 +76,10 @@ jobs:
           file: ${{ matrix.dockerfile }}
           load: true
           tags: blacklist-${{ matrix.service }}:${{ needs.validate.outputs.version }}
+          build-args: |
+            APP_VERSION=${{ needs.validate.outputs.version }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Export image

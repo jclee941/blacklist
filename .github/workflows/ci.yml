@@ -209,6 +209,10 @@ jobs:
           file: ${{ matrix.dockerfile }}
           load: true
           tags: blacklist-${{ matrix.service }}:ci
+          build-args: |
+            APP_VERSION=ci
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - run: docker save blacklist-${{ matrix.service }}:ci | gzip > ${{ matrix.service }}.tar.gz

@@ -120,8 +120,15 @@ USER nextjs
 # ============================================================================
 EXPOSE 443
 
-ARG GIT_COMMIT
-LABEL git.commit=${GIT_COMMIT:-unknown}
+ARG APP_VERSION="0.0.0-dev"
+ARG GIT_COMMIT="unknown"
+ARG BUILD_DATE=""
+
+LABEL org.opencontainers.image.version=${APP_VERSION}
+LABEL org.opencontainers.image.revision=${GIT_COMMIT}
+LABEL org.opencontainers.image.created=${BUILD_DATE}
+LABEL org.opencontainers.image.title="blacklist-frontend"
+LABEL org.opencontainers.image.description="Blacklist Next.js Frontend"
 
 # ============================================================================
 # Environment Variables Configuration

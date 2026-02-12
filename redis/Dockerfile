@@ -4,11 +4,13 @@ FROM redis:7-alpine
 LABEL maintainer="NextRade <dev@jclee.me>"
 LABEL description="Redis 7 for Blacklist Intelligence Platform"
 
-ARG BUILD_DATE
-ARG VCS_REF
+ARG APP_VERSION="0.0.0-dev"
+ARG BUILD_DATE=""
+ARG GIT_COMMIT="unknown"
 
-LABEL org.opencontainers.image.created="${BUILD_DATE}"
-LABEL org.opencontainers.image.revision="${VCS_REF}"
+LABEL org.opencontainers.image.version=${APP_VERSION}
+LABEL org.opencontainers.image.revision=${GIT_COMMIT}
+LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.title="blacklist-redis"
 
 RUN mkdir -p /usr/local/etc/redis && \

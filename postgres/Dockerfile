@@ -4,11 +4,13 @@ FROM postgres:15-alpine
 LABEL maintainer="NextRade <dev@jclee.me>"
 LABEL description="PostgreSQL 15 for Blacklist Intelligence Platform"
 
-ARG BUILD_DATE
-ARG VCS_REF
+ARG APP_VERSION="0.0.0-dev"
+ARG BUILD_DATE=""
+ARG GIT_COMMIT="unknown"
 
-LABEL org.opencontainers.image.created="${BUILD_DATE}"
-LABEL org.opencontainers.image.revision="${VCS_REF}"
+LABEL org.opencontainers.image.version=${APP_VERSION}
+LABEL org.opencontainers.image.revision=${GIT_COMMIT}
+LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.title="blacklist-postgres"
 
 ENV POSTGRES_DB=blacklist

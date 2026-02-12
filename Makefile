@@ -67,8 +67,14 @@ check-clean:
 
 build: check-clean ## Build all Docker images
 	@echo "🏗️ Building Docker images..."
-	@GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") docker compose build --parallel
-	@echo "✅ Build completed (commit: $$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown'))"
+	@GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
+		APP_VERSION=$$(cat VERSION 2>/dev/null || echo "0.0.0-dev") \
+		BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+		docker compose build --parallel \
+			--build-arg APP_VERSION=$$(cat VERSION 2>/dev/null || echo "0.0.0-dev") \
+			--build-arg GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
+			--build-arg BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+	@echo "✅ Build completed (version: $$(cat VERSION), commit: $$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown'))"
 
 rebuild: ## Rebuild all images from scratch
 	@echo "🏗️ Rebuilding Docker images from scratch..."

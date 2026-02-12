@@ -22,14 +22,15 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ---- Stage 2: Runtime (minimal) ----
 FROM python:3.9-slim
 
-ARG VERSION
-ARG BUILD_DATE
-ARG GIT_COMMIT
+ARG APP_VERSION="0.0.0-dev"
+ARG BUILD_DATE=""
+ARG GIT_COMMIT="unknown"
 
-LABEL version=${VERSION}
-LABEL build_date=${BUILD_DATE}
-LABEL git.commit=${GIT_COMMIT:-unknown}
-LABEL description="Blacklist Data Collector Service v${VERSION}"
+LABEL org.opencontainers.image.version=${APP_VERSION}
+LABEL org.opencontainers.image.revision=${GIT_COMMIT}
+LABEL org.opencontainers.image.created=${BUILD_DATE}
+LABEL org.opencontainers.image.title="blacklist-collector"
+LABEL org.opencontainers.image.description="Blacklist Data Collector Service"
 LABEL maintainer="qws941"
 LABEL com.docker.compose.project=blacklist
 LABEL com.docker.compose.service=collector

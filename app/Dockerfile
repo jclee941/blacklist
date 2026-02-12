@@ -106,7 +106,7 @@ FROM python:3.11-slim-bullseye as production
 # Passed from GitLab CI/CD → Docker build → Environment variables
 # Version management (injected by GitLab CI)
 ARG APP_VERSION=""
-ARG COMMIT_HASH=""
+ARG GIT_COMMIT="unknown"
 ARG BUILD_NUMBER=""
 
 # Legacy build metadata (for compatibility)
@@ -152,11 +152,11 @@ ARG TIMEZONE
 # ============================================================================
 # Container Metadata Labels
 # ============================================================================
-LABEL version=${VERSION:-unknown}
-LABEL build_number=${BUILD_NUMBER:-0}
-LABEL vcs_ref=${VCS_REF:-unknown}
-LABEL buildtime=${BUILDTIME:-unknown}
-LABEL description="Flask Blacklist Management System v3.3.9"
+LABEL org.opencontainers.image.version=${APP_VERSION:-0.0.0-dev}
+LABEL org.opencontainers.image.revision=${GIT_COMMIT:-unknown}
+LABEL org.opencontainers.image.created=${BUILD_DATE}
+LABEL org.opencontainers.image.title="blacklist-app"
+LABEL org.opencontainers.image.description="Blacklist Flask API"
 LABEL maintainer="qws941"
 
 LABEL com.docker.compose.project=blacklist
@@ -224,7 +224,7 @@ ENV VERSION=${VERSION:-unknown} \
     BUILDTIME=${BUILDTIME:-unknown} \
     # Version Management (NEW - injected by GitLab CI)
     APP_VERSION=${APP_VERSION:-0.0.0-dev} \
-    COMMIT_HASH=${COMMIT_HASH:-unknown} \
+    GIT_COMMIT=${GIT_COMMIT:-unknown} \
     # Application Configuration
     FLASK_ENV=${FLASK_ENV:-production} \
     PORT=2542 \
