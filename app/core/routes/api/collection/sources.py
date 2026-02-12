@@ -107,10 +107,10 @@ def get_source_status(source_id):
 
         last_collection = db_service.query(
             """
-            SELECT id, source, status, started_at, completed_at, records_collected, error_message
+            SELECT id, service_name, collection_date, items_collected, success, error_message
             FROM collection_history
-            WHERE source = %s
-            ORDER BY started_at DESC
+            WHERE service_name = %s
+            ORDER BY collection_date DESC
             LIMIT 1
             """,
             (source_id.upper(),),
@@ -122,11 +122,12 @@ def get_source_status(source_id):
                 {
                     "success": True,
                     "source_id": source_id.upper(),
-                    "status": record.get("status", "unknown"),
+                    "status": "success" if record.get("success") else "failed",
                     "last_collection": {
-                        "started_at": (record["started_at"].isoformat() if record.get("started_at") else None),
-                        "completed_at": (record["completed_at"].isoformat() if record.get("completed_at") else None),
-                        "records_collected": record.get("records_collected", 0),
+                        "collection_date": (
+                            record["collection_date"].isoformat() if record.get("collection_date") else None
+                        ),
+                        "items_collected": record.get("items_collected", 0),
                         "error_message": record.get("error_message"),
                     },
                 }

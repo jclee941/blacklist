@@ -414,15 +414,15 @@ class HealthServer:
                 "next_run": None,
             }
         else:
-            # Fallback to collectors dict (legacy, usually empty)
-            for name, collector in self.collectors.items():
+            # Fallback: collectors_ref is empty or contains {name: method_name} string pairs
+            for name in self.collectors:
                 status[name] = {
-                    "enabled": collector.get("enabled", False),
-                    "run_count": collector.get("run_count", 0),
-                    "error_count": collector.get("error_count", 0),
-                    "interval_seconds": collector.get("interval", 0),
-                    "last_run": collector.get("last_run").isoformat() if collector.get("last_run") else None,
-                    "next_run": collector.get("next_run").isoformat() if collector.get("next_run") else None,
+                    "enabled": False,
+                    "run_count": 0,
+                    "error_count": 0,
+                    "interval_seconds": 0,
+                    "last_run": None,
+                    "next_run": None,
                 }
 
         return status
