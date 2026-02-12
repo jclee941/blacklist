@@ -68,7 +68,6 @@ export default function FortinetClient() {
         throw new Error('API 요청 실패');
       }
 
-      const contentType = response.headers['content-type'] || '';
       let blocklistText = '';
 
       const data = response.data;

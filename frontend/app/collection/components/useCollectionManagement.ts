@@ -212,7 +212,7 @@ export function useCollectionManagement() {
         setTestingConnection((prev) => ({ ...prev, [otpServiceName]: false }));
       }
     },
-    [otpServiceName]
+    [otpServiceName, fetchData]
   );
 
   const closeOtpDialog = useCallback(() => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Settings, Database, Shield, Bell, Clock, Save, RefreshCw, Loader2 } from 'lucide-react';
+import { Settings, Database, Shield, Bell, Save, RefreshCw } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Tabs from '@/components/ui/Tabs';
 import { getSettingsGrouped, updateSettingsBatch } from '@/lib/api';
@@ -21,7 +21,6 @@ interface NotificationSettings {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>('system');
-  const [loading, setLoading] = useState(true);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     auto_deactivate_expired: true,
     collection_interval_hours: 24,
@@ -45,7 +44,6 @@ export default function SettingsPage() {
 
   const loadSettings = useCallback(async () => {
     try {
-      setLoading(true);
       const data = await getSettingsGrouped();
       if (data.success && data.settings) {
         const allSettings: Record<string, string> = {};
@@ -91,8 +89,6 @@ export default function SettingsPage() {
       }
     } catch {
       setMessage({ type: 'error', text: '설정을 불러오는데 실패했습니다.' });
-    } finally {
-      setLoading(false);
     }
   }, []);
 
