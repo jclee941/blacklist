@@ -127,6 +127,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://blacklist:blacklist@localhost:5432/blacklist_test
       REDIS_URL: redis://localhost:6379/0
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: blacklist_test
+      POSTGRES_USER: blacklist
+      POSTGRES_PASSWORD: blacklist
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
