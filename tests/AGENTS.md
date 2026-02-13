@@ -1,7 +1,7 @@
 # TESTS KNOWLEDGE BASE
 
-**Generated:** 2026-02-11
-**Commit:** 2b9662f | **Version:** 3.5.59
+**Generated:** 2026-02-12
+**Commit:** 83e7d28 | **Version:** 3.5.60
 **Role:** Test Infrastructure & Patterns
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
@@ -36,12 +36,10 @@ make test-security           # @pytest.mark.security
 make test-frontend           # Vitest
 make test-frontend-e2e       # Playwright
 
-# Single test
 docker compose exec -T blacklist-app python -m pytest tests/unit -v -k "test_name"
 cd frontend && npm run test -- --testNamePattern="test name"
 
-# Update visual snapshots
-cd frontend && npx playwright test --update-snapshots
+cd frontend && npx playwright test --update-snapshots  # Update visual snapshots
 ```
 
 ## MARKERS (Backend)
@@ -77,3 +75,5 @@ cd frontend && npx playwright test --update-snapshots
 
 - No `conftest.py` — fixtures defined inline in test files
 - E2E timeout: 60s default, multi-browser (Chromium, Firefox, Mobile Chrome)
+- Regression tests: `frontend/e2e/regression/issue-{NUMBER}-{description}.spec.ts` — require `PROBLEM`/`ROOT CAUSE`/`FIX` comments
+- Mock FortiManager: standalone Flask app in `tests/mock-fortigate/` for integration tests

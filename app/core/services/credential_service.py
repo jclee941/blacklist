@@ -12,7 +12,7 @@ from cryptography.fernet import Fernet
 import base64
 from datetime import datetime
 
-from app.core.utils.encryption import encryption_service
+from ..utils.encryption import encryption_service
 
 logger = logging.getLogger(__name__)
 

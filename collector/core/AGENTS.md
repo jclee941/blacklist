@@ -1,7 +1,7 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
-**Generated:** 2026-02-11
-**Commit:** 2b9662f | **Version:** 3.5.59
+**Generated:** 2026-02-12
+**Commit:** 83e7d28 | **Version:** 3.5.60
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## OVERVIEW
@@ -57,3 +57,5 @@ core/
 |------|-------|--------|
 | `fortigate_collector.py` | 680L | Active — consider splitting |
 | `secudium_collector.py` | 676L | Active — manual OTP login flow added v3.5.55; consider splitting |
+
+- v3.5.60: Resolved all 91 mypy type errors across 14 collector files (commit `83e7d28`)

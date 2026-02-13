@@ -1,7 +1,7 @@
 # AGENTS.md — Web Routes (Server-Rendered + Legacy API)
 
-**Generated:** 2026-02-11
-**Commit:** 2b9662f | **Version:** 3.5.59
+**Generated:** 2026-02-12
+**Commit:** 83e7d28 | **Version:** 3.5.60
 **Parent:** `app/core/routes/` | **Total:** 3,139 lines
 
 ## OVERVIEW

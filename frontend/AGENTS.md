@@ -1,14 +1,14 @@
 # FRONTEND KNOWLEDGE BASE
 
-**Generated:** 2026-02-11
-**Commit:** 2b9662f | **Version:** 3.5.59
+**Generated:** 2026-02-12
+**Commit:** 83e7d28 | **Version:** 3.5.60
 **Role:** Dashboard UI (Admin Interface)
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## OVERVIEW
 
-Next.js 15 admin dashboard. **Air-gap compatible** — all API calls go through proxy.
-Tailwind CSS v4 + Radix UI component system.
+Next.js 15 (React 19) admin dashboard. **Air-gap compatible** — all API calls go through proxy.
+Tailwind CSS v4 + Radix UI component system. Icons: `lucide-react`.
 
 ## STRUCTURE
 
@@ -46,7 +46,7 @@ next.config.ts          # /api/* → :2542 rewrite
 | ---------- | -------------------------------------------------- |
 | API calls  | Through `lib/api.ts` only (direct fetch forbidden) |
 | Components | `page.tsx` = Server, `*Client.tsx` = Client        |
-| State      | Zustand (global UI), React Query (server state)    |
+| State      | Zustand (global UI), React Query (staleTime 1m)    |
 | Styling    | Tailwind utility only (custom CSS forbidden)       |
 | Build      | `output: 'standalone'` (Docker optimized)          |
 

@@ -98,7 +98,14 @@ class DatabaseService:
             if self.connection_pool and conn:
                 self.connection_pool.putconn(conn)
         except Exception as e:
-            logger.error(f"Failed to return connection to pool: {e}")
+            logger.warning(f"Failed to return connection to pool: {e}")
+            # Connection may belong to a stale pool after reinitialization;
+            # close it directly to prevent connection leaks.
+            try:
+                if conn and not conn.closed:
+                    conn.close()
+            except Exception:
+                pass
 
     def close_all_connections(self):
         """Close all connections in pool"""

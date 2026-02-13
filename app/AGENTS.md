@@ -1,7 +1,7 @@
 # AGENTS.md — Flask API (`app/`)
 
-**Generated:** 2026-02-11
-**Commit:** 2b9662f | **Version:** 3.5.59
+**Generated:** 2026-02-12
+**Commit:** 83e7d28 | **Version:** 3.5.60
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## STRUCTURE
@@ -11,7 +11,7 @@ app/
 ├── run_app.py              # Entry point (:2542)
 ├── core/
 │   ├── app.py              # Application Factory (complexity: 39.91)
-│   ├── services/           # 16+ services → services/AGENTS.md
+│   ├── services/           # 14 services → services/AGENTS.md
 │   │   └── service_factory.py  # DI container (init order matters)
 │   ├── routes/
 │   │   ├── api/            # JSON API (RFC 7807) → api/AGENTS.md

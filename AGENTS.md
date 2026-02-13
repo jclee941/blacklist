@@ -1,8 +1,8 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
-**Generated:** 2026-02-11
-**Commit:** 2b9662f
-**Branch:** master | **Version:** 3.5.59
+**Generated:** 2026-02-12
+**Commit:** 83e7d28
+**Branch:** master | **Version:** 3.5.60
 
 ## COMMANDS
 
