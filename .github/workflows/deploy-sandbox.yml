@@ -250,7 +250,7 @@ jobs:
           FAILED=0
           check_endpoint "http://${HOST}:2542/api/health" "API" || FAILED=1
           check_endpoint "http://${HOST}:8545/health" "Collector" || FAILED=1
-          check_endpoint "http://${HOST}:443" "Frontend" || FAILED=1
+          check_endpoint "https://${HOST}" "Frontend" || FAILED=1
 
           if [ $FAILED -ne 0 ]; then
             echo ""
