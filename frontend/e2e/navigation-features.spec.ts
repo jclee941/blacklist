@@ -12,7 +12,7 @@ async function loginViaApi(page: Page) {
     await page.goto('/');
     await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   }
 }
 
@@ -21,7 +21,7 @@ test.describe('네비게이션 기능 검증', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await loginViaApi(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('모든 네비게이션 링크가 표시된다', async ({ page }) => {
@@ -37,9 +37,9 @@ test.describe('네비게이션 기능 검증', () => {
 
   test('대시보드 링크 클릭 시 / 로 이동한다', async ({ page }) => {
     await page.goto('/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.getByRole('link', { name: '대시보드' }).first().click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     expect(page.url()).toContain('/');
   });
 
@@ -69,7 +69,7 @@ test.describe('네비게이션 기능 검증', () => {
 
   test('/monitoring 접속 시 / 로 리다이렉트된다', async ({ page }) => {
     await page.goto('/monitoring');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const url = page.url();
     expect(url.endsWith('/') || !url.includes('/monitoring')).toBe(true);
   });
@@ -80,14 +80,14 @@ test.describe('네비게이션 기능 검증', () => {
     expect(page.url()).toContain('/ip-management');
 
     await page.goBack();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const url = page.url();
     expect(url.endsWith('/')).toBe(true);
   });
 
   test('모바일 메뉴 토글이 작은 화면에서 동작한다', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const menuToggle = page.getByTestId('navbar-menu-toggle');
     const hasToggle = await menuToggle.isVisible({ timeout: 3000 }).catch(() => false);

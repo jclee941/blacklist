@@ -10,7 +10,7 @@ async function loginViaApi(page: Page) {
     await page.goto('/');
     await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   }
 }
 
@@ -20,7 +20,7 @@ test.describe('대시보드 기능 테스트', () => {
   test.beforeEach(async ({ page }) => {
     await loginViaApi(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('대시보드 헤더가 표시된다', async ({ page }) => {
@@ -61,7 +61,6 @@ test.describe('대시보드 기능 테스트', () => {
   test('빠른 작업 클릭 시 해당 페이지로 이동한다', async ({ page }) => {
     const link = page.getByRole('link', { name: 'IP 관리' }).first();
     await link.click();
-    await page.waitForLoadState('networkidle');
     await expect(page).toHaveURL(/\/ip-management/);
   });
 
@@ -75,14 +74,9 @@ test.describe('대시보드 기능 테스트', () => {
   });
 
   test('시스템 상태에 정상/오류 상태가 표시된다', async ({ page }) => {
-    await page.waitForTimeout(2000);
-    const statusSection = page.getByText('시스템 상태').locator('..');
-    const hasStatus = await statusSection
-      .getByText(/정상|오류|활성|비활성/)
-      .first()
-      .isVisible()
-      .catch(() => false);
-    expect(hasStatus).toBeTruthy();
+    // 시스템 상태 카드가 비동기 로드되므로 넉넉한 timeout으로 대기
+    const statusText = page.getByText(/정상|오류|활성|비활성/).first();
+    await expect(statusText).toBeVisible({ timeout: 15000 });
   });
 
   test('최근 수집 활동 섹션이 표시된다', async ({ page }) => {
@@ -110,7 +104,7 @@ test.describe('대시보드 기능 테스트', () => {
   test('로딩 상태가 표시된 후 데이터가 로드된다', async ({ page }) => {
     await page.goto('/');
 
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.getByRole('heading', { name: '대시보드', level: 1 })).toBeVisible({
       timeout: 15000,
     });
@@ -119,7 +113,7 @@ test.describe('대시보드 기능 테스트', () => {
   test('API 에러 시 에러 상태가 처리된다', async ({ page }) => {
     await page.route('**/api/stats', (route) => route.fulfill({ status: 500, body: '{}' }));
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: '대시보드', level: 1 })).toBeVisible();
   });

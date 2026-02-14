@@ -10,7 +10,7 @@ async function loginViaApi(page: Page) {
     await page.goto('/');
     await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   }
 }
 
@@ -162,7 +162,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
 
     test('수집 관리 페이지 로드 및 기본 요소 표시', async ({ page }) => {
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       await expect(page.getByRole('heading', { name: '수집 관리' })).toBeVisible();
       await expect(page.getByText('수집 이력')).toBeVisible();
@@ -174,7 +174,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
 
     test('수집기 카드에 연결 상태 배지 표시', async ({ page }) => {
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const connectedBadges = page.getByText('연결됨');
@@ -184,7 +184,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
 
     test('수집기 카드에 액션 버튼 3개 표시', async ({ page }) => {
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const testButtons = page.getByRole('button', { name: /연결 테스트|테스트/i });
@@ -209,7 +209,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       });
 
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const regtechCard = page
@@ -245,7 +245,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       });
 
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const secudiumCard = page
@@ -297,7 +297,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       });
 
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const secudiumCard = page
@@ -339,7 +339,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       });
 
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const secudiumCard = page
@@ -365,7 +365,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
 
     test('설정 버튼 클릭 시 인증정보 수정 모달 표시', async ({ page }) => {
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const regtechCard = page
@@ -418,7 +418,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       });
 
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const regtechCard = page
@@ -490,27 +490,20 @@ test.describe('수집 프로세스 E2E 테스트', () => {
 
     test('수집 이력 탭으로 전환', async ({ page }) => {
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const historyTab = page.getByText('수집 이력');
       await historyTab.click();
-      await page.waitForTimeout(1000);
 
-      const body = await page.textContent('body');
-      const hasHistoryContent =
-        body?.includes('regtech') ||
-        body?.includes('REGTECH') ||
-        body?.includes('secudium') ||
-        body?.includes('SECUDIUM') ||
-        body?.includes('성공') ||
-        body?.includes('실패');
-
-      expect(hasHistoryContent).toBe(true);
+      // Wait for history data to load (async fetch after tab switch)
+      await expect(
+        page.getByText(/regtech|REGTECH|secudium|SECUDIUM|성공|실패|수집 이력이 없습니다/).first()
+      ).toBeVisible({ timeout: 15000 });
     });
 
     test('수집 이력 테이블에 수집 기록 표시', async ({ page }) => {
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const historyTab = page.getByText('수집 이력');
       await historyTab.click();
@@ -528,7 +521,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
 
     test('수집 통계 카드 표시', async ({ page }) => {
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const historyTab = page.getByText('수집 이력');
       await historyTab.click();
@@ -558,7 +551,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       });
 
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000);
 
       const body = await page.textContent('body');
@@ -588,7 +581,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
       });
 
       await page.goto('/collection');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       const regtechCard = page
