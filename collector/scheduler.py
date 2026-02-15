@@ -277,6 +277,11 @@ class CollectionScheduler:
         """일일 정기 수집 (24시간마다)"""
         logger.info(f"📆 일일 수집 시작: {schedule_name}")
 
+        credentials = db_service.get_collection_credentials("REGTECH")
+        if credentials and not credentials.get("enabled", False):
+            logger.info("⏭️ REGTECH 수집 비활성화 — 건너뜀")
+            return
+
         start_time = datetime.now()
 
         try:
@@ -330,6 +335,10 @@ class CollectionScheduler:
             credentials = db_service.get_collection_credentials("SECUDIUM")
             if not credentials:
                 logger.warning("⚠️ Secudium 자격증명 없음 — 수집 건너뜀")
+                return
+
+            if not credentials.get("enabled", False):
+                logger.info("⏭️ SECUDIUM 수집 비활성화 — 건너뜀")
                 return
 
             username = credentials.get("username", "")
@@ -398,6 +407,10 @@ class CollectionScheduler:
                 logger.error("❌ No REGTECH credentials found in database")
                 logger.error("   Please save credentials via: POST /regtech/credentials")
                 self._record_failure("No credentials in database")
+                return
+
+            if not credentials.get("enabled", False):
+                logger.info("⏭️ REGTECH 수집 비활성화 — 건너뜀")
                 return
 
             regtech_id = credentials.get("username", "")
@@ -618,6 +631,11 @@ class CollectionScheduler:
             if not credentials:
                 error_msg = f"No {source} credentials found in database"
                 logger.error(f"❌ {error_msg}")
+                return {"success": False, "error": error_msg, "collected_count": 0}
+
+            if not credentials.get("enabled", False):
+                error_msg = f"{source} 수집이 비활성화되어 있습니다"
+                logger.warning(f"⏭️ {error_msg}")
                 return {"success": False, "error": error_msg, "collected_count": 0}
 
             username = credentials.get("username", "")

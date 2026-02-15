@@ -457,7 +457,13 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-gray-600 font-medium">수집 활성화</p>
                 <p className="text-lg font-bold text-purple-600">
-                  {systemStatus.collection?.collection_enabled ? '활성' : '비활성'}
+                  {collectionStatus
+                    ? Object.values(collectionStatus.collectors || {}).some((c) => c.enabled)
+                      ? '활성'
+                      : '비활성'
+                    : systemStatus.collection?.collection_enabled
+                      ? '활성'
+                      : '비활성'}
                 </p>
               </div>
             </div>

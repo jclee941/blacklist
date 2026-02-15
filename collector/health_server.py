@@ -356,6 +356,18 @@ class HealthServer:
                 if source_upper not in ["REGTECH", "SECUDIUM"]:
                     return jsonify({"success": False, "error": f"Invalid source: {source_upper}"}), 400
 
+                from core.database import DatabaseService
+
+                db = DatabaseService()
+                credentials = db.get_collection_credentials(source_upper)
+                if credentials and not credentials.get("enabled", False):
+                    return jsonify(
+                        {
+                            "success": False,
+                            "error": f"{source_upper} 수집이 비활성화되어 있습니다",
+                        }
+                    ), 403
+
                 logger.info(f"Forcing immediate collection for {source_upper}")
                 result = self.scheduler.force_collection(source_upper)
 
@@ -391,11 +403,21 @@ class HealthServer:
         """Get current collector status from scheduler stats"""
         status = {}
 
+        # Read enabled state from DB credentials (source of truth)
+        from core.database import DatabaseService
+
+        db = DatabaseService()
+        regtech_creds = db.get_collection_credentials("REGTECH")
+        secudium_creds = db.get_collection_credentials("SECUDIUM")
+
+        regtech_enabled = regtech_creds.get("enabled", False) if regtech_creds else False
+        secudium_enabled = secudium_creds.get("enabled", False) if secudium_creds else False
+
         # Use scheduler collection_stats if available (primary source)
         if self.scheduler:
             stats = self.scheduler.collection_stats
             status["REGTECH"] = {
-                "enabled": True,
+                "enabled": regtech_enabled,
                 "run_count": stats.get("total_runs", 0),
                 "error_count": stats.get("failed_runs", 0),
                 "interval_seconds": stats.get("adaptive_interval", 86400),
@@ -403,9 +425,6 @@ class HealthServer:
                 "next_run": self.scheduler._get_next_run_time(),
             }
 
-            # SECUDIUM status — scheduler.collectors values are method name strings,
-            # not dicts, so we build a minimal status from APScheduler job info
-            secudium_enabled = "SECUDIUM" in self.scheduler.collectors
             status["SECUDIUM"] = {
                 "enabled": secudium_enabled,
                 "run_count": 0,
@@ -417,8 +436,13 @@ class HealthServer:
         else:
             # Fallback: collectors_ref is empty or contains {name: method_name} string pairs
             for name in self.collectors:
+                cred_enabled = False
+                if name == "REGTECH":
+                    cred_enabled = regtech_enabled
+                elif name == "SECUDIUM":
+                    cred_enabled = secudium_enabled
                 status[name] = {
-                    "enabled": False,
+                    "enabled": cred_enabled,
                     "run_count": 0,
                     "error_count": 0,
                     "interval_seconds": 0,
