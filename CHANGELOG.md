@@ -9,9 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [3.5.63] - 2026-02-15
+
+### Added
+- **Test**: 전체 유닛 테스트 커버리지 대폭 확대 (785 tests across 52 files)
+  - API 라우트 26개 파일 (347 tests)
+  - Collector 12개 파일 (300 tests)
+  - DB 인프라 3개 파일 (41 tests)
+  - Frontend 클라이언트 5개 파일 (32 tests)
+  - Web 라우트 6개 파일 (65 tests)
+
 ### Fixed
 - **Infra**: Watchtower Docker API 호환성 수정 (`DOCKER_API_VERSION=1.44` for Docker 27+)
 - **Frontend**: 컨테이너 healthcheck를 `curl` → `node` 기반으로 변경 (alpine 호환)
+- **CI/CD**: Sandbox deploy frontend health check를 https로 변경
 
 ### Changed
 - **CI/CD**: Airgap 프로덕션 배포를 `workflow_dispatch` 수동 전용으로 변경 (자동 트리거 제거)
