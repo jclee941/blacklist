@@ -248,13 +248,14 @@ class CollectionScheduler:
                 )
                 expired_count = cursor.rowcount
 
-                # 2. 3개월(90일) 이상 지난 IP 비활성화 (모든 소스)
+                # 2. 3개월(90일) 이상 지난 IP 비활성화 (removal_date 미설정 또는 이미 만료된 경우만)
                 cursor.execute(
                     """
                     UPDATE blacklist_ips
                     SET is_active = false, updated_at = NOW()
                     WHERE is_active = true
                     AND detection_date < CURRENT_DATE - INTERVAL '3 months'
+                    AND (removal_date IS NULL OR removal_date < CURRENT_DATE)
                     """
                 )
                 old_count = cursor.rowcount
