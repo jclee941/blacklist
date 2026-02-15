@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.65] - 2026-02-16
+
+### Fixed
+- **Collector**: Secudium 수집 시 문자/이메일 중복 발송 방지 (auto OTP 모드에서 testCredential 호출 제거)
+- **Collector**: `force_collection()` 동시 실행 방지를 위한 idempotency guard 추가
+- **Infra**: openpyxl 버전을 >=3.1.5로 업데이트하여 Pandas 호환성 문제 해결 (CI fix)
+
+### Added
+- **Test**: Secudium 수집 라이브 E2E 테스트 추가 (자동 OTP 이메일 인증 자동화)
+
+---
+
 ## [3.5.64] - 2026-02-15
 
 ### Changed
