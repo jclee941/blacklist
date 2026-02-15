@@ -197,7 +197,7 @@ jobs:
         service: [frontend, app, collector]
         include:
           - service: frontend
-            context: ./frontend
+            context: .
             dockerfile: frontend/Dockerfile
           - service: app
             context: .
