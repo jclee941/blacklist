@@ -59,7 +59,7 @@ import { useIPManagement } from '@/app/ip-management/components';
 
 describe('IPManagementClient', () => {
   const mockUseIPManagement = {
-    activeTab: 'blacklist',
+    activeTab: 'blacklist' as const,
     data: [],
     loading: false,
     page: 1,
@@ -70,7 +70,15 @@ describe('IPManagementClient', () => {
     showDeleteModal: false,
     editingRecord: null,
     deletingRecord: null,
-    formData: {},
+    formData: {
+      ip_address: '',
+      reason: '',
+      source: 'MANUAL',
+      country: '',
+      is_active: true,
+      detection_date: '',
+      removal_date: '',
+    },
     isSubmitting: false,
     submitSuccess: false,
     submitError: null,

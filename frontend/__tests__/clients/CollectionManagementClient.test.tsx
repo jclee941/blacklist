@@ -53,15 +53,15 @@ import { useCollectionManagement } from '@/app/collection/components';
 describe('CollectionManagementClient', () => {
   const mockUseCollectionManagement = {
     credentials: [],
-    collectionStatus: {},
-    blacklistStats: {},
+    collectionStatus: null,
+    blacklistStats: null,
     loading: true,
-    testingConnection: {},
-    triggeringCollection: {},
+    testingConnection: {} as Record<string, boolean>,
+    triggeringCollection: {} as Record<string, boolean>,
     showCredentialModal: false,
     editingService: null,
     notification: null,
-    credentialForm: {},
+    credentialForm: { username: '', password: '', enabled: true, collection_interval: '86400' },
     fetchData: vi.fn(),
     saveCredentials: vi.fn(),
     testConnection: vi.fn(),
@@ -96,9 +96,10 @@ describe('CollectionManagementClient', () => {
     vi.mocked(useCollectionManagement).mockReturnValue({
       ...mockUseCollectionManagement,
       loading: false,
-      credentials: [{ service_name: 'REGTECH' }, { service_name: 'SECUDIUM' }] as {
-        service_name: string;
-      }[],
+      credentials: [
+        { service_name: 'REGTECH', username: 'user', enabled: true },
+        { service_name: 'SECUDIUM', username: 'user', enabled: true },
+      ] as { service_name: string; username: string; enabled: boolean }[],
     });
     render(<CollectionManagementClient />);
     expect(screen.getByTestId('page-header')).toHaveTextContent('수집 관리');

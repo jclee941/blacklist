@@ -59,6 +59,7 @@ describe('FortinetClient', () => {
         blocklist: '1.1.1.1\n2.2.2.2',
       },
     },
+    headers: {} as Record<string, string>,
   };
 
   beforeEach(() => {

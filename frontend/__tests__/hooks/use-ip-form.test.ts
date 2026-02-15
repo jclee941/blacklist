@@ -173,7 +173,6 @@ describe('useIPForm', () => {
 
     act(() => {
       result.current.populateFromRecord({
-        id: 1,
         ip_address: '10.0.0.1',
         reason: 'Malware',
         source: 'REGTECH',
@@ -181,8 +180,6 @@ describe('useIPForm', () => {
         is_active: true,
         detection_date: '2025-01-15',
         removal_date: '2025-04-15',
-        created_at: '2025-01-15',
-        updated_at: '2025-01-15',
       });
     });
 
@@ -201,13 +198,10 @@ describe('useIPForm', () => {
 
     act(() => {
       result.current.populateFromRecord({
-        id: 1,
         ip_address: '10.0.0.1',
         reason: 'Test',
         source: 'MANUAL',
         country: '',
-        created_at: '2025-01-15',
-        updated_at: '2025-01-15',
       });
     });
 
