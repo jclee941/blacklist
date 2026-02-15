@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.66] - 2026-02-16
+
+### Fixed
+- **Collector**: 수집 활성화/비활성화 로직 수정 — DB credential의 enabled 상태를 실제로 반영
+- **Collector**: 스케줄 수집 및 수동 수집 시 enabled=false면 건너뜀
+- **Collector**: force_collection 엔드포인트에서 비활성화된 수집기 403 반환
+- **Frontend**: 대시보드 수집 활성화 표시를 실제 collector 상태 데이터에서 파생
+
+---
+
 ## [3.5.65] - 2026-02-16
 
 ### Fixed
