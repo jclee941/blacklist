@@ -50,6 +50,8 @@ class CollectionScheduler:
             "SECUDIUM": "_collect_secudium_data",
         }
 
+        self._active_collections: set[str] = set()
+
         # Load initial stats from database on init
         self._load_initial_stats()
 
@@ -601,7 +603,11 @@ class CollectionScheduler:
         Returns:
             Collection result dictionary
         """
-        # start_time = datetime.now()
+        if source in self._active_collections:
+            logger.warning(f"⚠️ {source} collection already in progress, skipping duplicate request")
+            return {"success": False, "error": f"{source} 수집이 이미 진행 중입니다", "collected_count": 0}
+
+        self._active_collections.add(source)
 
         try:
             logger.info(f"🔄 Force collection triggered for {source}")
@@ -648,6 +654,8 @@ class CollectionScheduler:
         except Exception as e:
             logger.error(f"❌ Force collection error for {source}: {e}")
             return {"success": False, "error": str(e), "collected_count": 0}
+        finally:
+            self._active_collections.discard(source)
 
     def _collect_secudium_data(
         self,

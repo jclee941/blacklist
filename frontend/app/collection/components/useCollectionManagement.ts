@@ -224,27 +224,33 @@ export function useCollectionManagement() {
     async (serviceName: string) => {
       setTriggeringCollection((prev) => ({ ...prev, [serviceName]: true }));
       try {
-        // SECUDIUM manual OTP: authenticate first, then trigger collection
+        // SECUDIUM manual OTP: check if OTP is needed before triggering collection
+        // Only test auth for manual OTP mode — auto mode is handled by the collector
         if (serviceName === 'SECUDIUM') {
-          const authData = await testCredential(serviceName.toLowerCase());
-          const authInnerData = authData?.data;
+          const cred = credentials.find((c) => c.service_name === serviceName);
+          const otpMode = cred?.otp_mode || 'auto';
 
-          if (authInnerData?.status === 'otp_required') {
-            setOtpServiceName(serviceName);
-            setShowOtpDialog(true);
-            setNotification({
-              type: 'success',
-              message: `${serviceName}: OTP 인증이 필요합니다. 인증 후 수집이 시작됩니다.`,
-            });
-            return;
-          }
+          if (otpMode === 'manual') {
+            const authData = await testCredential(serviceName.toLowerCase());
+            const authInnerData = authData?.data;
 
-          if (!authData.success || authInnerData?.status === 'failed') {
-            setNotification({
-              type: 'error',
-              message: `${serviceName} 인증 실패: ${authInnerData?.message || authInnerData?.error_code || '알 수 없는 오류'}`,
-            });
-            return;
+            if (authInnerData?.status === 'otp_required') {
+              setOtpServiceName(serviceName);
+              setShowOtpDialog(true);
+              setNotification({
+                type: 'success',
+                message: `${serviceName}: OTP 인증이 필요합니다. 인증 후 수집이 시작됩니다.`,
+              });
+              return;
+            }
+
+            if (!authData.success || authInnerData?.status === 'failed') {
+              setNotification({
+                type: 'error',
+                message: `${serviceName} 인증 실패: ${authInnerData?.message || authInnerData?.error_code || '알 수 없는 오류'}`,
+              });
+              return;
+            }
           }
         }
 
@@ -268,7 +274,7 @@ export function useCollectionManagement() {
         setTriggeringCollection((prev) => ({ ...prev, [serviceName]: false }));
       }
     },
-    [fetchData]
+    [fetchData, credentials]
   );
 
   const openEditModal = useCallback(
