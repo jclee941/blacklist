@@ -1,6 +1,0 @@
-[lfs]
-    # Use SSH URL for LFS to match the remote and bypass HTTPS restrictions
-    url = ssh://git@gitlab.jclee.me:2022/nextrade/blacklist.git
-    fetchinclude = dist/images/*.tar.gz,*.tar.gz
-    skipdownloaderrors = true
-    locksverify = false
