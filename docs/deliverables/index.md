@@ -3,8 +3,8 @@
 | 항목 | 내용 |
 |------|------|
 | **문서번호** | REGTECH-BL-DEL-2026-001 |
-| **버전** | 3.5.11 |
-| **최종수정** | 2026-01-15 |
+| **버전** | 3.5.64 |
+| **최종수정** | 2026-02-15 |
 | **프로젝트** | REGTECH Blacklist Intelligence Platform |
 
 ---
@@ -47,36 +47,36 @@
 
 | 번호 | 산출물명 | 파일명 | 버전 | 상태 | 설명 |
 |------|----------|--------|------|------|------|
-| D-001 | **요구사항 정의서** | [`01-REQUIREMENTS-SPECIFICATION.md`](./01-REQUIREMENTS-SPECIFICATION.md) | 3.5.11 | ✅ 완료 | 기능/비기능 요구사항 33+19개 정의 |
-| D-002 | **프로젝트 가이드** | [`../guides/project-guide.md`](../guides/project-guide.md) | 3.5.11 | ✅ 완료 | 프로젝트 개요 및 온보딩 가이드 |
+| D-001 | **요구사항 정의서** | [`01-REQUIREMENTS-SPECIFICATION.md`](./01-REQUIREMENTS-SPECIFICATION.md) | 3.5.64 | ✅ 완료 | 기능/비기능 요구사항 33+19개 정의 |
+| D-002 | **프로젝트 가이드** | [`../../README.md`](../../README.md) | 3.5.64 | ✅ 완료 | 프로젝트 개요 및 온보딩 가이드 |
 
 ### 2.2 설계 단계
 
 | 번호 | 산출물명 | 파일명 | 버전 | 상태 | 설명 |
 |------|----------|--------|------|------|------|
-| D-003 | **시스템 설계서** | [`02-SYSTEM-DESIGN.md`](./02-SYSTEM-DESIGN.md) | 3.5.11 | ✅ 완료 | 아키텍처, DB, 인터페이스 설계 |
-| D-004 | **API 명세서** | [`03-API-REFERENCE.md`](./03-API-REFERENCE.md) | 3.5.11 | ✅ 완료 | REST API 48개 엔드포인트 상세 명세 |
-| D-005 | **기술 정의서** | [`../architecture/final-report.md`](../architecture/final-report.md) | 3.5.11 | ✅ 완료 | 아키텍처 원칙, 기술 스택, 설계 상세 |
+| D-003 | **시스템 설계서** | [`02-SYSTEM-DESIGN.md`](./02-SYSTEM-DESIGN.md) | 3.5.64 | ✅ 완료 | 아키텍처, DB, 인터페이스 설계 |
+| D-004 | **API 명세서** | [`03-API-REFERENCE.md`](./03-API-REFERENCE.md) | 3.5.64 | ✅ 완료 | REST API 48개 엔드포인트 상세 명세 |
+| D-005 | **기술 정의서** | [`02-SYSTEM-DESIGN.md`](./02-SYSTEM-DESIGN.md) | 3.5.64 | ✅ 완료 | 아키텍처 원칙, 기술 스택, 설계 상세 |
 
 ### 2.3 개발 단계
 
 | 번호 | 산출물명 | 파일명 | 버전 | 상태 | 설명 |
 |------|----------|--------|------|------|------|
-| D-006 | **설치 가이드** | [`04-INSTALLATION-GUIDE.md`](./04-INSTALLATION-GUIDE.md) | 3.5.11 | ✅ 완료 | 환경별 설치 절차 (개발/스테이징/운영/Air-Gap) |
-| D-007 | **운영 가이드** | [`05-OPERATIONS-GUIDE.md`](./05-OPERATIONS-GUIDE.md) | 3.5.11 | ✅ 완료 | 운영 절차, 모니터링, 장애대응 |
-| D-008 | **개발자 가이드** | [`../../AGENTS.md`](../../AGENTS.md) | 3.5.11 | ✅ 완료 | 개발 규칙, 패턴, 코드맵 |
-| D-013 | **OpenAPI 명세** | [`../references/openapi.yaml`](../references/openapi.yaml) | 3.5.11 | ✅ 완료 | REST API OpenAPI 3.1 스펙 |
-| D-014 | **운영 플레이북** | [`06-RUNBOOK.md`](./06-RUNBOOK.md) | 3.5.11 | ✅ 완료 | 장애대응, 정기점검, 백업/복구 |
-| D-015 | **환경 매트릭스** | [`09-ENVIRONMENT-MATRIX.md`](./09-ENVIRONMENT-MATRIX.md) | 3.5.11 | ✅ 완료 | 환경별 설정, URL, 환경변수 |
+| D-006 | **설치 가이드** | [`04-INSTALLATION-GUIDE.md`](./04-INSTALLATION-GUIDE.md) | 3.5.64 | ✅ 완료 | 환경별 설치 절차 (개발/스테이징/운영/Air-Gap) |
+| D-007 | **운영 가이드** | [`05-OPERATIONS-GUIDE.md`](./05-OPERATIONS-GUIDE.md) | 3.5.64 | ✅ 완료 | 운영 절차, 모니터링, 장애대응 |
+| D-008 | **개발자 가이드** | [`../../AGENTS.md`](../../AGENTS.md) | 3.5.64 | ✅ 완료 | 개발 규칙, 패턴, 코드맵 |
+| D-013 | **OpenAPI 명세** | [`03-API-REFERENCE.md`](./03-API-REFERENCE.md) | 3.5.64 | ✅ 완료 | REST API 상세 명세 (문서 통합) |
+| D-014 | **운영 플레이북** | [`06-RUNBOOK.md`](./06-RUNBOOK.md) | 3.5.64 | ✅ 완료 | 장애대응, 정기점검, 백업/복구 |
+| D-015 | **환경 매트릭스** | [`09-ENVIRONMENT-MATRIX.md`](./09-ENVIRONMENT-MATRIX.md) | 3.5.64 | ✅ 완료 | 환경별 설정, URL, 환경변수 |
 
 ### 2.4 검증/완료 단계
 
 | 번호 | 산출물명 | 파일명 | 버전 | 상태 | 설명 |
 |------|----------|--------|------|------|------|
-| D-009 | **테스트 결과서** | [`07-TEST-REPORT.md`](./07-TEST-REPORT.md) | 3.5.11 | ✅ 완료 | 테스트 수행 결과 및 커버리지 |
-| D-010 | **검증 체크리스트** | [`08-VERIFICATION-CHECKLIST.md`](./08-VERIFICATION-CHECKLIST.md) | 3.5.11 | ✅ 완료 | 요구사항 검증 체크리스트 |
-| D-011 | **개발 완료 보고서** | [`../reports/dev-completion-report.md`](../reports/dev-completion-report.md) | 3.5.11 | ✅ 완료 | 개발 결과 종합 보고서 |
-| D-012 | **산출물 목록** | [`index.md`](./index.md) | 3.5.11 | ✅ 완료 | 본 문서 |
+| D-009 | **테스트 결과서** | [`07-TEST-REPORT.md`](./07-TEST-REPORT.md) | 3.5.64 | ✅ 완료 | 테스트 수행 결과 및 커버리지 |
+| D-010 | **검증 체크리스트** | [`08-VERIFICATION-CHECKLIST.md`](./08-VERIFICATION-CHECKLIST.md) | 3.5.64 | ✅ 완료 | 요구사항 검증 체크리스트 |
+| D-011 | **개발 완료 보고서** | [`07-TEST-REPORT.md`](./07-TEST-REPORT.md) | 3.5.64 | ✅ 완료 | 개발 결과 종합 보고서 (테스트 결과서에 통합) |
+| D-012 | **산출물 목록** | [`index.md`](./index.md) | 3.5.64 | ✅ 완료 | 본 문서 |
 
 ---
 
@@ -95,7 +95,7 @@
 
 | 번호 | 산출물명 | 경로 | 유형 | 규모 | 상태 |
 |------|----------|------|------|------|------|
-| S-005 | **테스트 코드** | `tests/` | Pytest, Playwright, Vitest | 38 files, ~4,000 lines | ✅ 완료 |
+| S-005 | **테스트 코드** | `tests/`, `frontend/__tests__/` | Pytest, Playwright, Vitest | 151+ files, 992+ tests | ✅ 완료 |
 
 ### 3.3 인프라 코드
 
@@ -113,7 +113,7 @@
 | P-001 | **Docker 이미지** | `dist/images/` | .tar.gz (Git LFS) | ✅ 완료 |
 | ~~P-002~~ | ~~배포 스크립트~~ | ~~`scripts/deploy/`~~ | — | ❌ 삭제됨 |
 | P-003 | **CI/CD 설정** | `.github/workflows/` | YAML | ✅ 완료 |
-| P-004 | **Docker Compose** | `docker-compose*.yml` | YAML | ✅ 완료 |
+| P-004 | **Docker Compose** | `deploy/*/docker-compose.yml` | YAML | ✅ 완료 |
 
 ---
 
@@ -165,7 +165,7 @@
 |------|------|------|
 | **정적 분석** | Ruff, ESLint 통과 | ✅ |
 | **타입 검사** | mypy, TypeScript strict | ✅ |
-| **테스트 커버리지** | 70% 이상 | ✅ (75%+) |
+| **테스트 커버리지** | 80% 이상 | ✅ (80%+) |
 | **보안 스캔** | 취약점 없음 | ✅ |
 
 ---
@@ -177,6 +177,7 @@
 | 3.5.0 | 2026-01-08 | 초안 작성 |
 | 3.5.11 | 2026-01-10 | 전면 개정 - 업무개발 관점 재작성 |
 | 3.5.11 | 2026-01-15 | 누락 문서 생성, 전체 날짜/버전 통일 |
+| 3.5.64 | 2026-02-15 | 버전 현행화, 깊은 링크 수정, 테스트 현황 반영 (992+ tests) |
 
 ---
 
@@ -187,35 +188,27 @@ blacklist/
 ├── AGENTS.md                           # D-008 개발자 가이드
 ├── docs/
 │   ├── README.md                       # 문서 허브
-│   ├── guides/
-│   │   └── project-guide.md            # D-002 프로젝트 가이드
-│   ├── references/
-│   │   └── openapi.yaml                # D-013 OpenAPI 명세
-│   ├── architecture/
-│   │   ├── final-report.md             # D-005 기술 정의서
-│   │   └── diagrams/                   # 아키텍처 다이어그램
-│   ├── reports/
-│   │   └── dev-completion-report.md    # D-011 개발 완료 보고서
 │   ├── deliverables/
 │   │   ├── index.md                    # D-012 산출물 목록 (본 문서)
 │   │   ├── 01-REQUIREMENTS-SPECIFICATION.md  # D-001 요구사항 정의서
-│   │   ├── 02-SYSTEM-DESIGN.md            # D-003 시스템 설계서
-│   │   ├── 03-API-REFERENCE.md            # D-004 API 명세서
+│   │   ├── 02-SYSTEM-DESIGN.md            # D-003 시스템 설계서 / D-005 기술 정의서
+│   │   ├── 03-API-REFERENCE.md            # D-004 API 명세서 / D-013 OpenAPI
 │   │   ├── 04-INSTALLATION-GUIDE.md       # D-006 설치 가이드
 │   │   ├── 05-OPERATIONS-GUIDE.md         # D-007 운영 가이드
 │   │   ├── 06-RUNBOOK.md                  # D-014 운영 플레이북
-│   │   ├── 07-TEST-REPORT.md              # D-009 테스트 결과서
+│   │   ├── 07-TEST-REPORT.md              # D-009 테스트 결과서 / D-011 완료 보고서
 │   │   ├── 08-VERIFICATION-CHECKLIST.md   # D-010 검증 체크리스트
 │   │   └── 09-ENVIRONMENT-MATRIX.md       # D-015 환경 매트릭스
-│   └── assets/                         # 스크린샷, 프레젠테이션
+│   └── testing/                        # 테스트 가이드
 ├── app/                                # S-001 API 서버
 ├── frontend/                           # S-002 대시보드
 ├── collector/                          # S-003 수집기
 ├── postgres/migrations/                # S-004 DB 마이그레이션
-├── tests/                              # S-005 테스트 코드
-├── dist/images/                        # P-001 Docker 이미지
+├── tests/                              # S-005 테스트 코드 (Backend)
+├── frontend/__tests__/                 # S-005 테스트 코드 (Frontend)
+├── frontend/e2e/                       # S-005 E2E 테스트
 ├── .github/workflows/                  # P-003 CI/CD 설정
-└── docker-compose*.yml                 # P-004 Docker Compose
+└── deploy/*/docker-compose.yml          # P-004 Docker Compose
 ```
 
 ---

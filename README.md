@@ -1,37 +1,38 @@
-# 🛡️ Blacklist Intelligence Platform
+# Blacklist Intelligence Platform
 
-[![CI](https://github.com/jclee-homelab/blacklist/actions/workflows/ci.yml/badge.svg)](https://github.com/jclee-homelab/blacklist/actions/workflows/ci.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/jclee-homelab/blacklist)](https://github.com/jclee-homelab/blacklist/releases/latest)
+[![CI](https://github.com/qws941/blacklist/actions/workflows/ci.yml/badge.svg)](https://github.com/qws941/blacklist/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/qws941/blacklist)](https://github.com/qws941/blacklist/releases/latest)
+[![Tests](https://img.shields.io/badge/Tests-992%2B%20passing-brightgreen)](#testing)
 [![Docker](https://img.shields.io/badge/Docker-5%20Services-blue)](#architecture)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Wiki](https://img.shields.io/badge/Docs-Wiki-orange)](https://github.com/jclee-homelab/blacklist/wiki)
 
-Threat intelligence platform for collecting, managing, and analyzing IP blacklist data from the **Korean Financial Security Institute (REGTECH)**.
+Threat intelligence platform for collecting, managing, and analyzing IP blacklist data from **REGTECH** (Korean Financial Security Institute) and **Secudium/ISAP** (SK Shielders).
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **REGTECH Integration** | Automated data collection from Korean Financial Security Institute |
-| **Real-time Dashboard** | Next.js 15 frontend with live metrics and FortiGate logs |
+| **Multi-Source Collection** | Automated ETL from REGTECH and Secudium/ISAP threat feeds |
+| **Real-time Dashboard** | Next.js 15 frontend with live metrics, analytics, and FortiGate logs |
 | **FortiGate Integration** | Direct push to FortiManager address objects and policies |
 | **Air-Gap Deployment** | Self-contained Docker bundles for offline environments |
 | **Auto-Deploy (Sandbox)** | Watchtower-based auto-pull from GHCR on `:latest` tag |
 | **Secure Credentials** | AES-256-GCM encrypted authentication |
+| **992+ Automated Tests** | Backend (pytest), Frontend (vitest), E2E (Playwright) |
+
+## Architecture
+
+| Service | Technology | Port | Storage |
+|---------|-----------|------|---------|
+| `blacklist-frontend` | Next.js 15 (standalone, SSL embedded) | 443 | — |
+| `blacklist-app` | Flask API (Raw SQL, DI) | 2542 | `blacklist-app-data` |
+| `blacklist-collector` | Python 3.11 ETL | 8545 | `blacklist-collector-data` |
+| `blacklist-postgres` | PostgreSQL 15 | 5432 | `blacklist-pgdata` |
+| `blacklist-redis` | Redis 7 Alpine | 6379 | `blacklist-redis-data` |
+
+All services use `network_mode: host` and Docker named volumes for persistent storage.
 
 ## Quick Start
-
-### Download & Install (Air-Gap)
-
-```bash
-# GitHub CLI
-gh release download --repo jclee-homelab/blacklist
-tar -xzf blacklist-*.tar.gz && ./install.sh
-
-# curl (auto-detect latest)
-TAG=$(curl -s "https://api.github.com/repos/jclee-homelab/blacklist/releases/latest" | grep "tag_name" | sed -E 's/.*"([^"]+)".*/\1/')
-curl -#L "https://github.com/jclee-homelab/blacklist/releases/download/$TAG/blacklist-$TAG-airgap.tar.gz" -o "blacklist-$TAG-airgap.tar.gz"
-```
 
 ### Development
 
@@ -42,37 +43,67 @@ make logs         # View logs
 make down         # Stop services
 ```
 
-## Architecture
+### Air-Gap Install
+
+```bash
+# Download latest release
+gh release download --repo qws941/blacklist
+tar -xzf blacklist-*.tar.gz && ./install.sh
+```
+
+## Project Structure
 
 ```
-blacklist-frontend   (Next.js 15)        :443 (SSL)
-blacklist-app        (Flask API)         :2542
-blacklist-collector  (REGTECH ETL)       :8545
-blacklist-postgres   (PostgreSQL 16)     :5432
-blacklist-redis      (Redis 7)           :6379
+blacklist/
+├── app/                    # Flask API (Manual DI, Raw SQL)        :2542
+│   ├── core/services/      # 14 services (ServiceFactory DI)
+│   ├── core/routes/        # REST API + Web admin (Korean UI)
+│   └── core/auth/          # JWT authentication
+├── collector/              # ETL Service (independent)             :8545
+│   └── core/               # REGTECH + Secudium collectors
+├── frontend/               # Next.js 15 Dashboard                  :443
+│   ├── app/                # App Router pages
+│   ├── lib/api.ts          # Centralized API client
+│   └── e2e/                # Playwright E2E tests
+├── deploy/
+│   ├── docker/             # Development compose (named volumes)
+│   ├── sandbox/            # Sandbox compose (GHCR images)
+│   └── airgap/             # Air-gap compose (local images)
+├── postgres/migrations/    # Raw SQL migrations (no ORM)
+└── tests/                  # Backend tests (pytest)
+```
+
+## Testing
+
+| Type | Framework | Files | Tests |
+|------|-----------|-------|-------|
+| Backend Unit | pytest | 107 | 785+ |
+| Frontend Unit | Vitest | 44 | 207+ |
+| E2E | Playwright | — | Chromium |
+| **Total** | — | **151+** | **992+** |
+
+```bash
+make test                   # All tests
+make test-backend-unit      # Backend only (pytest)
+make test-backend-coverage  # Backend with coverage (≥80% required)
+make test-frontend-unit     # Frontend only (vitest)
+make test-e2e               # E2E (Playwright)
 ```
 
 ## CI/CD Pipeline
 
-```
-Push/PR → ci.yml (lint + test + build + e2e)
-Tag v* → release.yml (build → airgap bundle → GitHub Release → GHCR push)
-```
+| Workflow | Trigger | Purpose |
+|----------|---------|--------|
+| `ci.yml` | Push/PR to master | Lint → Test → Build → E2E → Push images |
+| `release.yml` | Tag `v*` | Build 5 images → Air-gap bundle → GitHub Release → GHCR |
+| `deploy-sandbox.yml` | Manual / release trigger | SSH deploy to sandbox VM → GHCR pull → Health check |
 
 ### Deployment Targets
 
 | Environment | Method | Trigger |
-|-------------|--------|---------|
-| **Production** | Air-gap bundle (`docker load`) | Manual (deploy.yml) |
+|-------------|--------|--------|
+| **Production** | Air-gap bundle (`docker load`) | Manual |
 | **Sandbox** | Watchtower auto-pull from GHCR | Automatic on `:latest` push |
-
-### Auto-Deploy Flow (Sandbox)
-
-```
-Tag push → release.yml → GHCR :latest → HTTP trigger → Watchtower → auto pull & restart
-```
-
-Watchtower monitors `collector`, `app`, `frontend` images. Postgres and Redis are excluded (label-filtered).
 
 ## API
 
@@ -83,18 +114,19 @@ Watchtower monitors `collector`, `app`, `frontend` images. Postgres and Redis ar
 | `GET /api/blacklist/list` | Paginated blacklist data |
 | `GET /api/collection/status` | Collector status |
 
-Full documentation: [API Reference](https://github.com/jclee-homelab/blacklist/wiki/API-Reference)
-
 ## Documentation
 
-- [Installation Guide](https://github.com/jclee-homelab/blacklist/wiki/Installation)
-- [Air-Gap Deployment](https://github.com/jclee-homelab/blacklist/wiki/Air-Gap-Deployment)
-- [Development Guide](https://github.com/jclee-homelab/blacklist/wiki/Development)
-- [Configuration](https://github.com/jclee-homelab/blacklist/wiki/Configuration)
-- [Troubleshooting](https://github.com/jclee-homelab/blacklist/wiki/Troubleshooting)
+| Document | Path |
+|----------|------|
+| Developer Guide | [`AGENTS.md`](AGENTS.md) |
+| CI/CD Pipeline | [`docs/CICD_PIPELINE.md`](docs/CICD_PIPELINE.md) |
+| Monorepo Structure | [`docs/MONOREPO_STRUCTURE.md`](docs/MONOREPO_STRUCTURE.md) |
+| Deliverables Index | [`docs/deliverables/index.md`](docs/deliverables/index.md) |
+| Frontend Guide | [`frontend/README.md`](frontend/README.md) |
+| Collector Guide | [`collector/README.md`](collector/README.md) |
 
 ## Version
 
-**v3.5.59** (February 2026) - Production Stable
+**v3.5.64** (February 2026) — Production Stable
 
-[Releases](https://github.com/jclee-homelab/blacklist/releases) · [Changelog](CHANGELOG.md)
+[Releases](https://github.com/qws941/blacklist/releases) · [Changelog](CHANGELOG.md)

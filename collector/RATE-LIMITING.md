@@ -1,7 +1,7 @@
-﻿# REGTECH Collector Rate Limiting
+# REGTECH Collector Rate Limiting
 
-**작성일**: 2025-10-30
-**버전**: 3.3.8
+**작성일**: 2026-02-15
+**버전**: 3.5.64
 **목적**: 외부 API 차단 방지를 위한 지능형 레이트 리미팅
 
 ---
@@ -309,6 +309,9 @@ regtech_rate_limiter = AdaptiveRateLimiter(
 
 ## 🔄 버전 히스토리
 
+### v3.5.64 (2026-02-15)
+- ✅ 문서 현행화 (버전/날짜 반영)
+
 ### v3.3.8 (2025-10-30)
 - ✅ Token Bucket 알고리즘 기반 Rate Limiter 도입
 - ✅ 적응형 속도 조절 기능 추가
@@ -319,5 +322,5 @@ regtech_rate_limiter = AdaptiveRateLimiter(
 
 ---
 
-**마지막 업데이트**: 2025-10-30
+**마지막 업데이트**: 2026-02-15
 **유지보수**: 정기적으로 rate_limiter 통계를 모니터링하여 최적 설정 유지

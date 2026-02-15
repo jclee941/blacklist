@@ -1,8 +1,8 @@
 # AGENTS.md — Blacklist Intelligence Platform
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28
-**Branch:** master | **Version:** 3.5.60
+**Generated:** 2026-02-15
+**Commit:** 0d1ce5c
+**Branch:** master | **Version:** 3.5.64
 
 ## COMMANDS
 
@@ -94,13 +94,13 @@ app/                    # Flask API (Manual DI, Raw SQL)        :2542
   routes/               # API endpoints (blueprints)
   migrations/           # Alembic SQL migrations
 collector/              # ETL Service (independent)             :8545
-  collectors/           # Data source adapters
+  core/                 # REGTECH + Secudium collectors
 frontend/               # Next.js 15 Dashboard                  :443
   app/                  # App Router pages
   lib/                  # Utilities (api.ts, hooks)
-  e2e/                  # Playwright E2E tests (20 files)
+  e2e/                  # Playwright E2E tests
 postgres/migrations/    # Raw SQL migrations (no ORM)
-tests/unit/             # Pytest: services/ (24), collector/ (11)
+tests/unit/             # Pytest: 107 files, 785+ tests
 tests/mock-fortigate/   # Mock FortiManager API server
 ```
 
@@ -145,5 +145,8 @@ tests/mock-fortigate/   # Mock FortiManager API server
 - **Known:** Auth middleware disabled — commented out at `app.py:156`, all endpoints public
 - 14 services via ServiceFactory in strict lifecycle order (see `app/core/services/AGENTS.md`)
 - `make build` requires clean git tree; backend coverage ≥80% enforced
+- 992+ total tests: 785+ backend (pytest, 107 files), 207+ frontend (vitest, 44 files)
+- Data sources: REGTECH (한국금융보안원) + Secudium/ISAP (SK쉰더스)
+- Docker: named volumes, `network_mode: host`, SSL embedded in frontend image
 - Complexity hotspots: `run_app.py` (39.91), `blacklist_service.py` (39.43)
 - Korean UI in web admin panels; air-gap deployment via tarball bundles
