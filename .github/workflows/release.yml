@@ -53,7 +53,7 @@ jobs:
         service: [frontend, app, collector, postgres, redis]
         include:
           - service: frontend
-            context: ./frontend
+            context: .
             dockerfile: frontend/Dockerfile
           - service: app
             context: .

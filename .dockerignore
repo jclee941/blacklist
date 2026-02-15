@@ -17,8 +17,11 @@ docs/
 .playwright-mcp/
 
 # Node modules and dependencies
-node_modules/
+**/node_modules
 npm-debug.log*
+
+# Next.js build artifacts
+**/.next
 
 # Python cache and virtual environments
 __pycache__/

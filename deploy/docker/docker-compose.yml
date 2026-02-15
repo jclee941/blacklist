@@ -13,8 +13,7 @@ services:
       POSTGRES_PASSWORD: postgres
       TZ: Asia/Seoul
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-      - ./postgres/migrations:/migrations:ro
+      - blacklist-pgdata:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL
@@ -35,7 +34,7 @@ services:
     environment:
       TZ: Asia/Seoul
     volumes:
-      - ./data/redis:/data
+      - blacklist-redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-h", "localhost", "ping"]
       interval: 30s
@@ -73,8 +72,8 @@ services:
       SECUDIUM_IMAP_SERVER: ${SECUDIUM_IMAP_SERVER:-imap.kakao.com}
       TZ: Asia/Seoul
     volumes:
-      - ./data/collector:/app/data
-      - ./data/logs:/app/logs
+      - blacklist-collector-data:/app/data
+      - blacklist-logs:/app/logs
     healthcheck:
       test:
         - CMD
@@ -114,9 +113,9 @@ services:
       DISABLE_JWT_AUTH: ${DISABLE_JWT_AUTH:-false}
       TZ: Asia/Seoul
     volumes:
-      - ./data/logs:/app/logs
-      - ./data/uploads:/app/uploads
-      - ./data/app_data:/app/data
+      - blacklist-logs:/app/logs
+      - blacklist-uploads:/app/uploads
+      - blacklist-app-data:/app/data
     healthcheck:
       test:
         - CMD
@@ -130,8 +129,8 @@ services:
 
   blacklist-frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: blacklist-frontend:latest
@@ -144,10 +143,6 @@ services:
       PORT: 443
       HOSTNAME: "0.0.0.0"
       TZ: Asia/Seoul
-      SSL_KEY_PATH: /app/ssl/server.key
-      SSL_CERT_PATH: /app/ssl/server.crt
-    volumes:
-      - ./ssl:/app/ssl:ro
     healthcheck:
       test:
         - CMD-SHELL
@@ -156,3 +151,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+volumes:
+  blacklist-pgdata:
+  blacklist-redis-data:
+  blacklist-collector-data:
+  blacklist-logs:
+  blacklist-uploads:
+  blacklist-app-data:

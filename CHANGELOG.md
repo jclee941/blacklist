@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.64] - 2026-02-15
+
+### Changed
+- **Infra**: 전체 Docker Compose 바인드 마운트 → Named Volume 전환 (docker/sandbox/airgap)
+- **Infra**: SSL 인증서를 frontend 이미지에 내장 (볼륨 마운트 제거)
+- **Infra**: PostgreSQL 마이그레이션을 postgres 이미지에 내장 (볼륨 마운트 제거)
+- **Infra**: Frontend Dockerfile 빌드 컨텍스트를 `.` 으로 변경 (release.yml + docker-compose 동기화)
+- **Infra**: Sandbox collector에 REGTECH/SECUDIUM 데이터소스 환경변수 명시
+- **Infra**: `.dockerignore`에 `**/.next`, `**/node_modules` 안전 패턴 추가
+
+---
+
 ## [3.5.63] - 2026-02-15
 
 ### Added

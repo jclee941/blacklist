@@ -19,6 +19,7 @@ ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
 COPY initdb/ /docker-entrypoint-initdb.d/
+COPY migrations/ /migrations/
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
     CMD pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1
