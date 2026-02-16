@@ -12,6 +12,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from typing import Optional, Dict, Any
 
+from ..config import config
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,7 +44,7 @@ class CredentialEncryption:
                 logger.warning(f"Docker Secret 파일 읽기 실패: {e}")
 
         # 2. 환경변수에서 키 확인 (폴백)
-        env_key = os.getenv("CREDENTIAL_MASTER_KEY")
+        env_key = config.CREDENTIAL_MASTER_KEY
         if env_key:
             logger.info("환경변수에서 마스터 키 로드 (폴백)")
             return env_key
@@ -77,7 +79,7 @@ class CredentialEncryption:
         """Fernet 암호화 인스턴스 생성"""
         # 마스터 키에서 암호화 키 파생 (고정 솔트 사용으로 일관된 복호화 보장)
         # Collector와 동일한 고정 솔트 사용
-        salt_env = os.getenv("ENCRYPTION_SALT")
+        salt_env = config.ENCRYPTION_SALT
         salt = salt_env.encode() if salt_env else b"blacklist-regtech-salt-2025"
 
         kdf = PBKDF2HMAC(

@@ -8,12 +8,15 @@ Reference: docs/108-REDIS-CACHING-IMPLEMENTATION.md
 
 import json
 import logging
-import os
 import time
 from functools import wraps
 from typing import Any, Callable, Optional
 
 import redis
+
+from ..config import config
+
+from ..config import config
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +33,8 @@ def get_redis_client() -> Optional[redis.Redis]:
     """Redis 클라이언트 생성 및 반환. 연결 실패 시 None."""
     try:
         client = redis.Redis(
-            host=os.getenv("REDIS_HOST", "blacklist-redis"),
-            port=int(os.getenv("REDIS_PORT", 6379)),
+            host=config.REDIS_HOST,
+            port=config.REDIS_PORT,
             db=0,
             decode_responses=True,
             socket_connect_timeout=2,

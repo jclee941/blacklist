@@ -3,25 +3,20 @@ Database utility functions
 공통 데이터베이스 연결 및 에러 처리 유틸리티
 """
 
-import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
 from typing import Dict, Any, Optional, Generator
 import logging
 
+from ..config import config
+
 logger = logging.getLogger(__name__)
 
 
 def get_db_config() -> Dict[str, str]:
     """데이터베이스 설정 반환 (환경변수 기반)"""
-    return {
-        "host": os.getenv("POSTGRES_HOST", "blacklist-postgres"),
-        "port": os.getenv("POSTGRES_PORT", "5432"),
-        "database": os.getenv("POSTGRES_DB", "blacklist"),
-        "user": os.getenv("POSTGRES_USER", "postgres"),
-        "password": os.getenv("POSTGRES_PASSWORD", "postgres"),
-    }
+    return config.get_postgres_params()
 
 
 @contextmanager

@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 from typing import Dict, Any, Optional
 import os
+from ..config import config
 
 
 class StructuredFormatter(logging.Formatter):
@@ -27,9 +28,9 @@ class StructuredFormatter(logging.Formatter):
         }
 
         # 환경 정보 추가
-        log_data["environment"] = os.getenv("ENVIRONMENT", "production")
-        log_data["service"] = os.getenv("SERVICE_NAME", "blacklist-app")
-        log_data["container_id"] = os.getenv("HOSTNAME", "unknown")
+        log_data["environment"] = config.ENVIRONMENT
+        log_data["service"] = config.SERVICE_NAME
+        log_data["container_id"] = config.HOSTNAME
 
         # 커스텀 태그 추가
         if hasattr(record, "tags"):
@@ -111,7 +112,7 @@ def setup_logger(name: str = None, level: int = logging.INFO) -> TaggedLogger:
     logger.addHandler(console_handler)
 
     # 파일 핸들러 (선택적) - 권한 문제 방지
-    log_dir = os.getenv("LOG_DIR", "/app/logs")
+    log_dir = config.LOG_DIR
     try:
         if os.path.exists(log_dir):
             # 로그 파일 경로
@@ -132,9 +133,9 @@ def setup_logger(name: str = None, level: int = logging.INFO) -> TaggedLogger:
 
     # 기본 태그 설정
     default_tags = {
-        "service": os.getenv("SERVICE_NAME", "blacklist-app"),
-        "version": os.getenv("APP_VERSION", "unknown"),
-        "environment": os.getenv("ENVIRONMENT", "production"),
+        "service": config.SERVICE_NAME,
+        "version": config.APP_VERSION or "unknown",
+        "environment": config.ENVIRONMENT,
     }
 
     return TaggedLogger(logger, default_tags)

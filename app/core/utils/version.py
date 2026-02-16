@@ -3,8 +3,9 @@
 """
 
 import logging
-import os
 from pathlib import Path
+
+from ..config import config
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ def get_app_version():
     4. 기본값 (0.0.0-dev)
     """
     # 환경변수에서 우선 가져오기
-    version = os.getenv("APP_VERSION")
+    version = config.APP_VERSION
     if version:
         return version
 
@@ -30,8 +31,8 @@ def get_app_version():
             base_version = version_file.read_text().strip()
 
             # Git 정보가 있으면 추가
-            commit_hash = os.getenv("COMMIT_HASH", "").strip()
-            build_number = os.getenv("BUILD_NUMBER", "").strip()
+            commit_hash = config.COMMIT_HASH
+            build_number = config.BUILD_NUMBER
 
             if commit_hash and build_number:
                 return f"{base_version}-{build_number}-{commit_hash[:7]}"
