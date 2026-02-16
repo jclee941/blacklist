@@ -13,7 +13,6 @@ import base64
 import hashlib
 
 from ..config import config
-from ..config import config
 from .database_service import DatabaseService
 
 logger = logging.getLogger(__name__)

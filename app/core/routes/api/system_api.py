@@ -10,7 +10,6 @@ from . import api_bp
 from flask import jsonify, request, g, current_app
 from datetime import datetime
 import logging
-import os
 from ...config import config
 from psycopg2.extras import RealDictCursor
 from ...exceptions import (

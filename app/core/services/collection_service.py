@@ -3,7 +3,6 @@
 데이터 수집 트리거, 중지, 관리 기능 제공 - 모듈화된 아키텍처
 """
 
-import os
 import time
 from datetime import datetime
 from typing import Dict, List, Any

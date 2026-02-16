@@ -8,7 +8,6 @@ import time
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
-import os
 
 from ..config import config
 

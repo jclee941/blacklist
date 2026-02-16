@@ -5,7 +5,6 @@ Flask Application - PostgreSQL Connection and Collection Management
 
 import io
 import logging
-import os
 import secrets
 import threading
 import time

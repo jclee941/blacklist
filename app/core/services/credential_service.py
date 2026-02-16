@@ -4,7 +4,6 @@
 웹 UI에서 입력한 REGTECH 인증정보를 안전하게 저장하고 로드
 """
 
-import os
 import json
 import logging
 from pathlib import Path

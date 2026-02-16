@@ -10,7 +10,6 @@ import logging
 
 from core.utils.rate_limit import rate_limit
 from ....config import config
-from ....config import config
 
 logger = logging.getLogger(__name__)
 

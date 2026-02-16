@@ -6,11 +6,9 @@ REGTECH 관리자 라우트
 from flask import Blueprint, request, jsonify, current_app
 
 import logging
-import os
 
 from ...config import config
 
-from ...config import config
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)

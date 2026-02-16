@@ -16,7 +16,6 @@ import redis
 
 from ..config import config
 
-from ..config import config
 
 logger = logging.getLogger(__name__)
 
