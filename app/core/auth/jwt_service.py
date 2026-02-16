@@ -6,18 +6,17 @@ Security-critical: handles all token lifecycle operations.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import jwt
 
+from core.config import config
 from core.exceptions.auth_exceptions import AuthenticationError
 
 logger = logging.getLogger(__name__)
 
-# Token expiry: configurable via env, default 8 hours (workday)
-DEFAULT_TOKEN_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "8"))
+DEFAULT_TOKEN_EXPIRY_HOURS = config.JWT_EXPIRY_HOURS
 JWT_ALGORITHM = "HS256"
 
 

@@ -30,10 +30,9 @@ def jwt_required_hook() -> Any | None:
     if endpoint_func and getattr(endpoint_func, "_public", False):
         return None
 
-    # JWT auth is disabled via env var (e.g. during development/testing)
-    import os
+    from core.config import config
 
-    if os.getenv("DISABLE_JWT_AUTH", "").lower() in ("true", "1", "yes"):
+    if config.DISABLE_JWT_AUTH:
         g.current_user = {"sub": "dev", "role": "admin"}
         return None
 
