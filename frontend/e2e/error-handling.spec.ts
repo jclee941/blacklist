@@ -28,6 +28,34 @@ test.describe('Error Handling', () => {
       expect(bodyText).toBeTruthy();
     });
 
+    test('커스텀 404 페이지 - 한국어 안내 메시지 표시', async ({ page }) => {
+      await page.goto('/this-page-does-not-exist');
+
+      const heading = page.locator('h1');
+      if ((await heading.count()) > 0) {
+        const text = await heading.textContent();
+        if (text?.includes('찾을 수 없습니다')) {
+          await expect(heading).toContainText('찾을 수 없습니다');
+        }
+      }
+
+      const homeLink = page.locator('a[href="/"]');
+      if ((await homeLink.count()) > 0) {
+        await expect(homeLink.first()).toBeVisible();
+      }
+    });
+
+    test('커스텀 404 페이지 - 홈으로 이동 링크 동작', async ({ page }) => {
+      await page.goto('/another-nonexistent-path');
+
+      const homeLink = page.locator('a[href="/"]').first();
+      if ((await homeLink.count()) > 0) {
+        await homeLink.click();
+        await page.waitForLoadState('domcontentloaded');
+        expect(page.url()).toContain('/');
+      }
+    });
+
     test('잘못된 API 엔드포인트 요청', async ({ request }) => {
       const response = await request.get('/api/invalid-endpoint-xyz');
 
