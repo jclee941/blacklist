@@ -4,7 +4,6 @@ Collection Status Manager
 """
 
 import logging
-import os
 from datetime import datetime
 from typing import Dict, Any, Set
 from flask import current_app
@@ -89,13 +88,14 @@ class CollectionStatusManager:
         try:
             import requests
 
-            collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
-            response = requests.get(f"{collector_url}/health", timeout=5)
+            from ...config import config
+
+            response = requests.get(f"{config.COLLECTOR_URL}/health", timeout=5)
 
             if response.status_code == 200:
                 return {
                     "status": "healthy",
-                    "url": collector_url,
+                    "url": config.COLLECTOR_URL,
                     "last_check": datetime.now().isoformat(),
                 }
             else:

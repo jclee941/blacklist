@@ -550,8 +550,8 @@ class CollectionScheduler:
             next_job = schedule.next_run()
             if next_job:
                 return next_job.isoformat()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to get next scheduled run: %s", e)
 
         return None
 
@@ -721,8 +721,8 @@ class CollectionScheduler:
         finally:
             try:
                 collector.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to close collector: %s", e)
 
 
 # 전역 인스턴스

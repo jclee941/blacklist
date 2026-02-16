@@ -12,6 +12,8 @@ import os
 import base64
 import hashlib
 
+from ..config import config
+from ..config import config
 from .database_service import DatabaseService
 
 logger = logging.getLogger(__name__)
@@ -41,14 +43,13 @@ class SettingsService:
 
     def _init_encryption_key(self):
         """Initialize encryption key from environment or generate new one"""
-        # Try to get from environment
-        key_str = os.getenv("SETTINGS_ENCRYPTION_KEY")
+        key_str = config.SETTINGS_ENCRYPTION_KEY
 
         if not key_str:
-            secret = os.getenv("SECRET_KEY")
+            secret = config.SECRET_KEY
 
             if not secret:
-                env_mode = os.getenv("FLASK_ENV", "production")
+                env_mode = config.FLASK_ENV
                 if env_mode == "production":
                     logger.warning("SECRET_KEY missing in production! Generating random key.")
                     secret = base64.urlsafe_b64encode(os.urandom(32)).decode()

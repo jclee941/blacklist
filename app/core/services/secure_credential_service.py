@@ -13,6 +13,10 @@ Version: 1.0.0 (September 2025)
 
 import json
 import os
+
+from ..config import config
+
+from ..config import config
 import base64
 from datetime import datetime
 from typing import Dict, Optional, List, Any
@@ -39,7 +43,7 @@ class SecureCredentialService:
         """암호화 키 설정"""
         try:
             # 환경변수에서 마스터 키 획득
-            master_key = os.getenv("CREDENTIAL_MASTER_KEY")
+            master_key = config.CREDENTIAL_MASTER_KEY
             if not master_key:
                 raise RuntimeError(
                     "CREDENTIAL_MASTER_KEY environment variable is required. "
@@ -47,7 +51,7 @@ class SecureCredentialService:
                 )
 
             # Salt 생성 (고정값으로 일관성 유지)
-            salt_env = os.getenv("ENCRYPTION_SALT")
+            salt_env = config.ENCRYPTION_SALT
             self._salt = salt_env.encode() if salt_env else b"blacklist-regtech-salt-2025"
 
             # PBKDF2를 사용한 키 파생

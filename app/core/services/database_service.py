@@ -3,14 +3,13 @@
 NextTrade Blacklist Management System용 데이터베이스 접근 계층
 """
 
-import os
 import psycopg2
 from psycopg2 import pool, sql
 from psycopg2.extras import RealDictCursor
 from typing import Dict, Optional, Any
 import time
 
-# Enhanced logging with tagging
+from ..config import config
 from ..utils.logger_config import db_logger as logger
 
 
@@ -19,17 +18,10 @@ class DatabaseService:
 
     def __init__(self):
         self.connection_pool: Optional[pool.ThreadedConnectionPool] = None
-        self.db_config = {
-            "host": os.getenv("POSTGRES_HOST", "blacklist-postgres"),
-            "port": int(os.getenv("POSTGRES_PORT", 5432)),
-            "database": os.getenv("POSTGRES_DB", "blacklist"),
-            "user": os.getenv("POSTGRES_USER", "postgres"),
-            "password": os.getenv("POSTGRES_PASSWORD", "postgres"),
-        }
-        # Read retry configuration from environment (for testing)
-        self.max_retries = int(os.getenv("DB_CONNECT_RETRIES", "10"))
-        self.base_delay = float(os.getenv("DB_BACKOFF_DELAY", "2.0"))
-        if os.getenv("TESTING") == "True" and os.getenv("USE_REAL_DB") != "True":
+        self.db_config = config.get_postgres_params()
+        self.max_retries = config.DB_CONNECT_RETRIES
+        self.base_delay = config.DB_BACKOFF_DELAY
+        if config.TESTING and not config.USE_REAL_DB:
             self.connection_pool = None  # Ensure it's explicitly None in testing
             logger.info("✅ DatabaseService initialized in TESTING mode (no real connection)")
         else:
@@ -104,8 +96,8 @@ class DatabaseService:
             try:
                 if conn and not conn.closed:
                     conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to close leaked connection: %s", e)
 
     def close_all_connections(self):
         """Close all connections in pool"""
@@ -268,17 +260,19 @@ class DatabaseService:
                 if conn:
                     conn.rollback()
                     self.return_connection(conn)
-            except BaseException:
-                pass
+            except BaseException as e:
+                logger.debug("Cleanup rollback failed: %s", e)
             return False
 
     def get_collection_credentials(self, service_name: str) -> Dict[str, Any]:
         """수집 서비스 인증정보 조회 - 보안 서비스 통합"""
         try:
-            from .secure_credential_service import secure_credential_service
+            from flask import current_app
 
-            # 보안 서비스에서 인증정보 조회
-            credentials = secure_credential_service.get_credentials(service_name)
+            svc = current_app.extensions.get("secure_credential_service")
+            if svc is None:
+                raise RuntimeError("secure_credential_service not initialized")
+            credentials = svc.get_credentials(service_name)
 
             if credentials:
                 return {

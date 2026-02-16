@@ -10,13 +10,14 @@ Usage:
     python -m core.services.fortimanager_push_service
 """
 
-import os
 import time
 import requests
 import psycopg2
 import select
 import logging
 from typing import Optional
+
+from ..config import config
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +38,11 @@ class FortiManagerPushService:
             for any other database queries needed in the future.
         """
         self.db_service = db_service
-        self.fmg_host = os.getenv("FMG_HOST")
-        self.fmg_user = os.getenv("FMG_USER", "admin")
-        self.fmg_pass = os.getenv("FMG_PASS")
-        self.fmg_adom = os.getenv("FMG_ADOM", "root")
-        self.api_url = os.getenv("BLACKLIST_API_URL", "https://localhost/api/fortinet/threat-feed?format=text")
+        self.fmg_host = config.FMG_HOST
+        self.fmg_user = config.FMG_USER
+        self.fmg_pass = config.FMG_PASS
+        self.fmg_adom = config.FMG_ADOM
+        self.api_url = config.BLACKLIST_API_URL
 
         self.session_id: Optional[str] = None
         # Persistent connection for PostgreSQL LISTEN/NOTIFY (required for real-time notifications)
@@ -59,13 +60,7 @@ class FortiManagerPushService:
             # Use DatabaseService to create a raw connection (consistent config)
             self.db_conn = self.db_service.create_raw_connection()
         else:
-            # Fallback to manual connection (legacy support)
-            db_host = os.getenv("POSTGRES_HOST", "blacklist-postgres")
-            db_name = os.getenv("POSTGRES_DB", "blacklist")
-            db_user = os.getenv("POSTGRES_USER", "postgres")
-            db_pass = os.getenv("POSTGRES_PASSWORD")
-
-            self.db_conn = psycopg2.connect(host=db_host, database=db_name, user=db_user, password=db_pass)
+            self.db_conn = psycopg2.connect(**config.get_postgres_params())
 
         self.db_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 

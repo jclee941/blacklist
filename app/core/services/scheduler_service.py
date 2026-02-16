@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import os
 
+from ..config import config
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +28,7 @@ class CollectionScheduler:
         self.db_service = db_service
         self.running = False
         self.scheduler_thread: Optional[threading.Thread] = None
-        self.collection_interval = int(os.getenv("COLLECTION_INTERVAL", "3600"))  # 1시간
+        self.collection_interval = config.COLLECTION_INTERVAL
         self.last_collection = {}
 
     def start(self):
@@ -94,9 +96,8 @@ class CollectionScheduler:
             try:
                 import requests as req
 
-                collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
                 resp = req.post(
-                    f"{collector_url}/api/scheduler/force-collection/SECUDIUM",
+                    f"{config.COLLECTOR_URL}/api/scheduler/force-collection/SECUDIUM",
                     timeout=300,
                 )
                 secudium_result = resp.json() if resp.status_code == 200 else {}
@@ -214,8 +215,8 @@ class CollectionScheduler:
                 try:
                     conn.rollback()
                     self.db_service.return_connection(conn)
-                except BaseException:
-                    pass
+                except BaseException as e:
+                    logger.debug("Cleanup rollback failed: %s", e)
 
     def _update_collection_stats(self):
         """수집 통계 업데이트"""

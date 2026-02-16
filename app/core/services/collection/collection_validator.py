@@ -118,8 +118,8 @@ class CollectionValidator:
                         return parsed_date.date().isoformat()
                     except ValueError:
                         continue
-            except BaseException:
-                pass
+            except BaseException as e:
+                logger.debug("Date parsing failed for %r: %s", date_value, e)
 
         return None
 

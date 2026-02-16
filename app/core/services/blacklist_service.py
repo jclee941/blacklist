@@ -3,7 +3,6 @@
 모든 블랙리스트 관련 비즈니스 로직을 처리하는 서비스 클래스
 """
 
-import os
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -12,6 +11,9 @@ from ..utils.version import get_app_version
 import structlog
 import redis
 import json
+import requests
+
+from ..config import config
 
 from ..monitoring.metrics import (
     blacklist_decisions_total,
@@ -41,8 +43,8 @@ class BlacklistService:
         # Redis 캐시 초기화
         try:
             self.redis_client = redis.Redis(
-                host=os.getenv("REDIS_HOST", "blacklist-redis"),
-                port=int(os.getenv("REDIS_PORT", 6379)),
+                host=config.REDIS_HOST,
+                port=config.REDIS_PORT,
                 db=0,
                 decode_responses=True,
                 socket_connect_timeout=2,
@@ -394,13 +396,9 @@ class BlacklistService:
         }
 
     async def _collect_regtech_data(self, force: bool = False) -> Dict[str, Any]:
-        import requests
-
-        COLLECTOR_URL = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
-
         try:
             response = requests.post(
-                f"{COLLECTOR_URL}/api/force-collection/REGTECH",
+                f"{config.COLLECTOR_URL}/api/force-collection/REGTECH",
                 json={"force": force},
                 timeout=60,
             )
@@ -435,11 +433,8 @@ class BlacklistService:
 
     def sync_with_collector(self) -> Dict[str, Any]:
         try:
-            import requests
-
             try:
-                collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
-                health_response = requests.get(f"{collector_url}/health", timeout=5)
+                health_response = requests.get(f"{config.COLLECTOR_URL}/health", timeout=5)
                 collector_healthy = health_response.status_code == 200
             except Exception:
                 collector_healthy = False
@@ -484,11 +479,8 @@ class BlacklistService:
 
     def force_data_refresh(self) -> Dict[str, Any]:
         try:
-            import requests
-
-            collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
             try:
-                data_response = requests.get(f"{collector_url}/api/data", timeout=30)
+                data_response = requests.get(f"{config.COLLECTOR_URL}/api/data", timeout=30)
 
                 if data_response.status_code == 200:
                     collector_data = data_response.json()

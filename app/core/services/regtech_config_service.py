@@ -4,8 +4,9 @@ REGTECH 인증정보 및 설정 관리를 위한 서비스
 """
 
 import logging
-import os
 import requests
+
+from ..config import config
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -45,10 +46,12 @@ class RegtechConfigService:
                 "request_delay_seconds": request_delay_seconds,
             }
 
-            # 보안 서비스를 통한 저장
-            from .secure_credential_service import secure_credential_service
+            from flask import current_app
 
-            success = secure_credential_service.save_credentials("REGTECH", username, password, config)
+            svc = current_app.extensions.get("secure_credential_service")
+            if svc is None:
+                raise RuntimeError("secure_credential_service not initialized")
+            success = svc.save_credentials("REGTECH", username, password, config)
 
             if success:
                 logger.info(f"✅ REGTECH 인증정보 저장 완료: {username}")
@@ -98,7 +101,7 @@ class RegtechConfigService:
     def _get_default_config(self) -> Dict[str, Any]:
         """기본 설정값 반환"""
         return {
-            "base_url": os.getenv("REGTECH_BASE_URL", "https://regtech.fsec.or.kr"),
+            "base_url": config.REGTECH_BASE_URL,
             "login_url": "/login/loginProcess",
             "advisory_url": "/fcti/securityAdvisory/advisoryList",
             "max_pages": 100,
@@ -154,8 +157,7 @@ class RegtechConfigService:
             # Phase 2: 수집 컨테이너 헬스체크
             logger.info("🏥 Phase 2: 수집 컨테이너 상태 확인")
             try:
-                collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
-                health_response = requests.get(f"{collector_url}/health", timeout=10)
+                health_response = requests.get(f"{config.COLLECTOR_URL}/health", timeout=10)
 
                 if health_response.status_code == 200:
                     health_data = health_response.json()
@@ -182,11 +184,13 @@ class RegtechConfigService:
             # Phase 3: REGTECH 인증 테스트 (실제 로그인 시도)
             logger.info("🔐 Phase 3: REGTECH 포털 인증 테스트")
             try:
-                from .collection_service import collection_service
+                from flask import current_app
 
-                # 오늘 날짜로 최소한의 테스트 수집 시도
+                collection_svc = current_app.extensions.get("collection_service")
+                if collection_svc is None:
+                    raise RuntimeError("collection_service not initialized")
                 today = datetime.now().strftime("%Y-%m-%d")
-                auth_test_result = collection_service.test_regtech_collection(username, password, today, today)
+                auth_test_result = collection_svc.test_regtech_collection(username, password, today, today)
 
                 if auth_test_result.get("success"):
                     collected_count = auth_test_result.get("collected_count", 0)
@@ -281,11 +285,9 @@ class RegtechConfigService:
     def initialize_regtech_credentials(self) -> bool:
         """REGTECH 인증정보 초기화 (환경변수에서 로드)"""
         try:
-            import os
-
             # 환경변수에서 인증정보 로드 (GitHub Secrets에서 제공)
-            default_username = os.getenv("REGTECH_ID", "")
-            default_password = os.getenv("REGTECH_PW", "")
+            default_username = config.REGTECH_ID
+            default_password = config.REGTECH_PW
 
             if not default_username or not default_password:
                 logger.warning("환경변수에서 REGTECH 인증정보를 찾을 수 없습니다.")

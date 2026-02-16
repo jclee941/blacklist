@@ -8,6 +8,8 @@ import time
 from datetime import datetime
 from typing import Dict, List, Any
 
+from ..config import config
+
 # Enhanced logging with tagging
 from ..utils.logger_config import collection_logger as logger
 
@@ -488,10 +490,9 @@ class CollectionService:
         """Secudium 수집을 collector 서비스에 HTTP 요청으로 위임"""
         import requests as req
 
-        collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
         try:
             resp = req.post(
-                f"{collector_url}/api/scheduler/force-collection/SECUDIUM",
+                f"{config.COLLECTOR_URL}/api/scheduler/force-collection/SECUDIUM",
                 timeout=300,
             )
             if resp.status_code == 200:

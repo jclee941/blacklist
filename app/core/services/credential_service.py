@@ -12,6 +12,7 @@ from cryptography.fernet import Fernet
 import base64
 from datetime import datetime
 
+from ..config import config
 from ..utils.encryption import encryption_service
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ class CredentialService:
         """암호화 키 생성 또는 로드"""
         try:
             # 프로덕션 환경: 환경변수에서 키 로드 시도
-            env_key = os.getenv("CREDENTIAL_ENCRYPTION_KEY")
+            env_key = config.CREDENTIAL_ENCRYPTION_KEY
             if env_key:
                 self.key = base64.b64decode(env_key.encode())
                 self.cipher_suite = Fernet(self.key)
@@ -400,8 +401,8 @@ if __name__ == "__main__":
     logger.info("🔧 인증정보 서비스 테스트")
 
     # 저장 테스트 (실제 운영 인증정보 필요)
-    test_id = os.getenv("REGTECH_ID")
-    test_pw = os.getenv("REGTECH_PW")
+    test_id = config.REGTECH_ID
+    test_pw = config.REGTECH_PW
 
     if not test_id or not test_pw:
         logger.warning("❌ 테스트를 위한 환경변수가 설정되지 않음: REGTECH_ID, REGTECH_PW")
