@@ -3,11 +3,11 @@
 PostgreSQL 연결 개선 모듈 - 환경변수 기반 유연한 연결 설정
 """
 
-import os
 import psycopg2
 from typing import Optional, Dict, Any
 import logging
-from urllib.parse import urlparse
+
+from ..config import config
 
 logger = logging.getLogger(__name__)
 
@@ -16,34 +16,7 @@ class PostgreSQLConnectionManager:
     """PostgreSQL 연결 관리자 - 환경변수 기반 연결 설정"""
 
     def __init__(self):
-        self.connection_params = self._get_connection_params()
-
-    def _get_connection_params(self) -> Dict[str, Any]:
-        """환경변수에서 PostgreSQL 연결 파라미터 추출"""
-        # 여러 환경변수 형태 지원
-        database_url = os.getenv("DATABASE_URL")
-        postgres_url = os.getenv("POSTGRES_URL")
-
-        # URL 형태로 제공된 경우 파싱
-        if database_url or postgres_url:
-            url = database_url or postgres_url
-            parsed = urlparse(url)
-            return {
-                "host": parsed.hostname or "localhost",
-                "port": parsed.port or 5432,
-                "database": parsed.path.lstrip("/") or "blacklist",
-                "user": parsed.username or "postgres",
-                "password": parsed.password or "",
-            }
-
-        # 개별 환경변수에서 설정 추출
-        return {
-            "host": os.getenv("POSTGRES_HOST", "blacklist-postgres"),
-            "port": int(os.getenv("POSTGRES_PORT", "5432")),
-            "database": os.getenv("POSTGRES_DB", "blacklist"),
-            "user": os.getenv("POSTGRES_USER", "postgres"),
-            "password": os.getenv("POSTGRES_PASSWORD", ""),
-        }
+        self.connection_params = config.get_postgres_params()
 
     def get_connection(self) -> Optional[psycopg2.extensions.connection]:
         """PostgreSQL 연결 시도 (fallback 포함)"""

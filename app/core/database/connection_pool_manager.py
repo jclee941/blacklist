@@ -3,13 +3,13 @@
 스마트 PostgreSQL 연결 관리자 - 반복 오류 방지 및 로깅 개선
 """
 
-import os
 import time
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 import psycopg2
-from urllib.parse import urlparse
+
+from ..config import config
 
 logger = logging.getLogger(__name__)
 
@@ -23,37 +23,13 @@ class SmartConnectionManager:
     """
 
     def __init__(self):
-        self.connection_params = self._get_connection_params()
+        self.connection_params = config.get_postgres_params()
         self._last_error_time = None
         self._error_count = 0
         self._cached_stats = None
-        self._cache_timeout = 300  # 5분 캐시
-        self._backoff_duration = 60  # 1분 백오프
-        self._max_error_logs = 5  # 최대 5번까지만 오류 로깅
-
-    def _get_connection_params(self) -> Dict[str, Any]:
-        """환경변수에서 PostgreSQL 연결 파라미터 추출"""
-        database_url = os.getenv("DATABASE_URL")
-        postgres_url = os.getenv("POSTGRES_URL")
-
-        if database_url or postgres_url:
-            url = database_url or postgres_url
-            parsed = urlparse(url)
-            return {
-                "host": parsed.hostname or "localhost",
-                "port": parsed.port or 5432,
-                "database": parsed.path.lstrip("/") or "blacklist",
-                "user": parsed.username or "postgres",
-                "password": parsed.password or "",
-            }
-
-        return {
-            "host": os.getenv("POSTGRES_HOST", "blacklist-postgres"),
-            "port": int(os.getenv("POSTGRES_PORT", "5432")),
-            "database": os.getenv("POSTGRES_DB", "blacklist"),
-            "user": os.getenv("POSTGRES_USER", "postgres"),
-            "password": os.getenv("POSTGRES_PASSWORD", ""),
-        }
+        self._cache_timeout = 300
+        self._backoff_duration = 60
+        self._max_error_logs = 5
 
     def _should_suppress_error_logging(self) -> bool:
         """오류 로깅을 억제할지 결정"""
