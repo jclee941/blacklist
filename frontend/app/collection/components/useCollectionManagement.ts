@@ -9,6 +9,7 @@ import api, {
   triggerCollectionService,
   updateCredential,
 } from '@/lib/api';
+import type { CredentialPayload } from '@/types';
 import type {
   Credential,
   CollectionStatus,
@@ -344,7 +345,7 @@ export function useCollectionManagement() {
     try {
       const data = await updateCredential(
         editingService.toLowerCase(),
-        credentialForm as unknown as Record<string, unknown>
+        credentialForm as unknown as CredentialPayload
       );
 
       if (data.success) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Settings, Database, Shield, Bell, Save, RefreshCw } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Tabs from '@/components/ui/Tabs';
-import { getSettingsGrouped, updateSettingsBatch } from '@/lib/api';
+import api, { getSettingsGrouped, updateSettingsBatch } from '@/lib/api';
 
 interface SystemSettings {
   auto_deactivate_expired: boolean;
@@ -273,8 +273,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={async () => {
                   try {
-                    const res = await fetch('/api/health');
-                    const data = await res.json();
+                    const { data } = await api.get('/health');
                     alert(
                       data.status === 'healthy'
                         ? '데이터베이스 연결 성공'

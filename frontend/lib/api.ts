@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { CredentialPayload, IPPayload } from '@/types';
 
 // JWT token management
 const TOKEN_KEY = 'blacklist_auth_token';
@@ -140,7 +141,7 @@ export const getCredential = async (source: string) => {
 };
 
 // 인증정보 수정 API
-export const updateCredential = async (source: string, credentialData: Record<string, unknown>) => {
+export const updateCredential = async (source: string, credentialData: CredentialPayload) => {
   const { data } = await api.put(`/proxy/collection/credentials/${source}`, credentialData);
   return data;
 };
@@ -193,7 +194,7 @@ export const getUnifiedIPs = async (params?: string) => {
 };
 
 // IP 추가 API
-export const addIP = async (type: 'whitelist' | 'blacklist', payload: Record<string, unknown>) => {
+export const addIP = async (type: 'whitelist' | 'blacklist', payload: IPPayload) => {
   const { data } = await api.post(`/ip-management/${type}`, payload);
   return data;
 };
@@ -202,7 +203,7 @@ export const addIP = async (type: 'whitelist' | 'blacklist', payload: Record<str
 export const updateIP = async (
   type: 'whitelist' | 'blacklist',
   id: number,
-  payload: Record<string, unknown>
+  payload: Partial<IPPayload>
 ) => {
   const { data } = await api.put(`/ip-management/${type}/${id}`, payload);
   return data;
