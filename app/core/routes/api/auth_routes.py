@@ -9,6 +9,7 @@ import logging
 from flask import Blueprint, jsonify, request, g, current_app
 
 from core.auth.decorators import public
+from core.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,30 @@ def login():
             }
         ), 400
 
-    username = data["username"]
+    username = data["username"].strip()
     password = data["password"]
+
+    if not username or len(username) > 255:
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "Username must be between 1 and 255 characters",
+                "code": "AUTH_INVALID_INPUT",
+            }
+        ), 400
+
+    if len(password) > 1024:
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "Password exceeds maximum length",
+                "code": "AUTH_INVALID_INPUT",
+            }
+        ), 400
 
     # Validate against configured admin credentials
     settings_service = current_app.extensions.get("settings_service")
@@ -62,15 +85,11 @@ def login():
     except Exception as e:
         # Fallback to environment variables
         logger.warning("Settings service unavailable, falling back to env vars: %s", e)
-        import os
-
-        admin_username = os.getenv("ADMIN_USERNAME", "admin")
-        admin_password = os.getenv("ADMIN_PASSWORD", "admin")
+        admin_username = config.ADMIN_USERNAME
+        admin_password = config.ADMIN_PASSWORD
 
     if not admin_password:
-        import os as _os
-
-        admin_password = _os.getenv("ADMIN_PASSWORD", "admin")
+        admin_password = config.ADMIN_PASSWORD
 
     if username != admin_username or password != admin_password:
         logger.warning(f"Failed login attempt for user: {username}")

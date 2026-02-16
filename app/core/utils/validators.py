@@ -66,5 +66,25 @@ def filter_public_ips_only(ip_list: List[str]) -> List[str]:
     return [ip for ip in ip_list if is_public_ip(ip)]
 
 
+def validate_pagination(page: int, per_page: int, max_per_page: int = 1000) -> tuple:
+    """Clamp pagination parameters to safe bounds.
+
+    Returns:
+        (page, per_page) clamped to valid ranges.
+    """
+    page = max(1, page)
+    per_page = max(1, min(per_page, max_per_page))
+    return page, per_page
+
+
+def validate_string_length(value: str, field_name: str, min_len: int = 1, max_len: int = 255) -> str:
+    """Validate string field length, raise ValidationError if out of bounds."""
+    if not isinstance(value, str) or len(value) < min_len:
+        raise ValidationError(f"{field_name} must be at least {min_len} characters")
+    if len(value) > max_len:
+        raise ValidationError(f"{field_name} must be at most {max_len} characters")
+    return value
+
+
 class ValidationError(Exception):
     """검증 오류 예외"""
