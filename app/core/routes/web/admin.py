@@ -5,9 +5,12 @@ REGTECH 관리자 라우트
 
 from flask import Blueprint, request, jsonify, current_app
 
-# from ...services.regtech_config_service import regtech_config_service
 import logging
 import os
+
+from ...config import config
+
+from ...config import config
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -68,7 +71,7 @@ def set_regtech_credentials():
             )
 
         # 선택적 필드 (기본값 사용)
-        base_url = data.get("base_url", os.getenv("REGTECH_BASE_URL", "https://regtech.fsec.or.kr"))
+        base_url = data.get("base_url", config.REGTECH_BASE_URL)
         login_url = data.get("login_url", "/login/loginProcess")
         advisory_url = data.get("advisory_url", "/fcti/securityAdvisory/advisoryList")
         auto_test = data.get("auto_test", True)  # 기본적으로 자동 테스트 수행

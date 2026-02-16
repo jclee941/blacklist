@@ -7,9 +7,10 @@ Routes: /collection/regtech/trigger
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 import logging
-import os
 
 from core.utils.rate_limit import rate_limit
+from ....config import config
+from ....config import config
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def trigger_regtech_collection():
 
         # 컬렉터 서비스 호출 (내부 네트워크)
         collector_response = requests.post(
-            os.environ.get("COLLECTOR_URL", "http://localhost:8545") + "/api/force-collection/REGTECH",
+            config.COLLECTOR_URL + "/api/force-collection/REGTECH",
             timeout=30,
             json={
                 "source": "regtech_api_trigger",

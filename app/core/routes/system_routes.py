@@ -5,8 +5,9 @@ System monitoring routes
 
 from flask import Blueprint, jsonify
 import logging
-import os
 from datetime import datetime
+
+from ..config import config
 
 system_bp = Blueprint("system", __name__, url_prefix="/api/system")
 
@@ -130,20 +131,20 @@ def get_environment_check():
     try:
         env_status = {
             "regtech_auth": {
-                "id_configured": bool(os.getenv("REGTECH_ID", "")),
-                "pw_configured": bool(os.getenv("REGTECH_PW", "")),
-                "id_length": len(os.getenv("REGTECH_ID", "")),
-                "pw_length": len(os.getenv("REGTECH_PW", "")),
+                "id_configured": bool(config.REGTECH_ID),
+                "pw_configured": bool(config.REGTECH_PW),
+                "id_length": len(config.REGTECH_ID),
+                "pw_length": len(config.REGTECH_PW),
             },
             "github_integration": {
-                "token_configured": bool(os.getenv("GITHUB_TOKEN", "")),
-                "repo_owner": os.getenv("GITHUB_REPO_OWNER", ""),
-                "repo_name": os.getenv("GITHUB_REPO_NAME", ""),
+                "token_configured": bool(config.GITHUB_TOKEN),
+                "repo_owner": config.GITHUB_REPO_OWNER,
+                "repo_name": config.GITHUB_REPO_NAME,
             },
             "build_info": {
-                "version": os.getenv("VERSION", "unknown"),
-                "build_number": os.getenv("BUILD_NUMBER", "0"),
-                "vcs_ref": os.getenv("VCS_REF", "unknown")[:7],
+                "version": config.VERSION,
+                "build_number": config.BUILD_NUMBER,
+                "vcs_ref": config.VCS_REF[:7],
             },
         }
 

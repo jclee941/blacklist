@@ -7,6 +7,10 @@ import os
 
 from flask import Blueprint, render_template, jsonify, request, current_app
 import logging
+
+from ...config import config
+
+from ...config import config
 from flask_wtf.csrf import CSRFProtect
 
 logger = logging.getLogger(__name__)
@@ -107,8 +111,7 @@ def save_credentials():
                     "host": fmg_host,
                     "enabled": fmg_enabled,
                     "interval": fmg_interval,
-                    "api_url": os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:443")
-                    + "/api/fortinet/active-ips",
+                    "api_url": config.BLACKLIST_API_URL + "/api/fortinet/active-ips",
                     "filename": "nxtd-blacklist.txt",
                 },
             )
@@ -118,10 +121,9 @@ def save_credentials():
         if regtech_username and regtech_password:
             # 스케줄러 시작 (인증 설정 완료시)
             try:
-                from ..services.scheduler_service import collection_scheduler
-
-                if not collection_scheduler.running:
-                    collection_scheduler.start()
+                scheduler = current_app.extensions.get("scheduler_service")
+                if scheduler and not scheduler.running:
+                    scheduler.start()
                     logger.info("🔄 자동수집 스케줄러 시작됨")
             except Exception as scheduler_error:
                 logger.warning(f"스케줄러 시작 실패 (무시 가능): {scheduler_error}")
@@ -326,8 +328,7 @@ def get_collector_status():
 
         # Get status from collector health endpoint
         try:
-            collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
-            response = requests.get(f"{collector_url}/status", timeout=2)
+            response = requests.get(f"{config.COLLECTOR_URL}/status", timeout=2)
             collector_data = response.json()
 
             collectors = collector_data.get("collectors", {})
@@ -520,8 +521,7 @@ def get_live_logs():
         import requests
 
         # Get logs from collector's /logs endpoint
-        collector_url = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
-        response = requests.get(f"{collector_url}/logs", timeout=2)
+        response = requests.get(f"{config.COLLECTOR_URL}/logs", timeout=2)
         data = response.json()
 
         if not data or "logs" not in data:

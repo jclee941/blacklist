@@ -21,6 +21,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 
+from .config import config
+
 
 # Custom MemoryHandler for capturing logs
 class MemoryHandler(logging.Handler):
@@ -60,7 +62,7 @@ def create_app():
     # ========================================================================
 
     # Secret key for session management and CSRF protection
-    flask_secret = os.getenv("FLASK_SECRET_KEY")
+    flask_secret = config.FLASK_SECRET_KEY
     if not flask_secret:
         logging.getLogger(__name__).warning(
             "FLASK_SECRET_KEY not set — using random key. "
@@ -96,7 +98,7 @@ def create_app():
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        storage_uri=f"redis://{os.getenv('REDIS_HOST', 'blacklist-redis')}:{os.getenv('REDIS_PORT', '6379')}/1",
+        storage_uri=f"{config.REDIS_URL}/1",
         storage_options={"socket_connect_timeout": 2},
         default_limits=["200 per day", "50 per hour"],  # Global rate limits
         strategy="fixed-window",
@@ -367,13 +369,7 @@ def create_app():
     def health_check():
         """Health check endpoint"""
         try:
-            conn = psycopg2.connect(
-                host=os.getenv("POSTGRES_HOST", "blacklist-postgres"),
-                port=os.getenv("POSTGRES_PORT", "5432"),
-                database=os.getenv("POSTGRES_DB", "blacklist"),
-                user=os.getenv("POSTGRES_USER", "postgres"),
-                password=os.getenv("POSTGRES_PASSWORD", "postgres"),
-            )
+            conn = psycopg2.connect(**config.get_postgres_params())
             cursor = conn.cursor()
             cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
             tables = [row[0] for row in cursor.fetchall()]
@@ -414,7 +410,7 @@ def create_app():
             if db_service and expiry_service:
                 expiry_service.check_and_deactivate_expired_ips()
 
-            if os.getenv("DISABLE_AUTO_COLLECTION", "").lower() in ("true", "1", "yes"):
+            if config.DISABLE_AUTO_COLLECTION:
                 return
 
             scheduler_service = app.extensions.get("scheduler_service")
@@ -457,5 +453,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    port = int(os.getenv("PORT", 2542))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=config.APP_PORT, debug=False)

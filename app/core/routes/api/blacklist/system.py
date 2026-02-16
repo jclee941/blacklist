@@ -7,6 +7,7 @@ Routes: /system/containers, /credential/status, /credentials/regtech, /database/
 from flask import Blueprint, jsonify, current_app
 from datetime import datetime
 import logging
+from ....config import config
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +76,8 @@ def get_credential_status():
     """인증 상태 확인"""
     try:
         # REGTECH 인증 상태 확인
-        import os
-
-        regtech_id = os.getenv("REGTECH_ID")
-        regtech_pw = os.getenv("REGTECH_PW")
+        regtech_id = config.REGTECH_ID
+        regtech_pw = config.REGTECH_PW
 
         if regtech_id and regtech_pw:
             status = {
@@ -104,10 +103,8 @@ def get_credential_status():
 def get_regtech_credentials():
     """REGTECH 인증 정보 조회 (프론트엔드가 요청하는 엔드포인트)"""
     try:
-        import os
-
-        regtech_id = os.getenv("REGTECH_ID")
-        regtech_pw = os.getenv("REGTECH_PW")
+        regtech_id = config.REGTECH_ID
+        regtech_pw = config.REGTECH_PW
 
         if regtech_id and regtech_pw:
             return jsonify(

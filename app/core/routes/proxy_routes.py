@@ -4,22 +4,18 @@ Forwards frontend requests from /api/proxy/collection/* to /api/collection/*
 This allows the Next.js frontend to call backend APIs through a consistent proxy pattern.
 """
 
-import os
-
 from flask import Blueprint, request, jsonify
 import logging
 import requests
 
+from ..config import config
+
 logger = logging.getLogger(__name__)
 
-# Create Blueprint for proxy routes
 proxy_bp = Blueprint("proxy", __name__, url_prefix="/api/proxy")
 
-# Backend API base URL (localhost since proxy runs in same container as API)
-BACKEND_API_URL = os.getenv("BLACKLIST_API_URL", "http://localhost:2542/api")
-
-# Collector service URL (separate container, same host via network_mode: host)
-COLLECTOR_API_URL = os.getenv("COLLECTOR_API_URL", "http://localhost:8545")
+BACKEND_API_URL = config.BLACKLIST_API_URL
+COLLECTOR_API_URL = config.COLLECTOR_API_URL
 
 
 def forward_to_backend(endpoint: str, method: str = None):

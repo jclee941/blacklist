@@ -6,8 +6,8 @@ Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 import logging
-import os
 from flask import Blueprint, jsonify, request, render_template, g, current_app
+from ...config import config
 from datetime import datetime
 
 # from ...database.connection import get_db_connection
@@ -48,7 +48,7 @@ def cleanup_secudium_data():
     """
     # Authentication check
     auth_key = request.headers.get("X-Migration-Key")
-    expected_key = os.getenv("MIGRATION_KEY", "cleanup-2025-09-03")
+    expected_key = config.MIGRATION_KEY
 
     if auth_key != expected_key:
         raise UnauthorizedError(
@@ -219,7 +219,7 @@ def reset_all_data():
     """
     # Authentication check
     auth_key = request.headers.get("X-Migration-Key")
-    expected_key = os.getenv("MIGRATION_KEY", "cleanup-2025-09-03")
+    expected_key = config.MIGRATION_KEY
 
     if auth_key != expected_key:
         raise UnauthorizedError(

@@ -11,6 +11,7 @@ from flask import jsonify, request, g, current_app
 from datetime import datetime
 import logging
 import os
+from ...config import config
 from psycopg2.extras import RealDictCursor
 from ...exceptions import (
     DatabaseError,
@@ -426,7 +427,7 @@ def reset_database():
         UnauthorizedError: Missing or invalid admin key
         DatabaseError: Database reset operation failed
     """
-    expected_key = os.getenv("ADMIN_RESET_KEY")
+    expected_key = config.ADMIN_RESET_KEY
     if not expected_key:
         raise UnauthorizedError(
             message="ADMIN_RESET_KEY environment variable not configured",

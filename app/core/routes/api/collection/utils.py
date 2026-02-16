@@ -4,14 +4,14 @@ Shared helper functions for Collection routes
 """
 
 import logging
-import os
 import requests
 from typing import Dict, Any, Optional
 
+from ....config import config
+
 logger = logging.getLogger(__name__)
 
-# Collector service URL from environment variable
-COLLECTOR_SERVICE_URL = os.environ.get("COLLECTOR_URL", "http://localhost:8545")
+COLLECTOR_SERVICE_URL = config.COLLECTOR_URL
 
 
 def interval_seconds_to_string(seconds: int) -> str:
