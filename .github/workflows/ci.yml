@@ -2,6 +2,7 @@
 # Replaces: ci.yml (frontend-only) + ci-new.yml (self-hosted only)
 # Fixes: tsc error suppression (|| echo), vitest continue-on-error, missing backend CI
 # Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
+# Updated: 2026-02-17
 name: CI
 
 on:

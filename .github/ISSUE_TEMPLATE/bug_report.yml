@@ -81,7 +81,7 @@ body:
     attributes:
       label: ❌ Actual Result
       description: What actually happened?
-      placeholder: "Connection failed: Unable to connect to REGTECH server" error message displayed
+      placeholder: Connection failed - Unable to connect to REGTECH server error message displayed
     validations:
       required: true
 
