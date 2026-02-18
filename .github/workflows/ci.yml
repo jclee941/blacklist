@@ -179,6 +179,7 @@ jobs:
           PYTHONPATH: collector
         run: |
           python -m pytest tests/unit/collector -v \
+            -o 'pythonpath=["collector"]' \
             --cov=collector/core \
             --cov-report=term-missing \
             --cov-report=xml:collector-coverage.xml
