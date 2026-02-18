@@ -78,7 +78,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -245,7 +245,7 @@ jobs:
           done
       - name: Start services
         run: docker compose -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 120
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
