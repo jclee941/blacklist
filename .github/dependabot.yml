@@ -11,7 +11,7 @@ updates:
       - dependencies
       - ci
     commit-message:
-      prefix: "ci(deps)"
+      prefix: "chore(deps)"
 
   # Python dependencies
   - package-ecosystem: pip
