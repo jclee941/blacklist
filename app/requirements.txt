@@ -17,7 +17,7 @@ openpyxl==3.1.5
 # Web Scraping & HTTP Requests
 requests==2.31.0
 selenium==4.15.2
-beautifulsoup4==4.12.2
+beautifulsoup4==4.14.3
 
 # Security & Authentication
 cryptography==44.0.0
