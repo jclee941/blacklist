@@ -24,7 +24,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Extract and validate version
         id: version
         run: |
@@ -56,7 +56,7 @@ jobs:
     needs: [validate, build-images]
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v7
         with:
           pattern: image-*
@@ -93,7 +93,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v7
         with:
           name: airgap-bundle
