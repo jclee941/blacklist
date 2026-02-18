@@ -36,11 +36,15 @@ class OTPEmailReader:
         self.imap_server = imap_server
         self.imap: Optional[imaplib.IMAP4_SSL] = None
 
+    IMAP_SOCKET_TIMEOUT = 30
+
     def connect(self) -> bool:
         """IMAP 서버 연결"""
         try:
-            self.imap = imaplib.IMAP4_SSL(self.imap_server)
+            self.imap = imaplib.IMAP4_SSL(self.imap_server, timeout=self.IMAP_SOCKET_TIMEOUT)
             self.imap.login(self.email_address, self.email_password)
+            if self.imap.sock:
+                self.imap.sock.settimeout(self.IMAP_SOCKET_TIMEOUT)
             logger.info("email_imap_connected", server=self.imap_server)
             return True
         except Exception as e:
@@ -91,13 +95,18 @@ class OTPEmailReader:
                     total_otp_emails=len(email_ids),
                 )
 
-            start_time = time.time()
+            deadline = time.time() + max_wait_seconds
             otp_code = None
+            poll_interval = 3
 
-            while time.time() - start_time < max_wait_seconds:
-                # IMAP SELECT로 메일박스 강제 새로고침 (NOOP은 일부 서버에서 새 이메일 미감지)
+            while time.time() < deadline:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    break
+                if self.imap.sock:
+                    self.imap.sock.settimeout(min(self.IMAP_SOCKET_TIMEOUT, remaining))
+
                 self.imap.select("INBOX")
-
                 status, messages = self.imap.search(None, search_criteria)
 
                 if status == "OK" and messages[0]:
@@ -107,9 +116,9 @@ class OTPEmailReader:
                     if initial_latest_id and latest_email_id == initial_latest_id:
                         logger.info(
                             "otp_waiting_for_new_email",
-                            elapsed=int(time.time() - start_time),
+                            elapsed=int(max_wait_seconds - (deadline - time.time())),
                         )
-                        time.sleep(3)
+                        time.sleep(min(poll_interval, max(0, deadline - time.time())))
                         continue
 
                     status, msg_data = self.imap.fetch(latest_email_id, "(RFC822)")
@@ -128,10 +137,9 @@ class OTPEmailReader:
                             logger.info("otp_code_extracted", code_length=len(otp_code))
                             break
 
-                # OTP 못 찾으면 3초 대기 후 재시도
                 if not otp_code:
-                    logger.info("otp_waiting", elapsed=int(time.time() - start_time))
-                    time.sleep(3)
+                    logger.info("otp_waiting", elapsed=int(max_wait_seconds - (deadline - time.time())))
+                    time.sleep(min(poll_interval, max(0, deadline - time.time())))
 
             if not otp_code:
                 logger.warning(

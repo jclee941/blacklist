@@ -10,7 +10,6 @@
 | `release.yml` | Primary | 243 | Tag `v*` | Release + publish |
 | `deploy-sandbox.yml` | Primary | 324 | Manual / release | Sandbox deployment |
 | `build-images.yml` | Reusable | 103 | Called by others | Docker image builds |
-| `run-tests.yml` | Reusable | 76 | Called by others | Test execution |
 
 ---
 
@@ -74,10 +73,6 @@ Tag v* → validate → build 5 images → package-airgap → create-release + p
 ## 4. `build-images.yml` — Reusable Build
 
 Matrix strategy builds 5 Docker images in parallel with GitHub Actions cache for layer reuse.
-
-## 5. `run-tests.yml` — Reusable Tests
-
-Runs backend (pytest) and frontend (vitest) tests. Called by `ci.yml`.
 
 ---
 

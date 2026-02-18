@@ -34,7 +34,7 @@ jobs:
         service: [frontend, app, collector, postgres, redis]
         include:
           - service: frontend
-            context: ./frontend
+            context: .
             dockerfile: frontend/Dockerfile
           - service: app
             context: .
@@ -75,7 +75,7 @@ jobs:
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}

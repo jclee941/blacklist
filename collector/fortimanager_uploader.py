@@ -30,13 +30,18 @@ class FortiManagerUploader:
         self.fmg_host = ""
         self.fmg_user = "admin"
         self.fmg_pass = ""
-        self.api_url = os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:2542") + "/api/fortinet/active-ips"
+        self.api_url = self._get_api_url()
         self.filename = "nxtd-blacklist.txt"
         self.enabled = False
         self.interval = 300  # 5 minutes
 
         # Load credentials from database
         self._load_credentials_from_db()
+
+    def _get_api_url(self) -> str:
+        """Get API URL from environment or config (never hardcoded)."""
+        base_url = os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:2542").rstrip("/")
+        return f"{base_url}/api/fortinet/active-ips"
 
     def _load_credentials_from_db(self):
         """Load FortiManager credentials from database"""
@@ -71,10 +76,7 @@ class FortiManagerUploader:
                 self.fmg_host = config.get("host", "")
                 self.enabled = config.get("enabled", False)
                 self.interval = config.get("interval", 300)
-                self.api_url = config.get(
-                    "api_url",
-                    os.environ.get("BLACKLIST_API_URL", "http://blacklist-app:2542") + "/api/fortinet/active-ips",
-                )
+                self.api_url = config.get("api_url", self._get_api_url())
                 self.filename = config.get("filename", "nxtd-blacklist.txt")
 
                 logger.info(

@@ -138,7 +138,7 @@ describe('IPManagementFormModal', () => {
     it('auto-calculates removal date from detection date', () => {
       const onFormChange = vi.fn();
       render(<IPManagementFormModal {...defaultProps} onFormChange={onFormChange} />);
-      const detectionInput = screen.getByLabelText(/탐지일/);
+      const detectionInput = screen.getByLabelText(/^탐지일/);
       fireEvent.change(detectionInput, { target: { value: '2025-01-15' } });
       expect(onFormChange).toHaveBeenCalledWith(
         expect.objectContaining({

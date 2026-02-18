@@ -136,10 +136,14 @@ export function IPManagementFormModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="detection-date"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   탐지일 <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="detection-date"
                   type="date"
                   value={formData.detection_date}
                   onChange={(e) => handleDetectionDateChange(e.target.value)}
@@ -149,10 +153,14 @@ export function IPManagementFormModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="removal-date"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   해제일 (자동: 탐지일 + 3개월) <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="removal-date"
                   type="date"
                   value={formData.removal_date}
                   onChange={(e) => onFormChange({ ...formData, removal_date: e.target.value })}

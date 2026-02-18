@@ -2,7 +2,6 @@
 # Blacklist Flask Application - Container Image
 # ============================================================================
 # Purpose: Flask web application for IP blacklist/whitelist management
-# Version: 3.3.9
 # Architecture: Multi-stage build for production optimization
 # Dependencies: PostgreSQL 15, Redis 7, Python 3.11
 # ============================================================================
@@ -101,53 +100,15 @@ RUN mkdir -p logs
 FROM python:3.11-slim-bullseye as production
 
 # ============================================================================
-# Build Arguments (Secure Credential Injection + Version Management)
+# Build Arguments (Metadata Only — NO secrets!)
 # ============================================================================
-# Passed from GitLab CI/CD → Docker build → Environment variables
-# Version management (injected by GitLab CI)
-ARG APP_VERSION=""
+# Only version/build metadata passed at build time.
+# All secrets and runtime config are injected via docker-compose env_file
+# or environment variables at container start — NEVER baked into layers.
+# ============================================================================
+ARG APP_VERSION="0.0.0-dev"
 ARG GIT_COMMIT="unknown"
-ARG BUILD_NUMBER=""
-
-# Legacy build metadata (for compatibility)
-ARG VERSION
-ARG VCS_REF
-ARG BUILDTIME
-ARG BUILD_DATE
-
-# Application secrets
-ARG REGTECH_ID
-ARG REGTECH_PW
-ARG REGTECH_BASE_URL
-
-# Database configuration (dependency: blacklist-postgres)
-ARG POSTGRES_HOST
-ARG POSTGRES_PORT
-ARG POSTGRES_DB
-ARG POSTGRES_USER
-ARG POSTGRES_PASSWORD
-
-# Redis configuration (dependency: blacklist-redis)
-ARG REDIS_HOST
-ARG REDIS_PORT
-
-# Application URLs
-ARG PRD_URL
-ARG DEV_URL
-
-# GitHub integration
-ARG GITHUB_TOKEN
-ARG GITHUB_REPO_OWNER
-ARG GITHUB_REPO_NAME
-
-# Registry configuration
-ARG REGISTRY_HOST
-ARG REGISTRY_USER
-ARG REGISTRY_PASSWORD
-
-# Environment configuration
-ARG FLASK_ENV
-ARG TIMEZONE
+ARG BUILD_DATE=""
 
 # ============================================================================
 # Container Metadata Labels
@@ -203,57 +164,19 @@ COPY --from=python-base /app .
 COPY --from=python-base /app/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh && chown app:app /app/entrypoint.sh
 
-# ============================================================================
-# Environment Variables Configuration
-# ============================================================================
-# Dependency resolution: ENV variables set from ARG build arguments
-#
-# Service Dependencies:
-# - blacklist-postgres: Database (POSTGRES_*)
-# - blacklist-redis: Cache (REDIS_*)
-# - regtech.fsec.or.kr: External API (REGTECH_*)
-#
-# Configuration Hierarchy:
-# 1. Build arguments (from docker-compose.yml or CI/CD)
-# 2. Environment variables (container runtime)
-# 3. Default values (fallback for development)
-# ============================================================================
-ENV VERSION=${VERSION:-unknown} \
-    BUILD_NUMBER=${BUILD_NUMBER:-0} \
-    VCS_REF=${VCS_REF:-unknown} \
-    BUILDTIME=${BUILDTIME:-unknown} \
-    # Version Management (NEW - injected by GitLab CI)
-    APP_VERSION=${APP_VERSION:-0.0.0-dev} \
-    GIT_COMMIT=${GIT_COMMIT:-unknown} \
-    # Application Configuration
-    FLASK_ENV=${FLASK_ENV:-production} \
+ENV APP_VERSION=${APP_VERSION} \
+    GIT_COMMIT=${GIT_COMMIT} \
+    BUILD_DATE=${BUILD_DATE} \
+    FLASK_ENV=production \
     PORT=2542 \
     PYTHONPATH=/app \
     TZ=Asia/Seoul \
-    # Application Secrets
-    REGTECH_ID=${REGTECH_ID} \
-    REGTECH_PW=${REGTECH_PW} \
-    REGTECH_BASE_URL=${REGTECH_BASE_URL:-https://regtech.fsec.or.kr} \
-    # Database Configuration (dependency: blacklist-postgres)
-    POSTGRES_HOST=${POSTGRES_HOST:-blacklist-postgres} \
-    POSTGRES_PORT=${POSTGRES_PORT:-5432} \
-    POSTGRES_DB=${POSTGRES_DB:-blacklist} \
-    POSTGRES_USER=${POSTGRES_USER:-postgres} \
-    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres} \
-    # Redis Configuration (dependency: blacklist-redis)
-    REDIS_HOST=${REDIS_HOST:-blacklist-redis} \
-    REDIS_PORT=${REDIS_PORT:-6379} \
-    # Application URLs
-    PRD_URL=${PRD_URL:-https://${PROD_DOMAIN:-blacklist.example.com}} \
-    DEV_URL=${DEV_URL:-https://${DEV_DOMAIN:-blacklist-dev.example.com}} \
-    # GitHub Integration
-    GITHUB_TOKEN=${GITHUB_TOKEN} \
-    GITHUB_REPO_OWNER=${GITHUB_REPO_OWNER:-qws941} \
-    GITHUB_REPO_NAME=${GITHUB_REPO_NAME:-blacklist} \
-    # Registry Configuration
-    REGISTRY_HOST=${REGISTRY_HOST:-${REGISTRY_DOMAIN:-registry.example.com}} \
-    REGISTRY_USER=${REGISTRY_USER:-admin} \
-    REGISTRY_PASSWORD=${REGISTRY_PASSWORD}
+    POSTGRES_HOST=localhost \
+    POSTGRES_PORT=5432 \
+    POSTGRES_DB=blacklist \
+    POSTGRES_USER=postgres \
+    REDIS_HOST=localhost \
+    REDIS_PORT=6379
 
 # Create required directories (static already copied from build stage)
 RUN mkdir -p logs uploads cache
@@ -278,7 +201,7 @@ RUN set -e && \
     echo "Routes: $(find /app/core/routes -name "*.py" -type f 2>/dev/null | wc -l) files" && \
     echo "Services: $(find /app/core/services -name "*.py" -type f 2>/dev/null | wc -l) files" && \
     echo "====================================" && \
-    echo "✅ Application v3.3.9 embedded in image" && \
+    echo "✅ Application embedded in image" && \
     echo "📊 Image size optimization: Multi-stage build" && \
     echo "🔒 Security: Non-root user (app:app)" && \
     echo "🔗 Dependencies: PostgreSQL 15, Redis 7" && \

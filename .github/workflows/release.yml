@@ -46,51 +46,11 @@ jobs:
 
   build-images:
     needs: validate
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [frontend, app, collector, postgres, redis]
-        include:
-          - service: frontend
-            context: .
-            dockerfile: frontend/Dockerfile
-          - service: app
-            context: .
-            dockerfile: app/Dockerfile
-          - service: collector
-            context: .
-            dockerfile: collector/Dockerfile
-          - service: postgres
-            context: ./postgres
-            dockerfile: postgres/Dockerfile
-          - service: redis
-            context: ./redis
-            dockerfile: redis/Dockerfile
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          load: true
-          tags: blacklist-${{ matrix.service }}:${{ needs.validate.outputs.version }}
-          build-args: |
-            APP_VERSION=${{ needs.validate.outputs.version }}
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.repository.updated_at }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Export image
-        run: |
-          docker save blacklist-${{ matrix.service }}:${{ needs.validate.outputs.version }} | \
-            gzip > blacklist-${{ matrix.service }}.tar.gz
-      - uses: actions/upload-artifact@v6
-        with:
-          name: image-${{ matrix.service }}
-          path: blacklist-${{ matrix.service }}.tar.gz
-          retention-days: 5
+    uses: ./.github/workflows/build-images.yml
+    with:
+      version: ${{ needs.validate.outputs.version }}
+      push: false
+    secrets: inherit
 
   package-airgap:
     needs: [validate, build-images]

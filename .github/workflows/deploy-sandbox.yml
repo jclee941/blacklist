@@ -95,133 +95,27 @@ jobs:
             ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
             "echo '✅ SSH OK'; uptime; sudo docker --version; sudo docker compose version"
 
-      # --- Upload deploy files ---
-      - name: Upload compose file
+      - name: Upload deploy files
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           DEPLOY_DIR="${{ env.DEPLOY_BASE }}/blacklist-v${VERSION}"
           SSH="ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }}"
           ${SSH} "sudo mkdir -p ${DEPLOY_DIR} && sudo chown -R \$(whoami):\$(whoami) ${DEPLOY_DIR}"
-          cat deploy/sandbox/docker-compose.yml | ${SSH} "cat > ${DEPLOY_DIR}/docker-compose.yml"
+          scp -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
+            deploy/sandbox/docker-compose.yml \
+            deploy/sandbox/deploy.sh \
+            "${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }}:${DEPLOY_DIR}/"
+          ${SSH} "chmod +x ${DEPLOY_DIR}/deploy.sh"
 
-          echo "✅ Deploy files uploaded to ${DEPLOY_DIR}"
-
-      # --- Deploy ---
       - name: Pull images and deploy
         env:
           VERSION: ${{ steps.version.outputs.version }}
           REPO: ${{ steps.version.outputs.repo }}
         run: |
           ssh -i ~/.ssh/sandbox_key -o StrictHostKeyChecking=no \
-            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} << DEPLOY_SCRIPT
-          set -euo pipefail
-
-          VERSION="${VERSION}"
-          DEPLOY_BASE="${{ env.DEPLOY_BASE }}"
-          DEPLOY_DIR="\${DEPLOY_BASE}/blacklist-v\${VERSION}"
-          REGISTRY="${{ env.REGISTRY }}"
-          REPO="${REPO}"
-
-          echo "=== Deploying Blacklist v\${VERSION} (GHCR Pull) ==="
-
-          # --- GHCR Login ---
-          echo "🔐 Docker login to GHCR..."
-          echo "${{ secrets.GHCR_PAT }}" | sudo docker login "\${REGISTRY}" -u "${{ github.actor }}" --password-stdin
-
-          # --- Pull images (always :latest for Watchtower compatibility) ---
-          echo "📥 Pulling :latest images from GHCR..."
-          for svc in postgres redis collector app frontend; do
-            IMAGE="\${REGISTRY}/\${REPO}/blacklist-\${svc}:latest"
-            echo "  Pulling \${IMAGE}..."
-            sudo docker pull "\${IMAGE}"
-          done
-
-          # --- Find previous deployment (resolve symlinks to avoid self-copy) ---
-          PREV_DIR=""
-          if [ -L "\${DEPLOY_BASE}/current" ]; then
-            RESOLVED=\$(readlink -f "\${DEPLOY_BASE}/current" 2>/dev/null || echo "")
-            if [ -n "\${RESOLVED}" ] && [ "\${RESOLVED}" != "\${DEPLOY_DIR}" ]; then
-              PREV_DIR="\${RESOLVED}"
-            fi
-          elif [ -d "\${DEPLOY_BASE}/current" ]; then
-            PREV_DIR="\${DEPLOY_BASE}/current"
-          fi
-          if [ -z "\${PREV_DIR}" ]; then
-            PREV_DIR=\$(ls -dt "\${DEPLOY_BASE}"/blacklist-v*/ 2>/dev/null | grep -v "blacklist-v\${VERSION}/" | head -1 | sed 's:/$::')
-          fi
-          echo "📂 Previous deployment: \${PREV_DIR:-none}"
-
-          # --- Preserve .env ---
-          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -f "\${PREV_DIR}/.env" ]; then
-            echo "🔒 Preserving .env from \${PREV_DIR}"
-            sudo cp "\${PREV_DIR}/.env" "\${DEPLOY_DIR}/.env"
-          elif [ -f "\${DEPLOY_BASE}/env-backup-latest.env" ]; then
-            echo "🔒 Restoring .env from backup"
-            sudo cp "\${DEPLOY_BASE}/env-backup-latest.env" "\${DEPLOY_DIR}/.env"
-          fi
-
-          # --- Generate .env if missing ---
-          if [ ! -f "\${DEPLOY_DIR}/.env" ] || [ ! -s "\${DEPLOY_DIR}/.env" ]; then
-            echo "⚠️  No .env found — generating secrets..."
-            sudo bash -c "printf '%s\n' 'FLASK_ENV=production' 'POSTGRES_PASSWORD=blacklist' 'POSTGRES_HOST=localhost' 'REDIS_HOST=localhost' 'REDIS_PORT=6379' > \${DEPLOY_DIR}/.env"
-            sudo sh -c "echo \"CREDENTIAL_MASTER_KEY=\$(openssl rand -hex 32)\" >> \${DEPLOY_DIR}/.env"
-            sudo sh -c "echo \"SECRET_KEY=\$(openssl rand -hex 32)\" >> \${DEPLOY_DIR}/.env"
-            sudo sh -c "echo \"CREDENTIAL_ENCRYPTION_KEY=\$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || openssl rand -base64 32)\" >> \${DEPLOY_DIR}/.env"
-            sudo sh -c "echo \"ENCRYPTION_SALT=\$(openssl rand -hex 16)\" >> \${DEPLOY_DIR}/.env"
-            echo "✅ .env generated with fresh secrets"
-          fi
-
-          # --- Backup .env ---
-          sudo cp "\${DEPLOY_DIR}/.env" "\${DEPLOY_BASE}/env-backup-latest.env"
-
-          # --- Preserve data volumes ---
-          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -d "\${PREV_DIR}/data" ]; then
-            echo "💾 Preserving data volumes from \${PREV_DIR}..."
-            sudo cp -a "\${PREV_DIR}/data" "\${DEPLOY_DIR}/data" 2>/dev/null || true
-          fi
-
-          # --- Preserve SSL ---
-          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -d "\${PREV_DIR}/ssl" ]; then
-            echo "🔑 Preserving SSL certificates from \${PREV_DIR}..."
-            sudo cp -a "\${PREV_DIR}/ssl" "\${DEPLOY_DIR}/ssl" 2>/dev/null || true
-          fi
-
-          # --- Stop existing deployment ---
-          if [ -n "\${PREV_DIR}" ] && [ "\${PREV_DIR}" != "\${DEPLOY_DIR}" ] && [ -f "\${PREV_DIR}/docker-compose.yml" ]; then
-            echo "⏹️  Stopping existing containers..."
-            cd "\${PREV_DIR}"
-            sudo docker compose down --timeout 30 2>/dev/null || true
-          fi
-
-          # --- Force remove named containers ---
-          for svc in app collector frontend postgres redis; do
-            sudo docker rm -f "blacklist-\${svc}" 2>/dev/null || true
-          done
-
-          # --- Inject GHCR env vars ---
-          cd "\${DEPLOY_DIR}"
-          sudo touch .env
-          sudo chown \$(whoami):\$(whoami) .env
-          if ! grep -q "GITHUB_REPOSITORY" .env 2>/dev/null; then
-            echo "" >> .env
-            echo "# --- GHCR Deploy (auto-generated) ---" >> .env
-            echo "GITHUB_REPOSITORY=\${REPO}" >> .env
-          fi
-          sed -i '/^VERSION=/d' .env 2>/dev/null || true
-          sed -i '/^REGISTRY=/d' .env 2>/dev/null || true
-          echo "REGISTRY=\${REGISTRY}" >> .env
-
-          # --- Start services ---
-          echo "🚀 Starting services..."
-          sudo docker compose up -d
-
-          # --- Update symlink ---
-          sudo ln -sfn "\${DEPLOY_DIR}" "\${DEPLOY_BASE}/current"
-
-          echo "✅ Containers started"
-          sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | grep blacklist || true
-          DEPLOY_SCRIPT
+            ${{ env.SANDBOX_USER }}@${{ env.SANDBOX_HOST }} \
+            "VERSION=${VERSION} DEPLOY_BASE=${{ env.DEPLOY_BASE }} REGISTRY=${{ env.REGISTRY }} REPO=${REPO} GHCR_PAT=${{ secrets.GHCR_PAT }} GHCR_USER=${{ github.actor }} ${{ env.DEPLOY_BASE }}/blacklist-v${VERSION}/deploy.sh"
 
       # --- Health check ---
       - name: Health check

@@ -44,6 +44,9 @@ class CollectorConfig:
     ARCHIVE_ENABLED = os.getenv("COLLECTOR_ARCHIVE_ENABLED", "true").lower() == "true"
 
     # 인증정보 캐시 (DB 조회 최소화)
+    # SECURITY: Credentials are decrypted from DB and cached in memory for runtime use.
+    # This is necessary for performance but should be cleared on shutdown.
+    # Never log or expose these values. Use secrets module for sensitive data.
     _credentials_cache: Dict[str, Dict[str, str]] = {}
     _cache_loaded = False
 
@@ -143,14 +146,22 @@ class CollectorConfig:
     @classmethod
     def get_secudium_credentials(cls) -> tuple:
         """SECUDIUM 인증정보 반환 (환경변수 우선, DB fallback)"""
-        # 환경변수가 있으면 우선 사용
         if cls.SECUDIUM_ID and cls.SECUDIUM_PW:
             return (cls.SECUDIUM_ID, cls.SECUDIUM_PW)
 
-        # DB에서 로드
         cls._load_credentials_from_db()
         creds = cls._credentials_cache.get("SECUDIUM", {})
         return (creds.get("username", ""), creds.get("password", ""))
+
+    @classmethod
+    def clear_credentials_cache(cls) -> None:
+        """Scrub decrypted credentials from memory."""
+        for source in list(cls._credentials_cache.keys()):
+            creds = cls._credentials_cache[source]
+            for key in list(creds.keys()):
+                creds[key] = ""
+        cls._credentials_cache.clear()
+        cls._cache_loaded = False
 
     # 고성능 수집 설정
     COLLECTION_INTERVAL = int(os.getenv("COLLECTION_INTERVAL", "3600"))  # 1시간

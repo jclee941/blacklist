@@ -260,6 +260,18 @@ class CollectionScheduler:
                 )
                 old_count = cursor.rowcount
 
+                # 3. removal_date가 미래인데 is_active=false인 IP 재활성화
+                cursor.execute(
+                    """
+                    UPDATE blacklist_ips
+                    SET is_active = true, updated_at = NOW()
+                    WHERE is_active = false
+                    AND removal_date IS NOT NULL
+                    AND removal_date >= CURRENT_DATE
+                    """
+                )
+                reactivated_count = cursor.rowcount
+
                 conn.commit()
 
                 # 결과 조회
@@ -268,7 +280,7 @@ class CollectionScheduler:
                 cursor.close()
 
             logger.info(
-                f"✅ 만료된 IP 정리 완료: 만료 {expired_count}개, 3개월+ {old_count}개 비활성화 (활성 IP: {active_count:,}개)"
+                f"✅ 만료된 IP 정리 완료: 만료 {expired_count}개, 3개월+ {old_count}개 비활성화, {reactivated_count}개 재활성화 (활성 IP: {active_count:,}개)"
             )
 
         except Exception as e:

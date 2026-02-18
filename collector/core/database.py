@@ -26,11 +26,14 @@ class DatabaseService:
 
     def __init__(self):
         self.pool: Optional[SimpleConnectionPool] = None
-        self._ip_cache: Dict[str, bool] = {}  # IP 존재 여부 캐시
-        self._cache_max_size = 1000000  # 캐시 최대 크기 (100만개로 대폭 증가)
+        self._cache_max_size = 1000000
         self._batch_buffer: List[Dict[str, Any]] = []  # 배치 버퍼
         self._cipher_suite = None
         self._setup_decryption()
+        # IP cache eviction (TTL 24h, max 100K, LRU oldest 10%)
+        self.ip_cache: Dict[str, float] = {}
+        self.ip_cache_ttl: int = 86400  # 24 hours
+        self.ip_cache_max_size: int = 100000
         # self._initialize_connection_pool()  # Lazy initialization
 
     def _setup_decryption(self):
@@ -77,6 +80,38 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"❌ 비밀번호 복호화 실패: {e}")
             return encrypted_data
+
+    def _evict_stale_ips(self) -> int:
+        """Evict stale IPs by TTL, then LRU if over max size.
+
+        Returns:
+            Number of IPs evicted.
+        """
+        evicted = 0
+        current_time = time.time()
+
+        # Phase 1: TTL eviction — remove IPs older than ip_cache_ttl
+        stale_keys = [ip for ip, ts in self.ip_cache.items() if current_time - ts > self.ip_cache_ttl]
+        for ip in stale_keys:
+            del self.ip_cache[ip]
+            evicted += 1
+
+        # Phase 2: LRU eviction — if still over max size, remove oldest entries
+        # Evict enough to get below max_size, minimum 10% to prevent thrashing
+        if len(self.ip_cache) > self.ip_cache_max_size:
+            sorted_ips = sorted(self.ip_cache.items(), key=lambda x: x[1])
+            num_to_evict = max(
+                len(self.ip_cache) - self.ip_cache_max_size + 1,
+                len(self.ip_cache) // 10,
+            )
+            for ip, _ in sorted_ips[:num_to_evict]:
+                del self.ip_cache[ip]
+                evicted += 1
+
+        if evicted > 0:
+            logger.info(f"IP cache eviction: {evicted} entries removed, {len(self.ip_cache)} remaining")
+
+        return evicted
 
     def _initialize_connection_pool(self):
         """연결 풀 초기화 - 고성능 설정"""
@@ -614,7 +649,6 @@ class DatabaseService:
                         "total_collections": history_result[0] if history_result else 0,
                         "successful_collections": history_result[1] if history_result else 0,
                         "failed_collections": history_result[2] if history_result else 0,
-                        "cache_size": len(self._ip_cache),
                         "performance_mode": "optimized",
                     }
 

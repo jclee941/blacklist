@@ -1,0 +1,135 @@
+# Shared base service definitions for Blacklist platform
+# Used by docker/ and airgap/ compose files via 'extends'
+#
+# NOTE: This file is NOT used directly. Each environment extends these
+# service definitions and adds its own image/build configuration.
+
+services:
+  blacklist-postgres:
+    container_name: blacklist-postgres
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      POSTGRES_DB: blacklist
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TZ: Asia/Seoul
+    volumes:
+      - blacklist-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d blacklist"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  blacklist-redis:
+    container_name: blacklist-redis
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: Asia/Seoul
+    volumes:
+      - blacklist-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "localhost", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  blacklist-collector:
+    container_name: blacklist-collector
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: blacklist
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      HEALTH_CHECK_PORT: 8545
+      BACKEND_API_URL: http://localhost:2542
+      COLLECTION_INTERVAL: 86400
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-blacklist-regtech-salt-2025}
+      SECUDIUM_EMAIL: ${SECUDIUM_EMAIL}
+      SECUDIUM_EMAIL_PASSWORD: ${SECUDIUM_EMAIL_PASSWORD}
+      SECUDIUM_IMAP_SERVER: ${SECUDIUM_IMAP_SERVER:-imap.kakao.com}
+      TZ: Asia/Seoul
+    volumes:
+      - blacklist-collector-data:/app/data
+      - blacklist-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  blacklist-app:
+    container_name: blacklist-app
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      FLASK_ENV: production
+      PORT: 2542
+      SSL_ENABLED: "false"
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: blacklist
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-blacklist-regtech-salt-2025}
+      TZ: Asia/Seoul
+    volumes:
+      - blacklist-logs:/app/logs
+      - blacklist-uploads:/app/uploads
+      - blacklist-app-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2542/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  blacklist-frontend:
+    container_name: blacklist-frontend
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:2542
+      PORT: 443
+      HOSTNAME: "0.0.0.0"
+      TZ: Asia/Seoul
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "const http=require('http');const https=require('https');
+          http.get('http://localhost:443/health',r=>{process.exit(r.statusCode===200?0:1)})
+          .on('error',()=>{https.get({hostname:'localhost',port:443,path:'/health',
+          rejectUnauthorized:false},r=>{process.exit(r.statusCode===200?0:1)})
+          .on('error',()=>process.exit(1))})"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  blacklist-pgdata:
+  blacklist-redis-data:
+  blacklist-collector-data:
+  blacklist-logs:
+  blacklist-uploads:
+  blacklist-app-data:

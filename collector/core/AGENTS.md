@@ -1,7 +1,7 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
+**Generated:** 2026-02-18
+**Commit:** b5a2c7d | **Version:** 3.5.64
 **Parent:** [../AGENTS.md](../AGENTS.md)
 
 ## OVERVIEW
@@ -49,6 +49,7 @@ core/
 | Parsing logic in collectors | Separate parser modules |
 | Direct DB writes (no transactions) | Transaction context |
 | Hardcoded collection intervals | DB `SourceConfig` table |
+| Shared mutable state without lock | `threading.Lock()` context manager |
 | Sync bulk HTTP | `aiohttp` + semaphore |
 
 ## COMPLEXITY HOTSPOTS
@@ -56,6 +57,33 @@ core/
 | File | Lines | Status |
 |------|-------|--------|
 | `fortigate_collector.py` | 680L | Active — consider splitting |
-| `secudium_collector.py` | 676L | Active — manual OTP login flow added v3.5.55; consider splitting |
+| `secudium_collector.py` | 676L | Active — manual OTP login flow added v3.5.55; token lifecycle hardened v3.5.64 |
 
+## SESSION MANAGEMENT SECURITY (v3.5.64)
+
+### secudium_collector.py — Token Lifecycle
+
+```python
+_token_lock = threading.Lock()  # Class-level, protects ALL token access
+_cached_token: Optional[str] = None
+_token_expiry: Optional[float] = None
+TOKEN_TTL = 4 * 3600        # 4 hours
+TOKEN_SAFETY_MARGIN = 1800  # 30 minutes — re-auth before expiry
+```
+
+| Operation | Lock required | Method |
+|-----------|---------------|--------|
+| Token read | `_token_lock` | `_is_token_valid()` |
+| Token write | `_token_lock` | `_authenticate()` |
+| Token invalidate | `_token_lock` | `_invalidate_token()` |
+| Duplicate login | Logout → re-auth (1 retry) | `_authenticate()` |
+
+### database.py — IP Cache Eviction
+
+- TTL: 24h, Max: 100K entries, LRU: oldest 10% evicted when over max
+- Method: `DatabaseService._evict_stale_ips()`
+
+## CHANGELOG
+
+- v3.5.64: Token lifecycle hardening (TTL 4h, safety margin 30min, `_token_lock` on all access, duplicate login retry), IP cache eviction policy, dead code removal
 - v3.5.60: Resolved all 91 mypy type errors across 14 collector files (commit `83e7d28`)

@@ -3,11 +3,11 @@
 # ============================================================================
 # Purpose: REGTECH/SECUDIUM automated data collection service
 # Architecture: Multi-stage build (build deps separated from runtime)
-# Dependencies: PostgreSQL 15, Redis 7, Python 3.9
+# Dependencies: PostgreSQL 15, Redis 7, Python 3.11
 # ============================================================================
 
 # ---- Stage 1: Build (gcc, libpq-dev for C extensions) ----
-FROM python:3.9-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
@@ -20,7 +20,7 @@ COPY collector/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # ---- Stage 2: Runtime (minimal) ----
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 ARG APP_VERSION="0.0.0-dev"
 ARG BUILD_DATE=""

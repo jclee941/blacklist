@@ -51,11 +51,11 @@ class SecudiumCollector:
     FILE_DOWNLOAD_PATH = "/isap-api/file/SECINFO/download"
     LOGOUT_PATH = "/isap-api/tokenout"
 
-    # Session persistence: avoid OTP on every collection
     _cached_token: Optional[str] = None
     _token_obtained_at: Optional[datetime] = None
-    _token_lock = threading.Lock()  # Thread-safe token cache access
-    TOKEN_TTL_HOURS = 4  # Re-auth after 4 hours
+    _token_lock = threading.Lock()
+    TOKEN_TTL_HOURS = 4
+    TOKEN_SAFETY_MARGIN_MINUTES = 30  # Re-auth 30min before TTL expiry
 
     def __init__(self, db_service=None):
         self.base_url = CollectorConfig.SECUDIUM_BASE_URL.rstrip("/")
@@ -333,34 +333,40 @@ class SecudiumCollector:
 
             body_text = resp.text.lower() if resp.text else ""
 
-            # Handle duplicate login — force expire existing session and retry
             if "already.login" in body_text and not is_duplicate:
-                logger.info("secudium_already_login_detected", message="기존 세션 만료 후 재로그인 시도 (is_expire=Y)")
+                logger.info("secudium_already_login_detected")
                 form_data["is_expire"] = "Y"
-                self._rate_limit()
-                retry_resp = self.session.post(
-                    login_url,
-                    data=form_data,
-                    headers={"Content-Type": "application/x-www-form-urlencoded"},
-                    timeout=CollectorConfig.REQUEST_TIMEOUT,
-                    allow_redirects=False,
-                )
-                token = self._extract_token(retry_resp)
-                if token:
-                    self._token = token
-                    self._set_token_cookie()
-                    with SecudiumCollector._token_lock:
-                        SecudiumCollector._cached_token = token
-                        SecudiumCollector._token_obtained_at = datetime.now()
-                    if self._verify_token():
-                        auth_rate_limiter.on_success()
-                        return "success"
-                retry_body = retry_resp.text.lower() if retry_resp.text else ""
-                if any(ind in retry_body for ind in ["otp", "인증", "2차인증", "is_otp"]):
-                    return "otp_required"
-                logger.warning(
-                    "secudium_duplicate_login_retry_failed", status=retry_resp.status_code, body=retry_body[:200]
-                )
+                max_retries = 2
+                for attempt in range(1, max_retries + 1):
+                    self._rate_limit()
+                    retry_resp = self.session.post(
+                        login_url,
+                        data=form_data,
+                        headers={"Content-Type": "application/x-www-form-urlencoded"},
+                        timeout=CollectorConfig.REQUEST_TIMEOUT,
+                        allow_redirects=False,
+                    )
+                    token = self._extract_token(retry_resp)
+                    if token:
+                        self._token = token
+                        self._set_token_cookie()
+                        with SecudiumCollector._token_lock:
+                            SecudiumCollector._cached_token = token
+                            SecudiumCollector._token_obtained_at = datetime.now()
+                        if self._verify_token():
+                            auth_rate_limiter.on_success()
+                            return "success"
+                    retry_body = retry_resp.text.lower() if retry_resp.text else ""
+                    if any(ind in retry_body for ind in ["otp", "인증", "2차인증", "is_otp"]):
+                        return "otp_required"
+                    logger.warning(
+                        "secudium_duplicate_login_retry_failed",
+                        attempt=attempt,
+                        status=retry_resp.status_code,
+                        body=retry_body[:200],
+                    )
+                    if attempt < max_retries:
+                        time.sleep(2 * attempt)
                 return "failed"
 
             otp_indicators = any(indicator in body_text for indicator in ["otp", "인증", "2차인증", "is_otp"])
@@ -436,12 +442,16 @@ class SecudiumCollector:
         return False
 
     def _is_token_valid(self) -> bool:
-        """Check if cached token is still valid (within TTL)."""
+        """Check if cached token is still valid (within TTL minus safety margin)."""
         with SecudiumCollector._token_lock:
             if not SecudiumCollector._cached_token or not SecudiumCollector._token_obtained_at:
                 return False
             age = datetime.now() - SecudiumCollector._token_obtained_at
-            if age > timedelta(hours=self.TOKEN_TTL_HOURS):
+            effective_ttl = timedelta(
+                hours=self.TOKEN_TTL_HOURS,
+                minutes=-self.TOKEN_SAFETY_MARGIN_MINUTES,
+            )
+            if age > effective_ttl:
                 logger.info("secudium_token_expired", age_hours=age.total_seconds() / 3600)
                 SecudiumCollector._cached_token = None
                 SecudiumCollector._token_obtained_at = None
@@ -659,6 +669,14 @@ class SecudiumCollector:
         try:
             resp = self.session.get(url, timeout=60, stream=True)
 
+            if resp.status_code == 401:
+                logger.warning("secudium_session_expired_during_download", filename=filename)
+                if self.authenticate():
+                    url = self._build_url(self.FILE_DOWNLOAD_PATH, params)
+                    resp = self.session.get(url, timeout=60, stream=True)
+                else:
+                    return []
+
             if resp.status_code != 200:
                 logger.error("secudium_download_failed", status=resp.status_code, filename=filename)
                 return []
@@ -751,4 +769,10 @@ class SecudiumCollector:
         """Cleanup resources."""
         self._logout()
         self.session.close()
+        self._token = None
+        self._pending_username = None
+        self._pending_password = None
+        with SecudiumCollector._token_lock:
+            SecudiumCollector._cached_token = None
+            SecudiumCollector._token_obtained_at = None
         logger.info("secudium_collector_closed")

@@ -25,7 +25,6 @@
     ├── release.yml                # Release pipeline (tag v*)
     ├── deploy-sandbox.yml         # Sandbox deployment
     ├── build-images.yml           # Reusable: Docker builds
-    └── run-tests.yml              # Reusable: Test execution
 ```
 
 ---
@@ -70,10 +69,6 @@
 ### 4. Build Images (`build-images.yml`) — Reusable
 
 Matrix Docker build for: `postgres`, `redis`, `collector`, `app`, `frontend`
-
-### 5. Run Tests (`run-tests.yml`) — Reusable
-
-Backend (pytest) and frontend (vitest) test execution.
 
 ---
 

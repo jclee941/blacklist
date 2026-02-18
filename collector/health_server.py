@@ -46,6 +46,10 @@ class HealthServer:
         self.port = port
         self.thread = None
 
+        # Thread-safe access to pending auth state
+        self._pending_auth_lock = threading.Lock()
+        self._secudium_pending_auth = None
+
         # Setup routes
         @self.app.route("/health", methods=["GET"])
         def health():
@@ -195,12 +199,12 @@ class HealthServer:
                         # Manual mode: step 1 only, return otp_required
                         step1_result = collector.authenticate_step1(username, password)
                         if step1_result == "otp_required":
-                            # Store session for OTP submission
-                            self._secudium_pending_auth = {
-                                "collector": collector,
-                                "username": username,
-                                "timestamp": datetime.now(),
-                            }
+                            with self._pending_auth_lock:
+                                self._secudium_pending_auth = {
+                                    "collector": collector,
+                                    "username": username,
+                                    "timestamp": datetime.now(),
+                                }
                             return jsonify(
                                 {
                                     "success": True,
@@ -260,7 +264,8 @@ class HealthServer:
                 if len(otp_code) != 6 or not otp_code.isdigit():
                     return jsonify({"success": False, "error": "OTP는 6자리 숫자여야 합니다"}), 400
 
-                pending = getattr(self, "_secudium_pending_auth", None)
+                with self._pending_auth_lock:
+                    pending = self._secudium_pending_auth
                 if not pending:
                     return jsonify(
                         {
@@ -269,10 +274,10 @@ class HealthServer:
                         }
                     ), 400
 
-                # Check timeout (5 minutes)
                 elapsed = (datetime.now() - pending["timestamp"]).total_seconds()
                 if elapsed > 300:
-                    self._secudium_pending_auth = None
+                    with self._pending_auth_lock:
+                        self._secudium_pending_auth = None
                     return jsonify(
                         {
                             "success": False,
@@ -284,7 +289,8 @@ class HealthServer:
                 result = collector.authenticate_step2(otp_code)
 
                 if result != "success":
-                    self._secudium_pending_auth = None
+                    with self._pending_auth_lock:
+                        self._secudium_pending_auth = None
                     return jsonify(
                         {
                             "success": False,
@@ -299,7 +305,8 @@ class HealthServer:
                     try:
                         logger.info("OTP auth success + trigger_collect: starting Secudium collection")
                         collect_result = collector.collect_data()
-                        self._secudium_pending_auth = None
+                        with self._pending_auth_lock:
+                            self._secudium_pending_auth = None
                         return jsonify(
                             {
                                 "success": True,
@@ -313,7 +320,8 @@ class HealthServer:
                         )
                     except Exception as collect_err:
                         logger.error(f"Collection after OTP auth failed: {collect_err}")
-                        self._secudium_pending_auth = None
+                        with self._pending_auth_lock:
+                            self._secudium_pending_auth = None
                         return jsonify(
                             {
                                 "success": True,
@@ -324,7 +332,8 @@ class HealthServer:
                             }
                         )
 
-                self._secudium_pending_auth = None
+                with self._pending_auth_lock:
+                    self._secudium_pending_auth = None
                 return jsonify(
                     {
                         "success": True,
@@ -335,7 +344,8 @@ class HealthServer:
 
             except Exception as e:
                 logger.error(f"Error during Secudium OTP submission: {e}")
-                self._secudium_pending_auth = None
+                with self._pending_auth_lock:
+                    self._secudium_pending_auth = None
                 return jsonify(
                     {
                         "success": False,
@@ -425,12 +435,35 @@ class HealthServer:
                 "next_run": self.scheduler._get_next_run_time(),
             }
 
+            # Query SECUDIUM-specific stats from collection_history (DB is source of truth)
+            secudium_stats = {"run_count": 0, "error_count": 0, "last_run": None}
+            try:
+                with db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*) AS total,
+                               COUNT(*) FILTER (WHERE success = false) AS errors,
+                               MAX(collection_date) AS last_run
+                        FROM collection_history
+                        WHERE service_name = 'SECUDIUM'
+                        """
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        secudium_stats["run_count"] = row[0] or 0
+                        secudium_stats["error_count"] = row[1] or 0
+                        secudium_stats["last_run"] = row[2].isoformat() if row[2] else None
+                    cursor.close()
+            except Exception as e:
+                logger.warning(f"Failed to query SECUDIUM stats from DB: {e}")
+
             status["SECUDIUM"] = {
                 "enabled": secudium_enabled,
-                "run_count": 0,
-                "error_count": 0,
+                "run_count": secudium_stats["run_count"],
+                "error_count": secudium_stats["error_count"],
                 "interval_seconds": 86400,
-                "last_run": None,
+                "last_run": secudium_stats["last_run"],
                 "next_run": None,
             }
         else:

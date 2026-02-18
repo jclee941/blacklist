@@ -7,7 +7,6 @@ ENV ?= development
 
 # Docker Compose Configuration
 COMPOSE_FILE := deploy/docker/docker-compose.yml
-COMPOSE_PROD_FILE := deploy/docker/docker-compose.prod.yml
 COMPOSE_CMD := docker compose -f $(COMPOSE_FILE) --project-directory .
 
 # Setup commands
@@ -58,7 +57,7 @@ dev-frontend: ## Restart only frontend service
 
 prod: ## Start production environment
 	@echo "🚀 Starting production environment..."
-	@$(COMPOSE_CMD) -f docker-compose.prod.yml up -d
+	@$(COMPOSE_CMD) up -d
 	@echo "✅ Production environment started"
 
 # Build commands
@@ -75,10 +74,7 @@ build: check-clean ## Build all Docker images
 	@GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		APP_VERSION=$$(cat VERSION 2>/dev/null || echo "0.0.0-dev") \
 		BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-		$(COMPOSE_CMD) build --parallel \
-			--build-arg APP_VERSION=$$(cat VERSION 2>/dev/null || echo "0.0.0-dev") \
-			--build-arg GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
-			--build-arg BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+		$(COMPOSE_CMD) build --parallel
 	@echo "✅ Build completed (version: $$(cat VERSION), commit: $$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown'))"
 
 rebuild: ## Rebuild all images from scratch
@@ -141,6 +137,10 @@ test-backend: ## Run backend tests (unit + integration)
 test-backend-unit: ## Run backend unit tests
 	@echo "🧪 Running backend unit tests..."
 	@$(COMPOSE_CMD) exec -T blacklist-app env COVERAGE_FILE=/tmp/.coverage python -m pytest tests/unit -v --cov=app/core --cov-report=term --cov-report=html:htmlcov || echo "⚠️  Some unit tests failed"
+
+test-collector-unit: ## Run collector unit tests
+	@echo "🧪 Running collector unit tests..."
+	@$(COMPOSE_CMD) exec -T blacklist-collector python -m pytest /app/tests/unit -v || echo "⚠️  Some collector tests failed"
 
 test-backend-integration: ## Run backend integration tests
 	@echo "🧪 Running backend integration tests..."
@@ -264,7 +264,7 @@ shell-db: ## Get shell access to database container
 # CI/CD helpers
 ci-build: ## Build for CI/CD (production images)
 	@echo "🏗️ Building for CI/CD..."
-	@$(COMPOSE_CMD) -f docker-compose.prod.yml build --parallel
+	@$(COMPOSE_CMD) build --parallel
 	@echo "✅ CI/CD build completed"
 
 deploy: ## Deploy to production (builds and starts prod environment)
