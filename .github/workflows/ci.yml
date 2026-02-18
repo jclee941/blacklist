@@ -135,6 +135,7 @@ jobs:
       POSTGRES_DB: blacklist_test
       POSTGRES_USER: blacklist
       POSTGRES_PASSWORD: blacklist
+      PYTHONPATH: app
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v6
