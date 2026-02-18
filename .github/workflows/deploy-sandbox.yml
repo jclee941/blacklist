@@ -17,7 +17,8 @@ env:
 jobs:
   deploy-sandbox:
     name: Deploy to Sandbox (VM 220)
-    runs-on: [self-hosted, deploy]
+    # Requires a self-hosted runner with the 'deploy' label registered in repo/org settings
+    runs-on: ${{ vars.DEPLOY_RUNNER || 'self-hosted' }}
     timeout-minutes: 15
 
     steps:

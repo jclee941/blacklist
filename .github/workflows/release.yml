@@ -151,7 +151,8 @@ jobs:
     name: Trigger Sandbox Auto-Update
     needs: [push-to-registry]
     if: ${{ !inputs.dry_run }}
-    runs-on: [self-hosted, deploy]
+    # Requires a self-hosted runner with the 'deploy' label registered in repo/org settings
+    runs-on: ${{ vars.DEPLOY_RUNNER || 'self-hosted' }}
     continue-on-error: true
     steps:
       - name: Trigger Watchtower on Sandbox
