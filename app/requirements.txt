@@ -29,7 +29,7 @@ Flask-Limiter==3.5.0        # Rate limiting / DOS protection
 
 # API & JSON Processing
 marshmallow==3.20.1
-jsonschema==4.19.1
+jsonschema==4.26.0
 
 # Utilities
 python-dotenv==1.0.0
