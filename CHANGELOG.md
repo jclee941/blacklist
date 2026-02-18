@@ -11,6 +11,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.69] - 2026-02-19
+
+### Changed
+- **Dependencies (Backend)**: pytz 2023.3→2025.2, requests 2.31.0→2.32.5, markupsafe 2.1.3→3.0.3, psycopg2-binary 2.9.7→2.9.11, flask-limiter 3.5.0→4.1.1, coverage 7.3.2→7.13.4, python-dateutil 2.8.2→2.9.0.post0, schedule 1.2.0→1.2.2
+- **Dependencies (Frontend)**: lucide-react 0.545.0→0.574.0, @testing-library/react 16.3.1→16.3.2, @vitejs/plugin-react 5.1.2→5.1.4, @tailwindcss/postcss 4.1.17→4.2.0, prettier 3.8.0→3.8.1, @types/node 24.10.0→25.2.3
+- **CI/CD**: actions/checkout v4→v6, actions/labeler 5.0.0→6.0.1, actions/stale 9.0.0→10.2.0
+
+### Fixed
+- **CI/CD**: PYTHONPATH 설정 수정 (backend 테스트와 collector 테스트 분리)
+- **CI/CD**: 로컬 Node.js CI 워크플로우 추가 (외부 `.github` 의존성 제거)
+
+---
+
+## [3.5.68] - 2026-02-19
+
+> **Note:** 릴리스 파이프라인 `startup_failure`로 인해 실제 배포되지 않음 (v3.5.69에서 대체)
+
+### Changed
+- **Refactor**: 중앙 집중식 `AppConfig` 도입 — 환경변수 관리 일원화
+  - Database, Auth, Utils, Services, Routes 전 계층 마이그레이션
+- **Dependencies (Backend)**: selenium 4.15.2→4.40.0, paramiko 3.4.0→4.0.0, waitress 2.1.2→3.0.2, cryptography 44.0.0→46.0.5, pytest 7.4.3→9.0.2, beautifulsoup4 4.12.2→4.14.3, flake8 6.1.0→7.3.0, openpyxl 3.1.2→3.1.5, jsonschema 4.19.1→4.26.0, pytest-mock 3.12.0→3.15.1
+- **Dependencies (Frontend)**: axios 1.13.2→1.13.5
+- **CI/CD**: actions/setup-node v4→v6, actions/setup-python v5→v6, actions/upload-artifact v4→v6, actions/download-artifact v4→v7, slackapi/slack-github-action v1→v2
+
+### Added
+- **Backend**: 인증 및 페이지네이션 입력 검증 추가
+- **Database**: 공통 쿼리용 복합 인덱스 추가
+- **Frontend**: `fetch()` 호출을 api 클라이언트로 교체 및 TypeScript 인터페이스 추가
+- **Test**: 배치 작업, 모니터링, 404 E2E 테스트 추가
+- **Infra**: Dependabot 설정, CODEOWNERS, MIT 라이선스 추가
+
+### Fixed
+- **Collector**: SECUDIUM 세션 관리 강화 및 파이프라인 리팩토링 (#70)
+- **Backend**: 중복 config import 및 미사용 os import 제거
+
+---
+
+## [3.5.67] - 2026-02-16
+
+### Fixed
+- **Backend**: cleanup job이 유효한 removal_date를 가진 IP를 비활성화하는 문제 수정
+
+---
+
 ## [3.5.66] - 2026-02-16
 
 ### Fixed

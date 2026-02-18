@@ -1,7 +1,7 @@
 # COLLECTOR KNOWLEDGE BASE
 
 **Generated:** 2026-02-18
-**Commit:** b5a2c7d | **Version:** 3.5.64
+**Commit:** b5a2c7d | **Version:** 3.5.68
 **Role:** ETL Service (Data Collection)
 **Parent:** [../AGENTS.md](../AGENTS.md)
 

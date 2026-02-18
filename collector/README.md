@@ -124,6 +124,6 @@ docker logs blacklist-collector --tail 100
 
 ## 버전 정보
 
-- **Version**: 3.5.64
+- **Version**: 3.5.68
 - **Python**: 3.11
 - **Dependencies**: requirements.txt 참조
