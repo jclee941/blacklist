@@ -68,8 +68,10 @@ jobs:
       - run: ruff format --check app/ collector/
 
   test-frontend:
-    needs: lint-frontend
-    if: always() && !failure() && !cancelled()
+    needs: [detect-changes, lint-frontend]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      needs.detect-changes.outputs.frontend == 'true'
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     defaults:
       run:
