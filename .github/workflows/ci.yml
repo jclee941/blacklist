@@ -44,7 +44,7 @@ jobs:
   lint-frontend:
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
-    uses: qws941/.github/.github/workflows/_ci-node.yml@main
+    uses: ./.github/workflows/_ci-node.yml
     with:
       node-version: "20"
       working-directory: frontend
