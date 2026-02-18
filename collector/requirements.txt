@@ -38,4 +38,4 @@ colorlog==6.7.0
 structlog==23.2.0
 
 # SSH for FortiGate
-paramiko==3.4.0
+paramiko==4.0.0
