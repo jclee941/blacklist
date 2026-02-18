@@ -35,7 +35,7 @@ jsonschema==4.26.0
 python-dotenv==1.0.0
 click==8.1.7
 pytz==2023.3
-schedule==1.2.0
+schedule==1.2.2
 
 # Production Server
 gunicorn==21.2.0

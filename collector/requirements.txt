@@ -22,7 +22,7 @@ beautifulsoup4==4.14.3
 # Utilities
 python-dateutil==2.9.0.post0
 pytz==2023.3
-schedule==1.2.0
+schedule==1.2.2
 
 # Security & Encryption
 cryptography==46.0.5
