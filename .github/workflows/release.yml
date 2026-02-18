@@ -107,17 +107,15 @@ jobs:
             echo "${NOTES}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ needs.validate.outputs.version }}
-          body: ${{ steps.changelog.outputs.notes }}
-          files: |
-            blacklist-airgap-*.tar.gz
+      - name: Create GitHub Release
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "Release ${{ needs.validate.outputs.version }}" \
+            --notes "${{ steps.changelog.outputs.notes }}" \
+            blacklist-airgap-*.tar.gz \
             blacklist-airgap-*.tar.gz.sha256
-          draft: false
-          prerelease: false
-
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   push-to-registry:
     needs: [validate, build-images]
     if: ${{ !inputs.dry_run }}
@@ -183,21 +181,8 @@ jobs:
     steps:
       - name: Slack notification
         if: vars.SLACK_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v2
-        with:
-          payload: |
-            {
-              "text": "Blacklist ${{ needs.validate.outputs.version }} release ${{ contains(needs.*.result, 'failure') && 'FAILED' || 'completed' }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Blacklist Release ${{ needs.validate.outputs.version }}*\nStatus: ${{ contains(needs.*.result, 'failure') && ':x: Failed' || ':white_check_mark: Success' }}\n<${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        run: |
+          STATUS="${{ contains(needs.*.result, 'failure') && ':x: Failed' || ':white_check_mark: Success' }}"
+          curl -fsS -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            --data "{\"text\": \"Blacklist ${{ needs.validate.outputs.version }} release ${{ contains(needs.*.result, 'failure') && 'FAILED' || 'completed' }}\", \"blocks\": [{\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Blacklist Release ${{ needs.validate.outputs.version }}*\\nStatus: ${STATUS}\\n<${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>\"}}]}"
