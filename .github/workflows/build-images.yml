@@ -95,7 +95,7 @@ jobs:
           docker save blacklist-${{ matrix.service }}:${{ inputs.version }} | \
             gzip > blacklist-${{ matrix.service }}.tar.gz
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: ${{ !inputs.push }}
         with:
           name: image-${{ matrix.service }}

@@ -86,7 +86,7 @@ jobs:
         run: |
           docker save blacklist-${{ matrix.service }}:${{ needs.validate.outputs.version }} | \
             gzip > blacklist-${{ matrix.service }}.tar.gz
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: image-${{ matrix.service }}
           path: blacklist-${{ matrix.service }}.tar.gz
@@ -118,7 +118,7 @@ jobs:
           cd "${BUNDLE}/images" && sha256sum *.tar.gz > checksums.sha256 && cd ../..
           tar czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
           sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: airgap-bundle
           path: |

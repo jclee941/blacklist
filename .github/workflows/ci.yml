@@ -88,7 +88,7 @@ jobs:
         run: npm run test -- --coverage
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-coverage
           path: frontend/coverage/
@@ -147,7 +147,7 @@ jobs:
             --cov-fail-under=0
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-coverage
           path: coverage.xml
@@ -178,7 +178,7 @@ jobs:
             --cov-report=xml:collector-coverage.xml
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: collector-coverage
           path: collector-coverage.xml
@@ -222,7 +222,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - run: docker save blacklist-${{ matrix.service }}:ci | gzip > ${{ matrix.service }}.tar.gz
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: image-${{ matrix.service }}
           path: ${{ matrix.service }}.tar.gz
@@ -262,7 +262,7 @@ jobs:
       - name: Collect logs
         if: failure()
         run: docker compose -f .github/docker-compose.ci.yml logs --no-color > docker-logs.txt 2>&1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: e2e-failure-logs
