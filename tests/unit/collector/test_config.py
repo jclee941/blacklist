@@ -1,7 +1,7 @@
 """Tests for collector/config.py — CollectorConfig class."""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestCollectorConfigMethods:
@@ -70,52 +70,37 @@ class TestGetCredentials:
         self.cfg._credentials_cache = {}
         self.cfg._cache_loaded = False
 
-    def test_regtech_from_env(self):
-        self.cfg.REGTECH_ID = "env_user"
-        self.cfg.REGTECH_PW = "env_pass"
+    def test_regtech_from_db(self):
+        """REGTECH credentials loaded from DB cache."""
+        self.cfg._credentials_cache = {"REGTECH": {"username": "db_user", "password": "db_pass", "config": {}}}
+        self.cfg._cache_loaded = True
         result = self.cfg.get_regtech_credentials()
-        assert result == ("env_user", "env_pass")
-        self.cfg.REGTECH_ID = ""
-        self.cfg.REGTECH_PW = ""
+        assert result == ("db_user", "db_pass")
 
-    def test_secudium_from_env(self):
-        self.cfg.SECUDIUM_ID = "sec_user"
-        self.cfg.SECUDIUM_PW = "sec_pass"
+    def test_secudium_from_db(self):
+        """SECUDIUM credentials loaded from DB cache."""
+        self.cfg._credentials_cache = {"SECUDIUM": {"username": "sec_user", "password": "sec_pass", "config": {}}}
+        self.cfg._cache_loaded = True
         result = self.cfg.get_secudium_credentials()
         assert result == ("sec_user", "sec_pass")
-        self.cfg.SECUDIUM_ID = ""
-        self.cfg.SECUDIUM_PW = ""
+
+    def test_regtech_raises_when_not_configured(self):
+        """ValueError raised when no REGTECH credentials in DB."""
+        self.cfg._cache_loaded = True
+        with pytest.raises(ValueError, match="REGTECH credentials not configured"):
+            self.cfg.get_regtech_credentials()
 
     @patch("collector.config.psycopg2")
-    def test_regtech_from_db_fallback(self, mock_psycopg2):
-        self.cfg.REGTECH_ID = ""
-        self.cfg.REGTECH_PW = ""
-
-        mock_conn = MagicMock()
-        mock_cur = MagicMock()
-        mock_cur.fetchall.return_value = []
-        mock_conn.cursor.return_value = mock_cur
-        mock_psycopg2.connect.return_value = mock_conn
-
-        uid, pw = self.cfg.get_regtech_credentials()
-        assert uid == ""
-        assert pw == ""
-
-    @patch("collector.config.psycopg2")
-    def test_db_load_failure_returns_empty(self, mock_psycopg2):
-        self.cfg.REGTECH_ID = ""
-        self.cfg.REGTECH_PW = ""
+    def test_db_load_failure_raises(self, mock_psycopg2):
+        """ValueError raised when DB connection fails and no cached credentials."""
         mock_psycopg2.connect.side_effect = RuntimeError("no db")
-
-        uid, pw = self.cfg.get_regtech_credentials()
-        assert uid == ""
-        assert pw == ""
+        with pytest.raises(ValueError, match="REGTECH credentials not configured"):
+            self.cfg.get_regtech_credentials()
 
     def test_to_dict(self):
-        self.cfg.REGTECH_ID = "u"
-        self.cfg.REGTECH_PW = "p"
+        """to_dict returns credential values from DB cache."""
+        self.cfg._credentials_cache = {"REGTECH": {"username": "u", "password": "p", "config": {}}}
+        self.cfg._cache_loaded = True
         d = self.cfg.to_dict()
         assert d["regtech_id"] == "u"
         assert d["batch_size"] > 0
-        self.cfg.REGTECH_ID = ""
-        self.cfg.REGTECH_PW = ""
