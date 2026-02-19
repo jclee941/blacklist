@@ -28,17 +28,22 @@ jobs:
       collector: ${{ steps.filter.outputs.collector }}
     steps:
       - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v3
-        id: filter
         with:
-          filters: |
-            frontend:
-              - 'frontend/**'
-            backend:
-              - 'app/**'
-              - 'tests/**'
-            collector:
-              - 'collector/**'
+          fetch-depth: 0
+      - name: Detect changed paths
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DIFF_TARGET="origin/${{ github.base_ref }}...HEAD"
+          else
+            DIFF_TARGET="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only $DIFF_TARGET 2>/dev/null || git diff --name-only HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+          echo "frontend=$(echo "$CHANGED" | grep -q '^frontend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "collector=$(echo "$CHANGED" | grep -q '^collector/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   # Replaces inline lint-frontend with reusable workflow
   lint-frontend:
