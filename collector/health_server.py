@@ -432,7 +432,7 @@ class HealthServer:
             # Query SECUDIUM-specific stats from collection_history (DB is source of truth)
             secudium_stats = {"run_count": 0, "error_count": 0, "last_run": None}
             try:
-                with db.get_connection() as conn:
+                with self._db.get_connection() as conn:
                     cursor = conn.cursor()
                     cursor.execute(
                         """
