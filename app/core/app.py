@@ -430,9 +430,33 @@ def create_app():
         except Exception as e:
             app.logger.error(f"Background task start failed: {e}")
 
+    def check_collector_health():
+        """Non-blocking collector health check on startup."""
+        try:
+            import requests as req
+
+            url = f"{config.COLLECTOR_URL}/health"
+            resp = req.get(url, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("status") == "healthy":
+                    app.logger.info("Collector service is healthy at %s", url)
+                else:
+                    app.logger.warning("Collector service returned unhealthy status: %s", data.get("status"))
+            else:
+                app.logger.warning("Collector service returned HTTP %d at %s", resp.status_code, url)
+        except req.exceptions.ConnectionError:
+            app.logger.warning(
+                "Collector service unreachable at %s — collection features may be unavailable",
+                config.COLLECTOR_URL,
+            )
+        except Exception as e:
+            app.logger.warning("Could not verify collector health: %s", e)
+
     def delayed_background_start():
         time.sleep(5)
         with app.app_context():
+            check_collector_health()
             start_background_tasks()
 
     threading.Thread(target=delayed_background_start, daemon=True).start()
