@@ -321,8 +321,6 @@ class SecureCredentialService:
 
             if not result:
                 logger.warning(f"⚠️ {service_name} 인증정보를 찾을 수 없음")
-                cursor.close()
-                self._close_connection(conn)
                 return None
 
             (

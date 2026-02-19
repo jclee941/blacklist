@@ -3,6 +3,7 @@ Collector Configuration
 수집기 관련 설정 및 환경변수 관리
 """
 
+import json
 import os
 from typing import Dict, Any
 import psycopg2
@@ -66,7 +67,7 @@ class CollectorConfig:
 
             # collection_credentials 테이블에서 암호화된 인증정보 조회
             cur.execute("""
-                SELECT service_name, username, password, config
+                SELECT service_name, username, password, config, encrypted
                 FROM collection_credentials
                 WHERE username IS NOT NULL AND password IS NOT NULL
             """)
@@ -75,8 +76,20 @@ class CollectorConfig:
                 source = row[0]
                 username = row[1]
                 password = row[2]
+                row_config = row[3] if row[3] else {}
+                is_encrypted = row[4] if len(row) > 4 else False
 
-                # 암호화된 데이터 복호화 (AES-256)
+                if not is_encrypted:
+                    # 평문 데이터 — 그대로 사용
+                    cls._credentials_cache[source] = {
+                        "username": username,
+                        "password": password,
+                        "config": row_config,
+                    }
+                    logger.info(f"✅ DB 인증정보 로드 성공 (평문): {source}")
+                    continue
+
+                # 암호화된 데이터 복호화
                 try:
                     from cryptography.fernet import Fernet
 
@@ -86,7 +99,7 @@ class CollectorConfig:
                         cls._credentials_cache[source] = {
                             "username": username,
                             "password": password,
-                            "config": row[3] if row[3] else {},
+                            "config": row_config,
                         }
                         continue
 
@@ -106,22 +119,25 @@ class CollectorConfig:
                     derived_key = base64.urlsafe_b64encode(kdf.derive(key))
                     f = Fernet(derived_key)
 
-                    decrypted_username = f.decrypt(username.encode()).decode()
-                    decrypted_password = f.decrypt(password.encode()).decode()
+                    # password 컬럼은 base64(Fernet(JSON)) 형태
+                    # base64 디코드 → Fernet 복호화 → JSON 파싱
+                    decoded = base64.b64decode(password.encode())
+                    decrypted_json = f.decrypt(decoded).decode()
+                    credential_data = json.loads(decrypted_json)
 
                     cls._credentials_cache[source] = {
-                        "username": decrypted_username,
-                        "password": decrypted_password,
-                        "config": row[3] if row[3] else {},
+                        "username": credential_data.get("username", username),
+                        "password": credential_data.get("password", ""),
+                        "config": credential_data.get("config", row_config),
                     }
-                    logger.info(f"✅ DB 인증정보 로드 성공: {source}")
+                    logger.info(f"✅ DB 인증정보 로드 성공 (복호화): {source}")
 
                 except Exception as decrypt_error:
                     logger.warning(f"복호화 실패 ({source}), 평문 사용: {decrypt_error}")
                     cls._credentials_cache[source] = {
                         "username": username,
                         "password": password,
-                        "config": row[3] if row[3] else {},
+                        "config": row_config,
                     }
 
             cur.close()
