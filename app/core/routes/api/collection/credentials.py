@@ -236,7 +236,7 @@ def submit_secudium_otp():
     result = call_collector_api(
         "/api/test-auth/secudium/otp",
         method="POST",
-        json_data={"otp_code": otp_code, "session_id": session_id},
+        data={"otp_code": otp_code, "session_id": session_id},
     )
 
     if result.get("success"):

@@ -59,11 +59,13 @@ def call_collector_api(endpoint: str, method: str = "GET", data: Optional[Dict[s
                 "details": response.text,
             }
 
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        logger.error("Collector connection failed for %s %s: %s", method, endpoint, e)
         return {
             "success": False,
             "error": "Cannot connect to collector service",
-            "details": "Collector container may be down or unhealthy",
+            "details": f"Collector container may be down or unhealthy: {e}",
         }
     except Exception as e:
+        logger.error("Collector API call failed for %s %s: %s", method, endpoint, e)
         return {"success": False, "error": str(e)}
