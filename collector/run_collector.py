@@ -73,6 +73,11 @@ class CollectorApplication:
                 self.logger.error("❌ Database connection failed - exiting")
                 sys.exit(1)
 
+            # 인증정보 검증
+            if not self._validate_credentials():
+                self.logger.error("❌ Credential validation failed - exiting")
+                sys.exit(1)
+
             # 헬스체크 서버 시작
             self._start_health_server()
 
@@ -107,6 +112,53 @@ class CollectorApplication:
         # 헬스 서버는 데몬 스레드로 자동 종료됨
 
         self.logger.info("✅ Blacklist Collector stopped")
+
+
+    def _validate_credentials(self) -> bool:
+        """
+        Validate that required credentials are configured in DB.
+        Required for collection to work.
+        
+        Returns:
+            True if all required credentials are available, False otherwise
+        """
+        try:
+            from collector.config import CollectorConfig
+            
+            self.logger.info("🔍 Validating credentials")
+            
+            missing = []
+            
+            # Check REGTECH credentials
+            try:
+                CollectorConfig.get_regtech_credentials()
+                self.logger.info("✅ REGTECH credentials loaded from database")
+            except ValueError:
+                missing.append("REGTECH")
+                self.logger.warning("⚠️  REGTECH credentials not found in database")
+            
+            # Check SECUDIUM credentials
+            try:
+                CollectorConfig.get_secudium_credentials()
+                self.logger.info("✅ SECUDIUM credentials loaded from database")
+            except ValueError:
+                missing.append("SECUDIUM")
+                self.logger.warning("⚠️  SECUDIUM credentials not found in database")
+            
+            if missing:
+                self.logger.error(
+                    f"❌ Missing credentials: {', '.join(missing)}. "
+                    f"Collections will fail. "
+                    f"Please configure credentials via API: POST /api/credentials"
+                )
+                return False
+            
+            self.logger.info("✅ All required credentials are configured")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Credential validation error: {e}")
+            return False
 
     def _test_database_connection(self) -> bool:
         """데이터베이스 연결 테스트"""
