@@ -26,18 +26,16 @@ class CollectorConfig:
     REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
-    # REGTECH 설정 (환경변수 우선, DB fallback)
+    # REGTECH 설정 (DB-only, 환경변수는 더 이상 사용하지 않음)
     REGTECH_BASE_URL = os.getenv("REGTECH_BASE_URL", "https://regtech.fsec.or.kr")
-    REGTECH_ID = os.getenv("REGTECH_ID", "")
-    REGTECH_PW = os.getenv("REGTECH_PW", "")
 
-    # SECUDIUM 설정 (환경변수 우선, DB fallback)
+    # SECUDIUM 설정 (DB-only, 환경변수는 더 이상 사용하지 않음)
     SECUDIUM_BASE_URL = os.getenv("SECUDIUM_BASE_URL", "https://secudium.skinfosec.co.kr")
-    SECUDIUM_ID = os.getenv("SECUDIUM_ID", "")
-    SECUDIUM_PW = os.getenv("SECUDIUM_PW", "")
-    SECUDIUM_EMAIL = os.getenv("SECUDIUM_EMAIL", "")
-    SECUDIUM_EMAIL_PASSWORD = os.getenv("SECUDIUM_EMAIL_PASSWORD", "")
-    SECUDIUM_IMAP_SERVER = os.getenv("SECUDIUM_IMAP_SERVER", "imap.kakao.com")
+    # Deprecated: OTP email settings are now managed via UI/DB.
+    # These env vars are kept as fallback only for migration.
+    _SECUDIUM_EMAIL_FALLBACK = os.getenv("SECUDIUM_EMAIL", "")
+    _SECUDIUM_EMAIL_PASSWORD_FALLBACK = os.getenv("SECUDIUM_EMAIL_PASSWORD", "")
+    _SECUDIUM_IMAP_SERVER_FALLBACK = os.getenv("SECUDIUM_IMAP_SERVER", "imap.kakao.com")
 
     # 수집 원본 아카이빙 설정
     ARCHIVE_DIR = os.getenv("COLLECTOR_ARCHIVE_DIR", "/app/data/archive")
@@ -88,6 +86,7 @@ class CollectorConfig:
                         cls._credentials_cache[source] = {
                             "username": username,
                             "password": password,
+                            "config": row[3] if row[3] else {},
                         }
                         continue
 
@@ -113,6 +112,7 @@ class CollectorConfig:
                     cls._credentials_cache[source] = {
                         "username": decrypted_username,
                         "password": decrypted_password,
+                        "config": row[3] if row[3] else {},
                     }
                     logger.info(f"✅ DB 인증정보 로드 성공: {source}")
 
@@ -121,6 +121,7 @@ class CollectorConfig:
                     cls._credentials_cache[source] = {
                         "username": username,
                         "password": password,
+                        "config": row[3] if row[3] else {},
                     }
 
             cur.close()
@@ -133,25 +134,71 @@ class CollectorConfig:
 
     @classmethod
     def get_regtech_credentials(cls) -> tuple:
-        """REGTECH 인증정보 반환 (환경변수 우선, DB fallback)"""
-        # 환경변수가 있으면 우선 사용
-        if cls.REGTECH_ID and cls.REGTECH_PW:
-            return (cls.REGTECH_ID, cls.REGTECH_PW)
+        """
+        REGTECH 인증정보 반환 (DB에서만 로드)
 
+        Returns:
+            Tuple[str, str]: (username, password)
+
+        Raises:
+            ValueError: DB에 설정된 REGTECH 인증정보가 없을 때
+        """
         # DB에서 로드
         cls._load_credentials_from_db()
         creds = cls._credentials_cache.get("REGTECH", {})
-        return (creds.get("username", ""), creds.get("password", ""))
+        username = creds.get("username", "")
+        password = creds.get("password", "")
+
+        if not username or not password:
+            logger.error("REGTECH credentials not found in database")
+            raise ValueError(
+                "REGTECH credentials not configured in database. Please add credentials via API: POST /api/credentials"
+            )
+
+        return (username, password)
 
     @classmethod
     def get_secudium_credentials(cls) -> tuple:
-        """SECUDIUM 인증정보 반환 (환경변수 우선, DB fallback)"""
-        if cls.SECUDIUM_ID and cls.SECUDIUM_PW:
-            return (cls.SECUDIUM_ID, cls.SECUDIUM_PW)
+        """
+        SECUDIUM 인증정보 반환 (DB에서만 로드)
 
+        Returns:
+            Tuple[str, str]: (username, password)
+
+        Raises:
+            ValueError: DB에 설정된 SECUDIUM 인증정보가 없을 때
+        """
         cls._load_credentials_from_db()
         creds = cls._credentials_cache.get("SECUDIUM", {})
-        return (creds.get("username", ""), creds.get("password", ""))
+        username = creds.get("username", "")
+        password = creds.get("password", "")
+
+        if not username or not password:
+            logger.error("SECUDIUM credentials not found in database")
+            raise ValueError(
+                "SECUDIUM credentials not configured in database. Please add credentials via API: POST /api/credentials"
+            )
+
+        return (username, password)
+
+    @classmethod
+    def get_secudium_otp_config(cls) -> Dict[str, str]:
+        """
+        SECUDIUM OTP 설정 반환 (DB 우선, 환경변수 fallback)
+
+        Returns:
+            Dict with keys: email, email_password, imap_server, otp_mode
+        """
+        cls._load_credentials_from_db()
+        creds = cls._credentials_cache.get("SECUDIUM", {})
+        config = creds.get("config", {})
+
+        return {
+            "email": config.get("email", "") or cls._SECUDIUM_EMAIL_FALLBACK,
+            "email_password": config.get("email_password", "") or cls._SECUDIUM_EMAIL_PASSWORD_FALLBACK,
+            "imap_server": config.get("imap_server", "") or cls._SECUDIUM_IMAP_SERVER_FALLBACK,
+            "otp_mode": config.get("otp_mode", "manual"),
+        }
 
     @classmethod
     def clear_credentials_cache(cls) -> None:
@@ -159,7 +206,10 @@ class CollectorConfig:
         for source in list(cls._credentials_cache.keys()):
             creds = cls._credentials_cache[source]
             for key in list(creds.keys()):
-                creds[key] = ""
+                if isinstance(creds[key], str):
+                    creds[key] = ""
+                elif isinstance(creds[key], dict):
+                    creds[key] = {}
         cls._credentials_cache.clear()
         cls._cache_loaded = False
 
@@ -251,8 +301,11 @@ class CollectorConfig:
     @classmethod
     def to_dict(cls) -> Dict[str, Any]:
         """전체 설정을 딕셔너리로 반환"""
-        # REGTECH credentials 로드 (DB fallback)
-        regtech_id, regtech_pw = cls.get_regtech_credentials()
+        # REGTECH credentials 로드 (DB에서, 미설정 시 빈 값)
+        try:
+            regtech_id, regtech_pw = cls.get_regtech_credentials()
+        except ValueError:
+            regtech_id, regtech_pw = "", ""
 
         return {
             # 기본 설정
