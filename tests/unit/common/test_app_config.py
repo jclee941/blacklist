@@ -22,13 +22,6 @@ class TestAppConfigDefaults:
         assert cfg.COLLECTOR_URL == "http://localhost:8545"
 
     @patch.dict(os.environ, {}, clear=True)
-    def test_collector_api_url_default(self):
-        from app.core.config import AppConfig
-
-        cfg = AppConfig()
-        assert cfg.COLLECTOR_API_URL == "http://localhost:8545"
-
-    @patch.dict(os.environ, {}, clear=True)
     def test_blacklist_api_url_default(self):
         from app.core.config import AppConfig
 

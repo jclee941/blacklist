@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 proxy_bp = Blueprint("proxy", __name__, url_prefix="/api/proxy")
 
 BACKEND_API_URL = config.BLACKLIST_API_URL
-COLLECTOR_API_URL = config.COLLECTOR_API_URL
+COLLECTOR_SERVICE_URL = config.COLLECTOR_URL
 
 
 def forward_to_backend(endpoint: str, method: str = None):
@@ -87,7 +87,7 @@ def proxy_test_credentials(source: str):
 def proxy_trigger_collection(source: str):
     """Proxy: POST trigger to collector service (port 8545)"""
     try:
-        url = f"{COLLECTOR_API_URL}/trigger"
+        url = f"{COLLECTOR_SERVICE_URL}/trigger"
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = request.get_json(silent=True) or {}
         data["source"] = source
@@ -97,7 +97,7 @@ def proxy_trigger_collection(source: str):
         except ValueError:
             return {"success": False, "error": response.text}, response.status_code
     except requests.exceptions.ConnectionError:
-        logger.error(f"Cannot connect to collector service: {COLLECTOR_API_URL}")
+        logger.error(f"Cannot connect to collector service: {COLLECTOR_SERVICE_URL}")
         return jsonify({"success": False, "error": "Collector service unavailable"}), 503
     except Exception as e:
         logger.error(f"Collector proxy error: {e}")

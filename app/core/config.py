@@ -17,10 +17,6 @@ class AppConfig:
         return os.environ.get("COLLECTOR_URL", "http://localhost:8545")
 
     @property
-    def COLLECTOR_API_URL(self) -> str:
-        return os.getenv("COLLECTOR_API_URL", "http://localhost:8545")
-
-    @property
     def BLACKLIST_API_URL(self) -> str:
         return os.getenv("BLACKLIST_API_URL", "http://localhost:2542/api")
 
