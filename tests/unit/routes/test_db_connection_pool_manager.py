@@ -17,7 +17,7 @@ class TestSmartConnectionManagerParams:
         assert p["port"] == 5432
         assert p["database"] == "blacklist"
         assert p["user"] == "postgres"
-        assert p["password"] == ""
+        assert p["password"] == "postgres"
 
     @patch.dict(
         "os.environ",
@@ -92,7 +92,7 @@ class TestSmartConnectionManagerParams:
         assert p["port"] == 5432
         assert p["database"] == "mydb"
         assert p["user"] == "postgres"
-        assert p["password"] == ""
+        assert p["password"] == "postgres"
 
 
 class TestErrorSuppression:

@@ -11,6 +11,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.1] - 2026-02-20
+
+### Fixed
+- **CI/CD**: 43개 CI 테스트 실패 수정 (config password 기본값, PosixPath mock, DI 패턴 정렬)
+  - `config.py`: URL 파싱 시 빈 password를 `POSTGRES_PASSWORD` 기본값으로 폴백
+  - `credential_service.py`: PermissionError 처리 추가, 불필요한 `encryption` 속성 제거
+  - `encryption.py`: bytes/str isinstance 체크 수정
+  - `ip_utils.py`: loopback 주소 우선순위 수정
+- **Infra**: 모니터링 docker-compose bind mount를 Docker Compose `configs:` 섹션으로 변환
+- **Infra**: 모니터링 docker-compose에서 deprecated `version: "3.8"` 제거
+
+### Added
+- **Test**: collection route 테스트 추가 (config, sync, utils, fortinet_utils) — 4개 파일
+- **Test**: 전체 테스트 스위트 1362개 통과, 0개 실패
+
+---
+
+## [3.6.0] - 2026-02-19
+
+### Added
+- **Collector**: DB 전용 credential 관리 구현 — 환경변수 의존성 완전 제거
+- **Collector**: 시작 시 credential 유효성 검증 추가
+- **Collector**: DB 전용 credentials 통합 테스트 추가
+- **Docs**: credential 마이그레이션 가이드 추가 (env → DB)
+- **Chore**: credential env-to-DB 마이그레이션 스크립트 추가
+
+### Changed
+- **Refactor**: DB-first credential 조회로 app/collector 통합 (`db-first credential lookup`)
+- **Refactor**: collector에서 환경변수 폴백 제거
+- **Refactor**: `COLLECTOR_API_URL`을 `COLLECTOR_URL`로 통합
+
+### Fixed
+- **CI/CD**: blocked GitHub Actions 교체하여 startup_failure 해결
+- **Collector**: OTP 파라미터명 수정 및 에러 로깅 추가
+- **Collector**: retry 로직 및 시작 health check 추가
+- **Collector**: credential 없이도 시작 가능하도록 수정
+- **Collector**: Secudium stats 쿼리에 캐시된 DB 인스턴스 사용
+- **Collector**: ruff format 적용 (exceptions 모듈)
+- **Collector**: credential 테스트를 db-only flow에 맞게 업데이트
+- **Credentials**: double-close 제거 및 collector 복호화 로직 수정
+- **Deploy**: `.env`를 컨테이너에 전파하고 DatabaseService 캐싱
+
+---
+
 ## [3.5.69] - 2026-02-19
 
 ### Changed

@@ -49,10 +49,14 @@ class TestGetDefaultConfig:
 
 class TestSaveRegtechCredentials:
     def test_save_credentials_success(self):
+        from flask import Flask
+
+        app = Flask(__name__)
+        mock_secure_svc = MagicMock()
+        mock_secure_svc.save_credentials.return_value = True
+        app.extensions["secure_credential_service"] = mock_secure_svc
         svc = _make_service()
-        mock_mod = _mock_secure_module()
-        mock_mod.secure_credential_service.save_credentials.return_value = True
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        with app.app_context():
             result = svc.save_regtech_credentials(
                 username="user1",
                 password="pass1",
@@ -61,13 +65,17 @@ class TestSaveRegtechCredentials:
                 advisory_url="/advisory",
             )
         assert isinstance(result, dict)
-        mock_mod.secure_credential_service.save_credentials.assert_called_once()
+        mock_secure_svc.save_credentials.assert_called_once()
 
     def test_save_credentials_failure(self):
+        from flask import Flask
+
+        app = Flask(__name__)
+        mock_secure_svc = MagicMock()
+        mock_secure_svc.save_credentials.side_effect = Exception("DB error")
+        app.extensions["secure_credential_service"] = mock_secure_svc
         svc = _make_service()
-        mock_mod = _mock_secure_module()
-        mock_mod.secure_credential_service.save_credentials.side_effect = Exception("DB error")
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        with app.app_context():
             result = svc.save_regtech_credentials(
                 username="user1",
                 password="pass1",

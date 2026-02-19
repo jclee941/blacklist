@@ -39,10 +39,10 @@ class IPUtils:
         """IP 타입 반환"""
         try:
             ip = ipaddress.ip_address(ip_str)
-            if ip.is_private:
-                return "private"
-            elif ip.is_loopback:
+            if ip.is_loopback:
                 return "loopback"
+            elif ip.is_private:
+                return "private"
             elif ip.is_multicast:
                 return "multicast"
             else:

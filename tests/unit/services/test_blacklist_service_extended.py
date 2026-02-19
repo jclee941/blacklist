@@ -112,7 +112,7 @@ class TestBlacklistServiceExtended:
 
         mock_requests = MagicMock()
         mock_requests.post.return_value = mock_resp
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = run_async(svc._collect_regtech_data(force=True))
         assert result["success"] is True
 
@@ -123,7 +123,7 @@ class TestBlacklistServiceExtended:
 
         mock_requests = MagicMock()
         mock_requests.post.return_value = mock_resp
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = run_async(svc._collect_regtech_data(force=False))
         assert result["success"] is False
 
@@ -135,7 +135,7 @@ class TestBlacklistServiceExtended:
         mock_requests.exceptions = real_requests.exceptions
         mock_requests.ConnectionError = real_requests.ConnectionError
         mock_requests.post.side_effect = real_requests.ConnectionError("refused")
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = run_async(svc._collect_regtech_data(force=False))
         assert result["success"] is False
 
@@ -148,7 +148,7 @@ class TestBlacklistServiceExtended:
         mock_requests.ConnectionError = real_requests.ConnectionError
         mock_requests.RequestException = real_requests.RequestException
         mock_requests.post.side_effect = RuntimeError("boom")
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = run_async(svc._collect_regtech_data(force=False))
         assert result["success"] is False
 
@@ -159,7 +159,7 @@ class TestBlacklistServiceExtended:
         mock_resp.json.return_value = {"collected": 5}
         mock_requests = MagicMock()
         mock_requests.post.return_value = mock_resp
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = run_async(svc.collect_all_data(force=True))
         assert result["success"] is True
 
@@ -176,7 +176,7 @@ class TestBlacklistServiceExtended:
         mock_requests = MagicMock()
         mock_requests.get.return_value = mock_resp
         mock_requests.RequestException = Exception
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = svc.sync_with_collector()
         assert result["success"] is True
 
@@ -191,7 +191,7 @@ class TestBlacklistServiceExtended:
         mock_requests = MagicMock()
         mock_requests.RequestException = real_requests.RequestException
         mock_requests.get.side_effect = real_requests.ConnectionError("refused")
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = svc.sync_with_collector()
         assert result["success"] is True
         assert "unreachable" in result.get("collector_status", "").lower() or "연결" in result.get("message", "")
@@ -220,7 +220,7 @@ class TestBlacklistServiceExtended:
         mock_requests = MagicMock()
         mock_requests.get.return_value = mock_resp
         mock_requests.RequestException = Exception
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = svc.force_data_refresh()
         assert result.get("success") is True or "copied_count" in result
 
@@ -231,7 +231,7 @@ class TestBlacklistServiceExtended:
         mock_requests = MagicMock()
         mock_requests.get.return_value = mock_resp
         mock_requests.RequestException = Exception
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = svc.force_data_refresh()
         assert result["success"] is False
         assert result["fallback_attempted"] is True
@@ -244,7 +244,7 @@ class TestBlacklistServiceExtended:
         mock_requests.RequestException = real_requests.RequestException
         mock_requests.exceptions = real_requests.exceptions
         mock_requests.get.side_effect = real_requests.RequestException("timeout")
-        with patch.dict("sys.modules", {"requests": mock_requests}):
+        with patch("core.services.blacklist_service.requests", mock_requests):
             result = svc.force_data_refresh()
         assert result["success"] is False
         assert result["fallback_attempted"] is True

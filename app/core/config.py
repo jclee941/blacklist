@@ -58,7 +58,7 @@ class AppConfig:
                 "port": parsed.port or 5432,
                 "database": parsed.path.lstrip("/") or "blacklist",
                 "user": parsed.username or "postgres",
-                "password": parsed.password or "",
+                "password": parsed.password or self.POSTGRES_PASSWORD,
             }
         return {
             "host": self.POSTGRES_HOST,

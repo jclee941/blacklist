@@ -159,16 +159,10 @@ class TestGetRedisClient:
     def test_get_redis_client_success(self):
         mock_redis_cls = MagicMock()
         with patch("core.utils.cache_utils.redis.Redis", mock_redis_cls):
-            with patch(
-                "core.utils.cache_utils.os.environ.get",
-                side_effect=lambda k, d=None: {"REDIS_HOST": "localhost", "REDIS_PORT": "6379", "REDIS_DB": "0"}.get(
-                    k, d
-                ),
-            ):
-                from core.utils.cache_utils import get_redis_client
+            from core.utils.cache_utils import get_redis_client
 
-                client = get_redis_client()
-                assert client is not None
+            client = get_redis_client()
+            assert client is not None
 
     def test_get_redis_client_exception(self):
         with patch("core.utils.cache_utils.redis.Redis", side_effect=Exception("no redis")):

@@ -88,7 +88,8 @@ class CredentialEncryption:
             salt=salt,
             iterations=100000,
         )
-        key = base64.urlsafe_b64encode(kdf.derive(self.master_key.encode()))
+        key_bytes = self.master_key if isinstance(self.master_key, bytes) else self.master_key.encode()
+        key = base64.urlsafe_b64encode(kdf.derive(key_bytes))
         return Fernet(key)
 
     def encrypt(self, plaintext: str) -> str:

@@ -33,38 +33,31 @@ class TestCredentialServiceExtended:
 
     def test_save_credentials_db_success_file_backup(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        with patch.object(svc, "encryption") as mock_enc:
-            mock_enc.encrypt.return_value = "encrypted_data"
-            with patch("builtins.open", mock_open()):
-                result = svc.save_credentials("user", "pass")
+        with patch("builtins.open", mock_open()):
+            result = svc.save_credentials("user", "pass")
         assert result is True
         mock_conn.commit.assert_called()
 
     def test_save_credentials_db_fail_file_fallback(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
         mock_cursor.execute.side_effect = Exception("DB error")
-        with patch.object(svc, "encryption") as mock_enc:
-            mock_enc.encrypt.return_value = "encrypted_data"
-            with patch("builtins.open", mock_open()):
-                result = svc.save_credentials("user", "pass")
+        with patch("builtins.open", mock_open()):
+            result = svc.save_credentials("user", "pass")
         assert result is True
 
     def test_save_credentials_all_fail_memory(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
         mock_cursor.execute.side_effect = Exception("DB error")
-        with patch.object(svc, "encryption") as mock_enc:
-            mock_enc.encrypt.return_value = "encrypted_data"
-            with patch("builtins.open", side_effect=IOError("no file")):
-                result = svc.save_credentials("user", "pass")
+        with patch("builtins.open", side_effect=IOError("no file")):
+            result = svc.save_credentials("user", "pass")
         assert result is True
 
     def test_load_credentials_from_db(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        encrypted_json = json.dumps({"regtech_id": "user", "regtech_pw": "pass"})
-        mock_cursor.fetchone.return_value = (encrypted_json,)
-        with patch.object(svc, "encryption") as mock_enc:
-            mock_enc.decrypt.return_value = encrypted_json
-            result = svc.load_credentials()
+        cred_json = json.dumps({"regtech_id": "user", "regtech_pw": "pass"})
+        # fetchone returns 2-tuple: (encrypted_data, updated_at)
+        mock_cursor.fetchone.return_value = (cred_json, "2024-01-01 00:00:00")
+        result = svc.load_credentials()
         assert result is not None
         assert result["regtech_id"] == "user"
 
@@ -72,11 +65,9 @@ class TestCredentialServiceExtended:
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
         mock_cursor.execute.side_effect = Exception("DB error")
         file_data = json.dumps({"regtech_id": "fileuser", "regtech_pw": "filepass"})
-        with patch.object(svc, "encryption") as mock_enc:
-            mock_enc.decrypt.return_value = file_data
-            with patch("builtins.open", mock_open(read_data=file_data)):
-                with patch("os.path.exists", return_value=True):
-                    result = svc.load_credentials()
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("builtins.open", mock_open(read_data=file_data.encode())):
+                result = svc.load_credentials()
 
     def test_load_credentials_not_found(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
@@ -93,9 +84,8 @@ class TestCredentialServiceExtended:
     def test_get_credentials_not_found_fallback(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
         mock_cursor.fetchone.return_value = None
-        with patch.object(svc, "load_credentials", return_value={"regtech_id": "fb", "regtech_pw": "pass"}):
-            result = svc.get_credentials()
-        assert result["regtech_id"] == "fb"
+        result = svc.get_credentials()
+        assert result == {}
 
     def test_get_credentials_empty_when_all_fail(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
@@ -106,20 +96,21 @@ class TestCredentialServiceExtended:
 
     def test_has_credentials_true(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        with patch.object(svc, "get_credentials", return_value={"regtech_id": "u", "regtech_pw": "p"}):
-            result = svc.has_credentials()
+        mock_cursor.fetchone.return_value = (1,)
+        result = svc.has_credentials()
         assert result is True
 
     def test_has_credentials_false(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        with patch.object(svc, "get_credentials", return_value={}):
-            result = svc.has_credentials()
+        mock_cursor.fetchone.return_value = (0,)
+        result = svc.has_credentials()
         assert result is False
 
     def test_clear_credentials_success(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        with patch("os.path.exists", return_value=True):
-            with patch("os.remove"):
+        mock_cursor.rowcount = 1
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.unlink"):
                 result = svc.clear_credentials()
         assert result is True
         mock_conn.commit.assert_called()

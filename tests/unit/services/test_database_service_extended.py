@@ -185,9 +185,11 @@ class TestDatabaseServiceExtended:
             "password": "pass1",
             "config": "{}",
         }
-        mock_mod = MagicMock()
-        mock_mod.secure_credential_service = mock_secure
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        from flask import Flask
+
+        app = Flask(__name__)
+        app.extensions["secure_credential_service"] = mock_secure
+        with app.app_context():
             result = svc.get_collection_credentials("regtech")
         assert result["username"] == "user1"
 
@@ -195,10 +197,13 @@ class TestDatabaseServiceExtended:
         svc = self._make_service()
         mock_conn, mock_cursor = self._mock_conn(svc)
         mock_cursor.fetchone.return_value = ("regtech", "user1", "pass1", "{}", datetime.now(), datetime.now())
-        mock_mod = MagicMock()
-        mock_mod.secure_credential_service = MagicMock()
-        mock_mod.secure_credential_service.get_credentials.return_value = None
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        mock_secure = MagicMock()
+        mock_secure.get_credentials.return_value = None
+        from flask import Flask
+
+        app = Flask(__name__)
+        app.extensions["secure_credential_service"] = mock_secure
+        with app.app_context():
             result = svc.get_collection_credentials("regtech")
         assert result["username"] == "user1"
 
@@ -206,10 +211,13 @@ class TestDatabaseServiceExtended:
         svc = self._make_service()
         mock_conn, mock_cursor = self._mock_conn(svc)
         mock_cursor.fetchone.return_value = None
-        mock_mod = MagicMock()
-        mock_mod.secure_credential_service = MagicMock()
-        mock_mod.secure_credential_service.get_credentials.return_value = None
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        mock_secure = MagicMock()
+        mock_secure.get_credentials.return_value = None
+        from flask import Flask
+
+        app = Flask(__name__)
+        app.extensions["secure_credential_service"] = mock_secure
+        with app.app_context():
             result = svc.get_collection_credentials("regtech")
         assert "warning" in result or result.get("username") is None
 

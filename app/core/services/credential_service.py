@@ -30,7 +30,10 @@ class CredentialService:
         self.key_file = Path("/app/data/credential.key")
 
         # 데이터 디렉토리 생성
-        self.credentials_file.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.credentials_file.parent.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            logger.warning("Cannot create data directory %s - using in-memory only", self.credentials_file.parent)
 
         # 통합 암호화 서비스 사용 (encryption.py의 CredentialEncryption)
         # CREDENTIAL_MASTER_KEY 또는 파일 기반 키 자동 관리 — 재시작 시에도 키 유지
