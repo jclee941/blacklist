@@ -144,10 +144,12 @@ class AppConfig:
 
     @property
     def REGTECH_ID(self) -> str:
+        """DEPRECATED: DB 우선, 환경변수는 fallback 전용. UI에서 설정 권장."""
         return os.getenv("REGTECH_ID", "")
 
     @property
     def REGTECH_PW(self) -> str:
+        """DEPRECATED: DB 우선, 환경변수는 fallback 전용. UI에서 설정 권장."""
         return os.getenv("REGTECH_PW", "")
 
     @property

@@ -6,6 +6,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from cryptography.fernet import Fernet
 import base64
@@ -399,13 +400,12 @@ if __name__ == "__main__":
 
     logger.info("🔧 인증정보 서비스 테스트")
 
-    # 저장 테스트 (실제 운영 인증정보 필요)
-    test_id = config.REGTECH_ID
-    test_pw = config.REGTECH_PW
+    # 저장 테스트 (UI에서 설정된 인증정보 또는 환경변수 fallback)
+    test_id = os.getenv("REGTECH_ID", "")
+    test_pw = os.getenv("REGTECH_PW", "")
 
     if not test_id or not test_pw:
-        logger.warning("❌ 테스트를 위한 환경변수가 설정되지 않음: REGTECH_ID, REGTECH_PW")
-        logger.info("   환경변수를 설정하거나 웹 UI를 통해 인증정보를 저장하세요.")
+        logger.warning("❌ 테스트를 위한 인증정보 없음. UI에서 설정하거나 REGTECH_ID/REGTECH_PW 환경변수를 설정하세요.")
         exit(1)
 
     save_result = credential_service.save_credentials(test_id, test_pw)

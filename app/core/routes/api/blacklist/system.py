@@ -75,14 +75,33 @@ def get_system_containers():
 def get_credential_status():
     """인증 상태 확인"""
     try:
-        # REGTECH 인증 상태 확인
-        regtech_id = config.REGTECH_ID
-        regtech_pw = config.REGTECH_PW
+        # REGTECH 인증 상태 확인 (DB 우선, 환경변수 fallback)
+        regtech_id = None
+        regtech_pw = None
+        source = "none"
+
+        try:
+            secure_cred_svc = current_app.extensions.get("secure_credential_service")
+            if secure_cred_svc:
+                db_creds = secure_cred_svc.get_credentials("REGTECH")
+                if db_creds and db_creds.get("username") and db_creds.get("password"):
+                    regtech_id = db_creds["username"]
+                    regtech_pw = db_creds["password"]
+                    source = "database"
+        except Exception:
+            pass
+
+        if not regtech_id or not regtech_pw:
+            regtech_id = config.REGTECH_ID
+            regtech_pw = config.REGTECH_PW
+            if regtech_id and regtech_pw:
+                source = "environment"
 
         if regtech_id and regtech_pw:
             status = {
                 "authenticated": True,
                 "regtech_id": regtech_id[:3] + "*" * (len(regtech_id) - 3),
+                "source": source,
                 "last_check": datetime.now().isoformat(),
             }
         else:
@@ -103,8 +122,27 @@ def get_credential_status():
 def get_regtech_credentials():
     """REGTECH 인증 정보 조회 (프론트엔드가 요청하는 엔드포인트)"""
     try:
-        regtech_id = config.REGTECH_ID
-        regtech_pw = config.REGTECH_PW
+        # DB 우선, 환경변수 fallback
+        regtech_id = None
+        regtech_pw = None
+        source = "none"
+
+        try:
+            secure_cred_svc = current_app.extensions.get("secure_credential_service")
+            if secure_cred_svc:
+                db_creds = secure_cred_svc.get_credentials("REGTECH")
+                if db_creds and db_creds.get("username") and db_creds.get("password"):
+                    regtech_id = db_creds["username"]
+                    regtech_pw = db_creds["password"]
+                    source = "database"
+        except Exception:
+            pass
+
+        if not regtech_id or not regtech_pw:
+            regtech_id = config.REGTECH_ID
+            regtech_pw = config.REGTECH_PW
+            if regtech_id and regtech_pw:
+                source = "environment"
 
         if regtech_id and regtech_pw:
             return jsonify(
@@ -113,6 +151,7 @@ def get_regtech_credentials():
                     "authenticated": True,
                     "regtech_id": regtech_id[:3] + "*" * (len(regtech_id) - 3),
                     "configured": True,
+                    "source": source,
                     "timestamp": datetime.now().isoformat(),
                 }
             )

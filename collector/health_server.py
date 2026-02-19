@@ -175,9 +175,10 @@ class HealthServer:
 
                     if otp_mode == "auto":
                         # Auto mode: full auth with IMAP OTP reading
-                        email = config.get("email", "") or CollectorConfig.SECUDIUM_EMAIL
-                        email_password = config.get("email_password", "") or CollectorConfig.SECUDIUM_EMAIL_PASSWORD
-                        imap_server = config.get("imap_server", "") or CollectorConfig.SECUDIUM_IMAP_SERVER
+                        otp_config = CollectorConfig.get_secudium_otp_config()
+                        email = config.get("email", "") or otp_config["email"]
+                        email_password = config.get("email_password", "") or otp_config["email_password"]
+                        imap_server = config.get("imap_server", "") or otp_config["imap_server"]
 
                         if not email or not email_password:
                             return jsonify(

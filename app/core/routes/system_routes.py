@@ -3,13 +3,40 @@ System monitoring routes
 시스템 모니터링 관련 라우트
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify
 import logging
 from datetime import datetime
 
 from ..config import config
 
 system_bp = Blueprint("system", __name__, url_prefix="/api/system")
+
+
+def _get_regtech_credential_status() -> dict:
+    """REGTECH 인증정보 상태 확인 (DB 우선, 환경변수 fallback)"""
+    try:
+        secure_cred_svc = current_app.extensions.get("secure_credential_service")
+        if secure_cred_svc:
+            db_creds = secure_cred_svc.get_credentials("REGTECH")
+            if db_creds and db_creds.get("username") and db_creds.get("password"):
+                return {
+                    "id_configured": True,
+                    "pw_configured": True,
+                    "id_length": len(db_creds["username"]),
+                    "pw_length": len(db_creds["password"]),
+                    "source": "database",
+                }
+    except Exception:
+        pass
+
+    # 환경변수 fallback
+    return {
+        "id_configured": bool(config.REGTECH_ID),
+        "pw_configured": bool(config.REGTECH_PW),
+        "id_length": len(config.REGTECH_ID),
+        "pw_length": len(config.REGTECH_PW),
+        "source": "environment" if config.REGTECH_ID else "none",
+    }
 
 
 @system_bp.route("/logs", methods=["GET"])
@@ -130,12 +157,7 @@ def get_environment_check():
     """환경변수 전달 상태 확인 (보안: 실제값 숨김)"""
     try:
         env_status = {
-            "regtech_auth": {
-                "id_configured": bool(config.REGTECH_ID),
-                "pw_configured": bool(config.REGTECH_PW),
-                "id_length": len(config.REGTECH_ID),
-                "pw_length": len(config.REGTECH_PW),
-            },
+            "regtech_auth": _get_regtech_credential_status(),
             "github_integration": {
                 "token_configured": bool(config.GITHUB_TOKEN),
                 "repo_owner": config.GITHUB_REPO_OWNER,

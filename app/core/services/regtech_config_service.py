@@ -283,16 +283,23 @@ class RegtechConfigService:
             return False
 
     def initialize_regtech_credentials(self) -> bool:
-        """REGTECH 인증정보 초기화 (환경변수에서 로드)"""
+        """REGTECH 인증정보 초기화 (DB에 이미 있으면 skip, 없으면 환경변수 fallback)"""
         try:
-            # 환경변수에서 인증정보 로드 (GitHub Secrets에서 제공)
+            # DB에 이미 인증정보가 있으면 초기화 불필요
+            existing = self.get_regtech_credentials()
+            if existing and existing.get("username") and existing.get("password"):
+                logger.info("REGTECH 인증정보가 이미 DB에 존재합니다. 초기화 건너뜀.")
+                return True
+
+            # DB에 없을 때만 환경변수에서 fallback 로드
             default_username = config.REGTECH_ID
             default_password = config.REGTECH_PW
 
             if not default_username or not default_password:
-                logger.warning("환경변수에서 REGTECH 인증정보를 찾을 수 없습니다.")
+                logger.warning("REGTECH 인증정보 없음. UI에서 설정하거나 환경변수(REGTECH_ID/REGTECH_PW)를 설정하세요.")
                 return False
 
+            logger.info("환경변수에서 REGTECH 인증정보를 DB로 마이그레이션합니다.")
             result = self.save_regtech_credentials(default_username, default_password)
             return result.get("success", False)
 

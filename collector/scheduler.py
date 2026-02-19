@@ -667,12 +667,13 @@ class CollectionScheduler:
                 result = self._collect_regtech_data(username, password, max_pages=50)
             elif source == "SECUDIUM":
                 config = credentials.get("config", {})
+                otp_config = CollectorConfig.get_secudium_otp_config()
                 result = self._collect_secudium_data(
                     username,
                     password,
-                    email_address=config.get("email", "") or CollectorConfig.SECUDIUM_EMAIL,
-                    email_password=config.get("email_password", "") or CollectorConfig.SECUDIUM_EMAIL_PASSWORD,
-                    imap_server=config.get("imap_server", "") or CollectorConfig.SECUDIUM_IMAP_SERVER,
+                    email_address=config.get("email", "") or otp_config["email"],
+                    email_password=config.get("email_password", "") or otp_config["email_password"],
+                    imap_server=config.get("imap_server", "") or otp_config["imap_server"],
                 )
             else:
                 return {
