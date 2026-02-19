@@ -11,6 +11,7 @@ import threading
 import logging
 from collections import deque
 from collector.config import CollectorConfig
+from core.database import DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,9 @@ class HealthServer:
         # Thread-safe access to pending auth state
         self._pending_auth_lock = threading.Lock()
         self._secudium_pending_auth = None
+
+        # Cached DatabaseService instance (avoid re-creating on every request)
+        self._db = DatabaseService()
 
         # Setup routes
         @self.app.route("/health", methods=["GET"])
@@ -130,11 +134,7 @@ class HealthServer:
                 if source_upper not in ["REGTECH", "SECUDIUM"]:
                     return jsonify({"success": False, "error": f"Invalid source: {source_upper}"}), 400
 
-                # Get credentials from database (with automatic decryption)
-                from core.database import DatabaseService
-
-                db = DatabaseService()
-                credentials = db.get_collection_credentials(source_upper)
+                credentials = self._db.get_collection_credentials(source_upper)
 
                 if not credentials:
                     return jsonify(
@@ -367,10 +367,7 @@ class HealthServer:
                 if source_upper not in ["REGTECH", "SECUDIUM"]:
                     return jsonify({"success": False, "error": f"Invalid source: {source_upper}"}), 400
 
-                from core.database import DatabaseService
-
-                db = DatabaseService()
-                credentials = db.get_collection_credentials(source_upper)
+                credentials = self._db.get_collection_credentials(source_upper)
                 if credentials and not credentials.get("enabled", False):
                     return jsonify(
                         {
@@ -414,12 +411,8 @@ class HealthServer:
         """Get current collector status from scheduler stats"""
         status = {}
 
-        # Read enabled state from DB credentials (source of truth)
-        from core.database import DatabaseService
-
-        db = DatabaseService()
-        regtech_creds = db.get_collection_credentials("REGTECH")
-        secudium_creds = db.get_collection_credentials("SECUDIUM")
+        regtech_creds = self._db.get_collection_credentials("REGTECH")
+        secudium_creds = self._db.get_collection_credentials("SECUDIUM")
 
         regtech_enabled = regtech_creds.get("enabled", False) if regtech_creds else False
         secudium_enabled = secudium_creds.get("enabled", False) if secudium_creds else False
