@@ -229,8 +229,10 @@ class MultiSourceCollector(MultiSourceParserMixin):
         def sync_collect():
             try:
                 if not regtech_collector.authenticated:
-                    username = CollectorConfig.REGTECH_ID
-                    password = CollectorConfig.REGTECH_PW
+                    try:
+                        username, password = CollectorConfig.get_regtech_credentials()
+                    except ValueError as cred_err:
+                        return {"success": False, "error": str(cred_err), "data": []}
                     if not regtech_collector.authenticate(username, password):
                         return {"success": False, "error": "REGTECH 인증 실패", "data": []}
 
