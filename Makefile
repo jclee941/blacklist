@@ -1,6 +1,6 @@
 # Blacklist Service Management Makefile
 
-.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health
+.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health release release-dry
 
 # Default environment
 ENV ?= development
@@ -273,6 +273,15 @@ deploy: ## Deploy to production (builds and starts prod environment)
 	@$(MAKE) prod
 	@$(MAKE) health
 	@echo "✅ Production deployment completed"
+
+# Release automation
+TYPE ?= patch
+
+release: check-clean ## Release: bump version, changelog, tag, push (TYPE=patch|minor|major)
+	@bash scripts/release.sh $(TYPE) false
+
+release-dry: ## Dry-run release: preview what would happen (TYPE=patch|minor|major)
+	@bash scripts/release.sh $(TYPE) true
 
 # Status and information
 status: ## Show detailed status of all services
