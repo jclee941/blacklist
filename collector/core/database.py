@@ -42,7 +42,9 @@ class DatabaseService:
             # 환경변수에서 마스터 키 획득 (app과 동일한 키 사용)
             master_key = os.getenv("CREDENTIAL_MASTER_KEY")
             if not master_key:
-                raise ValueError("CREDENTIAL_MASTER_KEY environment variable is required")
+                logger.warning("CREDENTIAL_MASTER_KEY not set, credential decryption disabled")
+                self._cipher_suite = None
+                return
 
             # Salt (app과 동일)
             salt_env = os.getenv("ENCRYPTION_SALT")

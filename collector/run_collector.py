@@ -73,15 +73,16 @@ class CollectorApplication:
                 self.logger.error("❌ Database connection failed - exiting")
                 sys.exit(1)
 
-            # 인증정보 검증
-            if not self._validate_credentials():
-                self.logger.error("❌ Credential validation failed - exiting")
-                sys.exit(1)
-
-            # 헬스체크 서버 시작
+            # 헬스체크 서버 시작 (BEFORE credential check — must be reachable for Docker healthcheck)
             self._start_health_server()
 
-            # 수집 스케줄러 시작
+            if not self._validate_credentials():
+                self.logger.warning(
+                    "Credentials not yet configured. "
+                    "Collector will start but collections will be skipped "
+                    "until credentials are set via API: POST /api/credentials"
+                )
+
             self._start_scheduler()
 
             self.running = True
@@ -113,22 +114,21 @@ class CollectorApplication:
 
         self.logger.info("✅ Blacklist Collector stopped")
 
-
     def _validate_credentials(self) -> bool:
         """
         Validate that required credentials are configured in DB.
         Required for collection to work.
-        
+
         Returns:
             True if all required credentials are available, False otherwise
         """
         try:
             from collector.config import CollectorConfig
-            
+
             self.logger.info("🔍 Validating credentials")
-            
+
             missing = []
-            
+
             # Check REGTECH credentials
             try:
                 CollectorConfig.get_regtech_credentials()
@@ -136,7 +136,7 @@ class CollectorApplication:
             except ValueError:
                 missing.append("REGTECH")
                 self.logger.warning("⚠️  REGTECH credentials not found in database")
-            
+
             # Check SECUDIUM credentials
             try:
                 CollectorConfig.get_secudium_credentials()
@@ -144,7 +144,7 @@ class CollectorApplication:
             except ValueError:
                 missing.append("SECUDIUM")
                 self.logger.warning("⚠️  SECUDIUM credentials not found in database")
-            
+
             if missing:
                 self.logger.error(
                     f"❌ Missing credentials: {', '.join(missing)}. "
@@ -152,10 +152,10 @@ class CollectorApplication:
                     f"Please configure credentials via API: POST /api/credentials"
                 )
                 return False
-            
+
             self.logger.info("✅ All required credentials are configured")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"❌ Credential validation error: {e}")
             return False
