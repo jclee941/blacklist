@@ -136,19 +136,19 @@ test-backend: ## Run backend tests (unit + integration)
 
 test-backend-unit: ## Run backend unit tests
 	@echo "🧪 Running backend unit tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app env COVERAGE_FILE=/tmp/.coverage python -m pytest tests/unit -v --cov=app/core --cov-report=term --cov-report=html:htmlcov || echo "⚠️  Some unit tests failed"
+	@$(COMPOSE_CMD) exec -T blacklist-app env COVERAGE_FILE=/tmp/.coverage python -m pytest tests/unit -v --cov=app/core --cov-report=term --cov-report=html:htmlcov
 
 test-collector-unit: ## Run collector unit tests
 	@echo "🧪 Running collector unit tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-collector python -m pytest /app/tests/unit -v || echo "⚠️  Some collector tests failed"
+	@$(COMPOSE_CMD) exec -T blacklist-collector python -m pytest /app/tests/unit -v
 
 test-backend-integration: ## Run backend integration tests
 	@echo "🧪 Running backend integration tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/integration -v || echo "⚠️  Some integration tests failed"
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/integration -v
 
 test-backend-e2e: ## Run backend E2E tests
 	@echo "🧪 Running backend E2E tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/e2e -v || echo "⚠️  Some E2E tests failed"
+	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/e2e -v
 
 test-backend-coverage: ## Run backend tests with coverage report
 	@echo "🧪 Running backend tests with coverage..."

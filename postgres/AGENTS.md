@@ -7,7 +7,7 @@
 
 ## OVERVIEW
 
-PostgreSQL 16 with Raw SQL only. Migrations are sequential numbered SQL files.
+PostgreSQL 15 with Raw SQL only. Migrations are sequential numbered SQL files.
 
 ## STRUCTURE
 

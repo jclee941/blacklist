@@ -258,6 +258,7 @@ setup_secrets() {
         local fernet_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
         local secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
         local master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+        local pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
         
         cat > "${env_file}" << EOF
 # Blacklist Platform Secrets (auto-generated)
@@ -266,6 +267,7 @@ setup_secrets() {
 CREDENTIAL_MASTER_KEY=${master_key}
 SECRET_KEY=${secret_key}
 CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
+POSTGRES_PASSWORD=${pg_password}
 EOF
 
         chmod 600 "${env_file}"
@@ -278,6 +280,13 @@ deploy_services() {
     log_step "Deploy Services"
 
     cd "${SCRIPT_DIR}"
+
+    # Backup current image tags for rollback
+    local backup_file="${SCRIPT_DIR}/.rollback-images"
+    if docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -q '^blacklist-'; then
+        docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep '^blacklist-' | grep -v '<none>' > "${backup_file}" || true
+        log_info "Current image tags saved to .rollback-images"
+    fi
 
     local containers="blacklist-app blacklist-collector blacklist-frontend blacklist-postgres blacklist-redis"
     for c in $containers; do

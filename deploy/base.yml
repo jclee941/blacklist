@@ -10,9 +10,9 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
-      POSTGRES_DB: blacklist
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-blacklist}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       TZ: Asia/Seoul
     volumes:
       - blacklist-pgdata:/var/lib/postgresql/data
@@ -42,12 +42,17 @@ services:
     container_name: blacklist-collector
     restart: unless-stopped
     network_mode: host
+    depends_on:
+      blacklist-postgres:
+        condition: service_healthy
+      blacklist-redis:
+        condition: service_healthy
     environment:
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
-      POSTGRES_DB: blacklist
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-blacklist}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       HEALTH_CHECK_PORT: 8545
@@ -75,15 +80,20 @@ services:
     container_name: blacklist-app
     restart: unless-stopped
     network_mode: host
+    depends_on:
+      blacklist-postgres:
+        condition: service_healthy
+      blacklist-redis:
+        condition: service_healthy
     environment:
       FLASK_ENV: production
       PORT: 2542
       SSL_ENABLED: "false"
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
-      POSTGRES_DB: blacklist
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-blacklist}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
@@ -106,6 +116,9 @@ services:
     container_name: blacklist-frontend
     restart: unless-stopped
     network_mode: host
+    depends_on:
+      blacklist-app:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: http://localhost:2542
