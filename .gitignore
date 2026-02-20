@@ -76,6 +76,7 @@ docs/*
 !docs/CLOUDFLARE_MIGRATION.md
 !docs/deliverables/
 !docs/testing/
+!docs/wiki/
 
 # Analysis documents (never track)
 ANALYSIS*.md
