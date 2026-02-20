@@ -52,7 +52,7 @@ jobs:
       push: false
     secrets: inherit
 
-  package-airgap:
+  package:
     needs: [validate, build-images]
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
@@ -62,32 +62,38 @@ jobs:
           pattern: image-*
           path: images
           merge-multiple: true
-      - name: Create airgap bundle
+      - name: Create release bundle
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
-          BUNDLE="blacklist-airgap-${VERSION}"
+          BUNDLE="blacklist-${VERSION}"
           mkdir -p "${BUNDLE}/images"
 
           cp images/*.tar.gz "${BUNDLE}/images/"
           cp -r deploy/airgap/* "${BUNDLE}/" 2>/dev/null || true
 
+          # Include base.yml for extends references in docker-compose.yml
+          mkdir -p "${BUNDLE}/compose"
+          cp deploy/compose/base.yml "${BUNDLE}/compose/"
+
           if [ -f "${BUNDLE}/install.sh" ]; then
             sed -i "s/^VERSION=.*/VERSION=${VERSION}/" "${BUNDLE}/install.sh"
           fi
+
+          echo "${VERSION}" > "${BUNDLE}/VERSION"
 
           cd "${BUNDLE}/images" && sha256sum *.tar.gz > checksums.sha256 && cd ../..
           tar czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
           sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
       - uses: actions/upload-artifact@v6
         with:
-          name: airgap-bundle
+          name: release-bundle
           path: |
-            blacklist-airgap-*.tar.gz
-            blacklist-airgap-*.tar.gz.sha256
+            blacklist-*.tar.gz
+            blacklist-*.tar.gz.sha256
           retention-days: 30
 
   create-release:
-    needs: [validate, package-airgap]
+    needs: [validate, package]
     if: ${{ !inputs.dry_run }}
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     permissions:
@@ -96,7 +102,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v7
         with:
-          name: airgap-bundle
+          name: release-bundle
       - name: Extract changelog
         id: changelog
         run: |
@@ -112,8 +118,8 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             --title "Release ${{ needs.validate.outputs.version }}" \
             --notes "${{ steps.changelog.outputs.notes }}" \
-            blacklist-airgap-*.tar.gz \
-            blacklist-airgap-*.tar.gz.sha256
+            blacklist-*.tar.gz \
+            blacklist-*.tar.gz.sha256
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   push-to-registry:

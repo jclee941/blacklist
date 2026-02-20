@@ -16,7 +16,7 @@
 #   4. Commit VERSION + CHANGELOG
 #   5. Create annotated tag v{VERSION}
 #   6. Push to master + push tag
-#   7. Release pipeline auto-triggers (build → airgap → GHCR → sandbox)
+#   7. Release pipeline auto-triggers (build → package → GHCR → sandbox)
 # =============================================================================
 
 set -euo pipefail

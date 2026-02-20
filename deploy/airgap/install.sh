@@ -17,6 +17,7 @@ log_step() { echo -e "\n${CYAN}===${NC} ${BOLD}$1${NC}\n"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGES_DIR="${SCRIPT_DIR}/images"
+VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
 
 install_docker_offline() {
     log_step "Offline Docker Installation"
@@ -158,13 +159,13 @@ verify_checksums() {
                 if [ "$expected_hash" = "$actual_hash" ]; then
                     log_success "${filename}: OK"
                 else
-                    log_error "${filename}: CHECKSUM MISMATCH (corrupted or tampered)"
+                    echo -e "${RED}[FAIL]${NC} ${filename}: CHECKSUM MISMATCH"
                     failed=1
                 fi
             fi
         done < "$CHECKSUM_FILE"
         if [ "$failed" -eq 1 ]; then
-            log_error "Integrity check failed. Re-download the airgap package."
+            log_error "Integrity check failed. Re-download the release package."
         fi
     fi
     cd "${SCRIPT_DIR}"
@@ -225,7 +226,8 @@ setup_ssl() {
         -subj "/CN=blacklist/O=Blacklist/C=KR" \
         2>/dev/null
 
-    chmod 644 "${ssl_dir}/server.key" "${ssl_dir}/server.crt"
+    chmod 600 "${ssl_dir}/server.key"
+    chmod 644 "${ssl_dir}/server.crt"
     log_success "SSL certificates created"
 }
 
@@ -327,7 +329,7 @@ post_install() {
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║  Blacklist Platform Deployed Successfully                  ║"
+    echo "║  Blacklist Platform ${VERSION} Deployed Successfully      ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
     echo "Access Points:"
@@ -370,7 +372,7 @@ main() {
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║  Blacklist Airgap Installer v1.0                          ║"
+    echo "║  Blacklist Airgap Installer ${VERSION}                    ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
 

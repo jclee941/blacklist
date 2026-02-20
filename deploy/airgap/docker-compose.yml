@@ -1,33 +1,35 @@
 services:
   blacklist-postgres:
     extends:
-      file: ../compose/base.yml
+      file: compose/base.yml
       service: blacklist-postgres
     image: blacklist-postgres:latest
 
   blacklist-redis:
     extends:
-      file: ../compose/base.yml
+      file: compose/base.yml
       service: blacklist-redis
     image: blacklist-redis:latest
 
   blacklist-collector:
     extends:
-      file: ../compose/base.yml
+      file: compose/base.yml
       service: blacklist-collector
     image: blacklist-collector:latest
 
   blacklist-app:
     extends:
-      file: ../compose/base.yml
+      file: compose/base.yml
       service: blacklist-app
     image: blacklist-app:latest
 
   blacklist-frontend:
     extends:
-      file: ../compose/base.yml
+      file: compose/base.yml
       service: blacklist-frontend
     image: blacklist-frontend:latest
+    volumes:
+      - ./ssl:/app/ssl:ro
 
 volumes:
   blacklist-pgdata:

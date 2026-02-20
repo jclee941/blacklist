@@ -136,8 +136,8 @@ tests/mock-fortigate/   # Mock FortiManager API server
 | frontend | 443 | `curl --insecure /health` | app |
 
 - **CI:** push → detect-changes → lint/test (parallel) → build → e2e (smoke/chromium/webkit)
-- **Release:** tag `v*` → validate VERSION==tag → build → airgap bundle → GitHub Release → GHCR
-- **Deploy:** prod=manual airgap `docker load` | sandbox=Watchtower HTTP API auto-pull
+- **Release:** tag `v*` → validate VERSION==tag → build → package bundle → GitHub Release → GHCR
+- **Deploy:** prod=manual offline `docker load` | sandbox=Watchtower HTTP API auto-pull
 
 ## NOTES
 
