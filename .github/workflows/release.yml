@@ -69,11 +69,12 @@ jobs:
           mkdir -p "${BUNDLE}/images"
 
           cp images/*.tar.gz "${BUNDLE}/images/"
-          cp -r deploy/airgap/* "${BUNDLE}/" 2>/dev/null || true
 
-          # Include base.yml for extends references in docker-compose.yml
-          mkdir -p "${BUNDLE}/compose"
-          cp deploy/compose/base.yml "${BUNDLE}/compose/"
+          # Copy release bundle files
+          cp deploy/docker-compose.release.yml "${BUNDLE}/docker-compose.yml"
+          cp deploy/base.yml "${BUNDLE}/"
+          cp deploy/install.sh "${BUNDLE}/"
+          cp -r deploy/prereqs "${BUNDLE}/" 2>/dev/null || true
 
           if [ -f "${BUNDLE}/install.sh" ]; then
             sed -i "s/^VERSION=.*/VERSION=${VERSION}/" "${BUNDLE}/install.sh"

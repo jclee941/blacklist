@@ -94,15 +94,15 @@ scripts/verify_endpoints.py
 scripts/cloudflare_cleanup.py
 
 # Deployment data
-deploy/docker/data
-deploy/docker/data/
-**/deploy/docker/data
+deploy/data
+deploy/data/
+**/deploy/data
 **/data/postgres
 **/data/redis
 
 # Deployment data
-deploy/docker/data
-deploy/docker/data/
-**/deploy/docker/data
+deploy/data
+deploy/data/
+**/deploy/data
 **/data/postgres
 **/data/redis

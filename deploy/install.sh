@@ -346,7 +346,7 @@ post_install() {
 }
 
 show_help() {
-    echo "Blacklist Airgap Installer"
+    echo "Blacklist Offline Installer"
     echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""
@@ -372,7 +372,7 @@ main() {
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║  Blacklist Airgap Installer ${VERSION}                    ║"
+    echo "║  Blacklist Offline Installer ${VERSION}                   ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
 

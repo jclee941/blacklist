@@ -92,9 +92,9 @@ GEMINI*.md
 *.har
 har/
 ssl/
-!deploy/airgap/ssl/
+!deploy/ssl/
 
 # ============================================================================
 # Release workflow artifacts
 # ============================================================================
-deploy/airgap/images/checksums.sha256
+deploy/images/checksums.sha256

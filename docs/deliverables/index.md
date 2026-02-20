@@ -113,7 +113,7 @@
 | P-001 | **Docker 이미지** | `dist/images/` | .tar.gz (Git LFS) | ✅ 완료 |
 | ~~P-002~~ | ~~배포 스크립트~~ | ~~`scripts/deploy/`~~ | — | ❌ 삭제됨 |
 | P-003 | **CI/CD 설정** | `.github/workflows/` | YAML | ✅ 완료 |
-| P-004 | **Docker Compose** | `deploy/*/docker-compose.yml` | YAML | ✅ 완료 |
+| P-004 | **Docker Compose** | `deploy/docker-compose*.yml` | YAML | ✅ 완료 |
 
 ---
 

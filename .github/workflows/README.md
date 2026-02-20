@@ -42,7 +42,7 @@ Push/PR → detect-changes → lint (parallel) → test (parallel) → build (ma
 **Trigger**: Tag push matching `v*`
 
 ```
-Tag v* → validate → build 5 images → package-airgap → create-release + push-to-registry → trigger-sandbox → notify
+Tag v* → validate → build 5 images → package → create-release + push-to-registry → trigger-sandbox → notify
 ```
 
 **Jobs**:
@@ -50,8 +50,8 @@ Tag v* → validate → build 5 images → package-airgap → create-release + p
 |-----|-------------|
 | `validate` | Check VERSION file matches tag, CHANGELOG has entry |
 | `build-images` | Matrix build: postgres, redis, collector, app, frontend |
-| `package-airgap` | Create tarball bundle (images + compose + install.sh) |
-| `create-release` | GitHub Release with air-gap bundle as asset |
+| `package` | Create release tarball bundle (images + compose + install.sh) |
+| `create-release` | GitHub Release with release bundle as asset |
 | `push-to-registry` | Push all 5 images to GHCR with version + latest tags |
 | `trigger-sandbox` | Watchtower HTTP API call for auto-pull on sandbox |
 | `notify` | Slack webhook notification |

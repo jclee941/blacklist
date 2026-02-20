@@ -65,10 +65,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/server.js ./server.js
 
-# Embed SSL certificates (from deploy/airgap/ssl/, tracked in git)
-COPY deploy/airgap/ssl/server.key /app/ssl/server.key
-COPY deploy/airgap/ssl/server.crt /app/ssl/server.crt
-RUN chown -R nextjs:nodejs /app/ssl
+RUN apk add --no-cache openssl && \
+    mkdir -p /app/ssl && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+      -keyout /app/ssl/server.key \
+      -out /app/ssl/server.crt \
+      -subj "/CN=blacklist/O=Blacklist/C=KR" >/dev/null 2>&1 && \
+    chown -R nextjs:nodejs /app/ssl && \
+    apk del openssl
 
 USER nextjs
 

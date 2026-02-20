@@ -1,7 +1,7 @@
 services:
   blacklist-postgres:
     extends:
-      file: deploy/compose/base.yml
+      file: deploy/base.yml
       service: blacklist-postgres
     build:
       context: ./postgres
@@ -10,7 +10,7 @@ services:
 
   blacklist-redis:
     extends:
-      file: deploy/compose/base.yml
+      file: deploy/base.yml
       service: blacklist-redis
     build:
       context: ./redis
@@ -19,7 +19,7 @@ services:
 
   blacklist-collector:
     extends:
-      file: deploy/compose/base.yml
+      file: deploy/base.yml
       service: blacklist-collector
     build:
       context: .
@@ -30,7 +30,7 @@ services:
 
   blacklist-app:
     extends:
-      file: deploy/compose/base.yml
+      file: deploy/base.yml
       service: blacklist-app
     build:
       context: .
@@ -43,7 +43,7 @@ services:
 
   blacklist-frontend:
     extends:
-      file: deploy/compose/base.yml
+      file: deploy/base.yml
       service: blacklist-frontend
     build:
       context: .

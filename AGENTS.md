@@ -149,4 +149,4 @@ tests/mock-fortigate/   # Mock FortiManager API server
 - Data sources: REGTECH (한국금융보안원) + Secudium/ISAP (SK쉰더스)
 - Docker: named volumes, `network_mode: host`, SSL embedded in frontend image
 - Complexity hotspots: `run_app.py` (39.91), `blacklist_service.py` (39.43)
-- Korean UI in web admin panels; air-gap deployment via tarball bundles
+- Korean UI in web admin panels; offline deployment via tarball bundles

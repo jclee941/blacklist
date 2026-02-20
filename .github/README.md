@@ -50,7 +50,7 @@
 **Jobs**:
 1. `validate` — Check VERSION file matches tag
 2. `build-images` — Matrix build (5 Docker images)
-3. `package-airgap` — Create air-gap tarball bundle
+3. `package` — Create release tarball bundle
 4. `create-release` — GitHub Release with assets
 5. `push-to-registry` — Push all images to GHCR
 6. `trigger-sandbox` — Watchtower HTTP trigger for auto-deploy

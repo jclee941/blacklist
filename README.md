@@ -15,7 +15,7 @@ Threat intelligence platform for collecting, managing, and analyzing IP blacklis
 | **Multi-Source Collection** | Automated ETL from REGTECH and Secudium/ISAP threat feeds |
 | **Real-time Dashboard** | Next.js 15 frontend with live metrics, analytics, and FortiGate logs |
 | **FortiGate Integration** | Direct push to FortiManager address objects and policies |
-| **Air-Gap Deployment** | Self-contained Docker bundles for offline environments |
+| **Offline Deployment** | Self-contained Docker bundles for offline environments |
 | **Auto-Deploy (Sandbox)** | Watchtower-based auto-pull from GHCR on `:latest` tag |
 | **Secure Credentials** | AES-256-GCM encrypted authentication |
 | **992+ Automated Tests** | Backend (pytest), Frontend (vitest), E2E (Playwright) |
@@ -43,7 +43,7 @@ make logs         # View logs
 make down         # Stop services
 ```
 
-### Air-Gap Install
+### Offline Install
 
 ```bash
 # Download latest release
@@ -66,9 +66,9 @@ blacklist/
 │   ├── lib/api.ts          # Centralized API client
 │   └── e2e/                # Playwright E2E tests
 ├── deploy/
-│   ├── docker/             # Development compose (named volumes)
-│   ├── sandbox/            # Sandbox compose (GHCR images)
-│   └── airgap/             # Air-gap compose (local images)
+│   ├── docker-compose.yml  # Development compose (named volumes)
+│   ├── base.yml            # Shared service definitions
+│   └── sandbox/            # Sandbox compose (GHCR images)
 ├── postgres/migrations/    # Raw SQL migrations (no ORM)
 └── tests/                  # Backend tests (pytest)
 ```
@@ -95,14 +95,14 @@ make test-e2e               # E2E (Playwright)
 | Workflow | Trigger | Purpose |
 |----------|---------|--------|
 | `ci.yml` | Push/PR to master | Lint → Test → Build → E2E → Push images |
-| `release.yml` | Tag `v*` | Build 5 images → Air-gap bundle → GitHub Release → GHCR |
+| `release.yml` | Tag `v*` | Build 5 images → Release bundle → GitHub Release → GHCR |
 | `deploy-sandbox.yml` | Manual / release trigger | SSH deploy to sandbox VM → GHCR pull → Health check |
 
 ### Deployment Targets
 
 | Environment | Method | Trigger |
 |-------------|--------|--------|
-| **Production** | Air-gap bundle (`docker load`) | Manual |
+| **Production** | Offline bundle (`docker load`) | Manual |
 | **Sandbox** | Watchtower auto-pull from GHCR | Automatic on `:latest` push |
 
 ## API
