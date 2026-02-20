@@ -1,0 +1,41 @@
+name: Wiki Bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attempt wiki bootstrap via GITHUB_TOKEN
+        run: |
+          set -ex
+          TMPDIR=$(mktemp -d)
+          cd "$TMPDIR"
+          
+          # Method 1: git init + force push (init strategy)
+          echo "=== Method 1: git init + force push ==="
+          git init -b master
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          echo "# Blacklist Intelligence Platform" > Home.md
+          echo "" >> Home.md
+          echo "Wiki bootstrap - will be replaced by full content" >> Home.md
+          git add .
+          git commit -m "Bootstrap wiki"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git"
+          git push -u origin master --force 2>&1 || echo "Method 1 FAILED"
+          
+          # Method 2: Try 'main' branch
+          echo "=== Method 2: Try main branch ==="
+          git branch -m master main 2>/dev/null || true
+          git push -u origin main --force 2>&1 || echo "Method 2 FAILED"
+          
+          # Verify
+          echo "=== Verification ==="
+          git ls-remote "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git" 2>&1 || echo "Wiki repo still not found"
+          
+          rm -rf "$TMPDIR"
