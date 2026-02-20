@@ -95,13 +95,19 @@ class TestManageCredentials:
         response = client.get("/api/collection/credentials/invalid")
         assert response.status_code == 400
 
-    def test_get_credentials_not_found(self, client, app):
-        """GET /api/collection/credentials/regtech when not configured returns 404"""
+    def test_get_credentials_not_configured(self, client, app):
+        """GET /api/collection/credentials/regtech when not configured returns 200 with defaults"""
         svc = app.extensions["secure_credential_service"]
         svc.get_credentials.return_value = None
 
         response = client.get("/api/collection/credentials/regtech")
-        assert response.status_code == 404
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["service_name"] == "REGTECH"
+        assert data["data"]["username"] == ""
+        assert data["data"]["enabled"] is False
+        assert data["data"]["connection_status"] == "unknown"
 
     def test_put_credentials_success(self, client, app):
         """PUT /api/collection/credentials/regtech updates credentials"""

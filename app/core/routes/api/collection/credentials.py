@@ -90,10 +90,24 @@ def manage_credentials(source: str):
             credentials = secure_credential_service.get_credentials(source_upper)
 
             if not credentials:
-                raise NotFoundError(
-                    message=f"Credentials not found for {source_upper}",
-                    resource="collection_credentials",
-                    details={"source": source_upper},
+                # Unconfigured credentials is a valid state, not an error.
+                # Return 200 with defaults so the frontend polling loop
+                # doesn't generate 404s every 30 seconds.
+                return jsonify(
+                    {
+                        "success": True,
+                        "data": {
+                            "service_name": source_upper,
+                            "username": "",
+                            "password": "",
+                            "enabled": False,
+                            "collection_interval": "daily",
+                            "last_collection": None,
+                            "connection_status": "unknown",
+                        },
+                        "timestamp": datetime.now().isoformat(),
+                        "request_id": g.request_id,
+                    }
                 )
 
             response_data = {
