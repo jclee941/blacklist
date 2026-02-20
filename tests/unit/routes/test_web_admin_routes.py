@@ -26,6 +26,22 @@ def make_app():
         mod.api_admin_get_regtech_credentials,
         methods=["GET"],
     )
+    bp.add_url_rule("/database-tables", "database_tables_page", mod.database_tables_page, methods=["GET"])
+    bp.add_url_rule(
+        "/api/credentials/<service_name>", "api_save_credentials", mod.api_save_credentials, methods=["POST"]
+    )
+    bp.add_url_rule(
+        "/api/admin/regtech/credentials",
+        "api_admin_save_regtech_credentials",
+        mod.api_admin_save_regtech_credentials,
+        methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/admin/regtech/credentials",
+        "api_admin_delete_regtech_credentials",
+        mod.api_admin_delete_regtech_credentials,
+        methods=["DELETE"],
+    )
     app.register_blueprint(bp)
     return app
 
@@ -249,5 +265,180 @@ class TestRegtechAdminGetCredentials:
         app = make_app()
         with app.test_client() as c:
             resp = c.get("/api/admin/regtech/credentials")
+
+        assert resp.status_code == 500
+
+
+class TestDatabaseTablesPage:
+    @patch("core.routes.web.admin_routes.render_template")
+    def test_success(self, mock_render):
+        mock_render.return_value = "<html>tables</html>"
+        app = make_app()
+
+        with app.test_client() as c:
+            resp = c.get("/database-tables")
+
+        assert resp.status_code == 200
+        mock_render.assert_called_once_with("database_tables.html")
+
+
+class TestSaveCredentials:
+    @patch("core.services.regtech_config_service.RegtechConfigService")
+    def test_success(self, mock_cls):
+        mock_svc = MagicMock()
+        mock_svc.save_regtech_credentials.return_value = {
+            "success": True,
+            "service_name": "REGTECH",
+            "is_authenticated": True,
+        }
+        mock_cls.return_value = mock_svc
+
+        app = make_app()
+        with app.test_client() as c:
+            resp = c.post("/api/credentials/regtech", json={"username": "admin", "password": "secret"})
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert "REGTECH" in data["message"]
+
+    @patch("core.services.regtech_config_service.RegtechConfigService")
+    def test_save_failure(self, mock_cls):
+        mock_svc = MagicMock()
+        mock_svc.save_regtech_credentials.return_value = {"success": False, "error": "db error"}
+        mock_cls.return_value = mock_svc
+
+        app = make_app()
+        with app.test_client() as c:
+            resp = c.post("/api/credentials/regtech", json={"username": "u", "password": "p"})
+
+        assert resp.status_code == 200
+        assert resp.get_json()["success"] is False
+
+    def test_missing_username(self):
+        app = make_app()
+        with app.test_client() as c:
+            resp = c.post("/api/credentials/regtech", json={"username": "", "password": "p"})
+
+        assert resp.status_code == 400
+
+    def test_missing_password(self):
+        app = make_app()
+        with app.test_client() as c:
+            resp = c.post("/api/credentials/regtech", json={"username": "u", "password": ""})
+
+        assert resp.status_code == 400
+
+    @patch("core.services.regtech_config_service.RegtechConfigService")
+    def test_exception(self, mock_cls):
+        mock_cls.side_effect = Exception("import error")
+
+        app = make_app()
+        with app.test_client() as c:
+            resp = c.post("/api/credentials/regtech", json={"username": "u", "password": "p"})
+
+        assert resp.status_code == 500
+
+
+class TestAdminSaveRegtechCredentials:
+    @patch("core.services.regtech_config_service.RegtechConfigService")
+    def test_success_triggers_collection(self, mock_cls):
+        mock_svc = MagicMock()
+        mock_svc.save_regtech_credentials.return_value = {
+            "success": True,
+            "service_name": "REGTECH",
+        }
+        mock_cls.return_value = mock_svc
+
+        app = make_app()
+        mock_coll = MagicMock()
+        mock_coll.trigger_regtech_collection.return_value = {"success": True, "count": 5}
+        app.extensions["collection_service"] = mock_coll
+
+        with app.test_client() as c:
+            resp = c.post(
+                "/api/admin/regtech/credentials",
+                json={"username": "admin", "password": "secret"},
+            )
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert data["data"]["auto_collection_started"] is True
+        mock_coll.trigger_regtech_collection.assert_called_once()
+
+    @patch("core.services.regtech_config_service.RegtechConfigService")
+    def test_collection_trigger_fails(self, mock_cls):
+        mock_svc = MagicMock()
+        mock_svc.save_regtech_credentials.return_value = {
+            "success": True,
+            "service_name": "REGTECH",
+        }
+        mock_cls.return_value = mock_svc
+
+        app = make_app()
+        mock_coll = MagicMock()
+        mock_coll.trigger_regtech_collection.side_effect = Exception("collection failed")
+        app.extensions["collection_service"] = mock_coll
+
+        with app.test_client() as c:
+            resp = c.post(
+                "/api/admin/regtech/credentials",
+                json={"username": "u", "password": "p"},
+            )
+
+        assert resp.status_code == 500
+
+    @patch("core.services.regtech_config_service.RegtechConfigService")
+    def test_exception(self, mock_cls):
+        mock_cls.side_effect = Exception("crash")
+
+        app = make_app()
+        app.extensions["collection_service"] = MagicMock()
+
+        with app.test_client() as c:
+            resp = c.post(
+                "/api/admin/regtech/credentials",
+                json={"username": "u", "password": "p"},
+            )
+
+        assert resp.status_code == 500
+
+
+class TestAdminDeleteRegtechCredentials:
+    def test_success(self):
+        app = make_app()
+        mock_db = MagicMock()
+        mock_db.delete_collection_credentials.return_value = {"success": True}
+        app.extensions["db_service"] = mock_db
+
+        with app.test_client() as c:
+            resp = c.delete("/api/admin/regtech/credentials")
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert "REGTECH" in data["message"]
+
+    def test_failure(self):
+        app = make_app()
+        mock_db = MagicMock()
+        mock_db.delete_collection_credentials.return_value = {"success": False, "error": "not found"}
+        app.extensions["db_service"] = mock_db
+
+        with app.test_client() as c:
+            resp = c.delete("/api/admin/regtech/credentials")
+
+        assert resp.status_code == 200
+        assert resp.get_json()["success"] is False
+
+    def test_exception(self):
+        app = make_app()
+        mock_db = MagicMock()
+        mock_db.delete_collection_credentials.side_effect = Exception("db down")
+        app.extensions["db_service"] = mock_db
+
+        with app.test_client() as c:
+            resp = c.delete("/api/admin/regtech/credentials")
 
         assert resp.status_code == 500
