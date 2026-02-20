@@ -42,7 +42,6 @@ const mockAnalyticsResponse = {
         first_collected: '2025-01-15T00:00:00Z',
         last_collected: '2025-01-15T23:59:00Z',
         is_suspicious: false,
-        suspicious_patterns: [],
       },
       {
         detection_day: '2025-01-14',
@@ -52,7 +51,6 @@ const mockAnalyticsResponse = {
         first_collected: '2025-01-14T00:00:00Z',
         last_collected: '2025-01-14T23:59:00Z',
         is_suspicious: true,
-        suspicious_patterns: ['spike'],
       },
     ],
     source_statistics: [
@@ -65,11 +63,6 @@ const mockAnalyticsResponse = {
         avg_per_day: 80,
       },
     ],
-    suspicious_analysis: {
-      suspicious_days_count: 1,
-      pattern_summary: { spike: 1 },
-      suspicious_days: [],
-    },
   },
 };
 
@@ -123,26 +116,12 @@ describe('AnalyticsPage', () => {
     });
   });
 
-  it('shows suspicious days count', async () => {
-    render(<AnalyticsPage />);
-    await waitFor(() => {
-      expect(screen.getByText('1\uc77c')).toBeInTheDocument();
-    });
-  });
-
   it('renders timeline table with data', async () => {
     render(<AnalyticsPage />);
     await waitFor(() => {
       expect(screen.getByText('\uc77c\ubcc4 \uc218\uc9d1 \ud604\ud669')).toBeInTheDocument();
       expect(screen.getByText('2025-01-15')).toBeInTheDocument();
       expect(screen.getByText('150')).toBeInTheDocument();
-    });
-  });
-
-  it('shows suspicious badge for suspicious entries', async () => {
-    render(<AnalyticsPage />);
-    await waitFor(() => {
-      expect(screen.getByText('\uc218\uc0c1')).toBeInTheDocument();
     });
   });
 

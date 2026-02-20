@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { BarChart3, Calendar, TrendingUp, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  BarChart3,
+  Calendar,
+  TrendingUp,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { getDailyDetectionStats } from '@/lib/api';
 
 interface TimelineData {
@@ -11,8 +18,6 @@ interface TimelineData {
   sources: string;
   first_collected: string;
   last_collected: string;
-  is_suspicious: boolean;
-  suspicious_patterns: string[];
 }
 
 interface AnalyticsResponse {
@@ -34,11 +39,6 @@ interface AnalyticsResponse {
       last_detection: string;
       avg_per_day: number;
     }>;
-    suspicious_analysis: {
-      suspicious_days_count: number;
-      pattern_summary: Record<string, number>;
-      suspicious_days: TimelineData[];
-    };
   };
 }
 
@@ -69,7 +69,6 @@ export default function AnalyticsPage() {
   const timeline = data?.data?.timeline || [];
   const metadata = data?.data?.metadata;
   const sourceStats = data?.data?.source_statistics || [];
-  const suspiciousAnalysis = data?.data?.suspicious_analysis;
 
   const totalPages = Math.ceil(timeline.length / itemsPerPage);
   const paginatedTimeline = timeline.slice(
@@ -77,7 +76,7 @@ export default function AnalyticsPage() {
     currentPage * itemsPerPage
   );
 
-  const maxCount = Math.max(...timeline.map(d => d.ip_count), 1);
+  const maxCount = Math.max(...timeline.map((d) => d.ip_count), 1);
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -118,8 +117,8 @@ export default function AnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[1, 2, 3].map((i) => (
             <div key={i} className="bg-white rounded-xl p-6 shadow-lg animate-pulse">
               <div className="h-12 bg-gray-200 rounded mb-4"></div>
               <div className="h-8 bg-gray-200 rounded"></div>
@@ -128,7 +127,7 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <div className="flex items-center space-x-3 mb-2">
                 <div className="bg-blue-500 p-2 rounded-lg">
@@ -148,9 +147,7 @@ export default function AnalyticsPage() {
                 </div>
                 <span className="text-gray-600 text-sm">활성 일수</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">
-                {metadata?.total_days || 0}일
-              </p>
+              <p className="text-3xl font-bold text-gray-900">{metadata?.total_days || 0}일</p>
             </div>
 
             <div className="bg-white rounded-xl p-6 shadow-lg">
@@ -164,18 +161,6 @@ export default function AnalyticsPage() {
                 {metadata?.avg_per_day?.toLocaleString() || 0}
               </p>
             </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="flex items-center space-x-3 mb-2">
-                <div className={`p-2 rounded-lg ${(suspiciousAnalysis?.suspicious_days_count || 0) > 0 ? 'bg-red-500' : 'bg-gray-400'}`}>
-                  <AlertTriangle className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-gray-600 text-sm">수상한 패턴</span>
-              </div>
-              <p className={`text-3xl font-bold ${(suspiciousAnalysis?.suspicious_days_count || 0) > 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                {suspiciousAnalysis?.suspicious_days_count || 0}일
-              </p>
-            </div>
           </div>
 
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
@@ -184,47 +169,41 @@ export default function AnalyticsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">탐지일</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">IP 수</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">분포</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">소스</th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">상태</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
+                      탐지일
+                    </th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
+                      IP 수
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
+                      분포
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
+                      소스
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedTimeline.map((item, index) => (
-                    <tr 
-                      key={index} 
-                      className={`border-b border-gray-100 hover:bg-gray-50 ${item.is_suspicious ? 'bg-red-50' : ''}`}
-                    >
+                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <span className="font-medium text-gray-900">{item.detection_day}</span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="font-bold text-gray-900">{item.ip_count.toLocaleString()}</span>
+                        <span className="font-bold text-gray-900">
+                          {item.ip_count.toLocaleString()}
+                        </span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className={`h-2.5 rounded-full ${item.is_suspicious ? 'bg-red-500' : 'bg-blue-500'}`}
+                          <div
+                            className="h-2.5 rounded-full bg-blue-500"
                             style={{ width: `${(item.ip_count / maxCount) * 100}%` }}
                           ></div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <span className="text-sm text-gray-600">{item.sources}</span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {item.is_suspicious ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            수상
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            정상
-                          </span>
-                        )}
                       </td>
                     </tr>
                   ))}
@@ -235,11 +214,12 @@ export default function AnalyticsPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
                 <span className="text-sm text-gray-600">
-                  {timeline.length}개 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, timeline.length)}
+                  {timeline.length}개 중 {(currentPage - 1) * itemsPerPage + 1}-
+                  {Math.min(currentPage * itemsPerPage, timeline.length)}
                 </span>
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -249,7 +229,7 @@ export default function AnalyticsPage() {
                     {currentPage} / {totalPages}
                   </span>
                   <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >

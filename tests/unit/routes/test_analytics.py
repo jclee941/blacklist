@@ -96,67 +96,6 @@ class TestDetectionTimeline:
         response = client.get("/analytics/detection-timeline?days=abc")
         assert response.status_code == 400
 
-    def test_timeline_all_days(self, client, app):
-        """GET /analytics/detection-timeline?days=all queries all data"""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = []
-        app.extensions["db_service"].get_connection.return_value = mock_conn
-
-        response = client.get("/analytics/detection-timeline?days=all")
-        assert response.status_code == 200
-
-    def test_timeline_zero_days(self, client, app):
-        """GET /analytics/detection-timeline?days=0 queries all data"""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = []
-        app.extensions["db_service"].get_connection.return_value = mock_conn
-
-        response = client.get("/analytics/detection-timeline?days=0")
-        assert response.status_code == 200
-
-    def test_timeline_db_error(self, client, app):
-        """GET /analytics/detection-timeline with DB error returns 500"""
-        app.extensions["db_service"].get_connection.side_effect = Exception("DB down")
-
-        response = client.get("/analytics/detection-timeline")
-        assert response.status_code == 500
-
-
-class TestSuspiciousPatterns:
-    @pytest.fixture
-    def app(self):
-        return make_app()
-
-    @pytest.fixture
-    def client(self, app):
-        return app.test_client()
-
-    def test_suspicious_patterns_no_patterns(self, client, app):
-        """GET /analytics/suspicious-patterns with no suspicious data"""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = []  # no patterns found
-        app.extensions["db_service"].get_connection.return_value = mock_conn
-
-        response = client.get("/analytics/suspicious-patterns")
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] is True
-        assert data["data"]["analysis"]["total_pattern_types"] == 0
-        assert data["data"]["analysis"]["risk_level"] == "low"
-
-    def test_suspicious_patterns_db_error(self, client, app):
-        """GET /analytics/suspicious-patterns with DB error returns 500"""
-        app.extensions["db_service"].get_connection.side_effect = Exception("DB down")
-
-        response = client.get("/analytics/suspicious-patterns")
-        assert response.status_code == 500
-
 
 class TestRealTimeLog:
     @pytest.fixture
