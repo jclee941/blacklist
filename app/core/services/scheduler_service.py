@@ -1,6 +1,7 @@
 """
 자동 수집 스케줄러 서비스
-실제 REGTECH/SECUDIUM 데이터를 주기적으로 수집
+실제 REGTECH 데이터를 주기적으로 수집
+(SECUDIUM은 수동 수집만 지원)
 """
 
 import threading
@@ -90,24 +91,6 @@ class CollectionScheduler:
                     logger.warning("❌ REGTECH 수집 실패 또는 데이터 없음")
             except Exception as e:
                 logger.error(f"REGTECH 수집 오류: {e}")
-
-            # SECUDIUM 수집
-            try:
-                import requests as req
-
-                resp = req.post(
-                    f"{config.COLLECTOR_URL}/api/scheduler/force-collection/SECUDIUM",
-                    timeout=300,
-                )
-                secudium_result = resp.json() if resp.status_code == 200 else {}
-                if secudium_result.get("success"):
-                    collected_count = secudium_result.get("collected_count", 0)
-                    logger.info(f"SECUDIUM 수집 완료: {collected_count}개")
-                    self.last_collection["secudium"] = datetime.now()
-                else:
-                    logger.warning(f"SECUDIUM 수집 실패: {secudium_result.get('error', 'unknown')}")
-            except Exception as e:
-                logger.error(f"SECUDIUM 수집 오류: {e}")
 
             # 해제일 지난 IP 비활성화
             self._deactivate_expired_ips()
@@ -229,19 +212,6 @@ class CollectionScheduler:
                 INSERT INTO collection_stats (timestamp, source, total_ips, last_seen)
                 SELECT NOW(), 'REGTECH', COUNT(*), MAX(last_seen)
                 FROM blacklist_ips WHERE data_source = 'REGTECH'
-                ON CONFLICT (source) DO UPDATE SET
-                    total_ips = EXCLUDED.total_ips,
-                    last_seen = EXCLUDED.last_seen,
-                    timestamp = EXCLUDED.timestamp
-                """
-            )
-
-            # SECUDIUM 통계 업데이트
-            self.db_service.query(
-                """
-                INSERT INTO collection_stats (timestamp, source, total_ips, last_seen)
-                SELECT NOW(), 'secudium', COUNT(*), MAX(last_seen)
-                FROM blacklist_ips WHERE source = 'secudium'
                 ON CONFLICT (source) DO UPDATE SET
                     total_ips = EXCLUDED.total_ips,
                     last_seen = EXCLUDED.last_seen,

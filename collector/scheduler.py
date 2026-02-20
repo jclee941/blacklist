@@ -45,6 +45,7 @@ class CollectionScheduler:
         self.auto_collection_disabled = os.getenv("DISABLE_AUTO_COLLECTION", "false").lower() == "true"
 
         # 지원하는 수집 소스 (scheduler_api에서 validation에 사용)
+        # SECUDIUM: 수동 수집만 지원 (자동 스케줄 없음)
         self.collectors = {
             "REGTECH": "_collect_regtech_data",
             "SECUDIUM": "_collect_secudium_data",
@@ -115,13 +116,10 @@ class CollectionScheduler:
         # 24시간마다 1회 수집 (매일 오전 2시)
         schedule.every().day.at("02:00").do(self._daily_collection, "일일 정기")
 
-        # Secudium 수집 (매일 오전 3시)
-        schedule.every().day.at("03:00").do(self._daily_secudium_collection, "Secudium 정기")
-
         # 매일 자정에 만료된 IP 정리
         schedule.every().day.at("00:00").do(self._cleanup_expired_ips)
 
-        logger.info("📅 24시간 수집 스케줄 설정 완료 (REGTECH 02:00, Secudium 03:00, 만료 정리 00:00)")
+        logger.info("📅 24시간 수집 스케줄 설정 완료 (REGTECH 02:00, 만료 정리 00:00)")
 
     def _run_adaptive_collection(self) -> bool:
         """적응형 수집 실행"""
@@ -339,47 +337,6 @@ class CollectionScheduler:
                 execution_time_ms=int((datetime.now() - start_time).total_seconds() * 1000),
                 error_message=str(e),
             )
-
-    def _daily_secudium_collection(self, schedule_name: str):
-        """Secudium 일일 정기 수집"""
-        logger.info(f"📆 Secudium 수집 시작: {schedule_name}")
-
-        try:
-            credentials = db_service.get_collection_credentials("SECUDIUM")
-            if not credentials:
-                logger.warning("⚠️ Secudium 자격증명 없음 — 수집 건너뜀")
-                return
-
-            if not credentials.get("enabled", False):
-                logger.info("⏭️ SECUDIUM 수집 비활성화 — 건너뜀")
-                return
-
-            username = credentials.get("username", "")
-            password = credentials.get("password", "")
-            if not username or not password:
-                logger.warning("⚠️ Secudium 자격증명 불완전 — 수집 건너뜀")
-                return
-
-            config = credentials.get("config", {})
-            otp_config = CollectorConfig.get_secudium_otp_config()
-            email_address = config.get("email", "") or otp_config["email"]
-            email_password = config.get("email_password", "") or otp_config["email_password"]
-            imap_server = config.get("imap_server", "") or otp_config["imap_server"]
-
-            result = self._collect_secudium_data(
-                username,
-                password,
-                email_address=email_address,
-                email_password=email_password,
-                imap_server=imap_server,
-            )
-            if result.get("success"):
-                logger.info(f"✅ Secudium 일일 수집 완료: {result.get('collected_count', 0)}개 IP")
-            else:
-                logger.error(f"❌ Secudium 일일 수집 실패: {result.get('error')}")
-
-        except Exception as e:
-            logger.error(f"❌ Secudium 일일 수집 오류: {e}")
 
     def stop(self):
         """스케줄러 중지"""

@@ -23,10 +23,10 @@ AVAILABLE_SOURCES = [
     {
         "id": "SECUDIUM",
         "name": "SECUDIUM",
-        "description": "SECUDIUM threat intelligence (OTP 인증 기반)",
+        "description": "SECUDIUM threat intelligence (OTP 인증 기반, 수동 수집 전용)",
         "enabled": True,
         "requires_auth": True,
-        "schedule": "daily",
+        "schedule": "manual",
         "data_types": ["ip"],
     },
 ]
