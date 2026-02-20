@@ -16,7 +16,7 @@
 #   4. Commit VERSION + CHANGELOG
 #   5. Create annotated tag v{VERSION}
 #   6. Push to master + push tag
-#   7. Release pipeline auto-triggers (build → package → GHCR → sandbox)
+#   7. Release pipeline auto-triggers (build → package → GHCR)
 # =============================================================================
 
 set -euo pipefail
@@ -248,7 +248,7 @@ echo "  2. Build 5 Docker images (frontend, app, collector, postgres, redis)"
 echo "  3. Package release bundle"
 echo "  4. Create GitHub Release with assets"
 echo "  5. Push images to GHCR"
-echo "  6. Trigger sandbox auto-update (Watchtower)"
+echo "  6. Push images to GHCR"
 echo "  7. Send Slack notification"
 echo ""
 echo -e "Monitor: ${CYAN}${REPO_URL}/actions${NC}"

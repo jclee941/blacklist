@@ -137,7 +137,7 @@ tests/mock-fortigate/   # Mock FortiManager API server
 
 - **CI:** push → detect-changes → lint/test (parallel) → build → e2e (smoke/chromium/webkit)
 - **Release:** tag `v*` → validate VERSION==tag → build → package bundle → GitHub Release → GHCR
-- **Deploy:** prod=manual offline `docker load` | sandbox=Watchtower HTTP API auto-pull
+- **Deploy:** prod=manual offline `docker load`
 
 ## NOTES
 

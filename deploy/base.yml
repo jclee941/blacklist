@@ -1,5 +1,5 @@
 # Shared base service definitions for Blacklist platform
-# Used by docker-compose.yml, docker-compose.release.yml, and sandbox/ via 'extends'
+# Used by docker-compose.yml and docker-compose.release.yml via 'extends'
 #
 # NOTE: This file is NOT used directly. Each environment extends these
 # service definitions and adds its own image/build configuration.

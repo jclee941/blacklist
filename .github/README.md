@@ -23,7 +23,6 @@
     ├── README.md                  # Workflow documentation
     ├── ci.yml                     # CI pipeline (push/PR)
     ├── release.yml                # Release pipeline (tag v*)
-    ├── deploy-sandbox.yml         # Sandbox deployment
     ├── build-images.yml           # Reusable: Docker builds
 ```
 
@@ -56,17 +55,7 @@
 6. `trigger-sandbox` — Watchtower HTTP trigger for auto-deploy
 7. `notify` — Slack notification
 
-### 3. Sandbox Deploy (`deploy-sandbox.yml`)
-
-**Trigger**: `workflow_dispatch` / called by release
-
-**Jobs**:
-1. SSH to sandbox VM (192.168.50.220)
-2. Pull latest images from GHCR
-3. Restart services via docker compose
-4. Health check verification
-
-### 4. Build Images (`build-images.yml`) — Reusable
+### 3. Build Images (`build-images.yml`) — Reusable
 
 Matrix Docker build for: `postgres`, `redis`, `collector`, `app`, `frontend`
 
@@ -91,8 +80,6 @@ Matrix Docker build for: `postgres`, `redis`, `collector`, `app`, `frontend`
 | `REGTECH_ID` | release.yml | REGTECH portal ID |
 | `REGTECH_PW` | release.yml | REGTECH portal password |
 | `POSTGRES_PASSWORD` | release.yml | PostgreSQL password |
-| `SANDBOX_SSH_KEY` | deploy-sandbox.yml | SSH key for sandbox VM |
-| `SANDBOX_HOST` | deploy-sandbox.yml | Sandbox VM address |
 | `SLACK_WEBHOOK_URL` | release.yml | Slack notifications (optional) |
 
 ---

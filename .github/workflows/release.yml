@@ -152,37 +152,8 @@ jobs:
           docker push "${IMAGE}:${VERSION}"
           docker push "${IMAGE}:latest"
 
-  trigger-sandbox-update:
-    name: Trigger Sandbox Auto-Update
-    needs: [push-to-registry]
-    if: ${{ !inputs.dry_run }}
-    # Requires a self-hosted runner with the 'deploy' label registered in repo/org settings
-    runs-on: ${{ vars.DEPLOY_RUNNER || 'self-hosted' }}
-    continue-on-error: true
-    steps:
-      - name: Trigger Watchtower on Sandbox
-        env:
-          SANDBOX_HOST: 192.168.50.220
-          WATCHTOWER_TOKEN: ${{ secrets.WATCHTOWER_TOKEN }}
-        run: |
-          if [ -z "${WATCHTOWER_TOKEN}" ]; then
-            echo "⚠️ WATCHTOWER_TOKEN secret not set — skipping"
-            exit 0
-          fi
-
-          echo "🔄 Triggering Watchtower update on ${SANDBOX_HOST}..."
-          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${WATCHTOWER_TOKEN}" \
-            "http://${SANDBOX_HOST}:8080/v1/update" 2>/dev/null || echo "000")
-
-          if [ "${HTTP_CODE}" = "200" ]; then
-            echo "✅ Watchtower triggered — sandbox will pull :latest images"
-          else
-            echo "⚠️ Watchtower trigger returned HTTP ${HTTP_CODE} (non-blocking)"
-          fi
-
   notify:
-    needs: [validate, create-release, push-to-registry, trigger-sandbox-update]
+    needs: [validate, create-release, push-to-registry]
     if: always()
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
