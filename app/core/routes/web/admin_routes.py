@@ -21,9 +21,7 @@ def database_tables_page():
 def api_admin_get_regtech_credentials():
     """REGTECH 관리자 인증정보 조회 API"""
     try:
-        from ...services.regtech_config_service import RegtechConfigService
-
-        regtech_service = RegtechConfigService()
+        regtech_service = current_app.extensions["regtech_config_service"]
 
         credentials = regtech_service.get_regtech_credentials()
 
@@ -197,9 +195,7 @@ def api_save_credentials(service_name):
             )
 
         # 인증정보 저장 - REGTECH 서비스 사용
-        from ...services.regtech_config_service import RegtechConfigService
-
-        regtech_service = RegtechConfigService()
+        regtech_service = current_app.extensions["regtech_config_service"]
 
         result = regtech_service.save_regtech_credentials(username, password)
 
