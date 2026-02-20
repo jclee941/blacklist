@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Type Check
         if: ${{ inputs.run-typecheck }}
-        run: npm run typecheck || echo "Type check completed with warnings"
+        run: npm run typecheck
 
       - name: Run Tests
         if: ${{ inputs.run-test }}

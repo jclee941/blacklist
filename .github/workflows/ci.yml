@@ -1,6 +1,6 @@
 # Consolidated CI Pipeline
 # Replaces: ci.yml (frontend-only) + ci-new.yml (self-hosted only)
-# Fixes: tsc error suppression (|| echo), vitest continue-on-error, missing backend CI
+# Fixes: vitest continue-on-error, missing backend CI
 # Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
 name: CI
 

@@ -97,7 +97,7 @@ RUN mkdir -p logs
 # Minimal production image with only runtime dependencies
 # Security: Non-root user, minimal attack surface
 # ============================================================================
-FROM python:3.11-slim-bullseye as production
+FROM python:3.11-slim-bullseye AS production
 
 # ============================================================================
 # Build Arguments (Metadata Only — NO secrets!)

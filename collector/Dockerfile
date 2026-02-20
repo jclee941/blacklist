@@ -59,7 +59,6 @@ ENV PYTHONPATH=/app \
     POSTGRES_PORT=5432 \
     POSTGRES_DB=blacklist \
     POSTGRES_USER=postgres \
-    POSTGRES_PASSWORD=postgres \
     REDIS_HOST=blacklist-redis \
     REDIS_PORT=6379 \
     REGTECH_BASE_URL=https://regtech.fsec.or.kr \
