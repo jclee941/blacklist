@@ -1,8 +1,8 @@
 # 시스템 설계서 (System Design)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.5.11  
-**작성일:** 2026-01-15  
+**버전:** 3.6.3  
+**작성일:** 2026-02-23  
 **문서번호:** DES-REGTECH-2026-001
 
 ---
@@ -11,134 +11,166 @@
 
 ### 1.1 시스템 구성도
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           Internet / Air-Gap Zone                        │
-└─────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         Traefik v3 (Reverse Proxy)                       │
-│                            Port: 80, 443                                 │
-│                         SSL Termination, Routing                         │
-└─────────────────────────────────────────────────────────────────────────┘
-           │                         │                         │
-           ▼                         ▼                         ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Frontend      │     │   Flask API     │     │   Collector     │
-│   Next.js 15    │     │   REST API      │     │   ETL Service   │
-│   Port: 2543    │     │   Port: 2542    │     │   Port: 8545    │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-           │                    │    │                    │
-           │                    │    │                    │
-           └────────────────────┼────┼────────────────────┘
-                                │    │
-                    ┌───────────┘    └───────────┐
-                    ▼                            ▼
-          ┌─────────────────┐          ┌─────────────────┐
-          │  PostgreSQL 15  │          │    Redis 7      │
-          │   Port: 5432    │          │   Port: 6379    │
-          │   (Data Store)  │          │   (Cache)       │
-          └─────────────────┘          └─────────────────┘
+```mermaid
+graph TD
+    subgraph "External Sources"
+        REGTECH["REGTECH<br/>한국금융보안원"]
+        SECUDIUM["Secudium/ISAP<br/>SK쉴더스"]
+        FORTIGATE["FortiGate<br/>방화벽"]
+    end
+
+    subgraph "Blacklist Platform (Docker Host Network)"
+        PG[("PostgreSQL 15<br/>:5432")]
+        REDIS[("Redis 7<br/>:6379")]
+        COLLECTOR["Collector<br/>ETL Service<br/>:8545"]
+        APP["App<br/>Flask API<br/>:2542"]
+        FRONTEND["Frontend<br/>Next.js 15<br/>:443"]
+    end
+
+    subgraph "Clients"
+        BROWSER["웹 브라우저"]
+        FORTIMGR["FortiManager"]
+    end
+
+    REGTECH -->|HTTPS| COLLECTOR
+    SECUDIUM -->|HTTPS + OTP| COLLECTOR
+    COLLECTOR -->|Raw SQL| PG
+    COLLECTOR -->|캐시| REDIS
+    APP -->|Raw SQL| PG
+    APP -->|캐시/메트릭| REDIS
+    APP -->|HTTP POST| COLLECTOR
+    FRONTEND -->|Proxy /api/*| APP
+    BROWSER -->|HTTPS :443| FRONTEND
+    APP -->|JSON-RPC| FORTIMGR
+    FORTIGATE -->|Pull| APP
 ```
 
 ### 1.2 설계 원칙
 
 | 원칙 | 설명 | 구현 방식 |
 |------|------|----------|
-| **Air-Gap First** | 폐쇄망 환경 우선 설계 | Git LFS를 Docker Registry로 활용 |
-| **Manual DI** | 수동 의존성 주입 | ServiceFactory 패턴, No global state |
-| **Raw SQL Only** | ORM 사용 금지 | SQLAlchemy/Prisma 배제, Raw SQL 사용 |
+| **Air-Gap First** | 폐쇄망 환경 우선 설계 | Docker 이미지 번들, 오프라인 설치 스크립트 |
+| **Manual DI** | 수동 의존성 주입 | ServiceFactory 패턴, `current_app.extensions[]` |
+| **Raw SQL Only** | ORM 사용 금지 | SQLAlchemy/Prisma 배제, parameterized `%s` 사용 |
 | **Shared-Nothing** | 서비스 간 코드 공유 금지 | DB/Redis/HTTP로만 통신 |
-| **Proxy Mandate** | API 프록시 강제 | Frontend는 lib/api.ts 통해서만 API 호출 |
+| **Proxy Mandate** | API 프록시 강제 | Frontend는 `lib/api.ts` 통해서만 API 호출 |
+| **Host Network** | Docker host 네트워크 모드 | `network_mode: host`, Named Volume 영속화 |
 
 ---
 
 ## 2. 서비스 아키텍처
 
-### 2.1 Frontend Service (Next.js 15)
+### 2.1 서비스 목록
+
+| 서비스 | 이미지 | 포트 | 헬스체크 | 볼륨 |
+|--------|--------|------|----------|------|
+| **blacklist-frontend** | `node:20-alpine` | 443 | `curl --insecure /health` | — |
+| **blacklist-app** | `python:3.11-slim` | 2542 | `curl /health` | `blacklist-logs`, `blacklist-uploads` |
+| **blacklist-collector** | `python:3.11-slim` | 8545 | `curl /health` | `blacklist-collector-data` |
+| **blacklist-postgres** | `postgres:15-alpine` | 5432 | `pg_isready` | `blacklist-pgdata` |
+| **blacklist-redis** | `redis:7-alpine` | 6379 | `redis-cli ping` | `blacklist-redis-data` |
+
+### 2.2 Frontend Service (Next.js 15)
 
 ```
 frontend/
 ├── app/                    # App Router (Server Components)
-│   ├── page.tsx           # Dashboard
-│   ├── ip-management/     # IP 관리
-│   ├── collection/        # 수집 관리
-│   ├── fortinet/          # Fortinet 연동
-│   ├── settings/          # 설정
-│   └── database/          # DB 관리
+│   ├── page.tsx            # Dashboard
+│   ├── ip-management/      # IP 관리
+│   ├── collection/         # 수집 관리
+│   ├── fortinet/           # Fortinet 연동
+│   ├── analytics/          # 분석 대시보드
+│   ├── monitoring/         # 시스템 모니터링
+│   ├── settings/           # 설정
+│   └── database/           # DB 관리
 ├── components/
-│   ├── ui/                # Radix UI Primitives
-│   └── features/          # 도메인 컴포넌트
+│   └── ui/                 # Radix UI / shadcn Primitives
 ├── lib/
-│   └── api.ts             # API Client (필수)
-└── types/
-    └── index.ts           # TypeScript 인터페이스
+│   └── api.ts              # Centralized API Client (필수 프록시)
+├── hooks/                  # Custom React hooks
+├── types/                  # TypeScript 인터페이스
+├── __tests__/              # Unit tests (Vitest, 44 files, 207+ tests)
+└── e2e/                    # E2E tests (Playwright)
 ```
 
 **기술 스택:**
-- Next.js 15.x (App Router)
-- React 19.x
-- TypeScript 5.x
+- Next.js 15.x (App Router, Standalone output)
+- React 19.x, TypeScript 5.x
 - Tailwind CSS v4
-- React Query (서버 상태)
-- Zustand (클라이언트 상태)
+- React Query (서버 상태), Zustand (클라이언트 상태)
+- 내장 SSL (Self-signed, Docker 이미지 포함)
 
-### 2.2 Backend API Service (Flask)
+### 2.3 Backend API Service (Flask)
 
 ```
 app/
+├── run_app.py              # Entry Point
 ├── core/
+│   ├── app.py              # Application Factory (479L, complexity 39.91)
+│   ├── config.py           # 48 @property 환경 설정
 │   ├── routes/
-│   │   ├── api/           # JSON API 엔드포인트
-│   │   │   ├── dashboard_api.py
-│   │   │   ├── ip_management_api.py
-│   │   │   ├── collection/
-│   │   │   ├── fortinet/
-│   │   │   └── database_api.py
-│   │   └── web/           # Legacy HTML 라우트
-│   ├── services/          # 비즈니스 로직
-│   │   ├── service_factory.py
-│   │   ├── database_service.py
-│   │   ├── blacklist_service.py
-│   │   ├── credential_service.py
-│   │   └── fortimanager_service.py
-│   └── utils/             # 유틸리티
-│       ├── encryption.py
-│       └── validators.py
-└── run_app.py             # Entry Point
+│   │   ├── api/            # REST API (6 blueprints, CSRF-exempt)
+│   │   │   ├── blacklist/  # 블랙리스트 CRUD (core/management/batch/system)
+│   │   │   ├── collection/ # 수집 관리 (9 files, 18 endpoints)
+│   │   │   ├── fortinet/   # Fortinet 연동 (threat feed, device, health)
+│   │   │   ├── ip_management/ # IP 관리 (11 routes)
+│   │   │   └── ...         # dashboard, settings, analytics, error_metrics
+│   │   └── web/            # Legacy 한국어 Admin (5 blueprints, Jinja2)
+│   ├── services/           # 14개 비즈니스 서비스 (ServiceFactory DI)
+│   ├── auth/               # JWT 인증 (현재 비활성)
+│   ├── database/           # SmartConnectionManager, 복구 메커니즘
+│   ├── monitoring/         # Prometheus 메트릭
+│   ├── exceptions/         # RFC 7807 APIError 계층
+│   └── utils/              # 응답 헬퍼, AES-256-GCM 암호화, 캐싱, 검증
+├── requirements.txt
+└── Dockerfile
 ```
 
 **기술 스택:**
-- Flask 3.x
-- Python 3.11+
-- psycopg2 (PostgreSQL)
-- redis-py
-- APScheduler
+- Flask 3.x (Application Factory 패턴)
+- Python 3.11+, psycopg2 (ThreadedConnectionPool)
+- Flask-Limiter (Rate Limiting)
 
-### 2.3 Collector Service
+### 2.4 Collector Service (ETL)
 
 ```
 collector/
-├── api/                   # 외부 소스 어댑터
-│   ├── regtech_api.py     # REGTECH (curl)
-│   └── osint_apis.py      # OSINT 소스들
-├── core/                  # ETL 로직
-│   ├── regtech_collector.py
-│   ├── multi_source_collector.py
-│   └── authentication.py
-├── collector/             # 오케스트레이션
-│   ├── run_collector.py
-│   ├── scheduler.py
-│   └── health_server.py
-└── utils/
+├── run_collector.py        # CollectorApplication entry point
+├── config.py               # CollectorConfig
+├── scheduler.py            # CollectionScheduler (APScheduler, adaptive 300s–3600s)
+├── scheduler_api.py        # Scheduler REST API
+├── health_server.py        # HealthServer (:8545)
+└── core/
+    ├── database.py         # Collector DatabaseService
+    ├── regtech/            # REGTECH 수집 패키지
+    │   ├── regtech_collector.py
+    │   ├── regtech_auth.py     # 다단계 인증 (세션 기반)
+    │   ├── regtech_parser.py
+    │   └── regtech_data_processor.py
+    ├── multi_source/       # 멀티소스 수집 패키지
+    │   ├── secudium_collector.py
+    │   ├── secudium_parser.py
+    │   ├── fortigate_collector.py
+    │   └── generic_parser.py
+    ├── data_quality.py     # DataQualityManager
+    ├── ip_validator.py     # IPValidator
+    └── rate_limiter.py     # Token Bucket Rate Limiter
 ```
 
 **기술 스택:**
-- Python 3.11+
-- Requests/httpx
-- BeautifulSoup4
-- pandas (Excel 파싱)
+- Python 3.11+ (독립 런타임, Flask 미사용)
+- APScheduler, Requests/httpx, BeautifulSoup4, openpyxl
+
+**Collector 엔드포인트:**
+
+| 경로 | 메서드 | 설명 |
+|------|--------|------|
+| `/health` | GET | 헬스체크 |
+| `/status` | GET | 전체 상태 |
+| `/trigger/<source>` | POST | 수집 트리거 |
+| `/api/scheduler/status` | GET | 스케줄러 상태 |
+| `/api/scheduler/force-collection/<source>` | POST | 강제 수집 |
+| `/api/test-auth/<source>` | GET | 인증 테스트 |
 
 ---
 
@@ -146,76 +178,141 @@ collector/
 
 ### 3.1 ER 다이어그램
 
+```mermaid
+erDiagram
+    blacklist_ips {
+        serial id PK
+        varchar45 ip_address UK
+        text reason
+        varchar100 source
+        varchar50 category
+        int confidence_level
+        int detection_count
+        boolean is_active
+        varchar10 country
+        jsonb raw_data
+    }
+
+    whitelist_ips {
+        serial id PK
+        varchar45 ip_address UK
+        text reason
+        varchar50 source
+        varchar10 country
+    }
+
+    unified_ip_list {
+        serial id PK
+        varchar45 ip_address
+        varchar20 list_type
+        varchar100 source
+        int confidence_level
+        boolean is_active
+    }
+
+    collection_credentials {
+        serial id PK
+        varchar100 service_name UK
+        text username
+        text password
+        jsonb config
+        boolean encrypted
+        boolean is_active
+    }
+
+    collection_history {
+        serial id PK
+        varchar100 service_name
+        timestamp collection_date
+        int items_collected
+        boolean success
+        text error_message
+        int execution_time_ms
+    }
+
+    collection_status {
+        serial id PK
+        varchar100 service_name UK
+        boolean enabled
+        timestamp last_run
+        varchar20 status
+        int error_count
+        int success_count
+    }
+
+    fortigate_devices {
+        serial id PK
+        varchar45 device_ip UK
+        varchar device_name
+        varchar firmware_version
+        boolean is_active
+        jsonb config
+    }
+
+    fortigate_pull_logs {
+        serial id PK
+        varchar ip_address
+        varchar device_ip
+        text user_agent
+        int request_count
+    }
+
+    system_settings {
+        serial id PK
+        varchar100 setting_key UK
+        text setting_value
+        varchar setting_type
+        boolean is_encrypted
+    }
+
+    credentials {
+        serial id PK
+        varchar50 service_name UK
+        text encrypted_data
+    }
+
+    collection_credentials ||--o{ collection_history : "service_name"
+    collection_credentials ||--o| collection_status : "service_name"
+    fortigate_devices ||--o{ fortigate_pull_logs : "device_ip"
+    blacklist_ips }o--o{ unified_ip_list : "ip_address"
+    whitelist_ips }o--o{ unified_ip_list : "ip_address"
 ```
-┌─────────────────────┐     ┌─────────────────────┐
-│   blacklist_ips     │     │   whitelist_ips     │
-├─────────────────────┤     ├─────────────────────┤
-│ id (PK)             │     │ id (PK)             │
-│ ip_address          │     │ ip_address          │
-│ source              │     │ reason              │
-│ threat_type         │     │ added_by            │
-│ is_active           │     │ created_at          │
-│ raw_data (JSONB)    │     │ updated_at          │
-│ created_at          │     └─────────────────────┘
-│ updated_at          │
-└─────────────────────┘
 
-┌─────────────────────┐     ┌─────────────────────┐
-│ collection_credentials│   │  collection_history │
-├─────────────────────┤     ├─────────────────────┤
-│ id (PK)             │     │ id (PK)             │
-│ service_name        │     │ service_name        │
-│ encrypted_data      │     │ status              │
-│ created_at          │     │ collected_count     │
-│ updated_at          │     │ error_message       │
-└─────────────────────┘     │ started_at          │
-                            │ completed_at        │
-                            └─────────────────────┘
-
-┌─────────────────────┐     ┌─────────────────────┐
-│  collection_status  │     │   monitoring_data   │
-├─────────────────────┤     ├─────────────────────┤
-│ id (PK)             │     │ id (PK)             │
-│ service_name        │     │ metric_name         │
-│ is_running          │     │ value               │
-│ last_run            │     │ timestamp           │
-│ next_run            │     └─────────────────────┘
-└─────────────────────┘
-```
-
-### 3.2 주요 테이블
+### 3.2 주요 테이블 (15개)
 
 | 테이블 | 용도 | 주요 컬럼 |
 |--------|------|----------|
-| `blacklist_ips` | 위협 IP 저장 | ip_address, source, threat_type, is_active, raw_data |
-| `whitelist_ips` | 신뢰 IP 저장 | ip_address, reason, added_by |
-| `collection_credentials` | 암호화 인증정보 | service_name, encrypted_data |
-| `collection_history` | 수집 이력 | service_name, status, collected_count |
-| `collection_status` | 수집 상태 | service_name, is_running, last_run |
-| `monitoring_data` | 모니터링 데이터 | metric_name, value, timestamp |
+| `blacklist_ips` | 위협 IP 저장 | ip_address, source, category, confidence_level, is_active, raw_data(JSONB) |
+| `whitelist_ips` | 신뢰 IP 저장 | ip_address, reason, source, country |
+| `unified_ip_list` | 블랙+화이트 통합 | ip_address, list_type, source, is_active |
+| `collection_credentials` | 수집 서비스 인증정보 | service_name, username, password, config(JSONB), encrypted |
+| `collection_history` | 수집 이력 | service_name, items_collected, success, execution_time_ms |
+| `collection_status` | 수집 상태 | service_name, enabled, status(idle/running/error/disabled) |
+| `collection_metrics` | 수집 메트릭 | service_name, collection_count, success_count, avg_execution_time |
+| `collection_stats` | 소스별 통계 | source, total_ips, last_seen |
+| `pipeline_metrics` | 파이프라인 메트릭 | pipeline_name, execution_time, success_rate, status |
+| `monitoring_data` | 모니터링 데이터 | metric_name, metric_value, tags(JSONB) |
+| `system_logs` | 시스템 로그 | level(DEBUG~CRITICAL), message, module |
+| `system_settings` | 시스템 설정 | setting_key, setting_value, setting_type, is_encrypted |
+| `credentials` | 암호화 인증정보 | service_name, encrypted_data |
+| `fortigate_devices` | FortiGate 장비 | device_ip, device_name, firmware_version, config(JSONB) |
+| `fortigate_pull_logs` | FortiGate Pull 로그 | device_ip, user_agent, request_count |
 
-### 3.3 뷰 (Views)
+### 3.3 뷰 (4개)
 
 | 뷰 | 용도 |
 |----|------|
-| `unified_ip_list` | 블랙+화이트 IP 통합 |
-| `active_blacklist` | 활성 블랙리스트 필터링 |
-| `fortinet_active_ips` | FortiGate 연동용 |
-| `collection_statistics` | 수집 통계 집계 |
-| `ip_priority_check` | IP 우선순위 확인 |
+| `active_blacklist` | 활성 블랙리스트 (is_active, ordered by last_seen, confidence) |
+| `collection_statistics` | 서비스별 수집 통계 집계 |
+| `blacklist_ips_with_auto_inactive` | 30일 미확인 자동 비활성 |
+| `settings` | system_settings 별칭 |
 
-### 3.4 인덱스
+### 3.4 인덱스 및 확장
 
-```sql
--- 성능 최적화 인덱스
-CREATE INDEX idx_blacklist_ip ON blacklist_ips(ip_address);
-CREATE INDEX idx_blacklist_source ON blacklist_ips(source);
-CREATE INDEX idx_blacklist_active ON blacklist_ips(is_active);
-CREATE INDEX idx_blacklist_created ON blacklist_ips(created_at DESC);
-CREATE INDEX idx_whitelist_ip ON whitelist_ips(ip_address);
-CREATE INDEX idx_history_service ON collection_history(service_name);
-CREATE INDEX idx_history_status ON collection_history(status);
-```
+- **인덱스:** 50+ (`IF NOT EXISTS`), 단일 + 복합 인덱스
+- **확장:** `uuid-ossp`, `pg_trgm`
+- **트리거:** `updated_at` 자동 갱신
+- **마이그레이션:** 6개 (001–006, `postgres/migrations/`)
 
 ---
 
@@ -223,125 +320,116 @@ CREATE INDEX idx_history_status ON collection_history(status);
 
 ### 4.1 Service Factory (DI Container)
 
-```python
-class ServiceFactory:
-    """Manual Dependency Injection Container"""
-    
-    @staticmethod
-    def initialize(app: Flask) -> None:
-        # 초기화 순서 중요!
-        app.extensions['database'] = DatabaseService()
-        app.extensions['blacklist'] = BlacklistService(app.extensions['database'])
-        app.extensions['analytics'] = AnalyticsService(app.extensions['database'])
-        app.extensions['collection'] = CollectionService(app.extensions['database'])
-        app.extensions['scheduler'] = SchedulerService(app.extensions['collection'])
-        app.extensions['fortimanager'] = FortiManagerService(app.extensions['database'])
-        app.extensions['credential'] = CredentialService(app.extensions['database'])
+```mermaid
+graph TD
+    DB["DatabaseService<br/>(기반)"]
+    DB --> BL["BlacklistService"]
+    DB --> AN["AnalyticsService"]
+    DB --> COL["CollectionService"]
+    DB --> FMG["FortiManagerPushService"]
+    DB --> CRED["CredentialService"]
+    DB --> SCRED["SecureCredentialService"]
+    DB --> RTC["RegtechConfigService"]
+    DB --> SET["SettingsService"]
+    DB --> SCO["ScoringService"]
+    DB --> EXP["IPExpiryService"]
+    DB --> AB["ABTestService"]
+    DB --> OPT["OptimizedBlacklistService"]
+    COL --> SCHED["CollectionScheduler"]
 ```
 
-### 4.2 서비스 의존성
+### 4.2 초기화 순서 (14개 서비스)
 
-```
-DatabaseService (기반)
-    │
-    ├── BlacklistService
-    ├── AnalyticsService
-    ├── CollectionService ──→ SchedulerService
-    ├── FortiManagerService
-    └── CredentialService
-```
-
-### 4.3 핵심 서비스
-
-| 서비스 | 책임 | 코드량 |
-|--------|------|--------|
-| `DatabaseService` | Raw SQL, 연결 풀 관리 | 400L |
-| `BlacklistService` | IP CRUD, 검색, 캐싱 | 813L |
-| `CredentialService` | Fernet 암호화, PBKDF2 | 300L |
-| `AnalyticsService` | 통계, 집계 | 250L |
-| `FortiManagerService` | FortiGate 연동 | 350L |
-| `CollectionService` | 수집 오케스트레이션 | 500L |
-| `SchedulerService` | 백그라운드 작업 | 200L |
+| 순서 | 서비스 | Extension 키 | 책임 |
+|------|--------|-------------|------|
+| 1 | DatabaseService | `db_service` | Raw SQL, ThreadedConnectionPool, 자동 복구 |
+| 2 | BlacklistService | `blacklist_service` | IP CRUD, 검색, 캐싱 |
+| 3 | AnalyticsService | `analytics_service` | 통계, 집계 |
+| 4 | CollectionService | `collection_service` | 수집 오케스트레이션 |
+| 5 | CollectionScheduler | `scheduler_service` | 백그라운드 스케줄링 |
+| 6 | FortiManagerPushService | `fortimanager_service` | FortiGate JSON-RPC |
+| 7 | CredentialService | `credential_service` | 인증정보 관리 |
+| 8 | SecureCredentialService | `secure_credential_service` | AES-256-GCM 암호화 |
+| 9 | RegtechConfigService | `regtech_config_service` | REGTECH 설정 |
+| 10 | SettingsService | `settings_service` | 시스템 설정 CRUD |
+| 11 | ScoringService | `scoring_service` | 위협 점수 산출 |
+| 12 | IPExpiryService | `expiry_service` | IP 만료 관리 |
+| 13 | ABTestService | `ab_test_service` | A/B 테스트 |
+| 14 | OptimizedBlacklistService | `optimized_blacklist_service` | 최적화 블랙리스트 |
 
 ---
 
 ## 5. 보안 설계
 
-### 5.1 인증 및 권한
+### 5.1 보안 계층
 
+```mermaid
+graph TD
+    subgraph "Security Layer"
+        JWT["JWT 인증<br/>(현재 비활성, app.py:155)"]
+        CSRF["CSRF Protection<br/>(Flask-WTF, API exempt)"]
+        RL["Rate Limiting<br/>(Flask-Limiter, Redis-backed)"]
+        SH["Security Headers<br/>(HSTS, X-Content-Type, X-Frame)"]
+    end
+    
+    subgraph "Encryption"
+        AES["AES-256-GCM<br/>인증정보 암호화"]
+        PBKDF["PBKDF2<br/>키 파생"]
+        MASTER["CREDENTIAL_MASTER_KEY<br/>(환경 외부 파일)"]
+    end
+    
+    MASTER --> PBKDF --> AES
 ```
-┌─────────────────────────────────────────────┐
-│              Security Layer                  │
-├─────────────────────────────────────────────┤
-│  Flask-Login (Session-based Auth)           │
-│  CSRF Token (WTForms)                       │
-│  API Token (Bearer Auth)                    │
-├─────────────────────────────────────────────┤
-│  Rate Limiting (Redis-based)                │
-│  - 100 req/min per IP                       │
-│  - 1000 req/hour per User                   │
-├─────────────────────────────────────────────┤
-│  Security Headers                           │
-│  - HSTS                                     │
-│  - X-Content-Type-Options: nosniff          │
-│  - X-Frame-Options: DENY                    │
-└─────────────────────────────────────────────┘
-```
 
-### 5.2 자격증명 암호화
+### 5.2 네트워크 보안
 
-```python
-# 암호화 흐름
-Plain Text → PBKDF2 (Key Derivation) → Fernet (AES-128-CBC) → Base64 → DB
-
-# 구성 요소
-- Algorithm: Fernet (AES-128-CBC + HMAC-SHA256)
-- Key Derivation: PBKDF2 with salt
-- Salt: b'blacklist-regtech-salt-2025'
-- Master Key: CREDENTIAL_MASTER_KEY.txt (환경 외부)
-```
+| 구간 | 프로토콜 | 인증 |
+|------|----------|------|
+| 브라우저 → Frontend | HTTPS (443) | — (Self-signed SSL) |
+| Frontend → App | HTTP (2542) | Bearer JWT (비활성) |
+| App → Collector | HTTP (8545) | 없음 (내부 전용) |
+| App → PostgreSQL | TCP (5432) | 패스워드 |
+| App → Redis | TCP (6379) | 없음 (캐시 전용) |
+| App → FortiManager | HTTPS | API 키 (JSON-RPC) |
+| Collector → REGTECH | HTTPS | 다단계 인증 (세션 기반) |
+| Collector → Secudium | HTTPS | OTP (이메일, 4시간 TTL) |
 
 ---
 
 ## 6. 배포 설계
 
-### 6.1 배포 모드
+### 6.1 오프라인 배포 흐름
 
-| 모드 | 설명 | 네트워크 |
-|------|------|----------|
-| **Air-Gap** | 폐쇄망 오프라인 | 없음 |
-| **NAS** | WARP 프록시 | 프록시 |
-| **Dev** | 로컬 개발 | 인터넷 |
-
-### 6.2 Air-Gap 배포 흐름
-
-```
-Build Phase:
-  Docker Build → Registry Push → Pull → docker save → gzip
-
-Package Phase:
-  dist/images/*.tar.gz → Git LFS → airgap branch push
-
-Deploy Phase:
-  git clone -b airgap → git lfs pull → deploy-airgap.sh → docker load → docker compose up
+```mermaid
+graph LR
+    subgraph "Build Phase (인터넷 환경)"
+        B1["Docker Build<br/>(5 서비스)"] --> B2["docker save<br/>+ tar.gz"]
+        B2 --> B3["GitHub Release<br/>번들 업로드"]
+    end
+    
+    subgraph "Deploy Phase (폐쇄망)"
+        D1["번들 다운로드<br/>(USB/물리 매체)"] --> D2["install.sh<br/>(docker load)"]
+        D2 --> D3["docker compose up"]
+    end
+    
+    B3 -.->|"물리 이동"| D1
 ```
 
-### 6.3 컨테이너 구성
+### 6.2 배포 모드
 
-| 컨테이너 | 이미지 | 포트 | 리소스 |
-|----------|--------|------|--------|
-| blacklist-frontend | node:20-alpine | 2543 | 512MB |
-| blacklist-app | python:3.11-slim | 2542 | 1GB |
-| blacklist-collector | python:3.11-slim | 8545 | 512MB |
-| blacklist-postgres | postgres:15-alpine | 5432 | 2GB |
-| blacklist-redis | redis:7-alpine | 6379 | 256MB |
-| traefik | traefik:v3.0 | 80, 443 | 128MB |
+| 모드 | 설명 | Compose 파일 | 네트워크 |
+|------|------|-------------|----------|
+| **개발** | 로컬 핫 리로드 | `deploy/docker-compose.yml` | host |
+| **CI** | GitHub Actions | `.github/docker-compose.ci.yml` | bridge |
+| **프로덕션** | 오프라인 번들 | `deploy/base.yml` + `release.yml` | host |
+
+> Traefik reverse proxy는 v3.5.x에서 제거됨. Frontend가 SSL을 직접 처리합니다.
 
 ---
 
 ## 7. 변경 이력
 
-| 버전 | 일자 | 작성자 | 변경 내용 |
-|------|------|--------|----------|
-| 1.0 | 2026-01-15 | Sisyphus | 초기 작성 |
-
+| 버전 | 일자 | 변경 내용 |
+|------|------|----------|
+| 1.0 | 2026-01-15 | 초기 작성 (v3.5.11) |
+| 2.0 | 2026-02-23 | v3.6.3 전면 갱신: Traefik 제거, 포트 수정(Frontend=443), JWT 인증 체계, AES-256-GCM 암호화, 15 테이블/4 뷰 DB 스키마, 14 서비스 DI, Collector 아키텍처 갱신, Mermaid 다이어그램 |
