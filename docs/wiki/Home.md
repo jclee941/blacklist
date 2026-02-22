@@ -26,12 +26,12 @@
 
 | 문서 | 설명 |
 |------|------|
-| **[[Architecture]]** | 시스템 아키텍처, 서비스 토폴로지, 데이터 흐름 |
-| **[[Service-Details]]** | 14개 애플리케이션 서비스, DI 컨테이너, 라이프사이클 |
-| **[[Database-Schema]]** | 데이터베이스 스키마, 테이블/뷰 정의, 인덱스, 마이그레이션 |
-| **[[API-Reference]]** | REST API 엔드포인트 레퍼런스 (80+ 엔드포인트) |
-| **[[Deployment-Guide]]** | Docker 배포, 오프라인 설치, CI/CD 파이프라인 |
-| **[[Security]]** | 인증/인가, 암호화, FortiGate 연동, 환경변수 |
+| [Architecture](Architecture.md) | 시스템 아키텍처, 서비스 토폴로지, 데이터 흐름 |
+| [Service-Details](Service-Details.md) | 14개 애플리케이션 서비스, DI 컨테이너, 라이프사이클 |
+| [Database-Schema](Database-Schema.md) | 데이터베이스 스키마, 테이블/뷰 정의, 인덱스, 마이그레이션 |
+| [API-Reference](API-Reference.md) | REST API 엔드포인트 레퍼런스 (80+ 엔드포인트) |
+| [Deployment-Guide](Deployment-Guide.md) | Docker 배포, 오프라인 설치, CI/CD 파이프라인 |
+| [Security](Security.md) | 인증/인가, 암호화, FortiGate 연동, 환경변수 |
 
 ---
 
