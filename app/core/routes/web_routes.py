@@ -13,6 +13,8 @@ from flask import (
 from datetime import datetime
 import logging
 
+from ..config import config
+
 logger = logging.getLogger(__name__)
 
 # 메인 웹 블루프린트 생성
@@ -27,7 +29,7 @@ def index():
         template_data = {
             "page_title": "Blacklist Management Platform",
             "service_status": "operational",
-            "version": "3.0.0",
+            "version": config.VERSION,
             "timestamp": datetime.now().isoformat(),
             "ui_fix": True,
         }
@@ -43,7 +45,7 @@ def index():
                 **{
                     "page_title": "위협 정보 관리 시스템 (Basic)",
                     "service_status": "operational",
-                    "version": "3.1.2",
+                    "version": config.VERSION,
                     "timestamp": datetime.now().isoformat(),
                     "ui_fix": True,
                 },
@@ -67,7 +69,7 @@ def _old_template_based_index():
         template_data = {
             "page_title": "위협 정보 관리 시스템",
             "service_status": "operational",
-            "version": "3.1.2",  # UI Fix version
+            "version": config.VERSION,  # UI Fix version
             "timestamp": datetime.now().isoformat(),
             "ui_fix": True,
         }
@@ -83,7 +85,7 @@ def _old_template_based_index():
                 "message": "Blacklist Homepage Working!",
                 "timestamp": datetime.now().isoformat(),
                 "service": "blacklist-app",
-                "version": "3.1.1",
+                "version": config.VERSION,
                 "automation": "enabled",
                 "error": f"Template rendering failed: {str(e)}",
             }
@@ -208,7 +210,7 @@ def dashboard_page():
         template_data = {
             "page_title": "Blacklist Management Platform",
             "service_status": "operational",
-            "version": "3.0.0",
+            "version": config.VERSION,
             "timestamp": datetime.now().isoformat(),
         }
         return render_template("monitoring/dashboard.html", **template_data)

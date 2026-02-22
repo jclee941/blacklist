@@ -86,7 +86,7 @@ def get_system_status():
             "application": {
                 "status": "running",
                 "uptime": "정상 운영",
-                "version": "2.4.1",
+                "version": config.VERSION,
             },
             "database": {"status": "connected", "type": "PostgreSQL"},
             "cache": {"status": "active", "type": "Redis"},

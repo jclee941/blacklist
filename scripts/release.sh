@@ -85,6 +85,27 @@ if git tag -l "v${NEW_VERSION}" | grep -q .; then
 fi
 
 ok "Validation passed"
+# --- Pre-release test gate ---
+info "Running pre-release tests..."
+if command -v docker &>/dev/null && docker compose ps --services 2>/dev/null | grep -q .; then
+  # Docker stack is running — use containerized tests
+  if docker compose exec -T app python -m pytest tests/ -x -q --tb=short 2>/dev/null; then
+    ok "Backend tests passed"
+  else
+    error "Backend tests failed. Fix test failures before releasing."
+  fi
+else
+  # Fallback: run tests directly if available
+  if command -v pytest &>/dev/null; then
+    if pytest tests/ -x -q --tb=short 2>/dev/null; then
+      ok "Backend tests passed"
+    else
+      error "Backend tests failed. Fix test failures before releasing."
+    fi
+  else
+    warn "Test runner not available (no docker stack or pytest). Skipping test gate."
+  fi
+fi
 
 # --- Summary ---
 echo ""
@@ -190,6 +211,14 @@ info "Executing release..."
 echo "${NEW_VERSION}" > "$VERSION_FILE"
 ok "VERSION bumped: ${CURRENT_VERSION} → ${NEW_VERSION}"
 
+# 1b. Sync frontend/package.json version
+FRONTEND_PKG="frontend/package.json"
+if [[ -f "$FRONTEND_PKG" ]]; then
+  sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${NEW_VERSION}\"/" "$FRONTEND_PKG"
+  ok "frontend/package.json version synced to ${NEW_VERSION}"
+fi
+
+
 # 2. Update CHANGELOG
 # Insert new entry after [Unreleased] section
 TMPFILE=$(mktemp)
@@ -220,7 +249,7 @@ else
 fi
 
 # 3. Commit
-git add "$VERSION_FILE" "$CHANGELOG_FILE"
+git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG"
 git commit -m "chore(release): v${NEW_VERSION}
 
 Automated release: ${BUMP_TYPE} bump ${CURRENT_VERSION} → ${NEW_VERSION}"

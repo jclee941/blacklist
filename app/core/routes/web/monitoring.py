@@ -6,6 +6,7 @@ REGTECH 데이터 수집 진위성 확인 UI 포함
 from flask import Blueprint, render_template, jsonify, current_app
 import logging
 from datetime import datetime
+from ...config import config
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def monitoring_dashboard():
             "active_ips": stats.get("active_ips", 0),
             "last_update": stats.get("last_update", "없음"),
             "collection_count": collection_stats.get("total_collections", 0),
-            "version": "2.0.0",
+            "version": config.VERSION,
         }
 
         return render_template("monitoring/dashboard.html", **template_data)
@@ -45,7 +46,7 @@ def monitoring_dashboard():
             active_ips=0,
             last_update="없음",
             collection_count=0,
-            version="2.0.0",
+            version=config.VERSION,
         )
 
 
