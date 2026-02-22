@@ -224,17 +224,16 @@ class TestRegtechTestConnection:
 
 
 class TestRegtechAdminGetCredentials:
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_with_credentials(self, mock_cls):
+    def test_with_credentials(self):
         mock_svc = MagicMock()
         mock_svc.get_regtech_credentials.return_value = {
             "username": "admin",
             "password": "secret",
             "base_url": "https://regtech.fsec.or.kr",
         }
-        mock_cls.return_value = mock_svc
 
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         with app.test_client() as c:
             resp = c.get("/api/admin/regtech/credentials")
 
@@ -244,13 +243,12 @@ class TestRegtechAdminGetCredentials:
         assert data["has_credentials"] is True
         assert data["data"]["username"] == "admin"
 
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_no_credentials(self, mock_cls):
+    def test_no_credentials(self):
         mock_svc = MagicMock()
         mock_svc.get_regtech_credentials.return_value = None
-        mock_cls.return_value = mock_svc
 
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         with app.test_client() as c:
             resp = c.get("/api/admin/regtech/credentials")
 
@@ -258,11 +256,11 @@ class TestRegtechAdminGetCredentials:
         data = resp.get_json()
         assert data["has_credentials"] is False
 
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_exception(self, mock_cls):
-        mock_cls.side_effect = Exception("import error")
-
+    def test_exception(self):
+        mock_svc = MagicMock()
+        mock_svc.get_regtech_credentials.side_effect = Exception("import error")
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         with app.test_client() as c:
             resp = c.get("/api/admin/regtech/credentials")
 
@@ -283,17 +281,16 @@ class TestDatabaseTablesPage:
 
 
 class TestSaveCredentials:
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_success(self, mock_cls):
+    def test_success(self):
         mock_svc = MagicMock()
         mock_svc.save_regtech_credentials.return_value = {
             "success": True,
             "service_name": "REGTECH",
             "is_authenticated": True,
         }
-        mock_cls.return_value = mock_svc
 
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         with app.test_client() as c:
             resp = c.post("/api/credentials/regtech", json={"username": "admin", "password": "secret"})
 
@@ -302,13 +299,12 @@ class TestSaveCredentials:
         assert data["success"] is True
         assert "REGTECH" in data["message"]
 
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_save_failure(self, mock_cls):
+    def test_save_failure(self):
         mock_svc = MagicMock()
         mock_svc.save_regtech_credentials.return_value = {"success": False, "error": "db error"}
-        mock_cls.return_value = mock_svc
 
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         with app.test_client() as c:
             resp = c.post("/api/credentials/regtech", json={"username": "u", "password": "p"})
 
@@ -329,11 +325,11 @@ class TestSaveCredentials:
 
         assert resp.status_code == 400
 
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_exception(self, mock_cls):
-        mock_cls.side_effect = Exception("import error")
-
+    def test_exception(self):
+        mock_svc = MagicMock()
+        mock_svc.save_regtech_credentials.side_effect = Exception("import error")
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         with app.test_client() as c:
             resp = c.post("/api/credentials/regtech", json={"username": "u", "password": "p"})
 
@@ -341,16 +337,15 @@ class TestSaveCredentials:
 
 
 class TestAdminSaveRegtechCredentials:
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_success_triggers_collection(self, mock_cls):
+    def test_success_triggers_collection(self):
         mock_svc = MagicMock()
         mock_svc.save_regtech_credentials.return_value = {
             "success": True,
             "service_name": "REGTECH",
         }
-        mock_cls.return_value = mock_svc
 
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         mock_coll = MagicMock()
         mock_coll.trigger_regtech_collection.return_value = {"success": True, "count": 5}
         app.extensions["collection_service"] = mock_coll
@@ -367,16 +362,15 @@ class TestAdminSaveRegtechCredentials:
         assert data["data"]["auto_collection_started"] is True
         mock_coll.trigger_regtech_collection.assert_called_once()
 
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_collection_trigger_fails(self, mock_cls):
+    def test_collection_trigger_fails(self):
         mock_svc = MagicMock()
         mock_svc.save_regtech_credentials.return_value = {
             "success": True,
             "service_name": "REGTECH",
         }
-        mock_cls.return_value = mock_svc
 
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         mock_coll = MagicMock()
         mock_coll.trigger_regtech_collection.side_effect = Exception("collection failed")
         app.extensions["collection_service"] = mock_coll
@@ -389,11 +383,11 @@ class TestAdminSaveRegtechCredentials:
 
         assert resp.status_code == 500
 
-    @patch("core.services.regtech_config_service.RegtechConfigService")
-    def test_exception(self, mock_cls):
-        mock_cls.side_effect = Exception("crash")
-
+    def test_exception(self):
+        mock_svc = MagicMock()
+        mock_svc.save_regtech_credentials.side_effect = Exception("crash")
         app = make_app()
+        app.extensions["regtech_config_service"] = mock_svc
         app.extensions["collection_service"] = MagicMock()
 
         with app.test_client() as c:

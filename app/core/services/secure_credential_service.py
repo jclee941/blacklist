@@ -602,23 +602,23 @@ def delete_regtech_credentials() -> bool:
 
 if __name__ == "__main__":
     # 테스트 코드
-    print("🔐 보안 인증정보 서비스 테스트")
+    logger.info("🔐 보안 인증정보 서비스 테스트")
 
     # 테스트 저장
     test_result = save_regtech_credentials("test_user", "test_password")
-    print(f"저장 테스트: {'✅ 성공' if test_result else '❌ 실패'}")
+    logger.info(f"저장 테스트: {'✅ 성공' if test_result else '❌ 실패'}")
 
     # 테스트 조회
     credentials = get_regtech_credentials()
     if credentials:
-        print(f"조회 테스트: ✅ 성공 - {credentials['username']}")
+        logger.info(f"조회 테스트: ✅ 성공 - {credentials['username']}")
     else:
-        print("조회 테스트: ❌ 실패")
+        logger.info("조회 테스트: ❌ 실패")
 
     # 유효성 검증
     validation = validate_regtech_credentials()
-    print(f"검증 테스트: {'✅ 유효' if validation['valid'] else '❌ 무효'}")
+    logger.info(f"검증 테스트: {'✅ 유효' if validation['valid'] else '❌ 무효'}")
 
     # 마이그레이션 테스트
     migration_result = secure_credential_service.migrate_existing_credentials()
-    print(f"마이그레이션: {migration_result['migrated_count']}개 완료")
+    logger.info(f"마이그레이션: {migration_result['migrated_count']}개 완료")

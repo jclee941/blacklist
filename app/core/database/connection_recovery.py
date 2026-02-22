@@ -120,6 +120,6 @@ def test_connection():
 
 if __name__ == "__main__":
     # 테스트 실행
-    print("PostgreSQL 연결 테스트:")
+    logger.info("PostgreSQL 연결 테스트:")
     stats = get_postgres_stats()
-    print(f"결과: {stats}")
+    logger.info(f"결과: {stats}")

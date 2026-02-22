@@ -197,8 +197,8 @@ def test_smart_connection():
 
 if __name__ == "__main__":
     # 테스트 실행
-    print("스마트 PostgreSQL 연결 테스트:")
+    logger.info("스마트 PostgreSQL 연결 테스트:")
     for i in range(3):
         stats = get_postgres_stats_smart()
-        print(f"테스트 {i + 1}: {stats}")
+        logger.info(f"테스트 {i + 1}: {stats}")
         time.sleep(1)

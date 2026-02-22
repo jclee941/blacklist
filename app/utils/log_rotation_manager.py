@@ -252,11 +252,11 @@ def get_log_stats():
 
 if __name__ == "__main__":
     # 테스트 실행
-    print("로그 순환 시스템 테스트:")
+    logger.info("로그 순환 시스템 테스트:")
 
     # 통계 출력
     stats = get_log_stats()
-    print(f"통계: {stats}")
+    logger.info(f"통계: {stats}")
 
     # 유지보수 실행
     perform_log_maintenance()

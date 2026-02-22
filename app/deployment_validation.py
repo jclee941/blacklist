@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Test update to trigger CI/CD pipeline with Docker builds
-This file addition should trigger all Docker image builds
+Deployment Validation — CI/CD pipeline trigger test
 """
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def test_pipeline_trigger():
@@ -14,10 +17,10 @@ def test_pipeline_trigger():
     - Private registry push: registry.jclee.me
     - GitHub release creation
     """
-    print("🚀 CI/CD Pipeline Test")
-    print("✅ Registry Password: Configured")
-    print("✅ Multi-image builds: Ready")
-    print("✅ Version management: SHA-based")
+    logger.info("CI/CD Pipeline Test")
+    logger.info("Registry Password: Configured")
+    logger.info("Multi-image builds: Ready")
+    logger.info("Version management: SHA-based")
     return True
 
 
