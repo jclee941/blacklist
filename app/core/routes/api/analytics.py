@@ -28,7 +28,7 @@ def get_analytics_overview():
         db_service = current_app.extensions["db_service"]
 
         stats = db_service.query("""
-            SELECT 
+            SELECT
                 (SELECT COUNT(*) FROM blacklist_ips) as total_ips,
                 (SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true) as active_ips,
                 (SELECT COUNT(DISTINCT data_source) FROM blacklist_ips) as source_count,

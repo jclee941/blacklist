@@ -95,7 +95,7 @@ class DataQualityManager:
                 # 전체 IP 통계
                 cursor.execute(
                     """
-                    SELECT 
+                    SELECT
                         COUNT(*) as total_ips,
                         COUNT(*) FILTER (WHERE is_active = true) as active_ips,
                         COUNT(*) FILTER (WHERE is_active = false) as inactive_ips,
@@ -137,7 +137,7 @@ class DataQualityManager:
                 # 1. 잘못된 IP 주소 형식 검사
                 cursor.execute(
                     r"""
-                    SELECT COUNT(*) FROM blacklist_ips 
+                    SELECT COUNT(*) FROM blacklist_ips
                     WHERE ip_address !~ '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
                     AND ip_address !~ '^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$'
                 """
@@ -150,9 +150,9 @@ class DataQualityManager:
                 # 2. 논리적 모순 검사 (removal_date < detection_date)
                 cursor.execute(
                     """
-                    SELECT COUNT(*) FROM blacklist_ips 
-                    WHERE detection_date IS NOT NULL 
-                    AND removal_date IS NOT NULL 
+                    SELECT COUNT(*) FROM blacklist_ips
+                    WHERE detection_date IS NOT NULL
+                    AND removal_date IS NOT NULL
                     AND removal_date < detection_date
                 """
                 )
@@ -164,9 +164,9 @@ class DataQualityManager:
                 # 3. 만료된 IP가 여전히 활성 상태인 경우
                 cursor.execute(
                     """
-                    SELECT COUNT(*) FROM blacklist_ips 
-                    WHERE is_active = true 
-                    AND removal_date IS NOT NULL 
+                    SELECT COUNT(*) FROM blacklist_ips
+                    WHERE is_active = true
+                    AND removal_date IS NOT NULL
                     AND removal_date < CURRENT_DATE
                 """
                 )
@@ -192,7 +192,7 @@ class DataQualityManager:
                 # 최신 데이터 분포 분석
                 cursor.execute(
                     """
-                    SELECT 
+                    SELECT
                         COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '7 days') as last_7_days,
                         COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '30 days') as last_30_days,
                         COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '90 days') as last_90_days,
@@ -234,12 +234,12 @@ class DataQualityManager:
                 # 중복 IP 검출
                 cursor.execute(
                     """
-                    SELECT 
-                        ip_address, 
-                        source, 
+                    SELECT
+                        ip_address,
+                        source,
                         COUNT(*) as duplicate_count
-                    FROM blacklist_ips 
-                    GROUP BY ip_address, source 
+                    FROM blacklist_ips
+                    GROUP BY ip_address, source
                     HAVING COUNT(*) > 1
                     ORDER BY duplicate_count DESC
                     LIMIT 10
@@ -251,7 +251,7 @@ class DataQualityManager:
                 # 전체 중복 통계
                 cursor.execute(
                     """
-                    SELECT 
+                    SELECT
                         COUNT(*) - COUNT(DISTINCT ip_address, source) as total_duplicates,
                         COUNT(DISTINCT ip_address, source) as unique_combinations,
                         COUNT(*) as total_records
@@ -286,10 +286,10 @@ class DataQualityManager:
                 # 1. 만료된 IP 비활성화
                 cursor.execute(
                     """
-                    UPDATE blacklist_ips 
-                    SET is_active = false 
-                    WHERE is_active = true 
-                    AND removal_date IS NOT NULL 
+                    UPDATE blacklist_ips
+                    SET is_active = false
+                    WHERE is_active = true
+                    AND removal_date IS NOT NULL
                     AND removal_date < CURRENT_DATE
                 """
                 )
@@ -300,8 +300,8 @@ class DataQualityManager:
                 # 2. 오래된 비활성 데이터 정리 (90일 이상)
                 cursor.execute(
                     """
-                    DELETE FROM blacklist_ips 
-                    WHERE is_active = false 
+                    DELETE FROM blacklist_ips
+                    WHERE is_active = false
                     AND (removal_date IS NULL OR removal_date < CURRENT_DATE - INTERVAL '90 days')
                     AND created_at < CURRENT_DATE - INTERVAL '90 days'
                 """
@@ -313,10 +313,10 @@ class DataQualityManager:
                 # 3. 중복 데이터 정리 (최신 데이터 유지)
                 cursor.execute(
                     """
-                    DELETE FROM blacklist_ips 
+                    DELETE FROM blacklist_ips
                     WHERE id NOT IN (
-                        SELECT DISTINCT ON (ip_address, source) id 
-                        FROM blacklist_ips 
+                        SELECT DISTINCT ON (ip_address, source) id
+                        FROM blacklist_ips
                         ORDER BY ip_address, source, created_at DESC
                     )
                 """
@@ -398,10 +398,10 @@ class DataQualityManager:
                 # 50,000개 IP 데이터 보존 (최신순)
                 cursor.execute(
                     """
-                    DELETE FROM blacklist_ips 
+                    DELETE FROM blacklist_ips
                     WHERE id NOT IN (
-                        SELECT id FROM blacklist_ips 
-                        ORDER BY created_at DESC, id DESC 
+                        SELECT id FROM blacklist_ips
+                        ORDER BY created_at DESC, id DESC
                         LIMIT 1000000
                     )
                 """

@@ -24,7 +24,7 @@ def _log_pull_request(endpoint: str, ip_count: int, status_code: int = 200, resp
 
         db_service.execute(
             """
-            INSERT INTO fortinet_pull_logs 
+            INSERT INTO fortinet_pull_logs
             (device_ip, user_agent, request_path, ip_count, response_time_ms, response_status)
             VALUES (%s, %s, %s, %s, %s, %s)
             """,

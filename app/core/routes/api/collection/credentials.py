@@ -192,7 +192,10 @@ def manage_credentials(source: str):
                 current_creds = secure_credential_service.get_credentials(source_upper)
                 if not current_creds:
                     raise NotFoundError(
-                        message=f"Credentials not found for {source_upper}. Please provide a password to create new credentials.",
+                        message=(
+                            f"Credentials not found for {source_upper}. "
+                            "Please provide a password to create new credentials."
+                        ),
                         resource="collection_credentials",
                         details={"source": source_upper},
                     )

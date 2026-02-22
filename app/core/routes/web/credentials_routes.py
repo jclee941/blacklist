@@ -89,7 +89,7 @@ def save_credentials(source):
             # 없으면 생성
             cur.execute(
                 """
-                INSERT INTO collection_credentials 
+                INSERT INTO collection_credentials
                 (service_name, username, password, enabled, is_active, source)
                 VALUES (%s, %s, %s, true, true, %s)
                 RETURNING id

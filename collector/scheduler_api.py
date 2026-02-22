@@ -32,10 +32,11 @@ def create_scheduler_api(scheduler_instance):
             source_upper = source.upper()
 
             if source_upper not in scheduler_instance.collectors:
+                available = list(scheduler_instance.collectors.keys())
                 return jsonify(
                     {
                         "success": False,
-                        "error": f"Unknown source: {source_upper}. Available: {list(scheduler_instance.collectors.keys())}",
+                        "error": f"Unknown source: {source_upper}. Available: {available}",
                     }
                 ), 400
 

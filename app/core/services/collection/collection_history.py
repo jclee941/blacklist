@@ -58,7 +58,7 @@ class CollectionHistoryManager:
             cursor.execute(
                 """
                 INSERT INTO collection_history
-                (service_name, collection_date, items_collected, 
+                (service_name, collection_date, items_collected,
                  success, error_message, execution_time_ms, details)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,

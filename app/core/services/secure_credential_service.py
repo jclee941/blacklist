@@ -174,10 +174,14 @@ class SecureCredentialService:
             # UPSERT 쿼리 실행
             cursor.execute(
                 """
-                INSERT INTO collection_credentials 
-                (service_name, username, password, config, encrypted, is_active, enabled, collection_interval, source, updated_at)
+                INSERT INTO collection_credentials
+                (
+                    service_name, username, password, config,
+                    encrypted, is_active, enabled,
+                    collection_interval, source, updated_at
+                )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (service_name) 
+                ON CONFLICT (service_name)
                 DO UPDATE SET
                     username = EXCLUDED.username,
                     password = EXCLUDED.password,
@@ -257,8 +261,8 @@ class SecureCredentialService:
 
             cursor.execute(
                 """
-                UPDATE collection_credentials 
-                SET 
+                UPDATE collection_credentials
+                SET
                     username = %s,
                     password = %s,
                     enabled = %s,
@@ -308,7 +312,10 @@ class SecureCredentialService:
 
             cursor.execute(
                 """
-                SELECT username, password, config, encrypted, created_at, updated_at, enabled, collection_interval, last_collection
+                SELECT
+                    username, password, config, encrypted,
+                    created_at, updated_at, enabled,
+                    collection_interval, last_collection
                 FROM collection_credentials
                 WHERE service_name = %s AND is_active = true
             """,

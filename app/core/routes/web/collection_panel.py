@@ -186,7 +186,10 @@ def get_collection_logs():
         logs = db_service.query("""
             SELECT level, message, timestamp, source
             FROM system_logs
-            WHERE source LIKE '%collection%' OR message LIKE '%수집%' OR message LIKE '%REGTECH%' OR message LIKE '%SECUDIUM%'
+            WHERE source LIKE '%collection%'
+               OR message LIKE '%수집%'
+               OR message LIKE '%REGTECH%'
+               OR message LIKE '%SECUDIUM%'
             ORDER BY timestamp DESC
             LIMIT 50
         """)

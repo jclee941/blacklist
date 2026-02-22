@@ -80,9 +80,12 @@ class CollectionScheduler:
                     self.collection_stats["successful_runs"] = stats["successful_collections"]
                 if stats.get("failed_collections"):
                     self.collection_stats["failed_runs"] = stats["failed_collections"]
-                logger.info(
-                    f"📊 Loaded run counts from DB: total={self.collection_stats['total_runs']}, success={self.collection_stats['successful_runs']}, failed={self.collection_stats['failed_runs']}"
+                stats_msg = (
+                    f"total={self.collection_stats['total_runs']}, "
+                    f"success={self.collection_stats['successful_runs']}, "
+                    f"failed={self.collection_stats['failed_runs']}"
                 )
+                logger.info(f"📊 Loaded run counts from DB: {stats_msg}")
         except Exception as e:
             logger.warning(f"⚠️ Could not load initial stats from DB: {e}")
 
@@ -277,9 +280,12 @@ class CollectionScheduler:
                 active_count = cursor.fetchone()[0]
                 cursor.close()
 
-            logger.info(
-                f"✅ 만료된 IP 정리 완료: 만료 {expired_count}개, 3개월+ {old_count}개 비활성화, {reactivated_count}개 재활성화 (활성 IP: {active_count:,}개)"
+            active_msg = f"활성 IP: {active_count:,}개"
+            summary = (
+                f"만료 {expired_count}개, 3개월+ {old_count}개 비활성화, "
+                f"{reactivated_count}개 재활성화 ({active_msg})"
             )
+            logger.info(f"✅ 만료된 IP 정리 완료: {summary}")
 
         except Exception as e:
             logger.error(f"❌ 만료된 IP 정리 오류: {e}")

@@ -60,7 +60,7 @@ class REGTECHPolicyMonitor:
             # User-Agent 설정 (필수)
             self.session.headers.update(
                 {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",  # noqa: E501
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "Accept-Language": "ko-KR,ko;q=0.9",
                     "Referer": login_page_url,
@@ -298,7 +298,7 @@ class REGTECHPolicyMonitor:
             # 데이터 삽입
             cursor.execute(
                 """
-                INSERT INTO regtech_monitoring 
+                INSERT INTO regtech_monitoring
                 (structure_data, availability_data, change_analysis)
                 VALUES (%s, %s, %s)
             """,
@@ -368,8 +368,8 @@ class REGTECHPolicyMonitor:
             cursor.execute(
                 """
                 SELECT availability_data->>'status' as status
-                FROM regtech_monitoring 
-                ORDER BY timestamp DESC 
+                FROM regtech_monitoring
+                ORDER BY timestamp DESC
                 LIMIT %s
             """,
                 (self.consecutive_no_data_threshold,),
@@ -477,13 +477,13 @@ class REGTECHPolicyMonitor:
             # 최근 N일간 모니터링 데이터
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     COUNT(*) as total_checks,
                     COUNT(CASE WHEN availability_data->>'status' = 'data_available' THEN 1 END) as data_available_count,
                     COUNT(CASE WHEN availability_data->>'status' = 'no_data' THEN 1 END) as no_data_count,
                     COUNT(CASE WHEN change_analysis->>'change_detected' = 'true' THEN 1 END) as structure_changes,
                     MAX(timestamp) as last_check
-                FROM regtech_monitoring 
+                FROM regtech_monitoring
                 WHERE timestamp >= NOW() - INTERVAL '%s days'
             """,
                 (days,),
@@ -495,7 +495,7 @@ class REGTECHPolicyMonitor:
             cursor.execute(
                 """
                 SELECT alert_type, COUNT(*) as count
-                FROM regtech_alerts 
+                FROM regtech_alerts
                 WHERE timestamp >= NOW() - INTERVAL '%s days'
                 GROUP BY alert_type
             """,

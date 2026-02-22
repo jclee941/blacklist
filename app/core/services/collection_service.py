@@ -553,10 +553,10 @@ class CollectionService:
                         country = COALESCE(EXCLUDED.country, blacklist_ips.country),
                         detection_date = COALESCE(EXCLUDED.detection_date, blacklist_ips.detection_date),
                         removal_date = COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date),
-                        is_active = CASE 
-                            WHEN COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date) < CURRENT_DATE 
-                            THEN false 
-                            ELSE EXCLUDED.is_active 
+                        is_active = CASE
+                            WHEN COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date) < CURRENT_DATE
+                            THEN false
+                            ELSE EXCLUDED.is_active
                         END,
                         raw_data = EXCLUDED.raw_data,
                         updated_at = CURRENT_TIMESTAMP

@@ -196,8 +196,9 @@ class CollectionStatusManager:
             # 컬렉터 컨테이너 상태 체크
             collector_status = collection_status.get("collector_container", {})
             if collector_status.get("status") != "healthy":
+                error_msg = collector_status.get('error', 'Unknown error')
                 logger.warning(
-                    f"Collector container is {collector_status.get('status')}: {collector_status.get('error', 'Unknown error')}"
+                    f"Collector container is {collector_status.get('status')}: {error_msg}"
                 )
 
         except Exception as e:

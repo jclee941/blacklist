@@ -60,7 +60,11 @@ def batch_add_blacklist():
                 cursor.execute(
                     """
                     INSERT INTO blacklist_ips
-                    (ip_address, source, country, reason, detection_date, last_seen, detection_count, created_at, updated_at)
+                    (
+                        ip_address, source, country, reason,
+                        detection_date, last_seen, detection_count,
+                        created_at, updated_at
+                    )
                     VALUES (%s, %s, %s, %s, CURRENT_DATE, NOW(), 1, NOW(), NOW())
                     ON CONFLICT (ip_address) DO NOTHING
                 """,

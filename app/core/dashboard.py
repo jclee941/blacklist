@@ -61,7 +61,13 @@ def dashboard():
         <nav class="navbar navbar-expand-lg navbar-light fixed-top bg-white shadow-sm">
             <div class="container-fluid">
                 <a class="navbar-brand d-flex align-items-center" href="/">
-                    <img src="/static/logo.svg" alt="블랙리스트 관리" style="height: 32px; margin-right: 10px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">&nbsp;<span style="display: none; align-items: center;"><i class="bi bi-shield-lock"></i> Nextrade Black List</span>
+                    <img src="/static/logo.svg" alt="블랙리스트 관리"
+                         style="height: 32px; margin-right: 10px;"
+                         onerror="this.style.display='none';
+                         this.nextElementSibling.style.display='inline-flex';">
+                    <span style="display: none; align-items: center;">
+                        <i class="bi bi-shield-lock"></i> Nextrade Black List
+                    </span>
                 </a>
                 <span class="badge bg-success">LIVE</span>
             </div>

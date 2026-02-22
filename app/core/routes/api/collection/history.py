@@ -167,7 +167,7 @@ def get_collection_stats():
         # 4. Current unique IPs (actual count in blacklist_ips)
         cursor.execute(
             """
-            SELECT 
+            SELECT
                 COUNT(*) as total_ips,
                 COUNT(CASE WHEN is_active = true THEN 1 END) as active_ips
             FROM blacklist_ips
@@ -180,7 +180,7 @@ def get_collection_stats():
         # 5. Source stats (from collection_history - cumulative)
         cursor.execute(
             """
-            SELECT 
+            SELECT
                 service_name as source_name,
                 COUNT(*) as total_collections,
                 COALESCE(SUM(items_collected), 0) as cumulative_collected,

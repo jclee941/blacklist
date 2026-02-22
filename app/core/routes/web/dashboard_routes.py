@@ -102,10 +102,11 @@ def api_system_containers():
         current_pid = os.getpid()
         try:
             process = psutil.Process(current_pid)
+            uptime_seconds = int((datetime.now() - datetime.fromtimestamp(process.create_time())).total_seconds())
             containers.append(
                 {
                     "name": "blacklist-app",
-                    "status": f"Up {int((datetime.now() - datetime.fromtimestamp(process.create_time())).total_seconds())}s",
+                    "status": f"Up {uptime_seconds}s",
                     "image": "Flask Application (Gunicorn)",
                     "memory_percent": f"{process.memory_percent():.1f}%",
                     "cpu_percent": f"{process.cpu_percent():.1f}%",

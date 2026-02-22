@@ -96,7 +96,8 @@ class IPExpiryService:
                     COUNT(*) as total_ips,
                     COUNT(CASE WHEN is_active = true THEN 1 END) as active_ips,
                     COUNT(CASE WHEN is_active = false THEN 1 END) as inactive_ips,
-                    COUNT(CASE WHEN removal_date IS NOT NULL AND removal_date < %s AND is_active = true THEN 1 END) as pending_expiry,
+                    COUNT(CASE WHEN removal_date IS NOT NULL
+                            AND removal_date < %s AND is_active = true THEN 1 END) as pending_expiry,
                     COUNT(CASE WHEN removal_date IS NOT NULL AND removal_date >= %s THEN 1 END) as future_expiry
                 FROM blacklist_ips
                 """,

@@ -184,7 +184,7 @@ class DatabaseService:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    SELECT service_name, username, password, encrypted, 
+                    SELECT service_name, username, password, encrypted,
                            enabled, collection_interval, last_collection, config
                     FROM collection_credentials
                     WHERE service_name = %s
@@ -372,8 +372,9 @@ class DatabaseService:
                 logger.debug(f"🚫 제외된 IP: {ip_str} (잘못된 형식)")
                 continue
 
+        excluded_msg = f"{excluded_count}개 제외 (사설/형식), {expired_count}개 제외 (해제일 경과)"
         logger.info(
-            f"📊 IP 필터링: {len(valid_ips)}개 유효, {excluded_count}개 제외 (사설/형식), {expired_count}개 제외 (해제일 경과)"
+            f"📊 IP 필터링: {len(valid_ips)}개 유효, {excluded_msg}"
         )
         return valid_ips, excluded_count + expired_count
 
@@ -412,8 +413,8 @@ class DatabaseService:
                 for batch in self._get_batches(ip_addresses, batch_size):
                     placeholders = ",".join(["%s"] * len(batch))
                     query = f"""
-                        SELECT DISTINCT ip_address 
-                        FROM blacklist_ips 
+                        SELECT DISTINCT ip_address
+                        FROM blacklist_ips
                         WHERE ip_address IN ({placeholders})
                     """
                     cursor.execute(query, batch)
@@ -505,10 +506,10 @@ class DatabaseService:
                     updated_at = EXCLUDED.updated_at,
                     reason = EXCLUDED.reason,
                     removal_date = COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date),
-                    is_active = CASE 
-                        WHEN COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date) < CURRENT_DATE 
-                        THEN false 
-                        ELSE EXCLUDED.is_active 
+                    is_active = CASE
+                        WHEN COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date) < CURRENT_DATE
+                        THEN false
+                        ELSE EXCLUDED.is_active
                     END,
                     country = COALESCE(EXCLUDED.country, blacklist_ips.country),
                     raw_data = EXCLUDED.raw_data,
@@ -563,7 +564,7 @@ class DatabaseService:
                 cursor.execute(
                     """
                     INSERT INTO collection_history
-                    (service_name, success, items_collected, execution_time_ms, 
+                    (service_name, success, items_collected, execution_time_ms,
                      error_message, collection_date, details)
                     VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s)
                 """,
@@ -605,7 +606,7 @@ class DatabaseService:
                 cursor.execute(
                     """
                     WITH stats AS (
-                        SELECT 
+                        SELECT
                             COUNT(*) as total_ips,
                             COUNT(*) FILTER (WHERE is_active = true) as active_ips,
                             MAX(created_at) as latest_collection
@@ -614,12 +615,12 @@ class DatabaseService:
                     source_stats AS (
                         SELECT json_object_agg(COALESCE(data_source, 'UNKNOWN'), cnt) as source_breakdown
                         FROM (
-                            SELECT data_source, COUNT(*) as cnt 
-                            FROM blacklist_ips 
+                            SELECT data_source, COUNT(*) as cnt
+                            FROM blacklist_ips
                             GROUP BY data_source
                         ) s
                     )
-                    SELECT s.total_ips, s.active_ips, s.latest_collection, 
+                    SELECT s.total_ips, s.active_ips, s.latest_collection,
                            ss.source_breakdown
                     FROM stats s CROSS JOIN source_stats ss
                 """
@@ -633,7 +634,7 @@ class DatabaseService:
                     cursor = conn.cursor()
                     cursor.execute(
                         """
-                        SELECT 
+                        SELECT
                             COUNT(*) as total_collections,
                             COUNT(*) FILTER (WHERE success = true) as successful_collections,
                             COUNT(*) FILTER (WHERE success = false) as failed_collections

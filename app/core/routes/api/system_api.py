@@ -157,7 +157,11 @@ def get_system_stats():
             cursor.execute(
                 """
                  SELECT data_source, COUNT(*) as count,
-                        ROUND(COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive), 0), 1) as percentage
+                        ROUND(
+                            COUNT(*) * 100.0 / NULLIF(
+                                (SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive), 0
+                            ), 1
+                        ) as percentage
                  FROM blacklist_ips_with_auto_inactive
                 WHERE data_source IS NOT NULL
                 GROUP BY data_source

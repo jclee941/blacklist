@@ -128,7 +128,10 @@ class SmartConnectionManager:
                 cached_data.update(
                     {
                         "status": "degraded",
-                        "message": f"캐시된 데이터 (마지막 업데이트: {self._cached_stats['cached_at'].strftime('%H:%M:%S')})",
+                        "message": (
+                            f"캐시된 데이터 (마지막 업데이트: "
+                            f"{self._cached_stats['cached_at'].strftime('%H:%M:%S')})"
+                        ),
                     }
                 )
                 return cached_data
