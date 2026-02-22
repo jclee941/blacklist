@@ -267,11 +267,24 @@ ci-build: ## Build for CI/CD (production images)
 	@$(COMPOSE_CMD) build --parallel
 	@echo "✅ CI/CD build completed"
 
-deploy: ## Deploy to production (builds and starts prod environment)
+deploy: ## Deploy to production (builds, starts, verifies health)
 	@echo "🚀 Deploying to production..."
 	@$(MAKE) ci-build
 	@$(MAKE) prod
-	@$(MAKE) health
+	@echo "⏳ Waiting for services to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -sf http://localhost:$${PORT:-2542}/health > /dev/null 2>&1; then \
+			echo "✅ Health check passed (attempt $$i)"; \
+			exit 0; \
+		fi; \
+		if [ $$i -eq 10 ]; then \
+			echo "❌ Health check failed after 10 attempts"; \
+			$(COMPOSE_CMD) logs --tail=50; \
+			exit 1; \
+		fi; \
+		echo "  Attempt $$i/10 — waiting 5s..."; \
+		sleep 5; \
+	done
 	@echo "✅ Production deployment completed"
 
 # Release automation

@@ -41,7 +41,8 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           if ! grep -q "## \[${VERSION}\]" CHANGELOG.md 2>/dev/null; then
-            echo "::warning::No CHANGELOG.md entry found for version ${VERSION}"
+            echo "::error::No CHANGELOG.md entry found for version ${VERSION}"
+            exit 1
           fi
 
   build-images:

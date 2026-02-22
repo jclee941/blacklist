@@ -196,8 +196,59 @@ jobs:
           path: collector-coverage.xml
           retention-days: 30
 
+  test-integration:
+    needs: [detect-changes, lint-backend, test-backend]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      needs.detect-changes.outputs.backend == 'true'
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: blacklist
+          POSTGRES_PASSWORD: blacklist
+          POSTGRES_DB: blacklist_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U blacklist"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://blacklist:blacklist@localhost:5432/blacklist_test
+      REDIS_URL: redis://localhost:6379/0
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: blacklist_test
+      POSTGRES_USER: blacklist
+      POSTGRES_PASSWORD: blacklist
+      PYTHONPATH: app
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r app/requirements.txt pytest
+      - name: Run integration tests
+        run: |
+          python -m pytest tests/integration -v \
+            --tb=short
+
   build:
-    needs: [detect-changes, lint-frontend, lint-backend, test-frontend, test-backend, test-collector]
+    needs: [detect-changes, lint-frontend, lint-backend, test-frontend, test-backend, test-collector, test-integration]
     if: >-
       always() && !failure() && !cancelled() &&
       (needs.detect-changes.outputs.frontend == 'true' ||
@@ -240,6 +291,30 @@ jobs:
           name: image-${{ matrix.service }}
           path: ${{ matrix.service }}.tar.gz
           retention-days: 1
+
+  scan-images:
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [frontend, app, collector]
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: image-${{ matrix.service }}
+      - name: Load image
+        run: gunzip -c ${{ matrix.service }}.tar.gz | docker load
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: blacklist-${{ matrix.service }}:ci
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
 
   e2e:
     needs: build
@@ -315,7 +390,7 @@ jobs:
           echo "Download artifacts from the Actions tab for detailed reports." >> "$GITHUB_STEP_SUMMARY"
 
   push-images:
-    needs: [build, e2e]
+    needs: [build, e2e, scan-images]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30

@@ -103,7 +103,7 @@ else
       error "Backend tests failed. Fix test failures before releasing."
     fi
   else
-    warn "Test runner not available (no docker stack or pytest). Skipping test gate."
+    error "Test runner not available (no docker stack or pytest). Install pytest or start docker stack."
   fi
 fi
 
