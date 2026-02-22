@@ -79,6 +79,7 @@ docs/*
 !docs/wiki/
 !docs/README.md
 !docs/MONOREPO_STRUCTURE.md
+!docs/OPERATOR_MIGRATION_GUIDE.md
 
 # Analysis documents (never track)
 ANALYSIS*.md
@@ -86,7 +87,7 @@ GEMINI*.md
 *_SUMMARY*.md
 *_SUMMARY*.txt
 *_REPORT.md
-*_GUIDE.md
+/*_GUIDE.md
 *_STATUS.md
 
 # ============================================================================
