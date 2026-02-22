@@ -77,6 +77,8 @@ docs/*
 !docs/deliverables/
 !docs/testing/
 !docs/wiki/
+!docs/README.md
+!docs/MONOREPO_STRUCTURE.md
 
 # Analysis documents (never track)
 ANALYSIS*.md

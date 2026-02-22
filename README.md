@@ -111,18 +111,17 @@ make test-e2e               # E2E (Playwright)
 | `GET /api/collection/status` | Collector status |
 
 ## Documentation
-
 | Document | Path |
 |----------|------|
+| **Documentation Hub** | [`docs/README.md`](docs/README.md) |
 | Developer Guide | [`AGENTS.md`](AGENTS.md) |
+| System Architecture | [`docs/wiki/Architecture.md`](docs/wiki/Architecture.md) |
+| API Reference | [`docs/wiki/API-Reference.md`](docs/wiki/API-Reference.md) |
 | CI/CD Pipeline | [`docs/CICD_PIPELINE.md`](docs/CICD_PIPELINE.md) |
-| Monorepo Structure | [`docs/MONOREPO_STRUCTURE.md`](docs/MONOREPO_STRUCTURE.md) |
-| Deliverables Index | [`docs/deliverables/index.md`](docs/deliverables/index.md) |
-| Frontend Guide | [`frontend/README.md`](frontend/README.md) |
-| Collector Guide | [`collector/README.md`](collector/README.md) |
+| Deployment Guide | [`docs/wiki/Deployment-Guide.md`](docs/wiki/Deployment-Guide.md) |
 
 ## Version
 
-**v3.5.64** (February 2026) — Production Stable
+**v3.6.3** (February 2026) — Production Stable
 
 [Releases](https://github.com/qws941/blacklist/releases) · [Changelog](CHANGELOG.md)
