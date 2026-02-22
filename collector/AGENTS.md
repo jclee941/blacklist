@@ -1,134 +1,58 @@
 # COLLECTOR KNOWLEDGE BASE
 
-**Generated:** 2026-02-18
-**Commit:** b5a2c7d | **Version:** 3.5.68
-**Role:** ETL Service (Data Collection)
-**Parent:** [../AGENTS.md](../AGENTS.md)
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
 
-Independent ETL service. Collects blacklists from external sources, normalizes, stores to DB.
-Fully separated from `app/` — own DB pool, own process. Port 8545.
+Independent ETL service on :8545. ZERO imports from `app/` — fully isolated. Coordination via DB/Redis/HTTP only.
 
 ## STRUCTURE
 
-```
-run_collector.py        # Entry point (:8545)
-config.py               # Environment config + credential cache
-scheduler.py            # APScheduler-based scheduling
-scheduler_api.py        # Collection trigger REST API
-health_server.py        # K8s liveness/readiness + pending auth state
-monitoring_scheduler.py # Monitoring schedule
-fortimanager_uploader.py # FortiManager push (env-configurable URL)
-core/                   # Collection logic (→ core/AGENTS.md)
-  regtech/              # Regtech collection package
-  multi_source/         # Multi-source collection package
-utils/
-  otp_email_reader.py   # IMAP OTP auto-reader (timeout-enforced)
+```text
+collector/
+├── run_collector.py         # entry point (288L) → CollectorApplication
+├── config.py                # CollectorConfig, env-based + credential cache
+├── scheduler.py             # APScheduler (700L), daily REGTECH 02:00, IP cleanup midnight
+├── scheduler_api.py         # REST trigger for manual collection
+├── health_server.py         # Flask+Waitress on :8545 (500L)
+├── monitoring_scheduler.py  # periodic health reporting
+├── fortimanager_uploader.py # push blacklist to FortiManager
+├── core/                    # ETL pipeline modules
+│   ├── regtech/             # REGTECH auth + collection
+│   ├── multi_source/        # async feed aggregation
+│   ├── fortigate_collector.py  # FortiGate device collection (680L)
+│   ├── secudium_collector.py   # Secudium platform + OTP auth (676L)
+│   └── database.py          # collector DB layer (664L)
+├── api/                     # collector API endpoints
+└── utils/
+    └── otp_email_reader.py  # IMAP OTP reader for Secudium auth
 ```
 
-## HOW TO: Add Collection Source
+## HEALTH SERVER ENDPOINTS
 
-1. Create collector class in `core/` (inject `CollectorDatabase`)
-2. Register schedule in `scheduler.py`
-3. (Optional) Add `/api/force-collection/SOURCE` trigger in `scheduler_api.py`
+- `/health`, `/status`, `/logs`, `/trigger`
+- `/api/test-auth/<source>`, `/config`
+
+## SESSION SECURITY
+
+- Thread-safe token lifecycle: `_token_lock`, 4h TTL, 30min safety margin.
+- IP cache eviction: 24h TTL, 100K max, LRU 10%.
+- Credential clearing after use.
 
 ## ANTI-PATTERNS
 
-| Forbidden | Alternative | Reason |
-|-----------|-------------|--------|
-| `from app.* import` | Independent implementation | Service boundary violation |
-| `time.sleep()` loops | APScheduler | Main thread blocking |
-| Infinite retry | Backoff + max count | Resource exhaustion |
-| Sync bulk HTTP | `aiohttp` / ThreadPool | Performance |
-| Shared mutable state without lock | `threading.Lock()` context manager | Race conditions |
-| Unbounded caches/dicts | TTL + max size eviction | Memory leaks |
-| Hardcoded URLs | `BLACKLIST_API_URL` env var / `_get_api_url()` | Deployment portability |
-| Plaintext credentials in memory | `clear_credentials_cache()` after use | Security |
-| IMAP without timeout | `IMAP4_SSL(timeout=30)` + `sock.settimeout()` | Hanging connections |
-
-## SESSION MANAGEMENT (SECURITY)
-
-### Thread Safety
-
-All shared mutable state MUST be protected by locks:
-
-```python
-# health_server.py — pending auth state
-with self._pending_auth_lock:
-    self._secudium_pending_auth = {"collector": collector, ...}
-
-# secudium_collector.py — token cache
-with SecudiumCollector._token_lock:
-    SecudiumCollector._cached_token = token
-```
-
-### Token Lifecycle (Secudium)
-
-| Stage | Implementation | Location |
-|-------|----------------|----------|
-| Cache check | `_is_token_valid()` under `_token_lock` | L444-470 |
-| TTL | 4h with 30min safety margin | L57-58 |
-| Duplicate login recovery | Logout → re-auth (1 retry) | L336-364 |
-| Cache invalidation | `_invalidate_token()` under `_token_lock` | L775+ |
-
-### IP Cache Eviction
-
-| Policy | Config | Default |
-|--------|--------|---------|
-| TTL | `ip_cache_ttl` | 86400s (24h) |
-| Max size | `ip_cache_max_size` | 100,000 |
-| LRU eviction | Oldest 10% when over max | Automatic |
-| Method | `DatabaseService._evict_stale_ips()` | `core/database.py` |
-
-### Credential Handling
-
-```python
-# After collection completes, clear cached credentials:
-CollectorConfig.clear_credentials_cache()
-```
-
-### IMAP Timeout
-
-```python
-# OTPEmailReader enforces timeout at socket level:
-self.imap = imaplib.IMAP4_SSL(server, timeout=30)  # Connection timeout
-self.imap.sock.settimeout(30)  # Operation timeout
-```
-
-## KNOWN ISSUES
-
-| Issue | Location | Severity | Status |
-|-------|----------|----------|--------|
-| ~~Hardcoded app URL~~ | `fortimanager_uploader.py` | ~~CRITICAL~~ | FIXED (env var) |
-| `time.sleep()` blocking | `scheduler.py` | MEDIUM | Open |
-| Single-stage Dockerfile | `Dockerfile` — Playwright bloat | MEDIUM | Open |
-
-## COMMUNICATION
-
-```bash
-# Trigger collection
-curl -X POST http://blacklist-collector:8545/api/force-collection/REGTECH
-curl -X POST http://blacklist-collector:8545/api/force-collection/SECUDIUM
-# Health check
-curl http://blacklist-collector:8545/health
-# Test authentication
-curl -X POST http://blacklist-collector:8545/api/test-auth/secudium
-```
-
-## TESTS
-
-- Unit: `tests/unit/collector/` — includes session management security suite (570 lines)
-- Integration: `tests/integration/collector/`
-- Security test suite: `test_session_management_security.py`
-  - Pending auth concurrency (CRITICAL)
-  - IP cache TTL + LRU eviction (HIGH)
-  - Credential cleanup (HIGH)
-  - IMAP timeout enforcement (MEDIUM)
-  - FortiManager URL configuration (CRITICAL)
-  - Integration: all locks + caches coexisting
+- Importing from `app/` (zero code sharing policy).
+- `time.sleep()` loops (use scheduler intervals).
+- Hardcoded URLs (use config/env vars).
+- Missing `aiohttp` for bulk operations.
+- Missing locks for shared state.
+- Missing TTL+eviction for caches.
 
 ## NOTES
 
-- Communicates with `app/` via DB/Redis only. No code sharing.
-- `BLACKLIST_API_URL` env var controls FortiManager push target (default: `http://blacklist-app:2542`)
+- `DISABLE_AUTO_COLLECTION` env var disables scheduled collection.
+- Adaptive intervals: 300s-3600s based on collection outcomes.
+- Known: `time.sleep` in scheduler (MEDIUM priority fix).
+- Known: single-stage Dockerfile (MEDIUM priority optimization).

@@ -1,74 +1,63 @@
-# AGENTS.md — Flask API (`app/`)
+# APP KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
-**Parent:** [../AGENTS.md](../AGENTS.md)
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
+
+## OVERVIEW
+
+Flask API runtime on :2542. App factory pattern via `create_app()` in `core/app.py`.
 
 ## STRUCTURE
 
-```
+```text
 app/
-├── run_app.py              # Entry point (:2542)
+├── run_app.py              # entry point, PORT=2542
 ├── core/
-│   ├── app.py              # Application Factory (complexity: 39.91)
-│   ├── services/           # 14 services → services/AGENTS.md
-│   │   └── service_factory.py  # DI container (init order matters)
-│   ├── routes/
-│   │   ├── api/            # JSON API (RFC 7807) → api/AGENTS.md
-│   │   │   └── ip_management/  # Refactored subpackage (v3.5.37)
-│   │   └── web/            # Jinja2 legacy admin → web/AGENTS.md
-│   ├── database/           # Raw SQL infrastructure → database/AGENTS.md
-│   ├── monitoring/         # Prometheus metrics → monitoring/AGENTS.md
-│   └── utils/              # Shared utilities → utils/AGENTS.md
-├── templates/              # Jinja2 (legacy, minimize changes)
-└── static/                 # Static assets (legacy)
+│   ├── app.py              # factory + middleware (479L, complexity 39.91)
+│   ├── config.py           # AppConfig: 48 @property → os.getenv()
+│   ├── services/           # 14 services, ServiceFactory DI
+│   ├── routes/api/         # REST JSON (RFC 7807 errors)
+│   ├── routes/web/         # Jinja2 legacy Korean admin
+│   ├── auth/               # JWT (DISABLED at app.py:155)
+│   ├── database/           # psycopg2 connection managers
+│   ├── monitoring/         # Prometheus metrics
+│   ├── exceptions/         # typed error hierarchy
+│   └── utils/              # response, encryption, cache, validation
+├── templates/              # Jinja2 templates (web routes)
+└── static/                 # CSS, JS, fonts, images
 ```
 
-## HOW TO: Add API Endpoint
+## WHERE TO LOOK
 
-```python
-# 1. core/routes/api/my_feature_api.py
-bp = Blueprint('my_feature', __name__, url_prefix='/api/my-feature')
-
-@bp.route('/', methods=['GET'])
-def list_items():
-    svc = current_app.extensions['my_service']  # MANDATORY DI pattern
-    return jsonify({'items': svc.get_all()})
-
-# 2. Register in core/routes/__init__.py → register_blueprints()
-# 3. If new service needed → see services/AGENTS.md
-```
-
-## ANTI-PATTERNS
-
-| Forbidden | Use Instead |
-|-----------|-------------|
-| `from run_app import app` | `current_app` proxy |
-| SQL string concatenation | Parameterized `%s` queries |
-| `resp.json()` without guard | `try/except` or status check first |
-
-## KNOWN ISSUES
-
-### DI Violations (3 files)
-`admin_routes.py`, `fortimanager_push_service.py`, `settings_service.py` directly instantiate services.
-
-### Hardcoded URLs (5 violations)
-| File | Line(s) |
-|------|---------|
-| `routes/api/collection/utils.py` | 13 |
-| `routes/api/blacklist/collection.py` | 54 |
-| `services/blacklist_service.py` | 420, 462, 510 |
-
-Fix: use `COLLECTOR_URL` env var.
+| Task                     | Location                           | Notes                                                 |
+| ------------------------ | ---------------------------------- | ----------------------------------------------------- |
+| App factory + middleware | `core/app.py`                      | csrf, request_id, security headers, compression       |
+| Blueprint registration   | `core/app.py`                      | modular `register_*_routes(app)` functions            |
+| Config properties        | `core/config.py`                   | DB, Redis, URLs, Secrets, FMG, Admin, JWT, Collection |
+| DI container             | `core/services/service_factory.py` | strict init order, `current_app.extensions[...]`      |
 
 ## COMPLEXITY HOTSPOTS
 
-| File | Metric | Risk |
-|------|--------|------|
-| `core/app.py` | 39.91 complexity | HIGH |
-| `services/blacklist_service.py` | 39.43 complexity | HIGH |
+| File                                         | LOC | Concern                         |
+| -------------------------------------------- | --- | ------------------------------- |
+| `core/app.py`                                | 479 | cognitive complexity 39.91      |
+| `core/routes/api/system_api.py`              | 648 | system status endpoints         |
+| `core/services/secure_credential_service.py` | 624 | AES-256-GCM credential storage  |
+| `core/routes/web/admin.py`                   | 620 | RegTech credential management   |
+| `core/routes/web/collection_panel.py`        | 603 | collection UI + CSRF-exempt API |
+| `core/services/collection_service.py`        | 596 | collection orchestration        |
+| `core/services/blacklist_service.py`         | 534 | complexity 39.43                |
+
+## ANTI-PATTERNS
+
+- Direct service instantiation — use `current_app.extensions['service_name']`.
+- Business logic in route handlers — routes are thin dispatchers only.
+- `from run_app import app` — use `current_app` proxy.
 
 ## NOTES
 
-- Collection trigger: HTTP POST to collector or query `collection_history` table
-- Three separate rate limiter instances exist (regtech, auth, Flask-Limiter) — consolidate
+- JWT middleware DISABLED at `core/app.py:154-156` (internal deployment).
+- DI violations in `fortimanager_push_service.py` and `settings_service.py` are intentional (optional `db_service` param).
+- 3 rate limiter instances (Flask-Limiter ×2) identified for future consolidation.
+- Middleware chain: `csrf_protect_web_only` → `generate_request_id` → `add_security_headers` → `compress_response`.

@@ -1,89 +1,80 @@
 # GitHub Actions Workflows
 
-**Version**: 3.5.64
+**Version**: 3.6.3
 
 ## Workflow Files
 
-| File | Type | Lines | Trigger | Purpose |
-|------|------|-------|---------|--------|
-| `ci.yml` | Primary | 283 | Push/PR to `master` | Full CI pipeline |
-| `release.yml` | Primary | 243 | Tag `v*` | Release + publish |
-| `build-images.yml` | Reusable | 103 | Called by others | Docker image builds |
-
----
+| File | Type | Trigger | Purpose |
+|------|------|---------|---------|
+| `ci.yml` | Primary | Push/PR to `master` | Full CI: detect, lint, test, build, E2E, push |
+| `release.yml` | Primary | Tag `v*`, manual dispatch | Validate + package + release + registry publish |
+| `build-images.yml` | Reusable/Manual | `workflow_call`, manual dispatch | Build Docker images, optionally push |
+| `_ci-node.yml` | Reusable | `workflow_call` | Shared Node lint/typecheck/test pipeline |
+| `auto-merge.yml` | Automation | `pull_request_target` | Enable PR auto-merge for trusted criteria |
+| `labeler.yml` | Automation | `pull_request_target` | Apply labels based on path rules |
+| `stale.yml` | Automation | Daily cron, manual dispatch | Mark/close stale issues and PRs |
 
 ## 1. `ci.yml` — CI Pipeline
 
-**Trigger**: Push or PR to `master` branch
+**Trigger**: Push or PR to `master`
 
+```text
+Push/PR
+  -> detect-changes
+  -> lint-backend + lint-frontend
+  -> test-backend + test-collector + test-frontend
+  -> build
+  -> e2e
+  -> push-images (push on master only)
 ```
-Push/PR → detect-changes → lint (parallel) → test (parallel) → build (matrix) → e2e → push-images
-```
 
-**Jobs**:
-| Job | Runs On | Depends On | Description |
-|-----|---------|------------|-------------|
-| `detect-changes` | self-hosted | — | Path filter for backend/frontend/collector changes |
-| `lint-backend` | self-hosted | detect-changes | Ruff linter |
-| `lint-frontend` | self-hosted | detect-changes | ESLint + tsc --noEmit |
-| `test-backend` | self-hosted | lint-backend | pytest (785+ tests) |
-| `test-frontend` | self-hosted | lint-frontend | vitest (207+ tests) |
-| `build-images` | self-hosted | test-* | Matrix build: 5 Docker images |
-| `e2e` | self-hosted | build-images | Playwright smoke + chromium |
-| `push-images` | self-hosted | e2e | Push to GHCR (master branch only) |
-
-**Concurrency**: Auto-cancels in-progress runs on new push.
-
----
+Key points:
+- Uses `vars.RUNNER` with fallback to `ubuntu-latest`
+- Backend and collector lint jobs share Ruff checks
+- Frontend lint/typecheck runs via `_ci-node.yml`
+- E2E runs against `.github/docker-compose.ci.yml`
+- Coverage artifacts are collected by `coverage-report`
 
 ## 2. `release.yml` — Release Pipeline
 
-**Trigger**: Tag push matching `v*`
+**Trigger**:
+- Tag push matching `v*`
+- Manual `workflow_dispatch` with `dry_run`
 
+```text
+validate -> build-images -> package -> create-release -> push-to-registry -> notify
 ```
-Tag v* → validate → build 5 images → package → create-release + push-to-registry → notify
-```
 
-**Jobs**:
-| Job | Description |
-|-----|-------------|
-| `validate` | Check VERSION file matches tag, CHANGELOG has entry |
-| `build-images` | Matrix build: postgres, redis, collector, app, frontend |
-| `package` | Create release tarball bundle (images + compose + install.sh) |
-| `create-release` | GitHub Release with release bundle as asset |
-| `push-to-registry` | Push all 5 images to GHCR with version + latest tags |
-| `notify` | Slack webhook notification |
+Key points:
+- Enforces `VERSION` file match with tag
+- Packages release tarball + checksums
+- Creates GitHub Release via `gh release create`
+- Pushes `version` and `latest` tags to GHCR
+- Optional Slack notification via `vars.SLACK_WEBHOOK_URL`
 
----
+## 3. `build-images.yml` — Reusable Builder
 
-## 3. Build Images (`build-images.yml`) — Reusable
+- Builds matrix: `frontend`, `app`, `collector`, `postgres`, `redis`
+- Supports `push: true/false`
+- Exports image artifacts when not pushing
 
-Matrix strategy builds 5 Docker images in parallel with GitHub Actions cache for layer reuse.
+## 4. Automation Workflows
 
----
+- `auto-merge.yml`: enables squash auto-merge for Dependabot, repo owner, or `auto-merge` label
+- `labeler.yml`: syncs PR labels using `.github/labeler.yml`
+- `stale.yml`: marks stale after 14 days and closes after 5 more days
 
-## Runner Requirements
-
-All workflows use `self-hosted` runners:
-
-- Docker 24+
-- Docker Compose v2
-- Node.js 20
-- Python 3.11
-- Git, SSH access
-
----
-
-## Manual Triggers
+## Manual Commands
 
 ```bash
-# Trigger CI manually
+# Run CI on master
 gh workflow run ci.yml --ref master
 
-# Create a release
-git tag v3.5.65 && git push origin v3.5.65
+# Run release workflow as dry run
+gh workflow run release.yml -f dry_run=true
+
+# Trigger release by tag
+git tag v3.6.3 && git push origin v3.6.3
 ```
 
----
-
-**Last Updated**: 2026-02-15
+**Last Updated**: 2026-02-21

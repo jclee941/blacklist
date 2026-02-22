@@ -1,59 +1,40 @@
-# AGENTS.md — Exception Hierarchy
+# EXCEPTIONS KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
-**Parent:** `app/core/` | **Total:** 619 lines (9 files)
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
+
+## OVERVIEW
+
+Typed exception hierarchy for RFC 7807 error responses. 619 lines across 9 files.
 
 ## HIERARCHY
 
 ```
-BlacklistError (base — all custom exceptions)
-├── APIError (+status_code, +code → RFC 7807 JSON response)
-│   ├── ValidationError [400]
-│   ├── BadRequestError [400]
-│   ├── NotFoundError [404]
-│   ├── ConflictError [409]
-│   ├── InternalError [500]
-│   ├── UnauthorizedError [401]
-│   └── ForbiddenError [403]
-├── AuthenticationError
-├── RateLimitError
-├── ServiceUnavailableError
-├── DataError
-├── ConfigurationError
-├── CacheError
-├── DatabaseError
-└── ConnectionError
+BlacklistError (base)
+└── APIError (+status_code, +code → RFC 7807 JSON)
+    ├── ValidationError [400]
+    ├── BadRequestError [400]
+    ├── NotFoundError [404]
+    ├── ConflictError [409]
+    ├── UnauthorizedError [401]
+    ├── ForbiddenError [403]
+    └── InternalError [500]
+
+Standalone (non-RFC 7807):
+  AuthenticationError, RateLimitError, ServiceUnavailableError,
+  DataError, ConfigurationError, CacheError, DatabaseError, ConnectionError
 ```
 
-## KEY FILES
+## CONVENTIONS
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `base.py` | 45 | `BlacklistError` base class |
-| `api_errors.py` | 180 | `APIError` + HTTP subclasses — RFC 7807 serialization |
-| `handlers.py` | 95 | Flask `errorhandler` registrations |
-| `__init__.py` | 42 | Re-exports all exception classes |
-
-## USAGE PATTERN
-
-```python
-from app.core.exceptions import NotFoundError, ValidationError
-
-raise NotFoundError(message="IP not found", code="NOT_FOUND_IP")
-raise ValidationError(message="Invalid CIDR", code="VALID_CIDR")
-```
-
-**93 raise sites** across 20 files. Code prefixes: `AUTH_`, `VALID_`, `NOT_FOUND_`, `INTERNAL_`.
-
-## RFC 7807 — APIError SUBCLASSES ONLY
-
-Only `APIError` and its subclasses produce RFC 7807 JSON. Other `BlacklistError` subclasses (DatabaseError, CacheError, etc.) are caught by `handlers.py` and wrapped into generic 500 responses.
+- Only `APIError` subclasses produce RFC 7807 formatted JSON responses.
+- Non-APIError exceptions caught by global handler → generic 500.
+- 93 raise sites across 20 files.
 
 ## ANTI-PATTERNS
 
-| Forbidden | Why |
-|-----------|-----|
-| `raise Exception("...")` | Use typed exception from hierarchy |
-| Catch `BlacklistError` broadly | Catch specific subclass |
-| Return error dict manually | Raise exception — handler formats response |
+- Broad `BlacklistError` catch — use specific subclass.
+- Manual error dict return — raise typed exception, let handler format RFC 7807.
+- `raise Exception(...)` — use typed hierarchy.
+- Catching `APIError` when you mean `ValidationError` (loses specificity).

@@ -1,152 +1,105 @@
-# AGENTS.md — Blacklist Intelligence Platform
+# PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-15
-**Commit:** 0d1ce5c
-**Branch:** master | **Version:** 3.5.68
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
 
-## COMMANDS
+## OVERVIEW
 
-```bash
-# Development
-make dev                    # All services (hot reload)
-make dev-app / dev-frontend # API only / Frontend only
+Threat-intelligence platform with three primary runtimes: Flask API (`app/`), independent ETL collector (`collector/`), and Next.js 15 dashboard (`frontend/`). Project policy is strict service isolation + raw SQL only.
 
-# Build & Deploy
-make build                  # Production images (requires clean git tree)
-make deploy                 # Deploy to production
+## STRUCTURE
 
-# Testing
-make test                   # All tests (backend + frontend)
-make test-backend-unit      # Backend unit (pytest)
-make test-backend-coverage  # Backend ≥80% coverage required
-make test-frontend-unit     # Frontend unit (vitest)
-make test-e2e               # E2E (Playwright: smoke/chromium/webkit)
-
-# Single test
-docker compose exec -T blacklist-app python -m pytest tests/unit -v -k "test_name"
-cd frontend && npm run test -- --testNamePattern="test name"
-# Misc: make db-shell / db-backup / db-restore / logs / clean
-```
-
-## CODE STYLE
-
-| Domain | Formatter | Line | Indent | Quotes |
-|--------|-----------|------|--------|--------|
-| Python 3.11 | Ruff | 120 | 4 sp | Double `"` |
-| TypeScript | Prettier | 100 | 2 sp | Single `'` |
-
-- Type hints required (mypy strict). Semicolons required (TS).
-
-## CRITICAL PATTERNS
-
-### Python (Flask Backend)
-
-```python
-# DI: Access services via Flask extensions (MANDATORY)
-blacklist_service = current_app.extensions['blacklist_service']
-
-# Errors: RFC 7807 Problem Detail
-raise APIError(status=400, code="INVALID_IP", message="Invalid IP format")
-# Code prefixes: AUTH_, VALID_, NOT_FOUND_, INTERNAL_
-
-# Public endpoints (no JWT)
-from core.auth.decorators import public
-@public
-@bp.route("/health")
-def health(): ...
-
-# Logging
-from core.logger import get_logger
-logger = get_logger(__name__)
-```
-
-### TypeScript (Next.js Frontend)
-
-```typescript
-// API calls: ALWAYS through lib/api.ts (Bearer token auto-attached)
-import { api } from '@/lib/api';
-const data = await api.get('/blacklist');
-
-// Auth via authApi
-import { authApi } from '@/lib/api';
-const { token } = await authApi.login(username, password);
-```
-
-## ANTI-PATTERNS (NEVER DO)
-
-| Forbidden | Alternative | Reason |
-|-----------|-------------|--------|
-| `from app.core.services import X` | `current_app.extensions['x']` | Circular imports |
-| `BlacklistService()` | ServiceFactory DI | Breaks injection |
-| `fetch('localhost:2542')` | `api.get('/path')` | Env-dependent |
-| SQLAlchemy / Prisma | Raw SQL only | Project policy |
-| `as any`, `@ts-ignore` | Proper types | Type safety |
-| Hardcoded ports/hosts | Environment variables | Deployment |
-| Cross-imports between services | DB, Redis, HTTP only | Service isolation |
-| Direct DB queries (frontend) | HTTP API calls | Security |
-
-## PROJECT STRUCTURE
-
-```
-app/                    # Flask API (Manual DI, Raw SQL)        :2542
-  core/auth/            # JWT (middleware, service, decorators)
-  core/services/        # 14 services (ServiceFactory DI)
-  routes/               # API endpoints (blueprints)
-  migrations/           # Alembic SQL migrations
-collector/              # ETL Service (independent)             :8545
-  core/                 # REGTECH + Secudium collectors
-frontend/               # Next.js 15 Dashboard                  :443
-  app/                  # App Router pages
-  lib/                  # Utilities (api.ts, hooks)
-  e2e/                  # Playwright E2E tests
-postgres/migrations/    # Raw SQL migrations (no ORM)
-tests/unit/             # Pytest: 107 files, 785+ tests
-tests/mock-fortigate/   # Mock FortiManager API server
+```text
+./
+├── app/                    # Flask API (:2542), manual DI via ServiceFactory
+│   └── core/
+│       ├── routes/api/     # REST API surface (blacklist, fortinet, collection, ip-mgmt)
+│       ├── routes/web/     # legacy Korean admin routes (Jinja2)
+│       ├── services/       # 14 services, strict init order
+│       ├── auth/           # JWT service + middleware (currently disabled)
+│       ├── database/       # connection/recovery infra (not migrations)
+│       ├── monitoring/     # Prometheus metrics (counters, histograms, gauges)
+│       ├── exceptions/     # typed exception hierarchy (RFC 7807)
+│       └── utils/          # response helpers, encryption, caching, validation
+├── collector/              # ETL runtime (:8545), independent from app/
+│   └── core/
+│       ├── regtech/        # REGTECH auth + collection pipeline
+│       └── multi_source/   # async feed aggregation pipeline
+├── frontend/               # Next.js 15 dashboard (:443)
+│   └── lib/                # centralized Axios API client
+├── deploy/                 # compose/env/install for offline deployment
+├── postgres/               # raw SQL migrations + schema init
+│   ├── initdb/             # extension + schema bootstrap
+│   └── migrations/         # numbered sequential migrations
+└── tests/                  # pytest + mock-fortigate + frontend E2E
 ```
 
 ## WHERE TO LOOK
 
-| Task | Directory | Child AGENTS.md |
-|------|-----------|-----------------|
-| Flask app init, blueprints | `app/` | `app/AGENTS.md` |
-| Service lifecycle, DI | `app/core/services/` | `app/core/services/AGENTS.md` |
-| JWT auth, @public | `app/core/auth/` | `app/core/auth/AGENTS.md` |
-| REST API endpoints | `app/core/routes/api/` | `app/core/routes/api/AGENTS.md` |
-| Collection mgmt API | `app/core/routes/api/collection/` | `app/core/routes/api/collection/AGENTS.md` |
-| Web admin (Korean UI) | `app/core/routes/web/` | `app/core/routes/web/AGENTS.md` |
-| Raw SQL, migrations | `app/core/database/` | `app/core/database/AGENTS.md` |
-| Health, metrics | `app/core/monitoring/` | `app/core/monitoring/AGENTS.md` |
-| Shared utilities | `app/core/utils/` | `app/core/utils/AGENTS.md` |
-| Error handling, APIError | `app/core/exceptions/` | `app/core/exceptions/AGENTS.md` |
-| ETL, data collection | `collector/` | `collector/AGENTS.md` |
-| Collector core logic | `collector/core/` | `collector/core/AGENTS.md` |
-| Next.js frontend | `frontend/` | `frontend/AGENTS.md` |
-| Frontend libs, api.ts | `frontend/lib/` | `frontend/lib/AGENTS.md` |
-| Backend tests, fixtures | `tests/` | `tests/AGENTS.md` |
-| PostgreSQL schema | `postgres/` | `postgres/AGENTS.md` |
+| Task                              | Location                                   | Notes                                                     |
+| --------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
+| Flask app init + blueprint wiring | `app/AGENTS.md`                            | app factory, middleware, complexity hotspots              |
+| Service lifecycle + DI patterns   | `app/core/services/AGENTS.md`              | ServiceFactory ordering, extension wiring                 |
+| Collection service internals      | `app/core/services/collection/AGENTS.md`   | REGTECH auth/data + collection status/history             |
+| API route orchestration           | `app/core/routes/api/AGENTS.md`            | route-level patterns, thin handler conventions            |
+| Blacklist API package             | `app/core/routes/api/blacklist/AGENTS.md`  | core/management/batch/system/collector bridge             |
+| Fortinet API package              | `app/core/routes/api/fortinet/AGENTS.md`   | threat feed + device/log/health endpoints                 |
+| Collection API package            | `app/core/routes/api/collection/AGENTS.md` | 9 files, 18 endpoints, pagination conventions             |
+| Legacy web admin                  | `app/core/routes/web/AGENTS.md`            | Jinja2 Korean UI, CSRF exemptions, credential mgmt        |
+| JWT authentication                | `app/core/auth/AGENTS.md`                  | token service, middleware hook, public route list         |
+| Database connections              | `app/core/database/AGENTS.md`              | SmartConnectionManager, recovery, env priority            |
+| Prometheus monitoring             | `app/core/monitoring/AGENTS.md`            | metrics, cache metrics, error metrics                     |
+| Cross-cutting utilities           | `app/core/utils/AGENTS.md`                 | response format, encryption, caching, validation          |
+| Exception hierarchy               | `app/core/exceptions/AGENTS.md`            | RFC 7807 APIError subtypes, raise sites                   |
+| Collector runtime                 | `collector/AGENTS.md`                      | scheduler, health server, security lifecycle              |
+| Collector ETL core                | `collector/core/AGENTS.md`                 | pipeline architecture, hotspots, conventions              |
+| REGTECH package                   | `collector/core/regtech/AGENTS.md`         | auth cache + parser/data processor boundaries             |
+| Multi-source package              | `collector/core/multi_source/AGENTS.md`    | async collectors, parser mixins, dedupe merge             |
+| Frontend dashboard                | `frontend/AGENTS.md`                       | App Router, API proxy, UI components, test workflow       |
+| Frontend API client               | `frontend/lib/AGENTS.md`                   | centralized Axios client + auth interceptors              |
+| Deployment ops                    | `deploy/AGENTS.md`                         | compose inheritance, offline install, release constraints |
+| Test conventions                  | `tests/AGENTS.md`                          | markers, mock-fortigate, regression spec format           |
+| Database schema                   | `postgres/AGENTS.md`                       | migration strategy, init scripts, table inventory         |
 
-## ARCHITECTURE
+## CONVENTIONS
 
-| Service | Port | Healthcheck | Dependencies |
-|---------|------|-------------|--------------|
-| postgres | 5432 | `pg_isready` | None |
-| redis | 6379 | `redis-cli ping` | None |
-| collector | 8545 | `curl /health` | postgres, redis |
-| app | 2542 | `curl /health` | postgres, redis, collector |
-| frontend | 443 | `curl --insecure /health` | app |
+- Python: Ruff, 120-char line length, 4-space indent; type hints expected.
+- TypeScript: Prettier, 100-char line length, 2-space indent, single quotes, semicolons.
+- API errors: RFC 7807 style via `APIError` and typed exception hierarchy.
+- DI access: Flask services must be retrieved via `current_app.extensions[...]`.
+- Frontend API access: route through `frontend/lib/api.ts`; avoid direct `fetch()` in app code.
+- SQL: raw only, parameterized `%s`, `ON CONFLICT DO UPDATE`, `IF NOT EXISTS`.
+- Korean: operational messages and admin UI use Korean; backend docstrings mixed.
 
-- **CI:** push → detect-changes → lint/test (parallel) → build → e2e (smoke/chromium/webkit)
-- **Release:** tag `v*` → validate VERSION==tag → build → package bundle → GitHub Release → GHCR
-- **Deploy:** prod=manual offline `docker load`
+## ANTI-PATTERNS (THIS PROJECT)
+
+- `from app.core.services import X` from route/service code (circular import risk).
+- Direct service instantiation in request paths when DI container exists.
+- SQLAlchemy/Prisma introduction; project policy is raw SQL.
+- Hardcoded environment endpoints when config/env vars already define service URLs.
+- Frontend direct DB calls or bypassing HTTP API boundary.
+- `from run_app import app` — use `current_app` proxy instead.
+- SQL string concatenation — use parameterized `%s` queries.
+- Broad `BlacklistError` catch — use specific exception subclass.
+- Manual error dict return — raise typed exception, let handler format RFC 7807.
+
+## COMMANDS
+
+```bash
+make dev                     # full dev stack (hot reload)
+make build                   # production images (requires clean git tree)
+make test                    # backend + frontend tests
+make test-backend-coverage   # pytest with >=80% threshold
+make test-frontend-e2e       # Playwright E2E in frontend/
+make release TYPE=patch      # bump, tag, changelog automation
+```
 
 ## NOTES
 
-- **Known:** DI violation in `fortimanager_push_service.py` — intentional standalone fallback
-- **Known:** Auth middleware disabled — commented out at `app.py:156`, all endpoints public
-- 14 services via ServiceFactory in strict lifecycle order (see `app/core/services/AGENTS.md`)
-- `make build` requires clean git tree; backend coverage ≥80% enforced
-- 992+ total tests: 785+ backend (pytest, 107 files), 207+ frontend (vitest, 44 files)
-- Data sources: REGTECH (한국금융보안원) + Secudium/ISAP (SK쉰더스)
-- Docker: named volumes, `network_mode: host`, SSL embedded in frontend image
-- Complexity hotspots: `run_app.py` (39.91), `blacklist_service.py` (39.43)
-- Korean UI in web admin panels; offline deployment via tarball bundles
+- JWT middleware is currently disabled at `app/core/app.py:155` (internal deployment assumption).
+- App and collector are intentionally separated processes; zero code sharing, coordination via DB/Redis/HTTP only.
+- DI violations in `fortimanager_push_service.py` and `settings_service.py` are intentional (optional db_service param).
+- `make build` enforces clean working tree; release pipeline validates `VERSION` against tag.
+- 3 rate limiter instances (Flask-Limiter x2 + collector Token Bucket) identified for future consolidation.
+- Complexity hotspots: `app.py`(39.91), `blacklist_service.py`(39.43) cognitive complexity scores.

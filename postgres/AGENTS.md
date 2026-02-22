@@ -1,65 +1,54 @@
 # POSTGRES KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
-**Role:** Database Schema & Migrations
-**Parent:** [../AGENTS.md](../AGENTS.md)
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
 
-PostgreSQL 15 with Raw SQL only. Migrations are sequential numbered SQL files.
+Raw SQL migrations + schema initialization. No ORM — project policy.
 
 ## STRUCTURE
 
-```
+```text
 postgres/
-├── Dockerfile              # PostgreSQL 15 + extensions
-├── initdb/                 # Initial schema (fresh DB)
-│   ├── 01-extensions.sql   # pg_trgm, uuid-ossp
-│   ├── 02-schema.sql       # Core tables
-│   └── 03-migrations.sql   # Migration tracking
-└── migrations/             # Incremental changes
-    ├── 001_add_data_source_column.sql
-    ├── 002_add_missing_columns.sql
-    ├── 003_add_display_order.sql
-    └── 004_update_active_blacklist_view.sql
+├── initdb/
+│   ├── 01-extensions.sql    # pg_trgm, uuid-ossp
+│   ├── 02-schema.sql        # 17 tables, 50+ indexes
+│   └── 03-migrations.sql    # bootstrap migrations
+└── migrations/
+    ├── 001_*.sql
+    ├── 002_*.sql
+    └── ... through 006_*.sql
 ```
 
-## HOW TO: Add Migration
+## INIT SEQUENCE
 
-```bash
-# 1. Create: migrations/005_description.sql (NNN sequential, snake_case)
-# 2. Apply:
-docker compose exec blacklist-db psql -U blacklist -d blacklist -f /migrations/005_description.sql
-```
+`01-extensions.sql` → `02-schema.sql` → `03-migrations.sql` (run once on fresh DB).
 
-Include comment header with purpose and date. Use `IF NOT EXISTS` for idempotency.
+## MIGRATION STRATEGY
 
-## CONVENTIONS
-
-| Convention | Description |
-|------------|-------------|
-| Parameterized | Always `%s` placeholders |
-| Sequential | Never skip migration numbers |
-| Idempotent | `IF NOT EXISTS` where possible |
-| No DROP | Add columns only, never destructive |
+- Sequential numbered: `NNN_description.sql` (001–006).
+- Additive only — no `DROP` statements in migrations.
+- `IF NOT EXISTS` for idempotent table/index creation.
+- `ON CONFLICT DO UPDATE` for seed data.
 
 ## CORE TABLES
 
-| Table | Purpose |
-|-------|---------|
-| `blacklist` | IP/domain blacklist entries |
-| `collection_history` | ETL collection logs |
-| `users` | Admin users |
-| `credentials` | Encrypted API keys (AES-256-GCM) |
-| `sources` | Data source configurations |
+`blacklist_ips`, `collection_history`, `collection_credentials`, `collection_status`, `credentials` (AES-256-GCM), `whitelist_ips`, `unified_ip_list`, `fortigate_devices`, `fortigate_pull_logs`, `system_settings`, plus monitoring/metrics tables.
 
-## INITDB SEQUENCE
+## EXTENSIONS
 
-`01-extensions.sql` → `02-schema.sql` → `03-migrations.sql` → `migrations/*.sql` (in order)
+- `pg_trgm` — trigram text search.
+- `uuid-ossp` — UUID generation.
+
+## CONVENTIONS
+
+- Raw SQL only, parameterized `%s`.
+- All queries use `IF NOT EXISTS` guards.
+- `ON CONFLICT DO UPDATE` for upserts.
 
 ## NOTES
 
-- Connection pool: managed by `app/core/services/database_service.py`
-- Schema changes require PR review
-- Backups handled by infrastructure, not application
+- Separate from `app/core/database/` (connection management) and `collector/core/database.py` (collector connections).
+- 17 tables with 50+ indexes defined in `02-schema.sql`.

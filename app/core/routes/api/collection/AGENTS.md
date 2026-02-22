@@ -1,41 +1,31 @@
-# AGENTS.md — Collection API Routes
+# COLLECTION API KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
-**Parent:** `app/core/routes/api/` | **Total:** 1,194 lines (9 files)
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
+
+## OVERVIEW
+
+1194 lines across 9 files. 18 endpoints for collection management.
 
 ## FILES
 
-| File | Lines | Endpoints | Domain |
-|------|-------|-----------|--------|
-| `collection_routes.py` | 210 | 4 | CRUD for collection records |
-| `collection_history_routes.py` | 180 | 3 | History/audit trail |
-| `collection_status_routes.py` | 150 | 3 | Status transitions |
-| `collection_export_routes.py` | 130 | 2 | CSV/Excel export |
-| `collection_search_routes.py` | 120 | 2 | Search/filter |
-| `collection_stats_routes.py` | 110 | 2 | Aggregated statistics |
-| `collection_bulk_routes.py` | 100 | 2 | Bulk operations |
-| `__init__.py` | 94 | — | Blueprint registration |
+| File                           | LOC | Endpoints                |
+| ------------------------------ | --- | ------------------------ |
+| `collection_routes.py`         | 210 | 4 — CRUD operations      |
+| `collection_history_routes.py` | 180 | 3 — history queries      |
+| `collection_status_routes.py`  | 150 | 3 — collector health     |
+| `collection_export_routes.py`  | 130 | 2 — data export          |
+| `collection_search_routes.py`  | 120 | 2 — search/filter        |
+| `collection_stats_routes.py`   | 110 | 2 — statistics           |
+| `collection_bulk_routes.py`    | 100 | 2 — bulk operations      |
+| `__init__.py`                  | 94  | — blueprint registration |
 
-## 18 ENDPOINTS TOTAL
+## PAGINATION CONVENTION
 
-All endpoints: JWT-protected (when middleware enabled), DI via `current_app.extensions`, raw SQL queries, RFC 7807 errors.
+- Query params: `page` + `per_page` (default 20), `sort_by` + `sort_order`.
+- Response format: `{data: [], total: N, page: N}`.
 
-## SCHEMAS ARE UNUSED
+## NOTES
 
-Pydantic schemas exist in `app/core/schemas/` (4 files, 280 LOC) for collection models but are **not imported or used** in any route. All validation is done manually in route handlers.
-
-## PATTERNS
-
-- Every handler starts with `service = current_app.extensions['collection_service']`
-- Pagination: `page` + `per_page` query params, default 20
-- Sorting: `sort_by` + `sort_order` query params
-- All list endpoints return `{data: [], total: int, page: int}`
-
-## ANTI-PATTERNS
-
-| Forbidden | Why |
-|-----------|-----|
-| Import schema validators | Currently unused by design — manual validation |
-| Direct SQL in routes | Use collection_service methods |
-| Skip pagination on list endpoints | Frontend expects paginated format |
+- Pydantic schemas exist in parent `schemas/` but are NOT wired to these routes.

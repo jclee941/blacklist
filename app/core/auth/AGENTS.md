@@ -1,45 +1,42 @@
-# AGENTS.md — JWT Authentication
+# AUTH KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
-**Parent:** `app/core/` | **Total:** 163 lines (4 files)
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
+
+## OVERVIEW
+
+JWT authentication layer. 163 lines across 4 files. **CRITICAL: middleware currently DISABLED.**
 
 ## FILES
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `jwt_service.py` | 65 | Token encode/decode — HS256, 8hr default expiry |
-| `middleware.py` | 52 | `before_request` hook — enforces JWT on all routes |
-| `decorators.py` | 30 | `@public` — marks endpoint as no-auth-required |
-| `__init__.py` | 16 | Re-exports JWTService, AuthMiddleware, public |
+| File             | LOC | Role                                     |
+| ---------------- | --- | ---------------------------------------- |
+| `jwt_service.py` | 65  | HS256 token create/verify, 8hr expiry    |
+| `middleware.py`  | 52  | `before_request` hook for JWT validation |
+| `decorators.py`  | 30  | `@public` decorator to exempt routes     |
+| `__init__.py`    | 16  | re-exports                               |
 
-## HOW IT WORKS
+## TOKEN PAYLOAD
 
-1. `AuthMiddleware.init_app(app)` registers `before_request` hook
-2. Every request checked for `Authorization: Bearer <token>`
-3. Routes decorated with `@public` skip check (`_public=True` on view func)
-4. Token payload: `{sub: user_id, role: str, iat: int, exp: int}`
-5. Decoded user set on `g.current_user`
+```json
+{ "sub": "user_id", "role": "admin", "iat": 1234567890, "exp": 1234596690 }
+```
 
-## PUBLIC ENDPOINTS (no JWT)
+## PUBLIC ENDPOINTS (no JWT required)
 
-`/health`, `/api/health`, `/metrics`, `/api/auth/login`, `/api/fortinet/threat-feed`, `/api/fortinet/json-connector`
+- `/health`, `/api/health`, `/metrics`
+- `/api/auth/login`
+- `/api/fortinet/threat-feed`, `/api/fortinet/json-connector`
 
-## CRITICAL: MIDDLEWARE CURRENTLY DISABLED
+## STATUS
 
-Auth middleware registration is **commented out** at `app/run_app.py:156`. All routes currently accessible without JWT. This is a security gap.
+- Middleware DISABLED at `app/core/app.py:155` (commented out `before_request` hook).
+- All routes currently accessible without JWT.
 
-## ANTI-PATTERNS
+## KNOWN GAPS
 
-| Forbidden | Why |
-|-----------|-----|
-| Check auth manually in route | Use `@public` or rely on middleware |
-| Store tokens in DB | Stateless JWT — no server-side sessions |
-| Change algorithm from HS256 | Secret key management not set up for RSA |
-
-## GAPS
-
-- No token refresh mechanism
-- No rate limiting on `/api/auth/login`
-- No token revocation/blacklist
-- Password hashing uses bcrypt but no password policy enforcement
+- No refresh token mechanism.
+- No rate limiting on `/api/auth/login`.
+- No token revocation / blacklist.
+- No password policy enforcement.

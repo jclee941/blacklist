@@ -1,39 +1,33 @@
 # FRONTEND LIB KNOWLEDGE BASE
 
-**Generated:** 2026-02-12  
-**Commit:** 83e7d28 | **Version:** 3.5.60  
-**Role:** API Client & Utilities  
-**Parent:** ../AGENTS.md
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
 
-Centralized API client (Axios). ALL backend communication MUST go through `api.ts`.
+Centralized Axios API client (`api.ts`, 277L). Single source of truth for all HTTP communication.
 
-**Two Axios instances:**
+## INSTANCES
 
-- `api` — general API calls (default timeout)
-- `collectionApi` — ETL/collection calls (extended timeout for long-running operations)
+| Instance        | Timeout | Use Case                           |
+| --------------- | ------- | ---------------------------------- |
+| `api`           | 60s     | default API calls                  |
+| `collectionApi` | 300s    | long-running collection operations |
 
-**JWT**: Stored in `localStorage` key `blacklist_auth_token`. Auto-attached via Axios request interceptor as `Authorization: Bearer <token>`.
+## AUTH
 
-## WHERE TO LOOK
+- JWT token from `localStorage` key `blacklist_auth_token`.
+- Auto-attached via Axios request interceptor.
+- Login: `POST /api/auth/login`
+- Verify: `GET /api/auth/verify`
 
-| If you need to…  | Go to…                |
-| ---------------- | --------------------- |
-| Make API calls   | `api.ts`              |
-| Add new endpoint | `api.ts` (add method) |
+## BASE URL
 
-## CONVENTIONS
-
-- **Single Entry Point**: `api.ts` is the ONLY allowed way to call backend.
-- **Proxy Path**: Requests go to `/api/*` (Next.js rewrites to Flask :2542).
-- **Error Handling**: Use try/catch with typed error responses.
-- **Auth/CSRF**: Handled automatically by Axios interceptors.
+Relative `/api/*` → Next.js rewrites to Flask `:2542` (configured in `next.config.ts`).
 
 ## ANTI-PATTERNS
 
-| Forbidden                  | Why                               |
-| -------------------------- | --------------------------------- |
-| `fetch()` in components    | Bypasses error handling, CSRF     |
-| `axios.create()` elsewhere | Must use `api` or `collectionApi` |
-| Ignoring API errors        | Always handle with user feedback  |
+- Direct `fetch()` calls anywhere in app code.
+- Creating additional `axios.create()` instances.
+- Skipping error handling on API responses.

@@ -1,79 +1,52 @@
 # TESTS KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
-**Role:** Test Infrastructure & Patterns
-**Parent:** [../AGENTS.md](../AGENTS.md)
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
 
-Multi-layer testing: Backend (pytest) + Frontend (Vitest/Playwright).
-**Coverage target**: 80% on `app/core/`. **CI runs frontend tests only** — no backend tests in CI.
+Multi-layer testing: pytest (backend) + Vitest (frontend unit) + Playwright (E2E). Coverage target: 80% on `app/core/`.
 
 ## STRUCTURE
 
-```
+```text
 tests/
-├── unit/{app/,collector/,components/}   # Fast isolated tests
-├── integration/{app/,collector/}        # Requires DB/Redis
-├── e2e/                                 # Playwright
-│   ├── homepage.spec.ts
-│   ├── ip-management.spec.ts
-│   ├── collection.spec.ts
-│   ├── accessibility.spec.ts
-│   ├── performance.spec.ts
-│   └── visual-regression.spec.ts
-└── test_config.py                       # MOCK_CREDENTIALS, fixtures
+├── unit/
+│   ├── routes/       # 43 test files
+│   ├── services/     # 28 test files
+│   ├── collector/    # 24 test files
+│   ├── utils/        # 14 test files
+│   ├── auth/         # 4 test files
+│   ├── monitoring/   # 4 test files
+│   ├── common/       # 2 test files
+│   ├── errors/       # 1 test file
+│   └── smoke/        # 1 smoke test
+├── integration/      # 1 integration test
+├── e2e/              # 6 Playwright specs + 42 snapshots
+└── mock-fortigate/   # standalone Flask mock (320L) + Dockerfile
 ```
 
-## COMMANDS
+## CONFIG
 
-```bash
-make test                    # All (backend + frontend)
-make test-backend-unit       # Unit only
-make test-backend-integration # With DB/Redis
-make test-security           # @pytest.mark.security
-make test-frontend           # Vitest
-make test-frontend-e2e       # Playwright
-
-docker compose exec -T blacklist-app python -m pytest tests/unit -v -k "test_name"
-cd frontend && npm run test -- --testNamePattern="test name"
-
-cd frontend && npx playwright test --update-snapshots  # Update visual snapshots
-```
-
-## MARKERS (Backend)
-
-| Marker | Purpose |
-|--------|---------|
-| `@pytest.mark.unit` | Fast, no external deps |
-| `@pytest.mark.integration` | Requires DB/Redis |
-| `@pytest.mark.security` | Auth/credential tests |
-| `@pytest.mark.db` | Database operations |
-| `@pytest.mark.api` | API endpoint tests |
+- `pyproject.toml`: 5 markers (`unit`, `integration`, `security`, `db`, `api`).
+- No `conftest.py` — inline fixtures with `yield` cleanup.
+- Coverage: `--cov-fail-under=80`.
 
 ## CONVENTIONS
 
-| Convention | Rule |
-|------------|------|
-| File naming | `test_*.py` (backend), `*.test.tsx` (frontend) |
-| Auth | Always `MOCK_CREDENTIALS` from `test_config.py` |
-| Fixtures | `app`, `client`, `db_service`, `redis_client` (inline, no conftest.py) |
-| Cleanup | Tests must clean up created data (use `yield` fixtures) |
-| Visual | Multi-browser snapshots (Chromium, Firefox, Mobile Chrome) |
+- File naming: `test_*.py` (pytest), `*.test.tsx` (Vitest), `*.spec.ts` (Playwright).
+- Credentials: `MOCK_CREDENTIALS` from `test_config.py` — never real credentials.
+- E2E timeout: 60s. Multi-browser snapshots.
+- E2E regression format: `issue-{NUMBER}-{description}.spec.ts` with `PROBLEM`/`ROOT CAUSE`/`FIX` comments.
+
+## MOCK FORTIGATE
+
+- `tests/mock-fortigate/`: standalone Flask app simulating FortiManager JSON-RPC.
+- Own `Dockerfile` + `config.py` (27L).
 
 ## ANTI-PATTERNS
 
-| Forbidden | Alternative |
-|-----------|-------------|
-| Real credentials | `MOCK_CREDENTIALS` |
-| `time.sleep()` | `pytest.mark.timeout` |
-| Shared test state | Isolated fixtures |
-| Skipping cleanup | `yield` fixtures |
-
-## NOTES
-
-- No `conftest.py` — fixtures defined inline in test files
-- E2E timeout: 60s default, multi-browser (Chromium, Firefox, Mobile Chrome)
-- Regression tests: `frontend/e2e/regression/issue-{NUMBER}-{description}.spec.ts` — require `PROBLEM`/`ROOT CAUSE`/`FIX` comments
-- Mock FortiManager: standalone Flask app in `tests/mock-fortigate/` for integration tests
+- Real credentials in test code (use `MOCK_CREDENTIALS`).
+- Skipping `yield` cleanup in fixtures.
+- Deleting failing tests to "pass".

@@ -1,57 +1,39 @@
-# AGENTS.md — Core Utilities
+# UTILS KNOWLEDGE BASE
 
-**Generated:** 2026-02-12
-**Commit:** 83e7d28 | **Version:** 3.5.60
-**Parent:** `app/core/` | **Total:** 1,198 lines
+**Generated:** 2026-02-22 21:55 Asia/Seoul
+**Commit:** 6c134bd
+**Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
 
-Cross-cutting utilities used by services and routes. Standardized response formatting, caching, encryption, validation, and logging.
+Cross-cutting utilities. 1198 lines across 8 modules + `__init__.py`.
 
-## STRUCTURE
+## FILES
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `response_utils.py` | 287 | Standardized API response wrappers |
-| `encryption.py` | 238 | AES-256-GCM credential encryption |
-| `cache_utils.py` | 204 | Redis caching with Prometheus metrics |
-| `logger_config.py` | 150 | Structured logging setup |
-| `db_utils.py` | 131 | `execute_query()`, `execute_write()` helpers |
-| `validators.py` | 70 | IP/input validation |
-| `version.py` | 45 | VERSION file reader |
-| `error_handlers.py` | 26 | Flask error handler registration |
-| `__init__.py` | 47 | Re-exports all public APIs |
+| File                | LOC | Role                                                                |
+| ------------------- | --- | ------------------------------------------------------------------- |
+| `response_utils.py` | 287 | standardized API responses `{success, data, timestamp, request_id}` |
+| `encryption.py`     | 238 | AES-256-GCM + Fernet for credential storage                         |
+| `cache_utils.py`    | 204 | Redis decorator + Prometheus cache metrics integration              |
+| `logger_config.py`  | 150 | structured JSON logging configuration                               |
+| `db_utils.py`       | 131 | `execute_query` / `execute_write` helpers for raw SQL               |
+| `validators.py`     | 70  | IP address validation                                               |
+| `version.py`        | 45  | `VERSION` file reader                                               |
+| `error_handlers.py` | 26  | Flask error handler registration                                    |
 
-## WHERE TO LOOK
+## RESPONSE FORMAT
 
-| Task | File | Notes |
-|------|------|-------|
-| Return API response | `response_utils.py` | `success_response()`, `paginated_response()`, etc. |
-| Add Redis caching | `cache_utils.py` | `@cached` decorator, `get_redis_client()` |
-| Encrypt/decrypt credentials | `encryption.py` | AES-256-GCM, key from env |
-| Raw SQL execution | `db_utils.py` | Wraps `db_service` with error handling |
-| Validate IP addresses | `validators.py` | Validation helpers |
-| Configure logging | `logger_config.py` | Called during app init |
+```json
+{"success": true, "data": {...}, "timestamp": "ISO8601", "request_id": "uuid"}
+```
 
 ## CONVENTIONS
 
-- **Response format**: All API responses use `success_response()` → `{success: true, data: {...}, timestamp: "...", request_id: "..."}`
-- **Caching**: `@cached` decorator wraps functions with Redis + Prometheus metrics integration
-- **Redis**: Lazy connection via `get_redis_client()`, env vars `REDIS_HOST`/`REDIS_PORT`
-- **Korean comments**: `cache_utils.py` and `logger_config.py` have Korean docstrings
-- **Exports**: `__init__.py` re-exports everything — import from `utils` not individual files
+- Korean docstrings mixed with English.
+- All DB queries through `db_utils.py` helpers (parameterized `%s`).
+- Cache decorator auto-integrates with Prometheus metrics.
 
 ## ANTI-PATTERNS
 
-| Forbidden | Alternative |
-|-----------|-------------|
-| `jsonify()` in routes directly | `success_response(data)` from `response_utils` |
-| Manual Redis connection | `get_redis_client()` from `cache_utils` |
-| `print()` for logging | `logger_config` structured logging |
-| Direct `psycopg2` calls | `execute_query()`/`execute_write()` from `db_utils` |
-
-## NOTES
-
-- `error_handlers.py` is minimal (26L) — just registers Flask error handlers, actual error classes in `errors/` and `exceptions/`
-- `encryption.py` uses Fernet (AES-256-GCM) — encryption key from `ENCRYPTION_KEY` env var
-- `version.py` reads from root `VERSION` file (currently `3.5.60`)
+- Direct `cursor.execute()` calls — use `db_utils.execute_query/execute_write`.
+- Manual response dict construction — use `response_utils` helpers.

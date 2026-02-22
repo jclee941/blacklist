@@ -1,116 +1,92 @@
 # GitHub Configuration
 
-**Project**: Blacklist Intelligence Platform
-**Version**: 3.5.64
+**Project**: Blacklist Intelligence Platform  
+**Version**: 3.6.3  
 **Repository**: [qws941/blacklist](https://github.com/qws941/blacklist)
-
----
 
 ## Directory Structure
 
-```
+```text
 .github/
-├── README.md                      # This file
-├── ISSUE_TEMPLATE/                # Issue templates
-│   ├── bug_report.yml             # Bug report
-│   ├── feature_request.yml        # Feature request
-│   ├── question.yml               # Question
-│   ├── quick-fix.yml              # Quick fix
-│   └── config.yml                 # Template config
-├── scripts/                       # CI/CD scripts
-│   └── validate-services.sh       # Service health validation
-└── workflows/                     # GitHub Actions workflows
-    ├── README.md                  # Workflow documentation
-    ├── ci.yml                     # CI pipeline (push/PR)
-    ├── release.yml                # Release pipeline (tag v*)
-    ├── build-images.yml           # Reusable: Docker builds
+├── README.md
+├── CODEOWNERS
+├── dependabot.yml
+├── docker-compose.ci.yml
+├── labeler.yml
+├── scripts/
+└── workflows/
+    ├── README.md
+    ├── _ci-node.yml
+    ├── auto-merge.yml
+    ├── build-images.yml
+    ├── ci.yml
+    ├── labeler.yml
+    ├── release.yml
+    └── stale.yml
 ```
-
----
 
 ## Workflows
 
-### 1. CI Pipeline (`ci.yml`)
+### 1) CI (`ci.yml`)
 
-**Trigger**: Push/PR to `master`
+- Trigger: push/PR to `master`
+- Purpose: detect-changes -> lint -> unit tests -> image build -> E2E -> GHCR push
+- Notes: uses `vars.RUNNER` fallback (`ubuntu-latest`), supports frontend/backend/collector path gating
 
-**Jobs**:
-1. `detect-changes` — Path-based change detection
-2. `lint-backend` / `lint-frontend` — Ruff + ESLint/tsc (parallel)
-3. `test-backend` / `test-frontend` — pytest + vitest (parallel)
-4. `build-images` — Matrix build (5 services)
-5. `e2e` — Playwright tests (smoke/chromium)
-6. `push-images` — Push to GHCR (master only)
+### 2) Release (`release.yml`)
 
-### 2. Release Pipeline (`release.yml`)
+- Trigger: tag push `v*` and manual `workflow_dispatch` (`dry_run`)
+- Purpose: validate VERSION/tag, build images, package tarball, GitHub Release, GHCR publish
 
-**Trigger**: Tag push `v*`
+### 3) Build Images (`build-images.yml`)
 
-**Jobs**:
-1. `validate` — Check VERSION file matches tag
-2. `build-images` — Matrix build (5 Docker images)
-3. `package` — Create release tarball bundle
-4. `create-release` — GitHub Release with assets
-5. `push-to-registry` — Push all images to GHCR
-6. `trigger-sandbox` — Watchtower HTTP trigger for auto-deploy
-7. `notify` — Slack notification
+- Trigger: reusable (`workflow_call`) + manual (`workflow_dispatch`)
+- Purpose: build/export or push Docker images for `frontend`, `app`, `collector`, `postgres`, `redis`
 
-### 3. Build Images (`build-images.yml`) — Reusable
+### 4) Reusable Node CI (`_ci-node.yml`)
 
-Matrix Docker build for: `postgres`, `redis`, `collector`, `app`, `frontend`
+- Trigger: `workflow_call`
+- Purpose: shared Node job for lint/typecheck/test with configurable working directory
 
----
+### 5) Auto Merge (`auto-merge.yml`)
 
-## Issue Templates
+- Trigger: `pull_request_target` (opened/synchronize/reopened/labeled)
+- Purpose: enable squash auto-merge for Dependabot, repo owner, or PRs labeled `auto-merge`
 
-| Template | Purpose |
-|----------|--------|
-| Bug Report | Reproduction steps, expected/actual behavior |
-| Feature Request | Description, use case, priority |
-| Question | Context and related docs |
-| Quick Fix | Urgent fix request with impact scope |
+### 6) Auto Labeler (`labeler.yml`)
 
----
+- Trigger: `pull_request_target` (opened/synchronize/reopened)
+- Purpose: sync labels from `.github/labeler.yml` path rules
 
-## Required Secrets
+### 7) Stale Cleanup (`stale.yml`)
 
-| Secret | Used By | Description |
-|--------|---------|-------------|
-| `GITHUB_TOKEN` | All workflows | Auto-provided by GitHub |
-| `REGTECH_ID` | release.yml | REGTECH portal ID |
-| `REGTECH_PW` | release.yml | REGTECH portal password |
-| `POSTGRES_PASSWORD` | release.yml | PostgreSQL password |
-| `SLACK_WEBHOOK_URL` | release.yml | Slack notifications (optional) |
+- Trigger: daily cron + manual dispatch
+- Purpose: mark/close inactive issues and PRs
 
----
+## Key Config Files
 
-## Monitoring
+- `CODEOWNERS`: review ownership rules
+- `dependabot.yml`: dependency update policy
+- `docker-compose.ci.yml`: E2E compose stack used in CI
+- `labeler.yml`: path-to-label mapping for PR auto-labeling
 
-**Build Status**: [Actions tab](https://github.com/qws941/blacklist/actions)
+## Required Repository Settings / Secrets
 
-| Status | Meaning |
-|--------|---------|
-| ✅ Success | All jobs passed |
-| ❌ Failure | One or more jobs failed |
-| ⏳ In Progress | Running |
-| ⚠️ Skipped | Skipped due to change detection |
+- `vars.RUNNER` (optional): set to `self-hosted` to run all workflows on self-hosted runners
+- `GITHUB_TOKEN`: auto-provided by GitHub Actions
+- `vars.SLACK_WEBHOOK_URL` (optional): release notification target
 
----
+## Quick Checks
 
-## Troubleshooting
-
-**Build failure**:
 ```bash
-docker compose build --no-cache
-docker system prune -af
+# List workflows
+gh workflow list
+
+# Manually run CI on master
+gh workflow run ci.yml --ref master
+
+# Manually run release workflow (dry run)
+gh workflow run release.yml -f dry_run=true
 ```
 
-**Secrets check**:
-```bash
-gh secret list
-gh secret set SECRET_NAME
-```
-
----
-
-**Last Updated**: 2026-02-15
+**Last Updated**: 2026-02-21
