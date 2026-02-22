@@ -195,3 +195,292 @@ def health(): ...
 | **CI** | `.github/docker-compose.ci.yml` | bridge | Pre-built |
 | **프로덕션** | `deploy/base.yml` + `release.yml` | host | GHCR 이미지 |
 | **오프라인** | `deploy/base.yml` + `release.yml` | host | `docker load` |
+
+---
+
+## ServiceFactory DI 의존성 그래프
+
+14개 서비스가 `ServiceFactory`에 의해 엄격한 순서로 초기화됩니다.  
+순서 변경 시 의존성 미충족으로 런타임 에러가 발생합니다.
+
+```mermaid
+graph TD
+    subgraph "Infrastructure Layer"
+        DB["db_service<br/>DatabaseService"]
+        REDIS["redis_service<br/>RedisService"]
+        CACHE["cache_service<br/>CacheService"]
+    end
+
+    subgraph "Core Business Layer"
+        BL["blacklist_service<br/>BlacklistService"]
+        COLL["collection_service<br/>CollectionService"]
+        FW["firewall_service<br/>FirewallService"]
+        SET["settings_service<br/>SettingsService"]
+        CRED["credential_service<br/>CredentialService"]
+    end
+
+    subgraph "Integration Layer"
+        FM["fortimanager_service<br/>FortiManagerService"]
+        FMP["fortimanager_push_service<br/>FortiManagerPushService"]
+        TF["threat_feed_service<br/>ThreatFeedService"]
+    end
+
+    subgraph "Monitoring Layer"
+        METRIC["metric_service<br/>MetricService"]
+        HEALTH["health_service<br/>HealthService"]
+    end
+
+    subgraph "Analytics Layer"
+        STATS["statistics_service<br/>StatisticsService"]
+        ANAL["analytics_service<br/>AnalyticsService"]
+    end
+
+    DB --> BL
+    DB --> COLL
+    DB --> FW
+    DB --> SET
+    DB --> STATS
+    DB --> ANAL
+    DB --> FM
+    REDIS --> CACHE
+    CACHE --> BL
+    CACHE --> STATS
+    CRED --> SET
+    CRED --> COLL
+    BL --> FMP
+    FM --> FMP
+    BL --> TF
+    DB --> HEALTH
+    REDIS --> HEALTH
+    METRIC --> HEALTH
+```
+
+### 초기화 순서 (변경 금지)
+
+```
+1. db_service          # PostgreSQL 연결 풀
+2. redis_service        # Redis 연결
+3. cache_service        # Redis 기반 캐시
+4. credential_service   # AES-256-GCM 암호화
+5. settings_service     # 시스템 설정
+6. blacklist_service    # 블랙리스트 CRUD
+7. collection_service   # 수집 관리
+8. firewall_service     # 방화벽 규칙
+9. fortimanager_service # FortiManager API
+10. fortimanager_push_service  # 정책 Push
+11. threat_feed_service  # Threat Feed 생성
+12. statistics_service   # 통계/분석
+13. analytics_service    # 분석 엔진
+14. health_service       # 헬스체크 (마지막 — 모든 서비스 상태 확인)
+```
+
+---
+
+## Collector 파이프라인 아키텍처
+
+Collector는 Flask와 독립된 Python 프로세스로, APScheduler 기반 ETL 파이프라인입니다.
+
+```mermaid
+graph TD
+    subgraph "Collector Application (:8545)"
+        ENTRY["CollectorApplication<br/>run_collector.py"]
+        SCHED["CollectionScheduler<br/>APScheduler"]
+        HEALTH["HealthServer<br/>GET /health"]
+        API["SchedulerAPI<br/>REST 제어"]
+    end
+
+    subgraph "REGTECH Pipeline"
+        RA["RegtechAuth<br/>다단계 인증"]
+        RC["RegtechCollector<br/>데이터 수집"]
+        RP["RegtechParser<br/>Excel/HTML 파싱"]
+    end
+
+    subgraph "Multi-Source Pipeline"
+        MS["AsyncFeedAggregator<br/>비동기 수집"]
+        MP["ParserMixin<br/>포맷 파싱"]
+        MD["DedupeMerger<br/>중복 제거"]
+    end
+
+    subgraph "Data Quality"
+        IPV["IPValidator<br/>IP 검증"]
+        DQM["DataQualityManager<br/>품질 관리"]
+        RL["RateLimiter<br/>Token Bucket"]
+    end
+
+    subgraph "Storage"
+        DB[("PostgreSQL")]
+        RD[("Redis")]
+    end
+
+    ENTRY --> SCHED
+    ENTRY --> HEALTH
+    ENTRY --> API
+    SCHED -->|"매일 02:00"| RC
+    SCHED -->|"적응형 300s~3600s"| MS
+    RC --> RA
+    RC --> RP
+    MS --> MP
+    MS --> MD
+    RP --> IPV
+    MP --> IPV
+    IPV --> DQM
+    DQM --> DB
+    DQM --> RD
+    RL -.->|"요청 제한"| RC
+    RL -.->|"요청 제한"| MS
+```
+
+### 스케줄링 정책
+
+| 작업 | 주기 | 전략 |
+|------|------|------|
+| REGTECH 수집 | 매일 02:00 | Cron (고정) |
+| Multi-Source 수집 | 300s ~ 3600s | 적응형 (성공률 기반) |
+| 데이터 정리 | 매일 00:00 | Cron (만료 IP 삭제) |
+| 헬스 리포트 | 60s | Interval |
+
+---
+
+## CI/CD 파이프라인
+
+```mermaid
+graph LR
+    subgraph "Trigger"
+        PUSH["Push/PR<br/>master 브랜치"]
+        TAG["Tag<br/>v* 생성"]
+    end
+
+    subgraph "CI Pipeline (ci.yml)"
+        LINT["Lint<br/>Ruff + ESLint"]
+        TEST_BE["Backend Test<br/>pytest ≥80%"]
+        TEST_FE["Frontend Test<br/>Vitest"]
+        BUILD["Docker Build<br/>5 서비스 매트릭스"]
+        E2E["E2E Test<br/>Playwright"]
+    end
+
+    subgraph "Release Pipeline (release.yml)"
+        VALIDATE["Version 검증<br/>VERSION ↔ Tag"]
+        IMG["이미지 빌드<br/>5 서비스 × amd64"]
+        BUNDLE["오프라인 번들<br/>tar.gz + sha256"]
+        GHCR["GHCR Push<br/>ghcr.io/qws941"]
+        GH_REL["GitHub Release<br/>번들 + 체인지로그"]
+    end
+
+    PUSH --> LINT
+    LINT --> TEST_BE
+    LINT --> TEST_FE
+    TEST_BE --> BUILD
+    TEST_FE --> BUILD
+    BUILD --> E2E
+    TAG --> VALIDATE
+    VALIDATE --> IMG
+    IMG --> BUNDLE
+    IMG --> GHCR
+    BUNDLE --> GH_REL
+    GHCR --> GH_REL
+```
+
+### 프로덕션 배포 (오프라인)
+
+```mermaid
+graph LR
+    GH["GitHub Release"] -->|"다운로드"| BUNDLE["오프라인 번들<br/>tar.gz"]
+    BUNDLE -->|"전송"| SERVER["프로덕션 서버"]
+    SERVER -->|"docker load"| IMAGES["Docker 이미지 로드"]
+    IMAGES -->|"docker compose up"| DEPLOY["서비스 시작"]
+    DEPLOY -->|"헬스체크"| VERIFY["배포 검증"]
+```
+
+---
+
+## 데이터베이스 관계도 (ER Diagram)
+
+```mermaid
+erDiagram
+    blacklist_ips {
+        uuid id PK
+        inet ip_address
+        varchar source_system
+        varchar threat_type
+        integer risk_score
+        timestamp detected_at
+        timestamp expires_at
+        boolean is_active
+    }
+    collection_history {
+        uuid id PK
+        varchar source
+        integer items_collected
+        varchar status
+        timestamp started_at
+        timestamp completed_at
+    }
+    collection_config {
+        uuid id PK
+        varchar source_name
+        jsonb config_data
+        boolean is_active
+    }
+    whitelist_ips {
+        uuid id PK
+        inet ip_address
+        varchar reason
+        timestamp created_at
+    }
+    fortigate_devices {
+        uuid id PK
+        varchar device_name
+        varchar ip_address
+        boolean is_active
+    }
+    fortigate_push_history {
+        uuid id PK
+        uuid device_id FK
+        integer items_pushed
+        varchar status
+        timestamp pushed_at
+    }
+    threat_feed_logs {
+        uuid id PK
+        inet client_ip
+        integer items_served
+        timestamp accessed_at
+    }
+    credentials {
+        uuid id PK
+        varchar service_name
+        bytea encrypted_data
+        timestamp updated_at
+    }
+    system_settings {
+        uuid id PK
+        varchar key
+        jsonb value
+        timestamp updated_at
+    }
+
+    blacklist_ips ||--o{ collection_history : "수집됨"
+    collection_config ||--o{ collection_history : "설정"
+    fortigate_devices ||--o{ fortigate_push_history : "Push 기록"
+    blacklist_ips ||--o{ threat_feed_logs : "제공됨"
+    whitelist_ips }o--o{ blacklist_ips : "제외"
+    credentials ||--o{ collection_config : "인증 정보"
+```
+
+### 주요 테이블 요약
+
+| 구분 | 테이블 | 설명 |
+|------|--------|------|
+| **핵심** | blacklist_ips | 위협 IP (메인 테이블) |
+| **핵심** | whitelist_ips | 화이트리스트 |
+| **수집** | collection_history | 수집 이력 |
+| **수집** | collection_config | 수집 설정 |
+| **연동** | fortigate_devices | FortiGate 장비 |
+| **연동** | fortigate_push_history | Push 이력 |
+| **연동** | threat_feed_logs | Threat Feed 접근 로그 |
+| **시스템** | credentials | 암호화된 인증 정보 |
+| **시스템** | system_settings | 시스템 설정 |
+| **뷰** | v_active_blacklist | 활성 블랙리스트 뷰 |
+| **뷰** | v_collection_summary | 수집 요약 뷰 |
+| **뷰** | v_threat_stats | 위협 통계 뷰 |
+| **뷰** | v_ip_management | IP 통합 관리 뷰 |
