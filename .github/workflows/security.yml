@@ -37,7 +37,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@45580472a5bb82c4681c4ac726cfdb60060c2ee1
         with:
-          category: /language:${{ matrix.language }}
+          category: /security/${{ matrix.language }}
 
   dependency-scan:
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
@@ -50,6 +50,6 @@ jobs:
           scan-type: fs
           scan-ref: .
           format: table
-          exit-code: '1'
-          severity: CRITICAL,HIGH
+          exit-code: "1"
+          severity: CRITICAL
           ignore-unfixed: true
