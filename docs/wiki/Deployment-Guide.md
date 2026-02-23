@@ -4,24 +4,24 @@
 
 Blacklist Platform은 Docker 기반으로 배포되며, 오프라인 환경 설치를 지원합니다.
 
-| 배포 방식 | 대상 환경 | Compose 파일 |
-|-----------|-----------|-------------|
-| 개발 (make dev) | 로컬 개발 | `deploy/docker-compose.yml` |
-| CI/CD | GitHub Actions | `.github/docker-compose.ci.yml` |
-| 프로덕션 | 서버 | `deploy/base.yml` + `release.yml` |
-| 오프라인 | 폐쇄망 | `install.sh` + 이미지 번들 |
+| 배포 방식       | 대상 환경      | Compose 파일                      |
+| --------------- | -------------- | --------------------------------- |
+| 개발 (make dev) | 로컬 개발      | `deploy/docker-compose.yml`       |
+| CI/CD           | GitHub Actions | `.github/docker-compose.ci.yml`   |
+| 프로덕션        | 서버           | `deploy/base.yml` + `release.yml` |
+| 오프라인        | 폐쇄망         | `install.sh` + 이미지 번들        |
 
 ---
 
 ## Docker 이미지
 
-| 서비스 | 베이스 이미지 | 빌드 스테이지 | 사용자 | 포트 |
-|--------|-------------|---------------|--------|------|
-| **app** | `python:3.11-slim-bullseye` | 2단계 (build + runtime) | `app:app` | 2542 |
-| **collector** | `python:3.11-slim` | 2단계 (builder + runtime) | 비root | 8545 |
-| **frontend** | `node:20-alpine` | 3단계 (deps + builder + runner) | `nextjs:nodejs` | 443 |
-| **postgres** | `postgres:15-alpine` | 단일 | postgres | 5432 |
-| **redis** | `redis:7-alpine` | 단일 | redis | 6379 |
+| 서비스        | 베이스 이미지               | 빌드 스테이지                   | 사용자          | 포트 |
+| ------------- | --------------------------- | ------------------------------- | --------------- | ---- |
+| **app**       | `python:3.11-slim-bullseye` | 2단계 (build + runtime)         | `app:app`       | 2542 |
+| **collector** | `python:3.11-slim`          | 2단계 (builder + runtime)       | 비root          | 8545 |
+| **frontend**  | `node:20-alpine`            | 3단계 (deps + builder + runner) | `nextjs:nodejs` | 443  |
+| **postgres**  | `postgres:15-alpine`        | 단일                            | postgres        | 5432 |
+| **redis**     | `redis:7-alpine`            | 단일                            | redis           | 6379 |
 
 ### 빌드 인자
 
@@ -55,14 +55,14 @@ make db-shell
 
 ### 볼륨
 
-| 볼륨 | 마운트 위치 | 용도 |
-|------|-----------|------|
-| `blacklist-pgdata` | `/var/lib/postgresql/data` | DB 데이터 |
-| `blacklist-redis-data` | `/data` | Redis 캐시 |
-| `blacklist-collector-data` | `/app/data` | Collector 상태 |
-| `blacklist-logs` | `/app/logs` | 공유 로그 |
-| `blacklist-uploads` | `/app/uploads` | 업로드 파일 |
-| `blacklist-app-data` | `/app/data` | App 상태 |
+| 볼륨                       | 마운트 위치                | 용도           |
+| -------------------------- | -------------------------- | -------------- |
+| `blacklist-pgdata`         | `/var/lib/postgresql/data` | DB 데이터      |
+| `blacklist-redis-data`     | `/data`                    | Redis 캐시     |
+| `blacklist-collector-data` | `/app/data`                | Collector 상태 |
+| `blacklist-logs`           | `/app/logs`                | 공유 로그      |
+| `blacklist-uploads`        | `/app/uploads`             | 업로드 파일    |
+| `blacklist-app-data`       | `/app/data`                | App 상태       |
 
 ---
 
@@ -84,29 +84,29 @@ cp deploy/.env.example .env
 
 **필수 환경변수:**
 
-| 변수 | 설명 | 생성 방법 |
-|------|------|----------|
-| `CREDENTIAL_MASTER_KEY` | AES-256 마스터 키 (hex) | `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `SECRET_KEY` | Flask 시크릿 키 | 위와 동일 |
-| `CREDENTIAL_ENCRYPTION_KEY` | 크레덴셜 암호화 키 | 위와 동일 |
-| `ENCRYPTION_SALT` | 암호화 솔트 | 위와 동일 |
-| `POSTGRES_PASSWORD` | DB 비밀번호 | 직접 설정 |
+| 변수                        | 설명                    | 생성 방법                                                  |
+| --------------------------- | ----------------------- | ---------------------------------------------------------- |
+| `CREDENTIAL_MASTER_KEY`     | AES-256 마스터 키 (hex) | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `SECRET_KEY`                | Flask 시크릿 키         | 위와 동일                                                  |
+| `CREDENTIAL_ENCRYPTION_KEY` | 크레덴셜 암호화 키      | 위와 동일                                                  |
+| `ENCRYPTION_SALT`           | 암호화 솔트             | 위와 동일                                                  |
+| `POSTGRES_PASSWORD`         | DB 비밀번호             | 직접 설정                                                  |
 
 **선택 환경변수:**
 
-| 변수 | 기본값 | 설명 |
-|------|--------|------|
-| `POSTGRES_USER` | postgres | DB 사용자 |
-| `POSTGRES_DB` | blacklist | DB 이름 |
-| `JWT_SECRET_KEY` | — | JWT 서명 키 |
-| `JWT_EXPIRY_HOURS` | 8 | JWT 만료 시간 |
-| `ADMIN_USERNAME` | admin | 관리자 계정 |
-| `ADMIN_PASSWORD` | admin | 관리자 비밀번호 |
-| `FMG_HOST` | — | FortiManager 호스트 |
-| `SECUDIUM_EMAIL` | — | Secudium 이메일 |
-| `COLLECTOR_URL` | http://localhost:8545 | Collector URL |
-| `LOG_LEVEL` | INFO | 로그 레벨 |
-| `COLLECTION_INTERVAL` | 3600 | 수집 간격 (초) |
+| 변수                  | 기본값                          | 설명                                |
+| --------------------- | ------------------------------- | ----------------------------------- |
+| `POSTGRES_USER`       | postgres                        | DB 사용자                           |
+| `POSTGRES_DB`         | blacklist                       | DB 이름                             |
+| `JWT_SECRET_KEY`      | —                               | JWT 서명 키                         |
+| `JWT_EXPIRY_HOURS`    | 8                               | JWT 만료 시간                       |
+| `ADMIN_USERNAME`      | **SET_ADMIN_USERNAME**          | 관리자 계정 (배포 시 변경 필수)     |
+| `ADMIN_PASSWORD`      | **SET_ADMIN_PASSWORD**          | 관리자 비밀번호 (배포 시 변경 필수) |
+| `FMG_HOST`            | —                               | FortiManager 호스트                 |
+| `SECUDIUM_EMAIL`      | —                               | Secudium 이메일                     |
+| `COLLECTOR_URL`       | http://blacklist-collector:8545 | Collector URL                       |
+| `LOG_LEVEL`           | INFO                            | 로그 레벨                           |
+| `COLLECTION_INTERVAL` | 3600                            | 수집 간격 (초)                      |
 
 ### 빌드 및 실행
 
@@ -191,19 +191,19 @@ graph LR
     H --> I[push-images]
 ```
 
-| Job | 도구 | 상세 |
-|-----|------|------|
-| **detect-changes** | path filter | frontend/, app/, collector/, tests/ 변경 감지 |
-| **lint-backend** | Ruff | check + format (line-length 120) |
-| **lint-frontend** | ESLint + tsc | `--noEmit` 타입 체크 |
-| **test-backend** | pytest | 785+ tests, coverage >= 80% 필수 |
-| **test-frontend** | vitest | 207+ tests |
-| **test-collector** | pytest | 세션 관리 보안 테스트 포함 |
-| **build** | Docker | matrix: frontend, app, collector |
-| **e2e** | Playwright | smoke + chromium + webkit |
-| **push-images** | GHCR | master 브랜치만 |
+| Job                | 도구         | 상세                                          |
+| ------------------ | ------------ | --------------------------------------------- |
+| **detect-changes** | path filter  | frontend/, app/, collector/, tests/ 변경 감지 |
+| **lint-backend**   | Ruff         | check + format (line-length 120)              |
+| **lint-frontend**  | ESLint + tsc | `--noEmit` 타입 체크                          |
+| **test-backend**   | pytest       | 785+ tests, coverage >= 80% 필수              |
+| **test-frontend**  | vitest       | 207+ tests                                    |
+| **test-collector** | pytest       | 세션 관리 보안 테스트 포함                    |
+| **build**          | Docker       | matrix: frontend, app, collector              |
+| **e2e**            | Playwright   | smoke + chromium + webkit                     |
+| **push-images**    | GHCR         | master 브랜치만                               |
 
-### Release (`release.yml` — Tag v*)
+### Release (`release.yml` — Tag v\*)
 
 ```mermaid
 graph LR
@@ -215,13 +215,13 @@ graph LR
     E --> F
 ```
 
-| Job | 상세 |
-|-----|------|
-| **validate** | VERSION 파일 == 태그, CHANGELOG 확인 |
-| **build-images** | 5개 서비스 매트릭스 빌드 |
-| **package** | 타르볼 생성 (이미지 + compose + install.sh) |
-| **create-release** | GitHub Release + 번들 asset |
-| **push-to-registry** | GHCR: version + latest 태그 |
+| Job                  | 상세                                        |
+| -------------------- | ------------------------------------------- |
+| **validate**         | VERSION 파일 == 태그, CHANGELOG 확인        |
+| **build-images**     | 5개 서비스 매트릭스 빌드                    |
+| **package**          | 타르볼 생성 (이미지 + compose + install.sh) |
+| **create-release**   | GitHub Release + 번들 asset                 |
+| **push-to-registry** | GHCR: version + latest 태그                 |
 
 ### 릴리스 프로세스
 
@@ -256,23 +256,23 @@ make release-dry
 
 ### Prometheus 메트릭
 
-| 도메인 | 파일 | 크기 | 메트릭 |
-|--------|------|------|--------|
-| **Request/Business** | `metrics.py` | 412줄 | HTTP 요청수, 블랙리스트 작업수, 수집 이벤트 |
-| **Cache Performance** | `cache_metrics.py` | 397줄 | Hit/miss 비율, 레이턴시 |
-| **Error Rates** | `error_metrics.py` | 289줄 | 에러 분류, 비율 추적 |
+| 도메인                | 파일               | 크기  | 메트릭                                      |
+| --------------------- | ------------------ | ----- | ------------------------------------------- |
+| **Request/Business**  | `metrics.py`       | 412줄 | HTTP 요청수, 블랙리스트 작업수, 수집 이벤트 |
+| **Cache Performance** | `cache_metrics.py` | 397줄 | Hit/miss 비율, 레이턴시                     |
+| **Error Rates**       | `error_metrics.py` | 289줄 | 에러 분류, 비율 추적                        |
 
 **엔드포인트**: `GET /metrics` (public, JWT 불필요)
 
 ### 헬스체크
 
-| 서비스 | 엔드포인트 | Interval | Timeout | Start Period |
-|--------|----------|----------|---------|-------------|
-| postgres | `pg_isready` | 30s | 10s | 40s |
-| redis | `redis-cli ping` | 30s | 10s | 10s |
-| collector | `/health` | 30s | 10s | 40s |
-| app | `/health` | 30s | 10s | 90s |
-| frontend | `/health` | 30s | 10s | 60s |
+| 서비스    | 엔드포인트       | Interval | Timeout | Start Period |
+| --------- | ---------------- | -------- | ------- | ------------ |
+| postgres  | `pg_isready`     | 30s      | 10s     | 40s          |
+| redis     | `redis-cli ping` | 30s      | 10s     | 10s          |
+| collector | `/health`        | 30s      | 10s     | 40s          |
+| app       | `/health`        | 30s      | 10s     | 90s          |
+| frontend  | `/health`        | 30s      | 10s     | 60s          |
 
 ### 로깅
 
@@ -284,22 +284,22 @@ make release-dry
 
 ## Makefile 타겟 요약
 
-| 카테고리 | 명령 | 설명 |
-|----------|------|------|
-| **개발** | `make dev` | 전체 서비스 핫 리로드 |
-| | `make dev-app` | App만 재시작 |
-| | `make dev-frontend` | Frontend만 재시작 |
-| | `make logs` | 로그 확인 |
-| | `make health` | 헬스 체크 |
-| **테스트** | `make test` | 전체 테스트 |
-| | `make test-backend-unit` | Backend unit (pytest) |
-| | `make test-backend-coverage` | Coverage >= 80% |
-| | `make test-frontend-unit` | Frontend unit (vitest) |
-| | `make test-e2e` | E2E (Playwright) |
-| **빌드** | `make build` | 프로덕션 이미지 빌드 |
-| | `make deploy` | 프로덕션 배포 |
-| | `make release` | 릴리스 (bump + tag + push) |
-| **DB** | `make db-shell` | PostgreSQL 쉘 |
-| | `make db-backup` | DB 백업 |
-| | `make db-restore` | DB 복원 |
-| **유틸** | `make clean` | 정리 |
+| 카테고리   | 명령                         | 설명                       |
+| ---------- | ---------------------------- | -------------------------- |
+| **개발**   | `make dev`                   | 전체 서비스 핫 리로드      |
+|            | `make dev-app`               | App만 재시작               |
+|            | `make dev-frontend`          | Frontend만 재시작          |
+|            | `make logs`                  | 로그 확인                  |
+|            | `make health`                | 헬스 체크                  |
+| **테스트** | `make test`                  | 전체 테스트                |
+|            | `make test-backend-unit`     | Backend unit (pytest)      |
+|            | `make test-backend-coverage` | Coverage >= 80%            |
+|            | `make test-frontend-unit`    | Frontend unit (vitest)     |
+|            | `make test-e2e`              | E2E (Playwright)           |
+| **빌드**   | `make build`                 | 프로덕션 이미지 빌드       |
+|            | `make deploy`                | 프로덕션 배포              |
+|            | `make release`               | 릴리스 (bump + tag + push) |
+| **DB**     | `make db-shell`              | PostgreSQL 쉘              |
+|            | `make db-backup`             | DB 백업                    |
+|            | `make db-restore`            | DB 복원                    |
+| **유틸**   | `make clean`                 | 정리                       |

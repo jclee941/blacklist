@@ -6,11 +6,11 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run — build & package only, skip release/push'
+        description: "Dry run — build & package only, skip release/push"
         type: boolean
         default: false
 
@@ -24,7 +24,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Extract and validate version
         id: version
         run: |
@@ -57,8 +57,8 @@ jobs:
     needs: [validate, build-images]
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           pattern: image-*
           path: images
@@ -86,7 +86,7 @@ jobs:
           cd "${BUNDLE}/images" && sha256sum *.tar.gz > checksums.sha256 && cd ../..
           tar czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
           sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: release-bundle
           path: |
@@ -98,11 +98,12 @@ jobs:
     needs: [validate, package]
     if: ${{ !inputs.dry_run }}
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    environment: production
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           name: release-bundle
       - name: Extract changelog
@@ -128,18 +129,19 @@ jobs:
     needs: [validate, build-images]
     if: ${{ !inputs.dry_run }}
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    environment: production
     permissions:
       packages: write
     strategy:
       matrix:
         service: [frontend, app, collector, postgres, redis]
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           name: image-${{ matrix.service }}
       - name: Load image
         run: gunzip -c blacklist-${{ matrix.service }}.tar.gz | docker load
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -155,7 +157,7 @@ jobs:
 
   notify:
     needs: [validate, create-release, push-to-registry]
-    if: always()
+    if: always() && !cancelled()
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Slack notification

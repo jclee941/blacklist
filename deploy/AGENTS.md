@@ -36,5 +36,5 @@ base.yml (source of truth)
 
 ## KNOWN ISSUES
 
-- Collector `BACKEND_API_URL` vs `BLACKLIST_API_URL` naming mismatch (env var ignored).
-- Default `ADMIN_USERNAME`/`ADMIN_PASSWORD` = `admin`/`admin` (security risk for production).
+- Collector API base URL must be provided via `BLACKLIST_API_URL` (legacy `BACKEND_API_URL` is unsupported).
+- Admin credentials must be set explicitly (`ADMIN_USERNAME`/`ADMIN_PASSWORD`) before production deployment.

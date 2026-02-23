@@ -16,12 +16,12 @@ Blacklist Platform의 보안 아키텍처는 다음 계층으로 구성됩니다
 
 ### 구성
 
-| 항목 | 값 |
-|------|----|
-| **알고리즘** | HS256 (HMAC-SHA256) |
-| **만료** | 8시간 (환경변수 `JWT_EXPIRY_HOURS`) |
-| **시크릿** | 환경변수 `JWT_SECRET_KEY` |
-| **저장** | `localStorage` 키 `blacklist_auth_token` |
+| 항목         | 값                                       |
+| ------------ | ---------------------------------------- |
+| **알고리즘** | HS256 (HMAC-SHA256)                      |
+| **만료**     | 8시간 (환경변수 `JWT_EXPIRY_HOURS`)      |
+| **시크릿**   | 환경변수 `JWT_SECRET_KEY`                |
+| **저장**     | `localStorage` 키 `blacklist_auth_token` |
 
 ### 토큰 페이로드
 
@@ -36,11 +36,11 @@ Blacklist Platform의 보안 아키텍처는 다음 계층으로 구성됩니다
 
 ### 파일 구조
 
-| 파일 | 역할 |
-|------|------|
+| 파일                           | 역할                                                        |
+| ------------------------------ | ----------------------------------------------------------- |
 | `app/core/auth/jwt_service.py` | 토큰 생성/검증 (encode_token, decode_token, validate_token) |
-| `app/core/auth/middleware.py` | before_request 후크 (Authorization 헤더 검사) |
-| `app/core/auth/decorators.py` | `@public` 데코레이터 (인증 면제) |
+| `app/core/auth/middleware.py`  | before_request 후크 (Authorization 헤더 검사)               |
+| `app/core/auth/decorators.py`  | `@public` 데코레이터 (인증 면제)                            |
 
 ### 현재 상태
 
@@ -70,12 +70,12 @@ def health():
 
 수집 소스 (REGTECH, Secudium)의 인증정보는 AES-256-GCM으로 암호화되어 DB에 저장됩니다.
 
-| 항목 | 환경변수 |
-|------|----------|
-| 마스터 키 | `CREDENTIAL_MASTER_KEY` |
-| 암호화 키 | `CREDENTIAL_ENCRYPTION_KEY` |
-| 솔트 | `ENCRYPTION_SALT` |
-| 설정 암호화 키 | `SETTINGS_ENCRYPTION_KEY` |
+| 항목           | 환경변수                    |
+| -------------- | --------------------------- |
+| 마스터 키      | `CREDENTIAL_MASTER_KEY`     |
+| 암호화 키      | `CREDENTIAL_ENCRYPTION_KEY` |
+| 솔트           | `ENCRYPTION_SALT`           |
+| 설정 암호화 키 | `SETTINGS_ENCRYPTION_KEY`   |
 
 ### 키 생성
 
@@ -95,10 +95,10 @@ SecureCredentialService (560줄)
 
 ### 암호화 대상
 
-| 테이블 | 컬럼 | 설명 |
-|--------|------|------|
-| `collection_credentials` | `password` | 수집 소스 비밀번호 |
-| `settings` / `system_settings` | 암호화 플래그 값 | 민감한 설정 값 |
+| 테이블                         | 컬럼             | 설명               |
+| ------------------------------ | ---------------- | ------------------ |
+| `collection_credentials`       | `password`       | 수집 소스 비밀번호 |
+| `settings` / `system_settings` | 암호화 플래그 값 | 민감한 설정 값     |
 
 ---
 
@@ -137,12 +137,12 @@ SecureCredentialService (560줄)
 
 ### 환경변수
 
-| 변수 | 기본값 | 설명 |
-|------|--------|------|
-| `FMG_HOST` | — | FortiManager 호스트 (필수) |
-| `FMG_USER` | admin | FortiManager 사용자 |
-| `FMG_PASS` | — | FortiManager 비밀번호 |
-| `FMG_ADOM` | root | FortiManager ADOM |
+| 변수       | 기본값 | 설명                       |
+| ---------- | ------ | -------------------------- |
+| `FMG_HOST` | —      | FortiManager 호스트 (필수) |
+| `FMG_USER` | admin  | FortiManager 사용자        |
+| `FMG_PASS` | —      | FortiManager 비밀번호      |
+| `FMG_ADOM` | root   | FortiManager ADOM          |
 
 ### Push 방식 (App → FortiManager)
 
@@ -187,13 +187,13 @@ curl -X POST http://localhost:2542/api/reset-database \
 
 ### 관리자 계정
 
-| 변수 | 기본값 |
-|------|--------|
-| `ADMIN_USERNAME` | admin |
-| `ADMIN_PASSWORD` | admin |
-| `ADMIN_RESET_KEY` | — |
+| 변수              | 기본값                 |
+| ----------------- | ---------------------- |
+| `ADMIN_USERNAME`  | **SET_ADMIN_USERNAME** |
+| `ADMIN_PASSWORD`  | **SET_ADMIN_PASSWORD** |
+| `ADMIN_RESET_KEY` | —                      |
 
-> **주의**: 프로덕션 배포 시 기본 관리자 계정 비밀번호를 반드시 변경하세요.
+> **주의**: 프로덕션 배포 전 `ADMIN_USERNAME`/`ADMIN_PASSWORD`를 반드시 강한 값으로 설정하세요.
 
 ---
 
@@ -201,86 +201,86 @@ curl -X POST http://localhost:2542/api/reset-database \
 
 ### 필수
 
-| 변수 | 설명 |
-|------|------|
-| `CREDENTIAL_MASTER_KEY` | AES-256-GCM 마스터 키 |
-| `SECRET_KEY` | Flask 시크릿 키 |
-| `CREDENTIAL_ENCRYPTION_KEY` | 크레덴셜 암호화 키 |
-| `ENCRYPTION_SALT` | 암호화 솔트 |
+| 변수                        | 설명                  |
+| --------------------------- | --------------------- |
+| `CREDENTIAL_MASTER_KEY`     | AES-256-GCM 마스터 키 |
+| `SECRET_KEY`                | Flask 시크릿 키       |
+| `CREDENTIAL_ENCRYPTION_KEY` | 크레덴셜 암호화 키    |
+| `ENCRYPTION_SALT`           | 암호화 솔트           |
 
 ### 데이터베이스
 
-| 변수 | 기본값 |
-|------|--------|
-| `POSTGRES_HOST` | blacklist-postgres |
-| `POSTGRES_PORT` | 5432 |
-| `POSTGRES_DB` | blacklist |
-| `POSTGRES_USER` | postgres |
-| `POSTGRES_PASSWORD` | postgres |
-| `DATABASE_URL` | — (우선순위 1) |
-| `POSTGRES_URL` | — (우선순위 2) |
+| 변수                | 기본값             |
+| ------------------- | ------------------ |
+| `POSTGRES_HOST`     | blacklist-postgres |
+| `POSTGRES_PORT`     | 5432               |
+| `POSTGRES_DB`       | blacklist          |
+| `POSTGRES_USER`     | postgres           |
+| `POSTGRES_PASSWORD` | postgres           |
+| `DATABASE_URL`      | — (우선순위 1)     |
+| `POSTGRES_URL`      | — (우선순위 2)     |
 
 ### Redis
 
-| 변수 | 기본값 |
-|------|--------|
+| 변수         | 기본값          |
+| ------------ | --------------- |
 | `REDIS_HOST` | blacklist-redis |
-| `REDIS_PORT` | 6379 |
+| `REDIS_PORT` | 6379            |
 
 ### 인증
 
-| 변수 | 기본값 |
-|------|--------|
-| `JWT_SECRET_KEY` | — |
-| `JWT_EXPIRY_HOURS` | 8 |
-| `DISABLE_JWT_AUTH` | — |
-| `ADMIN_USERNAME` | admin |
-| `ADMIN_PASSWORD` | admin |
-| `ADMIN_RESET_KEY` | — |
+| 변수               | 기본값                 |
+| ------------------ | ---------------------- |
+| `JWT_SECRET_KEY`   | —                      |
+| `JWT_EXPIRY_HOURS` | 8                      |
+| `DISABLE_JWT_AUTH` | —                      |
+| `ADMIN_USERNAME`   | **SET_ADMIN_USERNAME** |
+| `ADMIN_PASSWORD`   | **SET_ADMIN_PASSWORD** |
+| `ADMIN_RESET_KEY`  | —                      |
 
 ### 수집
 
-| 변수 | 기본값 |
-|------|--------|
-| `COLLECTOR_URL` | http://localhost:8545 |
-| `COLLECTION_INTERVAL` | 3600 |
-| `DISABLE_AUTO_COLLECTION` | — |
-| `REGTECH_BASE_URL` | https://regtech.fsec.or.kr |
-| `REGTECH_ID` | — (Deprecated, DB 우선) |
-| `REGTECH_PW` | — (Deprecated, DB 우선) |
-| `SECUDIUM_EMAIL` | — |
-| `SECUDIUM_EMAIL_PASSWORD` | — |
-| `SECUDIUM_IMAP_SERVER` | — |
+| 변수                      | 기본값                          |
+| ------------------------- | ------------------------------- |
+| `COLLECTOR_URL`           | http://blacklist-collector:8545 |
+| `COLLECTION_INTERVAL`     | 3600                            |
+| `DISABLE_AUTO_COLLECTION` | —                               |
+| `REGTECH_BASE_URL`        | https://regtech.fsec.or.kr      |
+| `REGTECH_ID`              | — (Deprecated, DB 우선)         |
+| `REGTECH_PW`              | — (Deprecated, DB 우선)         |
+| `SECUDIUM_EMAIL`          | —                               |
+| `SECUDIUM_EMAIL_PASSWORD` | —                               |
+| `SECUDIUM_IMAP_SERVER`    | —                               |
 
 ### FortiGate
 
-| 변수 | 기본값 |
-|------|--------|
-| `FMG_HOST` | — |
-| `FMG_USER` | admin |
-| `FMG_PASS` | — |
-| `FMG_ADOM` | root |
+| 변수       | 기본값 |
+| ---------- | ------ |
+| `FMG_HOST` | —      |
+| `FMG_USER` | admin  |
+| `FMG_PASS` | —      |
+| `FMG_ADOM` | root   |
 
 ### 시스템
 
-| 변수 | 기본값 |
-|------|--------|
-| `APP_PORT` | 2542 |
-| `LOG_LEVEL` | INFO |
-| `LOG_DIR` | /app/logs |
-| `FLASK_ENV` | production |
-| `FLASK_DEBUG` | false |
-| `ENVIRONMENT` | production |
-| `SERVICE_NAME` | blacklist-app |
-| `DB_CONNECT_RETRIES` | 10 |
-| `DB_BACKOFF_DELAY` | 2.0 |
+| 변수                 | 기본값        |
+| -------------------- | ------------- |
+| `APP_PORT`           | 2542          |
+| `LOG_LEVEL`          | INFO          |
+| `LOG_DIR`            | /app/logs     |
+| `FLASK_ENV`          | production    |
+| `FLASK_DEBUG`        | false         |
+| `ENVIRONMENT`        | production    |
+| `SERVICE_NAME`       | blacklist-app |
+| `DB_CONNECT_RETRIES` | 10            |
+| `DB_BACKOFF_DELAY`   | 2.0           |
 
 ### 빌드
 
-| 변수 | 설명 |
-|------|------|
-| `APP_VERSION` | 앱 버전 |
-| `GIT_COMMIT` | 커밋 해시 |
-| `BUILD_DATE` | 빌드 날짜 |
-| `VERSION` | 버전 (runtime) |
-| `VCS_REF` | VCS 레퍼런스 |
+| 변수          | 설명           |
+| ------------- | -------------- |
+| `APP_VERSION` | 앱 버전        |
+| `GIT_COMMIT`  | 커밋 해시      |
+| `BUILD_DATE`  | 빌드 날짜      |
+| `VERSION`     | 버전 (runtime) |
+| `VCS_REF`     | VCS 레퍼런스   |

@@ -282,8 +282,7 @@ class CollectionScheduler:
 
             active_msg = f"활성 IP: {active_count:,}개"
             summary = (
-                f"만료 {expired_count}개, 3개월+ {old_count}개 비활성화, "
-                f"{reactivated_count}개 재활성화 ({active_msg})"
+                f"만료 {expired_count}개, 3개월+ {old_count}개 비활성화, {reactivated_count}개 재활성화 ({active_msg})"
             )
             logger.info(f"✅ 만료된 IP 정리 완료: {summary}")
 

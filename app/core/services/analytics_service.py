@@ -165,8 +165,7 @@ class AnalyticsService:
                         "type": "ip_spike",
                         "severity": "high",
                         "message": (
-                            f"IP 대역 {spike['ip_prefix']}*에서 "
-                            f"{spike['count']}개 IP가 24시간 내 차단되었습니다."
+                            f"IP 대역 {spike['ip_prefix']}*에서 {spike['count']}개 IP가 24시간 내 차단되었습니다."
                         ),
                         "recommendation": "대규모 공격 또는 오탐 가능성이 있으므로 즉시 확인이 필요합니다.",
                     }

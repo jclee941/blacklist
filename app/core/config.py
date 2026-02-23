@@ -14,11 +14,11 @@ from urllib.parse import urlparse
 class AppConfig:
     @property
     def COLLECTOR_URL(self) -> str:
-        return os.environ.get("COLLECTOR_URL", "http://localhost:8545")
+        return os.environ.get("COLLECTOR_URL", "http://blacklist-collector:8545")
 
     @property
     def BLACKLIST_API_URL(self) -> str:
-        return os.getenv("BLACKLIST_API_URL", "http://localhost:2542/api")
+        return os.getenv("BLACKLIST_API_URL", "http://blacklist-app:2542/api")
 
     @property
     def REGTECH_BASE_URL(self) -> str:
@@ -48,7 +48,7 @@ class AppConfig:
     def POSTGRES_URL(self) -> Optional[str]:
         return os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
 
-    def get_postgres_params(self) -> dict:
+    def get_postgres_params(self) -> dict[str, object]:
         """Return connection params, preferring DATABASE_URL/POSTGRES_URL if set."""
         url = self.POSTGRES_URL
         if url:
@@ -88,7 +88,7 @@ class AppConfig:
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
-    def get_redis_params(self) -> dict:
+    def get_redis_params(self) -> dict[str, int | str]:
         return {
             "host": self.REDIS_HOST,
             "port": self.REDIS_PORT,
@@ -154,11 +154,11 @@ class AppConfig:
 
     @property
     def ADMIN_USERNAME(self) -> str:
-        return os.getenv("ADMIN_USERNAME", "admin")
+        return os.getenv("ADMIN_USERNAME", "__SET_ADMIN_USERNAME__")
 
     @property
     def ADMIN_PASSWORD(self) -> str:
-        return os.getenv("ADMIN_PASSWORD", "admin")
+        return os.getenv("ADMIN_PASSWORD", "__SET_ADMIN_PASSWORD__")
 
     @property
     def ADMIN_RESET_KEY(self) -> Optional[str]:

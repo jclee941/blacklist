@@ -3,11 +3,14 @@
 import pytest
 from unittest.mock import patch
 import os
+from app.core.config import AppConfig
 
 
 @pytest.mark.unit
 class TestAppConfigDefaults:
     """Verify all properties return correct defaults when env vars are unset."""
+
+    config: AppConfig | None = None
 
     def setup_method(self):
         from app.core.config import AppConfig
@@ -19,14 +22,14 @@ class TestAppConfigDefaults:
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.COLLECTOR_URL == "http://localhost:8545"
+        assert cfg.COLLECTOR_URL == "http://blacklist-collector:8545"
 
     @patch.dict(os.environ, {}, clear=True)
     def test_blacklist_api_url_default(self):
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.BLACKLIST_API_URL == "http://localhost:2542/api"
+        assert cfg.BLACKLIST_API_URL == "http://blacklist-app:2542/api"
 
     @patch.dict(os.environ, {}, clear=True)
     def test_regtech_base_url_default(self):
@@ -66,8 +69,8 @@ class TestAppConfigDefaults:
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.ADMIN_USERNAME == "admin"
-        assert cfg.ADMIN_PASSWORD == "admin"
+        assert cfg.ADMIN_USERNAME == "__SET_ADMIN_USERNAME__"
+        assert cfg.ADMIN_PASSWORD == "__SET_ADMIN_PASSWORD__"
 
     @patch.dict(os.environ, {}, clear=True)
     def test_app_port_default(self):

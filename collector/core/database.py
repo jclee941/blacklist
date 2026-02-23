@@ -373,9 +373,7 @@ class DatabaseService:
                 continue
 
         excluded_msg = f"{excluded_count}개 제외 (사설/형식), {expired_count}개 제외 (해제일 경과)"
-        logger.info(
-            f"📊 IP 필터링: {len(valid_ips)}개 유효, {excluded_msg}"
-        )
+        logger.info(f"📊 IP 필터링: {len(valid_ips)}개 유효, {excluded_msg}")
         return valid_ips, excluded_count + expired_count
 
     def _memory_optimized_dedup(self, ip_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
