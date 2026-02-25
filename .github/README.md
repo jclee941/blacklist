@@ -1,7 +1,7 @@
 # GitHub Configuration
 
 **Project**: Blacklist Intelligence Platform  
-**Version**: 3.6.3  
+**Version**: 3.6.4  
 **Repository**: [qws941/blacklist](https://github.com/qws941/blacklist)
 
 ## Directory Structure
@@ -20,8 +20,10 @@
     ├── auto-merge.yml
     ├── build-images.yml
     ├── ci.yml
+    ├── codex-auto-issue.yml
     ├── labeler.yml
     ├── release.yml
+    ├── security.yml
     └── stale.yml
 ```
 
@@ -63,6 +65,16 @@
 - Trigger: daily cron + manual dispatch
 - Purpose: mark/close inactive issues and PRs
 
+### 8) Security (`security.yml`)
+
+- Trigger: push/PR to `master`
+- Purpose: CodeQL SAST analysis (Python + JavaScript) + Trivy filesystem dependency scan
+
+### 9) Codex Auto Issue (`codex-auto-issue.yml`)
+
+- Trigger: issue labeled `codex`
+- Purpose: post `@codex` comment to trigger Codex bot
+
 ## Key Config Files
 
 - `CODEOWNERS`: review ownership rules
@@ -89,4 +101,4 @@ gh workflow run ci.yml --ref master
 gh workflow run release.yml -f dry_run=true
 ```
 
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-02-26

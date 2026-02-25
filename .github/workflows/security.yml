@@ -17,6 +17,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  codeql:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c4a7bc332abaec03596ff2803dd7f3ca3a238975
+        with:
+          languages: ${{ matrix.language }}
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@c4a7bc332abaec03596ff2803dd7f3ca3a238975
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@c4a7bc332abaec03596ff2803dd7f3ca3a238975
+        with:
+          category: /language:${{ matrix.language }}
+
   dependency-scan:
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15

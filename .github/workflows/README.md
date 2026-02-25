@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-**Version**: 3.6.3
+**Version**: 3.6.4
 
 ## Workflow Files
 
@@ -12,7 +12,9 @@
 | `_ci-node.yml` | Reusable | `workflow_call` | Shared Node lint/typecheck/test pipeline |
 | `auto-merge.yml` | Automation | `pull_request_target` | Enable PR auto-merge for trusted criteria |
 | `labeler.yml` | Automation | `pull_request_target` | Apply labels based on path rules |
-| `security.yml` | Security | Push/PR to `master` | CodeQL SAST + Trivy dependency/image scanning |
+| `security.yml` | Security | Push/PR to `master` | CodeQL SAST + Trivy dependency scanning |
+| `stale.yml` | Automation | Daily cron + manual | Mark/close inactive issues and PRs |
+| `codex-auto-issue.yml` | Automation | Issue labeled `codex` | Trigger Codex bot via comment |
 
 ## 1. `ci.yml` — CI Pipeline
 
@@ -61,16 +63,18 @@ Key points:
 
 ## 4. Automation Workflows
 
- `auto-merge.yml`: enables squash auto-merge for Dependabot, repo owner, or `auto-merge` label
- `labeler.yml`: syncs PR labels using `.github/labeler.yml`
+- `auto-merge.yml`: enables squash auto-merge for Dependabot, repo owner, or `auto-merge`/`codex` label
+- `labeler.yml`: syncs PR labels using `.github/labeler.yml`
+- `stale.yml`: marks issues/PRs stale after 14 days, closes after 5-day grace (exempt: `keep-open`, `pinned`, `security`)
+- `codex-auto-issue.yml`: posts `@codex` comment on issues labeled `codex` to trigger Codex bot
 
 ## 5. `security.yml` — Security Scanning
 
 **Trigger**: Push or PR to `master` (event-based, no cron)
 
- **CodeQL**: SAST analysis for Python and JavaScript
- **Trivy**: Filesystem dependency scan (CRITICAL/HIGH severity)
- Runs in parallel with CI pipeline
+- **CodeQL**: SAST analysis for Python and JavaScript (matrix strategy)
+- **Trivy**: Filesystem dependency scan (CRITICAL severity)
+- Runs in parallel with CI pipeline
 
 ## Manual Commands
 
@@ -82,7 +86,7 @@ gh workflow run ci.yml --ref master
 gh workflow run release.yml -f dry_run=true
 
 # Trigger release by tag
-git tag v3.6.3 && git push origin v3.6.3
+git tag v3.6.4 && git push origin v3.6.4
 ```
 
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-02-26
