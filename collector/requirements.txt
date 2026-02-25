@@ -35,7 +35,7 @@ prometheus-client==0.24.1
 
 # Logging
 colorlog==6.7.0
-structlog==23.2.0
+structlog==25.5.0
 
 # SSH for FortiGate
 paramiko==4.0.0

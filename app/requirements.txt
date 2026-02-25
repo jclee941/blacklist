@@ -46,7 +46,7 @@ psutil==5.9.5                    # CRITICAL: Required for metrics routes
 prometheus-client==0.24.1        # Metrics collection
 
 # Structured Logging (Phase 1.2)
-structlog==23.2.0                # Structured logging for decision tracking
+structlog==25.5.0                # Structured logging for decision tracking
 
 # Development & Testing
 pytest==9.0.2
