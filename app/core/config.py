@@ -7,7 +7,7 @@ Centralized Configuration — Single source of truth for all environment variabl
 """
 
 import os
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 
@@ -39,16 +39,21 @@ class AppConfig:
     @property
     def POSTGRES_USER(self) -> str:
         return os.getenv("POSTGRES_USER", "postgres")
-
     @property
     def POSTGRES_PASSWORD(self) -> str:
         return os.getenv("POSTGRES_PASSWORD", "postgres")
 
     @property
+    def POSTGRES_FALLBACK_HOSTS(self) -> list[str]:
+        """Comma-separated fallback hosts for DB connection retry."""
+        raw = os.getenv("POSTGRES_FALLBACK_HOSTS", "blacklist-postgres,postgres,localhost")
+        return [h.strip() for h in raw.split(",") if h.strip()]
+
+    @property
     def POSTGRES_URL(self) -> Optional[str]:
         return os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
 
-    def get_postgres_params(self) -> dict[str, object]:
+    def get_postgres_params(self) -> dict[str, Any]:
         """Return connection params, preferring DATABASE_URL/POSTGRES_URL if set."""
         url = self.POSTGRES_URL
         if url:
@@ -93,6 +98,13 @@ class AppConfig:
             "host": self.REDIS_HOST,
             "port": self.REDIS_PORT,
         }
+
+    @property
+    def RATE_LIMIT_WHITELIST(self) -> list[str]:
+        """Rate limit exempt IPs/prefixes. Entries ending with '.' are prefix matches."""
+        return os.getenv(
+            "RATE_LIMIT_WHITELIST", "127.0.0.1,localhost,172.,192.168."
+        ).split(",")
 
     @property
     def SECRET_KEY(self) -> Optional[str]:

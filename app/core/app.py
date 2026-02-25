@@ -108,12 +108,11 @@ def create_app():
     @limiter.request_filter
     def ip_whitelist_rate_limit():
         """Exempt internal health checks from rate limiting"""
-        # Exempt localhost and container network
         remote_addr = get_remote_address()
-        return (
-            remote_addr in ["127.0.0.1", "localhost"]
-            or remote_addr.startswith("172.")
-            or remote_addr.startswith("192.168.")
+        whitelist = config.RATE_LIMIT_WHITELIST
+        return any(
+            remote_addr.startswith(entry) if entry.endswith(".") else remote_addr == entry
+            for entry in whitelist
         )
 
     app.logger.info("✅ Rate limiting enabled (Flask-Limiter with Redis)")
@@ -145,8 +144,8 @@ def create_app():
     # JWT Authentication (Phase 1.1: Token-based API Auth)
     # ========================================================================
     try:
-        from core.auth.jwt_service import JWTService
-        from core.auth.decorators import public
+        from .auth.jwt_service import JWTService
+        from .auth.decorators import public
 
         jwt_service = JWTService(app.config["SECRET_KEY"])
         app.extensions["jwt_service"] = jwt_service
@@ -155,6 +154,7 @@ def create_app():
         # app.before_request(jwt_required_hook)
         app.logger.info("ℹ️ JWT authentication middleware DISABLED")
     except Exception as e:
+        public = lambda f: f  # noqa: E731 — fallback identity decorator
         app.logger.error(f"❌ JWT auth setup failed: {e}")
 
     # Request ID middleware
@@ -347,7 +347,7 @@ def create_app():
 
     # Register error handlers
     try:
-        from core.errors.handlers import register_error_handlers
+        from .errors.handlers import register_error_handlers
 
         register_error_handlers(app)
     except Exception as e:
@@ -355,7 +355,7 @@ def create_app():
 
     # Setup Prometheus Metrics
     try:
-        from core.monitoring.metrics import setup_metrics, metrics_view
+        from .monitoring.metrics import setup_metrics, metrics_view
 
         setup_metrics(app)
         app.add_url_rule("/metrics", "metrics", metrics_view)
@@ -433,10 +433,14 @@ def create_app():
     def check_collector_health():
         """Non-blocking collector health check on startup."""
         try:
-            import requests as req
+            import requests
+        except ImportError:
+            app.logger.warning("requests library not available — skipping collector health check")
+            return
 
+        try:
             url = f"{config.COLLECTOR_URL}/health"
-            resp = req.get(url, timeout=5)
+            resp = requests.get(url, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("status") == "healthy":
@@ -445,7 +449,7 @@ def create_app():
                     app.logger.warning("Collector service returned unhealthy status: %s", data.get("status"))
             else:
                 app.logger.warning("Collector service returned HTTP %d at %s", resp.status_code, url)
-        except req.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError:
             app.logger.warning(
                 "Collector service unreachable at %s — collection features may be unavailable",
                 config.COLLECTOR_URL,

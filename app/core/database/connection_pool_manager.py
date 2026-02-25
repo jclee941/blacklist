@@ -26,7 +26,7 @@ class SmartConnectionManager:
         self.connection_params = config.get_postgres_params()
         self._last_error_time = None
         self._error_count = 0
-        self._cached_stats = None
+        self._cached_stats: Optional[Dict[str, Any]] = None
         self._cache_timeout = 300
         self._backoff_duration = 60
         self._max_error_logs = 5
@@ -68,11 +68,9 @@ class SmartConnectionManager:
 
     def get_connection(self) -> Optional[psycopg2.extensions.connection]:
         """PostgreSQL 연결 시도 (스마트 백오프 포함)"""
-        hosts_to_try = [
-            self.connection_params["host"],
-            "blacklist-postgres",
-            "postgres",
-            "localhost",
+        hosts_to_try = [self.connection_params["host"]] + [
+            h for h in config.POSTGRES_FALLBACK_HOSTS
+            if h != self.connection_params["host"]
         ]
 
         for host in hosts_to_try:
@@ -146,11 +144,13 @@ class SmartConnectionManager:
                     WHERE table_schema = 'public'
                 """
                 )
-                table_count = cursor.fetchone()[0]
+                row = cursor.fetchone()
+                table_count = row[0] if row else 0
 
                 # 활성 연결 수 조회
                 cursor.execute("SELECT COUNT(*) FROM pg_stat_activity")
-                connection_count = cursor.fetchone()[0]
+                row = cursor.fetchone()
+                connection_count = row[0] if row else 0
 
                 stats = {
                     "status": "connected",

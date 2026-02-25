@@ -20,11 +20,9 @@ class PostgreSQLConnectionManager:
 
     def get_connection(self) -> Optional[psycopg2.extensions.connection]:
         """PostgreSQL 연결 시도 (fallback 포함)"""
-        hosts_to_try = [
-            self.connection_params["host"],
-            "blacklist-postgres",  # Docker 컨테이너명
-            "postgres",  # 일반적인 서비스명
-            "localhost",  # 로컬 fallback
+        hosts_to_try = [self.connection_params["host"]] + [
+            h for h in config.POSTGRES_FALLBACK_HOSTS
+            if h != self.connection_params["host"]
         ]
 
         for host in hosts_to_try:
@@ -73,11 +71,13 @@ class PostgreSQLConnectionManager:
                     WHERE table_schema = 'public'
                 """
                 )
-                table_count = cursor.fetchone()[0]
+                row = cursor.fetchone()
+                table_count = row[0] if row else 0
 
                 # 활성 연결 수 조회
                 cursor.execute("SELECT COUNT(*) FROM pg_stat_activity")
-                connection_count = cursor.fetchone()[0]
+                row = cursor.fetchone()
+                connection_count = row[0] if row else 0
 
                 return {
                     "status": "connected",
