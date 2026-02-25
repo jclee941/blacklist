@@ -43,7 +43,7 @@ gevent==25.9.1
 
 # System Monitoring & Metrics
 psutil==5.9.5                    # CRITICAL: Required for metrics routes
-prometheus-client==0.18.0        # Metrics collection
+prometheus-client==0.24.1        # Metrics collection
 
 # Structured Logging (Phase 1.2)
 structlog==23.2.0                # Structured logging for decision tracking

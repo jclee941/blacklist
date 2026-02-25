@@ -31,7 +31,7 @@ bcrypt==4.0.1
 # Monitoring & Health Check
 flask==2.3.3
 waitress==3.0.2
-prometheus-client==0.18.0
+prometheus-client==0.24.1
 
 # Logging
 colorlog==6.7.0
