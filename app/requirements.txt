@@ -42,7 +42,7 @@ gunicorn==25.1.0
 gevent==25.9.1
 
 # System Monitoring & Metrics
-psutil==5.9.5                    # CRITICAL: Required for metrics routes
+psutil==7.2.2                    # CRITICAL: Required for metrics routes
 prometheus-client==0.24.1        # Metrics collection
 
 # Structured Logging (Phase 1.2)
