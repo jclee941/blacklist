@@ -64,6 +64,7 @@
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.5.9",
+    "eslint-plugin-react-hooks": "^5.0.0",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^20.4.2",
     "husky": "^9.1.7",
