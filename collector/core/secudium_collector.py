@@ -66,7 +66,7 @@ class SecudiumCollector:
         self._pending_username: Optional[str] = None
         self._pending_password: Optional[str] = None
 
-        # OTP email reader config (DB 우선, 환경변수 fallback)
+        # OTP email reader config (DB-only)
         otp_config = CollectorConfig.get_secudium_otp_config()
         self._otp_email = otp_config["email"]
         self._otp_email_password = otp_config["email_password"]

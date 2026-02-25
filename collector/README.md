@@ -46,20 +46,14 @@ POSTGRES_PORT=5432
 POSTGRES_DB=blacklist
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_password
-
-# REGTECH 인증
-REGTECH_ID=your_regtech_id
-REGTECH_PW=your_regtech_password
-REGTECH_BASE_URL=https://regtech.fsec.or.kr
-
-# Secudium/ISAP 인증
-SECUDIUM_API_KEY=your_api_key
-SECUDIUM_BASE_URL=your_base_url
 ```
+
+> **참고**: REGTECH/Secudium 인증정보는 환경변수가 아닌 웹 UI 또는 API(`POST /api/credentials`)를 통해 DB에 등록합니다.
+> 자세한 내용은 `docs/OPERATOR_MIGRATION_GUIDE.md`를 참고하세요.
 
 ### 선택적 설정
 ```bash
-COLLECTION_INTERVAL=3600    # 수집 간격 (초)
+COLLECTION_INTERVAL=3600    # 수집 간격 (초, deploy 기본값: 86400)
 BATCH_SIZE=1000             # 배치 처리 크기
 MAX_RETRY_ATTEMPTS=3        # 재시도 횟수
 HEALTH_CHECK_PORT=8545      # 헬스체크 포트
@@ -92,8 +86,7 @@ blacklist-collector:
   environment:
     POSTGRES_HOST: localhost
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    REGTECH_ID: ${REGTECH_ID}
-    REGTECH_PW: ${REGTECH_PW}
+    # REGTECH/Secudium 인증정보는 DB에서 관리 (환경변수 불필요)
   depends_on:
     - blacklist-postgres
     - blacklist-redis

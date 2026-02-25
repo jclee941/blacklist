@@ -32,11 +32,6 @@ class CollectorConfig:
 
     # SECUDIUM 설정 (DB-only, 환경변수는 더 이상 사용하지 않음)
     SECUDIUM_BASE_URL = os.getenv("SECUDIUM_BASE_URL", "https://secudium.skinfosec.co.kr")
-    # Deprecated: OTP email settings are now managed via UI/DB.
-    # These env vars are kept as fallback only for migration.
-    _SECUDIUM_EMAIL_FALLBACK = os.getenv("SECUDIUM_EMAIL", "")
-    _SECUDIUM_EMAIL_PASSWORD_FALLBACK = os.getenv("SECUDIUM_EMAIL_PASSWORD", "")
-    _SECUDIUM_IMAP_SERVER_FALLBACK = os.getenv("SECUDIUM_IMAP_SERVER", "imap.kakao.com")
 
     # 수집 원본 아카이빙 설정
     ARCHIVE_DIR = os.getenv("COLLECTOR_ARCHIVE_DIR", "/app/data/archive")
@@ -46,7 +41,7 @@ class CollectorConfig:
     # SECURITY: Credentials are decrypted from DB and cached in memory for runtime use.
     # This is necessary for performance but should be cleared on shutdown.
     # Never log or expose these values. Use secrets module for sensitive data.
-    _credentials_cache: Dict[str, Dict[str, str]] = {}
+    _credentials_cache: Dict[str, Dict[str, Any]] = {}
     _cache_loaded = False
 
     @classmethod
@@ -200,19 +195,27 @@ class CollectorConfig:
     @classmethod
     def get_secudium_otp_config(cls) -> Dict[str, str]:
         """
-        SECUDIUM OTP 설정 반환 (DB 우선, 환경변수 fallback)
+        SECUDIUM OTP 설정 반환 (DB-only)
 
         Returns:
             Dict with keys: email, email_password, imap_server, otp_mode
+            Values may be empty if not configured in DB.
         """
         cls._load_credentials_from_db()
         creds = cls._credentials_cache.get("SECUDIUM", {})
         config = creds.get("config", {})
 
+        email = config.get("email", "")
+        if not email:
+            logger.warning(
+                "secudium_otp_not_configured: OTP email not found in database. "
+                "Configure via API: POST /api/credentials"
+            )
+
         return {
-            "email": config.get("email", "") or cls._SECUDIUM_EMAIL_FALLBACK,
-            "email_password": config.get("email_password", "") or cls._SECUDIUM_EMAIL_PASSWORD_FALLBACK,
-            "imap_server": config.get("imap_server", "") or cls._SECUDIUM_IMAP_SERVER_FALLBACK,
+            "email": email,
+            "email_password": config.get("email_password", ""),
+            "imap_server": config.get("imap_server", "imap.kakao.com"),
             "otp_mode": config.get("otp_mode", "manual"),
         }
 
