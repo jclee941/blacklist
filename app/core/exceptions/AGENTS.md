@@ -1,7 +1,7 @@
 # EXCEPTIONS KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -25,6 +25,18 @@ Standalone (non-RFC 7807):
   AuthenticationError, RateLimitError, ServiceUnavailableError,
   DataError, ConfigurationError, CacheError, DatabaseError, ConnectionError
 ```
+
+## CODE MAP
+
+| Symbol                | Type  | Location                  | Refs | Role                                  |
+| --------------------- | ----- | ------------------------- | ---- | ------------------------------------- |
+| `BlacklistError`      | class | `base.py:9`               | high | root exception for all project errors |
+| `APIError`            | class | `api_errors.py:62`        | high | RFC 7807 base (+status_code, +code)   |
+| `ExternalAPIError`    | class | `api_errors.py:92`        | med  | external service failure wrapper      |
+| `ValidationError`     | class | `validation_errors.py:8`  | high | 400 input validation                  |
+| `NotFoundError`       | class | `validation_errors.py:48` | med  | 404 resource not found                |
+| `DatabaseError`       | class | `infra_errors.py:35`      | med  | database operation failure            |
+| `AuthenticationError` | class | `auth_errors.py:8`        | med  | auth flow failure                     |
 
 ## CONVENTIONS
 

@@ -1,7 +1,7 @@
 # REGTECH KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -32,3 +32,12 @@ REGTECH collector package. Auth + collection + data processing via mixin composi
 
 - Composition via mixins (not inheritance).
 - Separate from `app/core/services/collection/` (app-side service layer).
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `RegtechCollector` | class | `collector.py:36` | high | orchestration, main collection loop (414L) |
+| `RegtechAuth` | class | `auth.py:*` | high | session auth, JWT validity, auth cache (138L) |
+| `RegtechDataProcessor` | class | `data_processor.py:*` | high | parsing + dedupe + confidence scoring (331L) |

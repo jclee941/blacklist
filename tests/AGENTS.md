@@ -1,7 +1,7 @@
 # TESTS KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -50,3 +50,14 @@ tests/
 - Real credentials in test code (use `MOCK_CREDENTIALS`).
 - Skipping `yield` cleanup in fixtures.
 - Deleting failing tests to "pass".
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `unit/routes/` | directory | `unit/routes/` | high | 43 test files covering all API endpoints |
+| `unit/services/` | directory | `unit/services/` | high | 28 test files covering service layer |
+| `unit/collector/` | directory | `unit/collector/` | high | 24 test files covering ETL pipelines |
+| `mock-fortigate/` | directory | `mock-fortigate/` | med | standalone FortiManager mock (Flask, 320L) |
+| `e2e/` | directory | `e2e/` | med | 6 Playwright specs + 42 snapshots |

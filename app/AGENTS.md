@@ -1,7 +1,7 @@
 # APP KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -28,12 +28,23 @@ app/
 └── static/                 # CSS, JS, fonts, images
 ```
 
+## CODE MAP
+
+| Symbol                | Type     | Location                              | Refs | Role                                    |
+| --------------------- | -------- | ------------------------------------- | ---- | --------------------------------------- |
+| `create_app`          | function | `core/app.py:51`                      | high | app factory + middleware chain          |
+| `initialize_services` | function | `core/services/service_factory.py:37` | high | DI container startup, strict init order |
+| `AppConfig`           | class    | `core/config.py`                      | high | 48-property env config mapping          |
+
+Service-level symbols in `core/services/AGENTS.md`.
+
 ## WHERE TO LOOK
 
 | Task                     | Location                           | Notes                                                 |
 | ------------------------ | ---------------------------------- | ----------------------------------------------------- |
 | App factory + middleware | `core/app.py`                      | csrf, request_id, security headers, compression       |
 | Blueprint registration   | `core/app.py`                      | modular `register_*_routes(app)` functions            |
+| Core package topology    | `core/AGENTS.md`                   | boundaries across routes/services/auth/db/utils       |
 | Config properties        | `core/config.py`                   | DB, Redis, URLs, Secrets, FMG, Admin, JWT, Collection |
 | DI container             | `core/services/service_factory.py` | strict init order, `current_app.extensions[...]`      |
 

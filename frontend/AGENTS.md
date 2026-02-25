@@ -1,7 +1,7 @@
 # FRONTEND KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -16,7 +16,7 @@ frontend/
 │   ├── page.tsx              # dashboard (554L)
 │   ├── layout.tsx            # NavBar wrapper
 │   ├── providers.tsx         # QueryClient provider
-│   ├── ip-management/        # IPManagementClient (893L) + components/ + hooks/
+│   ├── ip-management/        # IP management client + components/ + hooks/
 │   ├── collection/           # CollectionManagementClient + components/ + hooks/
 │   ├── analytics/            # analytics page (273L)
 │   ├── database/             # DB admin page
@@ -57,11 +57,19 @@ frontend/
 
 ## KNOWN ISSUES
 
-- `IPManagementClient.tsx` (893L) — complexity hotspot, candidate for decomposition.
-- Dual polling pattern in some pages.
+- Dashboard and management pages (`app/page.tsx`, `app/ip-management/*`, `app/collection/*`) remain complexity hotspots.
+- Dual polling pattern remains in selected pages (interval + query refetch overlap).
 - Hardcoded API URL in `next.config.ts`.
 
 ## TESTING
 
 - Unit: Vitest (`__tests__/`)
 - E2E: Playwright (`e2e/`), 60s timeout, multi-browser snapshots.
+
+## CODE MAP
+
+| Symbol           | Type   | Location         | Refs | Role                                     |
+| ---------------- | ------ | ---------------- | ---- | ---------------------------------------- |
+| `next.config.ts` | config | `next.config.ts` | high | API proxy rewrites /api/\* → Flask :2542 |
+
+Page component CODE MAP in `app/AGENTS.md`. API client CODE MAP in `lib/AGENTS.md`.

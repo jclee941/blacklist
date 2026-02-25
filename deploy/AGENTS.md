@@ -1,7 +1,7 @@
 # DEPLOYMENT KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -38,3 +38,13 @@ base.yml (source of truth)
 
 - Collector API base URL must be provided via `BLACKLIST_API_URL` (legacy `BACKEND_API_URL` is unsupported).
 - Admin credentials must be set explicitly (`ADMIN_USERNAME`/`ADMIN_PASSWORD`) before production deployment.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `install.sh` | script | `install.sh:1` | high | offline installer: Docker, images, SSL, secrets, rollback (412L) |
+| `base.yml` | compose | `base.yml:1` | high | 5 service definitions (source of truth) |
+| `docker-compose.yml` | compose | `docker-compose.yml:1` | med | dev extends base + build contexts |
+| `docker-compose.release.yml` | compose | `docker-compose.release.yml:1` | med | prod extends base + GHCR images |

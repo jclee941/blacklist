@@ -1,7 +1,7 @@
 # POSTGRES KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -52,3 +52,12 @@ postgres/
 
 - Separate from `app/core/database/` (connection management) and `collector/core/database.py` (collector connections).
 - 17 tables with 50+ indexes defined in `02-schema.sql`.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `02-schema.sql` | DDL | `initdb/02-schema.sql` | high | 17 tables + 50 indexes (source of truth) |
+| `01-extensions.sql` | DDL | `initdb/01-extensions.sql` | med | pg_trgm + uuid-ossp bootstrap |
+| `03-migrations.sql` | DDL | `initdb/03-migrations.sql` | med | initial migration state |

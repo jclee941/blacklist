@@ -1,7 +1,7 @@
 # SERVICES KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -43,4 +43,15 @@
 ## NOTES
 
 - DI violations: `fortimanager_push_service.py` + `settings_service.py` (intentional, optional `db_service` param).
-- `admin_routes.py` DI violation fixed in v3.6.3.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `BlacklistService` | class | `blacklist_service.py:37` | high | core CRUD + sync + system stats (complexity 39.43) |
+| `CollectionService` | class | `collection_service.py:31` | high | collection orchestration across sources |
+| `SecureCredentialService` | class | `secure_credential_service.py:30` | high | AES-256-GCM credential storage (624L) |
+| `SettingsService` | class | `settings_service.py:21` | med | system settings CRUD |
+| `ThreatScoringService` | class | `scoring_service.py:14` | med | IP threat scoring engine |
+| `initialize_services` | function | `service_factory.py:37` | high | DI container, strict init order |

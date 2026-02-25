@@ -1,7 +1,7 @@
 # BLACKLIST API KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -28,3 +28,14 @@ Core blacklist API package. 5 blueprints registered via `__init__.py`.
 
 - Legacy 404/500 handlers in `__init__.py` (should use global handlers).
 - `system.py` has hardcoded port numbers in mock status — should use config values.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `register_blacklist_routes` | function | `__init__.py:25` | high | 5 blueprint registration + CSRF exemptions |
+| `blacklist_core_bp` | Blueprint | `core.py:25` | high | list/stats/check/export endpoints |
+| `blacklist_management_bp` | Blueprint | `management.py:18` | med | manual add/remove/whitelist |
+| `blacklist_batch_bp` | Blueprint | `batch.py:17` | med | bulk add/remove/update |
+| `blacklist_system_bp` | Blueprint | `system.py:15` | med | system containers/credentials/tables |

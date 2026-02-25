@@ -1,7 +1,7 @@
 # COLLECTION SERVICES KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -29,3 +29,14 @@ Collection-domain service package. Manages REGTECH auth/data scraping, collectio
 
 - `regtech_data.py` is the primary complexity hotspot (>600 LOC).
 - Separate from `collector/core/regtech/` — this is the app-side service layer.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `REGTECHDataCollector` | class | `regtech_data.py:13` | high | scraping + parsing + extraction (>600L hotspot) |
+| `REGTECHAuthManager` | class | `regtech_auth.py:12` | high | session auth + cache TTL validation |
+| `CollectionHistoryManager` | class | `collection_history.py:14` | med | persistence + statistics |
+| `CollectionStatusManager` | class | `collection_status.py:14` | med | collector health monitoring |
+| `CollectionValidator` | class | `collection_validator.py:14` | med | input validation + normalization |

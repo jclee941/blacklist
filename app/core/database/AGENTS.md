@@ -1,7 +1,7 @@
 # DATABASE KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -14,6 +14,15 @@ PostgreSQL connection management layer. psycopg2 direct — no ORM.
 | ----------------------------- | --- | ------------------------------------------------ |
 | `SmartConnectionManager`      | 228 | backoff 60s, cached stats 300s, max 5 error logs |
 | `PostgreSQLConnectionManager` | 152 | basic env-var driven, simpler fallback           |
+
+## CODE MAP
+
+| Symbol                        | Type     | Location                        | Refs | Role                                     |
+| ----------------------------- | -------- | ------------------------------- | ---- | ---------------------------------------- |
+| `SmartConnectionManager`      | class    | `connection_pool_manager.py:17` | high | pooled connections + exponential backoff |
+| `PostgreSQLConnectionManager` | class    | `connection_recovery.py:15`     | med  | basic recovery + reconnection fallback   |
+| `get_db_connection`           | function | `connection.py:18`              | high | connection factory entry point           |
+| `_get_connection_params`      | function | `connection.py:14`              | med  | env priority resolution                  |
 
 ## ENV PRIORITY
 

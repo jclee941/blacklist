@@ -1,7 +1,7 @@
 # COLLECTOR KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -56,3 +56,14 @@ collector/
 - Adaptive intervals: 300s-3600s based on collection outcomes.
 - Known: `time.sleep` in scheduler (MEDIUM priority fix).
 - Known: single-stage Dockerfile (MEDIUM priority optimization).
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `CollectorApplication` | class | `run_collector.py:50` | high | entry point, lifecycle orchestration |
+| `HealthServer` | class | `health_server.py:40` | high | Flask+Waitress on :8545 (500L) |
+| `FortiManagerUploader` | class | `fortimanager_uploader.py:25` | med | push blacklist to FortiManager |
+| `create_scheduler_api` | function | `scheduler_api.py:13` | med | REST trigger for manual collection |
+| `OTPEmailReader` | class | `utils/otp_email_reader.py:19` | med | IMAP OTP reader for Secudium auth |

@@ -1,7 +1,7 @@
 # API ROUTES KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -43,3 +43,14 @@ routes/api/
 - `schemas/` directory exists but Pydantic schemas are NOT wired to validation.
 - `system_api.py` (648L) is the largest single route file.
 - `ip_management/` uses repository pattern (unlike other route packages).
+- See `ip_management/AGENTS.md` for package-level repository/handler contracts.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `register_blacklist_routes` | function | `blacklist/__init__.py:25` | high | 5 blueprint registration + error handlers |
+| `register_collection_routes` | function | `collection/__init__.py:18` | high | 7 blueprint registration |
+| `register_fortinet_routes` | function | `fortinet/__init__.py:16` | high | 4 blueprint registration + health |
+| `register_error_handlers` | function | `blacklist/__init__.py:60` | med | legacy 404/500 handlers |

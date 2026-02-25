@@ -1,25 +1,26 @@
 # COLLECTION API KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
 
-1194 lines across 9 files. 18 endpoints for collection management.
+9 files, 18 endpoints for collection management.
 
 ## FILES
 
-| File                           | LOC | Endpoints                |
-| ------------------------------ | --- | ------------------------ |
-| `collection_routes.py`         | 210 | 4 — CRUD operations      |
-| `collection_history_routes.py` | 180 | 3 — history queries      |
-| `collection_status_routes.py`  | 150 | 3 — collector health     |
-| `collection_export_routes.py`  | 130 | 2 — data export          |
-| `collection_search_routes.py`  | 120 | 2 — search/filter        |
-| `collection_stats_routes.py`   | 110 | 2 — statistics           |
-| `collection_bulk_routes.py`    | 100 | 2 — bulk operations      |
-| `__init__.py`                  | 94  | — blueprint registration |
+| File              | Role                                              |
+| ----------------- | ------------------------------------------------- |
+| `status.py`       | collector health + active-collecting check        |
+| `history.py`      | collection history queries + stats                |
+| `trigger.py`      | per-source collection trigger                     |
+| `sync.py`         | sync with collector + force data refresh          |
+| `credentials.py`  | credential CRUD + OTP submission + test           |
+| `config.py`       | collection config update                          |
+| `sources.py`      | source list + per-source status                   |
+| `utils.py`        | `call_collector_api` helper + interval converters |
+| `__init__.py`     | 7 blueprint registration                          |
 
 ## PAGINATION CONVENTION
 
@@ -29,3 +30,14 @@
 ## NOTES
 
 - Pydantic schemas exist in parent `schemas/` but are NOT wired to these routes.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `register_collection_routes` | function | `__init__.py:18` | high | 7 blueprint registration |
+| `collection_credentials_bp` | Blueprint | `credentials.py:24` | high | credential CRUD + OTP + test |
+| `collection_status_bp` | Blueprint | `status.py:14` | high | collector health + active check |
+| `collection_history_bp` | Blueprint | `history.py:14` | med | history queries + stats |
+| `call_collector_api` | function | `utils.py:44` | med | HTTP bridge to collector service |

@@ -1,7 +1,7 @@
 # FORTINET API KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -33,3 +33,14 @@ Fortinet integration API. Threat feed export + device/log operations.
 
 - `threat_feed.py` is compatibility-sensitive — FortiGate connector depends on exact response format.
 - EBL (External Block List) format follows Fortinet specification.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `register_fortinet_routes` | function | `__init__.py:16` | high | 4 blueprint + health endpoint |
+| `fortinet_core_bp` | Blueprint | `core.py:15` | high | active IPs + blocklist + config |
+| `fortinet_feed_bp` | Blueprint | `threat_feed.py:14` | high | public threat-feed + JSON connector |
+| `fortinet_management_bp` | Blueprint | `management.py:15` | med | device list + FortiGate push |
+| `fortinet_logs_bp` | Blueprint | `logs.py:13` | med | active sessions + pull logs |

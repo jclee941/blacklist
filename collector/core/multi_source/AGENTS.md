@@ -1,7 +1,7 @@
 # MULTI-SOURCE COLLECTOR KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -32,3 +32,12 @@ Async multi-source ingestion framework. Aggregates threat data from 14 source ty
 - Synchronous HTTP calls (use `aiohttp`).
 - Unbounded concurrency (always use semaphore).
 - Persisting before normalization/deduplication.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `MultiSourceCollector` | class | `collector.py:15` | high | async orchestration + `asyncio.gather` merge |
+| `SourceType` | enum | `models.py:*` | high | 14 source type definitions |
+| `SourceConfig` | dataclass | `models.py:*` | med | per-source rate limit + priority config |

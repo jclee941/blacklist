@@ -1,7 +1,7 @@
 # AUTH KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -16,6 +16,15 @@ JWT authentication layer. 163 lines across 4 files. **CRITICAL: middleware curre
 | `middleware.py`  | 52  | `before_request` hook for JWT validation |
 | `decorators.py`  | 30  | `@public` decorator to exempt routes     |
 | `__init__.py`    | 16  | re-exports                               |
+
+## CODE MAP
+
+| Symbol              | Type      | Location            | Refs | Role                                     |
+| ------------------- | --------- | ------------------- | ---- | ---------------------------------------- |
+| `JWTService`        | class     | `jwt_service.py:23` | med  | HS256 encode/decode/validate, 8hr expiry |
+| `jwt_required_hook` | function  | `middleware.py:23`  | med  | `before_request` JWT validation hook     |
+| `public`            | decorator | `decorators.py`     | med  | exempts route from JWT requirement       |
+| `_auth_error`       | function  | `middleware.py:60`  | low  | RFC 7807 auth error response builder     |
 
 ## TOKEN PAYLOAD
 

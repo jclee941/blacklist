@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -27,6 +27,7 @@ Threat-intelligence platform with three primary runtimes: Flask API (`app/`), in
 │       ├── regtech/        # REGTECH auth + collection pipeline
 │       └── multi_source/   # async feed aggregation pipeline
 ├── frontend/               # Next.js 15 dashboard (:443)
+│   ├── app/                # App Router pages (7 routes)
 │   └── lib/                # centralized Axios API client
 ├── deploy/                 # compose/env/install for offline deployment
 ├── postgres/               # raw SQL migrations + schema init
@@ -35,32 +36,50 @@ Threat-intelligence platform with three primary runtimes: Flask API (`app/`), in
 └── tests/                  # pytest + mock-fortigate + frontend E2E
 ```
 
+## CODE MAP
+
+| Symbol                   | Type     | Location                                          | Refs | Role                                                 |
+| ------------------------ | -------- | ------------------------------------------------- | ---- | ---------------------------------------------------- |
+| `create_app`             | function | `app/core/app.py:51`                              | high | Flask app factory, middleware + blueprint wiring     |
+| `initialize_services`    | function | `app/core/services/service_factory.py:37`         | high | ServiceFactory DI container setup, strict init order |
+| `BlacklistService`       | class    | `app/core/services/blacklist_service.py:37`       | high | core threat-intel CRUD, sync, system stats           |
+| `CollectionService`      | class    | `app/core/services/collection_service.py:31`      | high | collection orchestration across sources              |
+| `SmartConnectionManager` | class    | `app/core/database/connection_pool_manager.py:17` | high | PostgreSQL pooling + backoff recovery                |
+| `APIError`               | class    | `app/core/exceptions/api_errors.py:62`            | high | RFC 7807 error base class                            |
+| `MultiSourceCollector`   | class    | `collector/core/multi_source/collector.py:15`     | high | async feed aggregation + dedup                       |
+| `RegtechCollector`       | class    | `collector/core/regtech/collector.py:36`          | high | REGTECH ETL pipeline                                 |
+| `collectionApi`          | instance | `frontend/lib/api.ts`                             | high | centralized Axios client for dashboard               |
+
 ## WHERE TO LOOK
 
-| Task                              | Location                                   | Notes                                                     |
-| --------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
-| Flask app init + blueprint wiring | `app/AGENTS.md`                            | app factory, middleware, complexity hotspots              |
-| Service lifecycle + DI patterns   | `app/core/services/AGENTS.md`              | ServiceFactory ordering, extension wiring                 |
-| Collection service internals      | `app/core/services/collection/AGENTS.md`   | REGTECH auth/data + collection status/history             |
-| API route orchestration           | `app/core/routes/api/AGENTS.md`            | route-level patterns, thin handler conventions            |
-| Blacklist API package             | `app/core/routes/api/blacklist/AGENTS.md`  | core/management/batch/system/collector bridge             |
-| Fortinet API package              | `app/core/routes/api/fortinet/AGENTS.md`   | threat feed + device/log/health endpoints                 |
-| Collection API package            | `app/core/routes/api/collection/AGENTS.md` | 9 files, 18 endpoints, pagination conventions             |
-| Legacy web admin                  | `app/core/routes/web/AGENTS.md`            | Jinja2 Korean UI, CSRF exemptions, credential mgmt        |
-| JWT authentication                | `app/core/auth/AGENTS.md`                  | token service, middleware hook, public route list         |
-| Database connections              | `app/core/database/AGENTS.md`              | SmartConnectionManager, recovery, env priority            |
-| Prometheus monitoring             | `app/core/monitoring/AGENTS.md`            | metrics, cache metrics, error metrics                     |
-| Cross-cutting utilities           | `app/core/utils/AGENTS.md`                 | response format, encryption, caching, validation          |
-| Exception hierarchy               | `app/core/exceptions/AGENTS.md`            | RFC 7807 APIError subtypes, raise sites                   |
-| Collector runtime                 | `collector/AGENTS.md`                      | scheduler, health server, security lifecycle              |
-| Collector ETL core                | `collector/core/AGENTS.md`                 | pipeline architecture, hotspots, conventions              |
-| REGTECH package                   | `collector/core/regtech/AGENTS.md`         | auth cache + parser/data processor boundaries             |
-| Multi-source package              | `collector/core/multi_source/AGENTS.md`    | async collectors, parser mixins, dedupe merge             |
-| Frontend dashboard                | `frontend/AGENTS.md`                       | App Router, API proxy, UI components, test workflow       |
-| Frontend API client               | `frontend/lib/AGENTS.md`                   | centralized Axios client + auth interceptors              |
-| Deployment ops                    | `deploy/AGENTS.md`                         | compose inheritance, offline install, release constraints |
-| Test conventions                  | `tests/AGENTS.md`                          | markers, mock-fortigate, regression spec format           |
-| Database schema                   | `postgres/AGENTS.md`                       | migration strategy, init scripts, table inventory         |
+| Task                              | Location                                      | Notes                                                     |
+| --------------------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| Flask app init + blueprint wiring | `app/AGENTS.md`                               | app factory, middleware, complexity hotspots              |
+| Core backend package boundaries   | `app/core/AGENTS.md`                          | core module topology, cross-cutting contracts             |
+| Service lifecycle + DI patterns   | `app/core/services/AGENTS.md`                 | ServiceFactory ordering, extension wiring                 |
+| Route layer boundaries            | `app/core/routes/AGENTS.md`                   | API vs web split, naming and ownership traps              |
+| Collection service internals      | `app/core/services/collection/AGENTS.md`      | REGTECH auth/data + collection status/history             |
+| API route orchestration           | `app/core/routes/api/AGENTS.md`               | route-level patterns, thin handler conventions            |
+| Blacklist API package             | `app/core/routes/api/blacklist/AGENTS.md`     | core/management/batch/system/collector bridge             |
+| Fortinet API package              | `app/core/routes/api/fortinet/AGENTS.md`      | threat feed + device/log/health endpoints                 |
+| Collection API package            | `app/core/routes/api/collection/AGENTS.md`    | 9 files, 18 endpoints, pagination conventions             |
+| IP management API package         | `app/core/routes/api/ip_management/AGENTS.md` | repository-based route/handler contract                   |
+| Legacy web admin                  | `app/core/routes/web/AGENTS.md`               | Jinja2 Korean UI, CSRF exemptions, credential mgmt        |
+| JWT authentication                | `app/core/auth/AGENTS.md`                     | token service, middleware hook, public route list         |
+| Database connections              | `app/core/database/AGENTS.md`                 | SmartConnectionManager, recovery, env priority            |
+| Prometheus monitoring             | `app/core/monitoring/AGENTS.md`               | metrics, cache metrics, error metrics                     |
+| Cross-cutting utilities           | `app/core/utils/AGENTS.md`                    | response format, encryption, caching, validation          |
+| Exception hierarchy               | `app/core/exceptions/AGENTS.md`               | RFC 7807 APIError subtypes, raise sites                   |
+| Collector runtime                 | `collector/AGENTS.md`                         | scheduler, health server, security lifecycle              |
+| Collector ETL core                | `collector/core/AGENTS.md`                    | pipeline architecture, hotspots, conventions              |
+| REGTECH package                   | `collector/core/regtech/AGENTS.md`            | auth cache + parser/data processor boundaries             |
+| Multi-source package              | `collector/core/multi_source/AGENTS.md`       | async collectors, parser mixins, dedupe merge             |
+| Frontend dashboard                | `frontend/AGENTS.md`                          | App Router, API proxy, UI components, test workflow       |
+| Frontend pages + routing          | `frontend/app/AGENTS.md`                      | 7 page routes, layout, error boundaries                   |
+| Frontend API client               | `frontend/lib/AGENTS.md`                      | centralized Axios client + auth interceptors              |
+| Deployment ops                    | `deploy/AGENTS.md`                            | compose inheritance, offline install, release constraints |
+| Test conventions                  | `tests/AGENTS.md`                             | markers, mock-fortigate, regression spec format           |
+| Database schema                   | `postgres/AGENTS.md`                          | migration strategy, init scripts, table inventory         |
 
 ## CONVENTIONS
 

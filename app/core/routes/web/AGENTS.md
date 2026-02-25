@@ -1,7 +1,7 @@
 # WEB ROUTES KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -38,3 +38,14 @@ Jinja2 legacy Korean admin UI. 3139 lines across 10 files.
 
 - Complexity hotspots: `admin.py`, `collection_panel.py`, `api_routes.py`.
 - `api_routes.py` naming is confusing — consider renaming to `web_api_routes.py`.
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `regtech_admin_bp` | Blueprint | `admin.py:16` | high | RegTech credential management (9 endpoints) |
+| `collection_bp` | Blueprint | `collection_panel.py:14` | high | collection UI + CSRF-exempt API (12 endpoints) |
+| `settings_bp` | Blueprint | `settings.py:17` | high | system settings CRUD (11 endpoints) |
+| `credentials_bp` | Blueprint | `credentials_routes.py:8` | med | credential management |
+| `monitoring_dashboard_bp` | Blueprint | `monitoring.py:13` | med | monitoring views |

@@ -1,7 +1,7 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
-**Generated:** 2026-02-22 21:55 Asia/Seoul
-**Commit:** 6c134bd
+**Generated:** 2026-02-25 15:26 Asia/Seoul
+**Commit:** e50fb74
 **Branch:** master | **Version:** 3.6.3
 
 ## OVERVIEW
@@ -32,6 +32,16 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 
 ## NOTES
 
-- v3.5.64: token lifecycle hardening.
-- v3.5.60: resolved 91 mypy errors.
+- Recent updates include token lifecycle hardening and major type-check cleanup.
 - Hotspots: `fortigate_collector.py` and `secudium_collector.py` (~680L each).
+
+
+## CODE MAP
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `FortiGateCollector` | class | `fortigate_collector.py` | high | FortiGate device collection (680L hotspot) |
+| `SecudiumCollector` | class | `secudium_collector.py` | high | Secudium platform + OTP auth (676L hotspot) |
+| `MultiSourceCollector` | class | `multi_source/collector.py:15` | high | async feed aggregation + dedup |
+| `RegtechCollector` | class | `regtech/collector.py:36` | high | REGTECH ETL pipeline |
+| `validate_ip` | function | `validators.py:17` | med | IP/CIDR validation + normalization |
