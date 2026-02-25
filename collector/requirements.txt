@@ -12,7 +12,7 @@ openpyxl>=3.1.5
 xlrd>=2.0.1  # Required for parsing .xls (old Excel) files from SECUDIUM
 
 # Web Automation for REGTECH
-selenium==4.40.0
+selenium==4.41.0
 beautifulsoup4==4.14.3
 
 # Web Automation for SECUDIUM (Browser-based download)
