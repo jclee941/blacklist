@@ -1,8 +1,8 @@
 # 🚀 Blacklist Flask Application Dependencies
 # Core Flask Dependencies
 Flask==3.1.3
-Werkzeug==2.3.7
-Jinja2==3.1.2
+Werkzeug==3.1.6
+Jinja2==3.1.6
 MarkupSafe==3.0.3
 
 # Database & Connection Pooling
@@ -24,7 +24,7 @@ cryptography==46.0.5
 bcrypt==5.0.0
 PyJWT>=2.8.0                # JWT token encoding/decoding
 Flask-Login==0.6.3          # User session management
-Flask-WTF==1.2.1            # CSRF protection
+Flask-WTF==1.2.2            # CSRF protection
 Flask-Limiter==4.1.1        # Rate limiting / DOS protection
 
 # API & JSON Processing
