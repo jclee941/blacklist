@@ -16,3 +16,4 @@
 
 - [배포 가이드](Deployment-Guide.md)
 - [보안](Security.md)
+- [XWiki 호환 가이드](XWiki-Compatibility.md)
