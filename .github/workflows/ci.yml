@@ -317,7 +317,7 @@ jobs:
       - name: Load image
         run: gunzip -c ${{ matrix.service }}.tar.gz | docker load
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518
         with:
           image-ref: blacklist-${{ matrix.service }}:ci
           format: table
