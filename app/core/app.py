@@ -111,8 +111,7 @@ def create_app():
         remote_addr = get_remote_address()
         whitelist = config.RATE_LIMIT_WHITELIST
         return any(
-            remote_addr.startswith(entry) if entry.endswith(".") else remote_addr == entry
-            for entry in whitelist
+            remote_addr.startswith(entry) if entry.endswith(".") else remote_addr == entry for entry in whitelist
         )
 
     app.logger.info("✅ Rate limiting enabled (Flask-Limiter with Redis)")

@@ -69,8 +69,7 @@ class SmartConnectionManager:
     def get_connection(self) -> Optional[psycopg2.extensions.connection]:
         """PostgreSQL 연결 시도 (스마트 백오프 포함)"""
         hosts_to_try = [self.connection_params["host"]] + [
-            h for h in config.POSTGRES_FALLBACK_HOSTS
-            if h != self.connection_params["host"]
+            h for h in config.POSTGRES_FALLBACK_HOSTS if h != self.connection_params["host"]
         ]
 
         for host in hosts_to_try:

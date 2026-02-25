@@ -208,8 +208,7 @@ class CollectorConfig:
         email = config.get("email", "")
         if not email:
             logger.warning(
-                "secudium_otp_not_configured: OTP email not found in database. "
-                "Configure via API: POST /api/credentials"
+                "secudium_otp_not_configured: OTP email not found in database. Configure via API: POST /api/credentials"
             )
 
         return {

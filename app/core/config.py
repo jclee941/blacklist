@@ -39,6 +39,7 @@ class AppConfig:
     @property
     def POSTGRES_USER(self) -> str:
         return os.getenv("POSTGRES_USER", "postgres")
+
     @property
     def POSTGRES_PASSWORD(self) -> str:
         return os.getenv("POSTGRES_PASSWORD", "postgres")
@@ -102,9 +103,7 @@ class AppConfig:
     @property
     def RATE_LIMIT_WHITELIST(self) -> list[str]:
         """Rate limit exempt IPs/prefixes. Entries ending with '.' are prefix matches."""
-        return os.getenv(
-            "RATE_LIMIT_WHITELIST", "127.0.0.1,localhost,172.,192.168."
-        ).split(",")
+        return os.getenv("RATE_LIMIT_WHITELIST", "127.0.0.1,localhost,172.,192.168.").split(",")
 
     @property
     def SECRET_KEY(self) -> Optional[str]:
