@@ -38,7 +38,7 @@ pytz==2025.2
 schedule==1.2.2
 
 # Production Server
-gunicorn==21.2.0
+gunicorn==25.1.0
 gevent==25.9.1
 
 # System Monitoring & Metrics
