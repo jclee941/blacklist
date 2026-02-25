@@ -11,6 +11,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.4] - 2026-02-26
+
+### Added
+- feat(release): add pre-release test gate, version sync, and dynamic versioning
+
+### Changed
+- style: ruff format on modified files
+- style: fix trailing whitespace and line-too-long across 25 Python files
+- refactor: replace print() with logger and expand deploy config docs
+- refactor: fix DI violation in admin_routes and replace wildcard import in utils
+- refactor(deploy): remove sandbox references from docs and workflows
+- refactor(collector): remove secudium auto-collection schedule
+
+### Fixed
+- fix(release): replace local pytest gate with gh CLI CI status check
+- fix(config): make DB fallback hosts and rate limit whitelist configurable
+- fix(deps): bump Werkzeug 3.1.6, Jinja2 3.1.6, Flask-WTF 1.2.2 for Flask 3.1.3 compatibility
+- fix(collector): remove credential env fallbacks and align docs to DB-only policy
+- fix(docs): correct drawio mxfile attributes to resolve deserialization error
+- fix(deploy): harden deployment pipeline
+- fix(ci): remove typecheck error suppression and fix Dockerfile warnings
+- fix(collection): return 200 for unconfigured credentials instead of 404
+
+### CI/CD
+- ci(security): drop advanced CodeQL from Security workflow
+- ci(security): avoid duplicate codeql category and gate critical vulns
+- ci: add security scanning workflow and enhance CI pipeline
+- ci(wiki): remove temporary bootstrap workflow [skip ci]
+- ci(wiki): add temporary wiki bootstrap workflow [skip ci]
+
+### Other
+- docs(wiki): add XWiki compatibility guide and normalize table formatting
+- docs: add CODE MAP sections to all AGENTS.md and create missing files
+- docs(wiki): convert wiki-style links to standard markdown for xwiki compatibility
+- docs(wiki): add 5 architecture diagrams for service, collector, CI/CD, and data
+- docs: update monorepo structure documentation for v3.6.3
+- docs(deliverables): rewrite system design document for v3.6.3
+- docs: add central documentation hub and unify version to 3.6.3
+- docs: regenerate hierarchical AGENTS.md knowledge base
+- docs(wiki): add architecture definition document (7 pages + sync script)
+- test(coverage): add 34 unit tests for settings, admin, monitoring routes
+- test(routes): add 81 unit tests for app factory, IP management, web routes
+
+---
+
 ## [3.6.3] - 2026-02-20
 
 ### Changed
