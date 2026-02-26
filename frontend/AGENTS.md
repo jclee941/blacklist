@@ -1,8 +1,8 @@
 # FRONTEND KNOWLEDGE BASE
 
-**Generated:** 2026-02-25 15:26 Asia/Seoul
-**Commit:** e50fb74
-**Branch:** master | **Version:** 3.6.3
+**Generated:** 2026-02-26 00:00 Asia/Seoul
+**Commit:** 803209d
+**Branch:** master | **Version:** 3.6.4
 
 ## OVERVIEW
 
@@ -34,19 +34,19 @@ frontend/
 
 ## WHERE TO LOOK
 
-| Task              | Location              | Notes                            |
-| ----------------- | --------------------- | -------------------------------- |
-| API client        | `lib/api.ts`          | REQUIRED for all API calls       |
-| Shared components | `components/ui/`      | Button, Card, Modal, Tabs, etc.  |
-| State management  | Zustand + React Query | per-page stores                  |
-| API proxy config  | `next.config.ts`      | `/api/*` rewrites to Flask :2542 |
+| Task              | Location         | Notes                            |
+| ----------------- | ---------------- | -------------------------------- |
+| API client        | `lib/api.ts`     | REQUIRED for all API calls       |
+| Shared components | `components/ui/` | Button, Card, Modal, Tabs, etc.  |
+| State management  | React Query      | Zustand in deps but unused       |
+| API proxy config  | `next.config.ts` | `/api/*` rewrites to Flask :2542 |
 
 ## CONVENTIONS
 
 - API calls: `lib/api.ts` only — no direct `fetch()` in app code.
 - Server + Client component split (Next.js App Router).
 - Styling: Tailwind only, no CSS modules.
-- State: Zustand (client state) + React Query (server state).
+- State: React Query (server state) + useState (client state). Zustand declared but unused.
 - Standalone output for Docker deployment.
 
 ## ANTI-PATTERNS

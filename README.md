@@ -122,6 +122,6 @@ make test-e2e               # E2E (Playwright)
 
 ## Version
 
-**v3.6.3** (February 2026) — Production Stable
+**v3.6.4** (February 2026) — Production Stable
 
 [Releases](https://github.com/qws941/blacklist/releases) · [Changelog](CHANGELOG.md)
