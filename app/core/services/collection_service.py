@@ -237,6 +237,8 @@ class CollectionService:
             total_collected = 0
             overall_success = True
 
+            # SECUDIUM excluded: requires manual 2-step OTP authentication,
+            # cannot be triggered programmatically without user interaction.
             for source in ["regtech"]:
                 result = self.trigger_collection(source)
                 results[source] = result

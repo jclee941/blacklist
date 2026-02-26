@@ -257,7 +257,7 @@ class SecudiumCollector:
             "success" - Authentication completed
             "failed" - OTP verification failed
         """
-        if not hasattr(self, "_pending_username") or not self._pending_username:
+        if not self._pending_username:
             logger.error("secudium_step2_no_pending_auth")
             return "failed"
 
