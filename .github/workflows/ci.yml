@@ -398,6 +398,62 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Download artifacts from the Actions tab for detailed reports." >> "$GITHUB_STEP_SUMMARY"
 
+  # Single required status check for branch protection.
+  # Solves: path-filtered jobs get SKIPPED, which doesn't satisfy required checks.
+  # Make 'ci-gate' the ONLY required check in branch protection settings.
+  ci-gate:
+    needs:
+      [
+        detect-changes,
+        lint-frontend,
+        lint-backend,
+        test-frontend,
+        test-backend,
+        test-collector,
+        test-integration,
+        build,
+        coverage-report,
+      ]
+    if: always() && !cancelled()
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate job results
+        run: |
+          echo "## CI Gate Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          results=(
+            "detect-changes=${{ needs.detect-changes.result }}"
+            "lint-frontend=${{ needs.lint-frontend.result }}"
+            "lint-backend=${{ needs.lint-backend.result }}"
+            "test-frontend=${{ needs.test-frontend.result }}"
+            "test-backend=${{ needs.test-backend.result }}"
+            "test-collector=${{ needs.test-collector.result }}"
+            "test-integration=${{ needs.test-integration.result }}"
+            "build=${{ needs.build.result }}"
+            "coverage-report=${{ needs.coverage-report.result }}"
+          )
+          failed=false
+          for r in "${results[@]}"; do
+            job="${r%%=*}"
+            result="${r##*=}"
+            if [ "$result" = "failure" ]; then
+              echo "❌ $job: $result" >> "$GITHUB_STEP_SUMMARY"
+              failed=true
+            elif [ "$result" = "cancelled" ]; then
+              echo "⚠️ $job: $result" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "✅ $job: $result" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          if [ "$failed" = "true" ]; then
+            echo ""
+            echo "CI gate FAILED — one or more jobs failed."
+            exit 1
+          fi
+          echo ""
+          echo "CI gate PASSED — all jobs succeeded or were skipped."
+
   push-images:
     needs: [build, e2e, scan-images]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
