@@ -1,6 +1,6 @@
 # Blacklist Service Management Makefile
 
-.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health release release-dry
+.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health release release-dry verify verify-lint verify-types verify-secrets verify-pre-commit verify-quick verify-all
 
 # Default environment
 ENV ?= development
@@ -220,6 +220,47 @@ test-ci: ## Run tests in CI/CD mode (with coverage and reports)
 		--junitxml=junit.xml \
 		--cov-fail-under=80
 	@echo "✅ CI/CD tests completed"
+
+# Verification (mirrors CI checks locally via Docker)
+verify: ## Run verification suite (lint + types + secrets)
+	@echo "🔍 Running verification suite..."
+	@$(MAKE) verify-lint
+	@$(MAKE) verify-types
+	@$(MAKE) verify-secrets
+	@echo "✅ Verification passed"
+
+verify-lint: ## Run linting checks (ruff check + format check)
+	@echo "🔍 Checking lint..."
+	@$(COMPOSE_CMD) exec -T blacklist-app ruff check app/ collector/ tests/
+	@$(COMPOSE_CMD) exec -T blacklist-app ruff format --check app/ collector/ tests/
+	@echo "✅ Lint passed"
+
+verify-types: ## Run type checking (mypy)
+	@echo "🔍 Checking types..."
+	@$(COMPOSE_CMD) exec -T blacklist-app mypy
+	@echo "✅ Type checks passed"
+
+verify-secrets: ## Scan for leaked secrets (detect-secrets via pre-commit)
+	@echo "🔍 Scanning for secrets..."
+	@pre-commit run detect-secrets --all-files
+	@echo "✅ Secret scan passed"
+
+verify-pre-commit: ## Run all pre-commit hooks against all files
+	@echo "🔍 Running pre-commit hooks..."
+	@pre-commit run --all-files
+	@echo "✅ Pre-commit passed"
+
+verify-quick: ## Quick verification (lint only via Docker)
+	@echo "🔍 Quick lint check..."
+	@$(COMPOSE_CMD) exec -T blacklist-app ruff check app/ collector/ tests/
+	@$(COMPOSE_CMD) exec -T blacklist-app ruff format --check app/ collector/ tests/
+	@echo "✅ Quick verification passed"
+
+verify-all: ## Full CI mirror (lint + types + secrets + unit tests)
+	@echo "🔍 Running full CI verification..."
+	@$(MAKE) verify
+	@$(MAKE) test-backend
+	@echo "✅ Full CI verification passed"
 
 # Maintenance
 clean: ## Clean up containers, networks, and volumes
