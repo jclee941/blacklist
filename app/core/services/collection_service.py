@@ -491,7 +491,7 @@ class CollectionService:
 
         try:
             resp = req.post(
-                f"{config.COLLECTOR_URL}/api/scheduler/force-collection/SECUDIUM",
+                f"{config.COLLECTOR_URL}/api/force-collection/SECUDIUM",
                 timeout=300,
             )
             if resp.status_code == 200:

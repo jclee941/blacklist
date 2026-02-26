@@ -269,7 +269,7 @@ def submit_secudium_otp():
     error_detail = result.get("error", "OTP 인증 실패")
     return jsonify(
         {
-            "success": True,
+            "success": False,
             "data": {"status": "failed", "message": error_detail},
             "timestamp": datetime.now().isoformat(),
             "request_id": g.request_id,
@@ -333,7 +333,7 @@ def test_credentials(source: str):
             error_detail = collector_data.get("error", "알 수 없는 오류")
             return jsonify(
                 {
-                    "success": True,
+                    "success": False,
                     "data": {
                         "status": "failed",
                         "message": f"{source_upper} 인증 실패"

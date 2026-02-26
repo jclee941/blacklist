@@ -170,7 +170,7 @@ export function useCollectionManagement() {
 
       try {
         const { data } = await api.post(
-          `/proxy/collection/credentials/${otpServiceName.toLowerCase()}/test`,
+          `/proxy/collection/credentials/${otpServiceName.toLowerCase()}/otp`,
           {
             otp_code: otpCode,
             trigger_collect: true,

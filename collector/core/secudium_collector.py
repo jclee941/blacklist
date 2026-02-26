@@ -262,7 +262,9 @@ class SecudiumCollector:
             return "failed"
 
         logger.info("secudium_step2_login_attempt", with_otp=True, otp_length=len(otp_code))
-        assert self._pending_password is not None
+        if self._pending_password is None:
+            logger.error("secudium_step2_no_pending_password")
+            return "failed"
         login_result = self._login(
             self._pending_username,
             self._pending_password,
