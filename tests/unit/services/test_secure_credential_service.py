@@ -5,7 +5,6 @@ import os
 from unittest.mock import Mock, MagicMock, patch
 
 
-
 def _make_service(db_service=None):
     """Create SecureCredentialService with mocked encryption."""
     mock_db = db_service or Mock()

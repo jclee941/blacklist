@@ -1,6 +1,5 @@
 """Unit tests for core.utils.encryption."""
 
-
 import pytest
 
 from core.utils.encryption import CredentialEncryption, EncryptionError

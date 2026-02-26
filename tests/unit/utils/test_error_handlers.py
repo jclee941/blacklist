@@ -1,6 +1,3 @@
-
-
-
 class TestHandleException:
     def test_returns_tuple(self):
         from flask import Flask

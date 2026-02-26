@@ -4,7 +4,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 
-
 class TestCacheManagerWithRedis:
     """Tests for CacheManager when redis_client is available."""
 

@@ -1,6 +1,5 @@
 """Unit tests for core.exceptions module."""
 
-
 from core.exceptions.base_exceptions import BlacklistError, APIError, ExternalAPIError
 from core.exceptions.auth_exceptions import AuthenticationError, AuthorizationError
 

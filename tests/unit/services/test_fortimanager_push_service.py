@@ -5,7 +5,6 @@ import time
 from unittest.mock import Mock, MagicMock, patch
 
 
-
 def _make_service(db_service=None):
     """Create FortiManagerPushService with mocked env."""
     mock_db = db_service or Mock()

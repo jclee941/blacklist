@@ -7,9 +7,7 @@ from flask_cors import CORS
 import requests
 
 # 로깅 설정
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -140,17 +138,11 @@ def handle_exec(params, request_id, session_id=None):
                                 "created_at": datetime.now().isoformat(),
                             }
 
-                    external_connectors[connector_name]["last_updated"] = (
-                        datetime.now().isoformat()
-                    )
+                    external_connectors[connector_name]["last_updated"] = datetime.now().isoformat()
                     external_connectors[connector_name]["status"] = "success"
 
-                    logger.info(
-                        f"✅ External connector updated: {connector_name} ({len(ip_list)} IPs)"
-                    )
-                    return success_response(
-                        request_id, data={"updated": True, "ip_count": len(ip_list)}
-                    )
+                    logger.info(f"✅ External connector updated: {connector_name} ({len(ip_list)} IPs)")
+                    return success_response(request_id, data={"updated": True, "ip_count": len(ip_list)})
             except Exception as e:
                 logger.error(f"❌ Connector update failed: {e}")
                 return error_response(request_id, -1, str(e))
@@ -246,9 +238,7 @@ def handle_get(params, request_id, session_id=None):
             # Get specific connector
             connector_name = url.split("/")[-1]
             if connector_name in external_connectors:
-                return success_response(
-                    request_id, data=external_connectors[connector_name]
-                )
+                return success_response(request_id, data=external_connectors[connector_name])
             else:
                 return success_response(request_id, data=[])
 
@@ -304,9 +294,7 @@ def success_response(request_id, data=None, session=None):
 
 def error_response(request_id, code, message):
     """Error response"""
-    return jsonify(
-        {"id": request_id, "result": [{"status": {"code": code, "message": message}}]}
-    ), 200
+    return jsonify({"id": request_id, "result": [{"status": {"code": code, "message": message}}]}), 200
 
 
 if __name__ == "__main__":

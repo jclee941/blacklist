@@ -1,6 +1,5 @@
 """Unit tests for core.auth.decorators."""
 
-
 from core.auth.decorators import public
 
 

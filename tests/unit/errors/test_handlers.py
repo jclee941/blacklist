@@ -2,7 +2,6 @@ import uuid
 from unittest.mock import MagicMock
 
 
-
 class TestRegisterErrorHandlers:
     def test_registers_handlers(self):
         mock_app = MagicMock()

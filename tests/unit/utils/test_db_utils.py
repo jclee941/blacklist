@@ -3,7 +3,6 @@
 from unittest.mock import patch, MagicMock
 
 
-
 class TestGetDbConfig:
     """Tests for get_db_config function."""
 

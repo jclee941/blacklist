@@ -39,7 +39,6 @@ class TestBlacklistServiceExtended:
         assert result["data"] == ["1.1.1.1", "2.2.2.2"]
 
     def test_get_active_blacklist_enhanced(self):
-
         svc, _, _ = self._make_service()
         enhanced_data = [
             {

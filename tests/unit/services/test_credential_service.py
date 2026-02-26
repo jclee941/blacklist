@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 
 
-
 def _make_service(db_service=None):
     """Create CredentialService with mocked dependencies."""
     mock_db = db_service or Mock()

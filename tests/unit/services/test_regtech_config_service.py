@@ -5,7 +5,6 @@ from datetime import datetime
 from unittest.mock import Mock, MagicMock, patch
 
 
-
 def _make_service():
     from core.services.regtech_config_service import RegtechConfigService
 

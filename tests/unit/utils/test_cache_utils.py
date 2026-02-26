@@ -3,7 +3,6 @@
 from unittest.mock import patch, MagicMock
 
 
-
 class TestGetRedisClient:
     """Tests for get_redis_client function."""
 

@@ -4,7 +4,6 @@ import json
 from unittest.mock import patch, MagicMock
 
 
-
 class TestJWTRequiredHook:
     """Tests for jwt_required_hook function."""
 
@@ -53,7 +52,6 @@ class TestJWTRequiredHook:
             return "ok"
 
         with app.test_request_context("/health"):
-
             # Simulate the endpoint being resolved
             with app.test_client():
                 pass

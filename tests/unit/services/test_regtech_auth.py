@@ -2,7 +2,6 @@ import time
 from unittest.mock import Mock, MagicMock, patch
 
 
-
 def _make_auth_manager():
     from core.services.collection.regtech_auth import REGTECHAuthManager
 

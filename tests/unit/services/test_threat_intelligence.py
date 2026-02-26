@@ -1,5 +1,3 @@
-
-
 from core.services.collection.threat_intelligence import ThreatIntelligenceCollector
 
 
