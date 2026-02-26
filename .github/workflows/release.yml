@@ -1,169 +1,174 @@
-# Consolidated Release Pipeline
-# Replaces: release.yml (sequential, no validation) + release-new.yml (self-hosted only)
-# Adds: VERSION/tag validation, matrix builds, GHCR push, dry_run, Slack notify
-# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
-name: Release
-
-on:
-  push:
-    tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Dry run — build & package only, skip release/push"
-        type: boolean
-        default: false
-
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
-
-jobs:
-  validate:
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - name: Extract and validate version
-        id: version
-        run: |
-          VERSION=$(cat VERSION)
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            TAG_VERSION="${GITHUB_REF_NAME#v}"
-            if [[ "$VERSION" != "$TAG_VERSION" ]]; then
-              echo "::error::VERSION file (${VERSION}) does not match tag (${TAG_VERSION})"
-              exit 1
-            fi
-          fi
-      - name: Check CHANGELOG
-        run: |
-          VERSION=$(cat VERSION)
-          if ! grep -q "## \[${VERSION}\]" CHANGELOG.md 2>/dev/null; then
-            echo "::error::No CHANGELOG.md entry found for version ${VERSION}"
-            exit 1
-          fi
-
-  build-images:
-    needs: validate
-    uses: ./.github/workflows/build-images.yml
-    with:
-      version: ${{ needs.validate.outputs.version }}
-      push: false
-    secrets: inherit
-
-  package:
-    needs: [validate, build-images]
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          pattern: image-*
-          path: images
-          merge-multiple: true
-      - name: Create release bundle
-        run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          BUNDLE="blacklist-${VERSION}"
-          mkdir -p "${BUNDLE}/images"
-
-          cp images/*.tar.gz "${BUNDLE}/images/"
-
-          # Copy release bundle files
-          cp deploy/docker-compose.release.yml "${BUNDLE}/docker-compose.yml"
-          cp deploy/base.yml "${BUNDLE}/"
-          cp deploy/install.sh "${BUNDLE}/"
-          cp -r deploy/prereqs "${BUNDLE}/" 2>/dev/null || true
-
-          if [ -f "${BUNDLE}/install.sh" ]; then
-            sed -i "s/^VERSION=.*/VERSION=${VERSION}/" "${BUNDLE}/install.sh"
-          fi
-
-          echo "${VERSION}" > "${BUNDLE}/VERSION"
-
-          cd "${BUNDLE}/images" && sha256sum *.tar.gz > checksums.sha256 && cd ../..
-          tar czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
-          sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: release-bundle
-          path: |
-            blacklist-*.tar.gz
-            blacklist-*.tar.gz.sha256
-          retention-days: 30
-
-  create-release:
-    needs: [validate, package]
-    if: ${{ !inputs.dry_run }}
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    environment: production
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: release-bundle
-      - name: Extract changelog
-        id: changelog
-        run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          NOTES=$(awk "/^## \[${VERSION}\]/{found=1;next} /^## \[/{if(found)exit} found{print}" CHANGELOG.md 2>/dev/null || echo "Release ${VERSION}")
-          {
-            echo "notes<<EOF"
-            echo "${NOTES}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-      - name: Create GitHub Release
-        run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "Release ${{ needs.validate.outputs.version }}" \
-            --notes "${{ steps.changelog.outputs.notes }}" \
-            blacklist-*.tar.gz \
-            blacklist-*.tar.gz.sha256
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  push-to-registry:
-    needs: [validate, build-images]
-    if: ${{ !inputs.dry_run }}
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    environment: production
-    permissions:
-      packages: write
-    strategy:
-      matrix:
-        service: [frontend, app, collector, postgres, redis]
-    steps:
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: image-${{ matrix.service }}
-      - name: Load image
-        run: gunzip -c blacklist-${{ matrix.service }}.tar.gz | docker load
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Tag and push to GHCR
-        run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          IMAGE="ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}"
-          docker tag "blacklist-${{ matrix.service }}:${VERSION}" "${IMAGE}:${VERSION}"
-          docker tag "blacklist-${{ matrix.service }}:${VERSION}" "${IMAGE}:latest"
-          docker push "${IMAGE}:${VERSION}"
-          docker push "${IMAGE}:latest"
-
-  notify:
-    needs: [validate, create-release, push-to-registry]
-    if: always() && !cancelled()
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    steps:
-      - name: Slack notification
-        if: vars.SLACK_WEBHOOK_URL != ''
-        run: |
-          STATUS="${{ contains(needs.*.result, 'failure') && ':x: Failed' || ':white_check_mark: Success' }}"
-          curl -fsS -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
-            -H 'Content-type: application/json' \
-            --data "{\"text\": \"Blacklist ${{ needs.validate.outputs.version }} release ${{ contains(needs.*.result, 'failure') && 'FAILED' || 'completed' }}\", \"blocks\": [{\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Blacklist Release ${{ needs.validate.outputs.version }}*\\nStatus: ${STATUS}\\n<${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>\"}}]}"
+#JW|# Consolidated Release Pipeline
+#SY|# Replaces: release.yml (sequential, no validation) + release-new.yml (self-hosted only)
+#XW|# Adds: VERSION/tag validation, matrix builds, GHCR push, dry_run, Slack notify
+#XB|# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
+#QB|name: Release
+#SY|
+#PQ|on:
+#NX|  push:
+#QR|    tags: ["v*"]
+#XV|  workflow_dispatch:
+#MK|    inputs:
+#HT|      dry_run:
+#JQ|        description: "Dry run — build & package only, skip release/push"
+#BS|        type: boolean
+#PQ|        default: false
+#VP|
+#ZY|concurrency:
+#HX|  group: release-${{ github.ref }}
+#JJ|  cancel-in-progress: false
+#YQ|
+#WW|jobs:
+#VP|  validate:
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#WB|    timeout-minutes: 5
+#NM|    outputs:
+#PP|      version: ${{ steps.version.outputs.version }}
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#VN|      - name: Extract and validate version
+#RM|        id: version
+#TP|        run: |
+#YM|          VERSION=$(cat VERSION)
+#HQ|          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+#MX|          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+#SJ|            TAG_VERSION="${GITHUB_REF_NAME#v}"
+#MW|            if [[ "$VERSION" != "$TAG_VERSION" ]]; then
+#JX|              echo "::error::VERSION file (${VERSION}) does not match tag (${TAG_VERSION})"
+#HN|              exit 1
+#HB|            fi
+#HB|          fi
+#HR|      - name: Check CHANGELOG
+#TP|        run: |
+#YM|          VERSION=$(cat VERSION)
+#BY|          if ! grep -q "## \[${VERSION}\]" CHANGELOG.md 2>/dev/null; then
+#RT|            echo "::error::No CHANGELOG.md entry found for version ${VERSION}"
+#HN|            exit 1
+#HB|          fi
+#VJ|
+#NY|  build-images:
+#ZM|    needs: validate
+#YW|    uses: ./.github/workflows/build-images.yml
+#JM|    with:
+#SH|      version: ${{ needs.validate.outputs.version }}
+#HS|      push: false
+#XH|    secrets: inherit
+#TW|
+#KR|  package:
+#PN|    needs: [validate, build-images]
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#SB|    timeout-minutes: 15
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#HN|      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+#JM|        with:
+#XK|          pattern: image-*
+#PP|          path: images
+#RY|          merge-multiple: true
+#HT|      - name: Create release bundle
+#TP|        run: |
+#SW|          VERSION="${{ needs.validate.outputs.version }}"
+#BJ|          BUNDLE="blacklist-${VERSION}"
+#QN|          mkdir -p "${BUNDLE}/images"
+#PR|
+#WN|          cp images/*.tar.gz "${BUNDLE}/images/"
+#HV|
+#VW|          # Copy release bundle files
+#RZ|          cp deploy/docker-compose.release.yml "${BUNDLE}/docker-compose.yml"
+#BR|          cp deploy/base.yml "${BUNDLE}/"
+#HX|          cp deploy/install.sh "${BUNDLE}/"
+#HZ|          cp -r deploy/prereqs "${BUNDLE}/" 2>/dev/null || true
+#BR|
+#RN|          if [ -f "${BUNDLE}/install.sh" ]; then
+#SP|            sed -i "s/^VERSION=.*/VERSION=${VERSION}/" "${BUNDLE}/install.sh"
+#HB|          fi
+#YX|
+#RY|          echo "${VERSION}" > "${BUNDLE}/VERSION"
+#SR|
+#HQ|          cd "${BUNDLE}/images" && sha256sum *.tar.gz > checksums.sha256 && cd ../..
+#NV|          tar czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
+#YH|          sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
+#HX|      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+#JM|        with:
+#HT|          name: release-bundle
+#RR|          path: |
+#XY|            blacklist-*.tar.gz
+#NJ|            blacklist-*.tar.gz.sha256
+#WJ|          retention-days: 30
+#ZT|
+#JP|  create-release:
+#WS|    needs: [validate, package]
+#RQ|    if: ${{ !inputs.dry_run }}
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#XZ|    timeout-minutes: 10
+#XN|    environment: production
+#PR|    permissions:
+#TX|      contents: write
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#HN|      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+#JM|        with:
+#HT|          name: release-bundle
+#XR|      - name: Extract changelog
+#RH|        id: changelog
+#TP|        run: |
+#SW|          VERSION="${{ needs.validate.outputs.version }}"
+#TQ|          NOTES=$(awk "/^## \[${VERSION}\]/{found=1;next} /^## \[/{if(found)exit} found{print}" CHANGELOG.md 2>/dev/null || echo "Release ${VERSION}")
+#YZ|          {
+#PQ|            echo "notes<<EOF"
+#YM|            echo "${NOTES}"
+#YY|            echo "EOF"
+#BT|          } >> "$GITHUB_OUTPUT"
+#PV|      - name: Create GitHub Release
+#TP|        run: |
+#MJ|          gh release create "${{ github.ref_name }}" \
+#KR|            --title "Release ${{ needs.validate.outputs.version }}" \
+#MQ|            --notes "${{ steps.changelog.outputs.notes }}" \
+#QY|            blacklist-*.tar.gz \
+#NJ|            blacklist-*.tar.gz.sha256
+#JR|        env:
+#RS|          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#KH|  push-to-registry:
+#PN|    needs: [validate, build-images]
+#RQ|    if: ${{ !inputs.dry_run }}
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#TB|    timeout-minutes: 15
+#XN|    environment: production
+#PR|    permissions:
+#NY|      packages: write
+#JB|    strategy:
+#HK|      matrix:
+#NP|        service: [frontend, app, collector, postgres, redis]
+#TR|    steps:
+#HN|      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+#JM|        with:
+#BS|          name: image-${{ matrix.service }}
+#RR|      - name: Load image
+#HZ|        run: gunzip -c blacklist-${{ matrix.service }}.tar.gz | docker load
+#RP|      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+#JM|        with:
+#PB|          registry: ghcr.io
+#SR|          username: ${{ github.actor }}
+#TR|          password: ${{ secrets.GITHUB_TOKEN }}
+#TV|      - name: Tag and push to GHCR
+#TP|        run: |
+#SW|          VERSION="${{ needs.validate.outputs.version }}"
+#MT|          IMAGE="ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}"
+#JV|          docker tag "blacklist-${{ matrix.service }}:${VERSION}" "${IMAGE}:${VERSION}"
+#XM|          docker tag "blacklist-${{ matrix.service }}:${VERSION}" "${IMAGE}:latest"
+#ZK|          docker push "${IMAGE}:${VERSION}"
+#ZK|          docker push "${IMAGE}:latest"
+#HJ|
+#PN|  notify:
+#QV|    needs: [validate, create-release, push-to-registry]
+#TM|    if: always() && !cancelled()
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#TC|    timeout-minutes: 5
+#TR|    steps:
+#KN|      - name: Slack notification
+#KB|        if: vars.SLACK_WEBHOOK_URL != ''
+#TP|        run: |
+#ZX|          STATUS="${{ contains(needs.*.result, 'failure') && ':x: Failed' || ':white_check_mark: Success' }}"
+#YW|          curl -fsS -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+#KR|            -H 'Content-type: application/json' \
+#TV|            --data "{\"text\": \"Blacklist ${{ needs.validate.outputs.version }} release ${{ contains(needs.*.result, 'failure') && 'FAILED' || 'completed' }}\", \"blocks\": [{\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Blacklist Release ${{ needs.validate.outputs.version }}*\\nStatus: ${STATUS}\\n<${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>\"}}]}"

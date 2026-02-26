@@ -1,527 +1,527 @@
-# Consolidated CI Pipeline
-# Replaces: ci.yml (frontend-only) + ci-new.yml (self-hosted only)
-# Fixes: vitest continue-on-error, missing backend CI
-# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
-name: CI
-
-on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
-
-permissions:
-  contents: read
-  packages: write
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  detect-changes:
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 5
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend: ${{ steps.filter.outputs.backend }}
-      collector: ${{ steps.filter.outputs.collector }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Detect changed paths
-        id: filter
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            DIFF_TARGET="origin/${{ github.base_ref }}...HEAD"
-          else
-            DIFF_TARGET="HEAD~1"
-          fi
-          CHANGED=$(git diff --name-only $DIFF_TARGET 2>/dev/null || git diff --name-only HEAD)
-          echo "Changed files:"
-          echo "$CHANGED"
-          echo "frontend=$(echo "$CHANGED" | grep -q '^frontend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "collector=$(echo "$CHANGED" | grep -q '^collector/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
-  # Replaces inline lint-frontend with reusable workflow
-  lint-frontend:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true'
-    uses: ./.github/workflows/_ci-node.yml
-    with:
-      node-version: "20"
-      working-directory: frontend
-      run-lint: true
-      run-typecheck: true
-    secrets: inherit
-
-  lint-backend:
-    needs: detect-changes
-    if: >-
-      needs.detect-changes.outputs.backend == 'true' ||
-      needs.detect-changes.outputs.collector == 'true'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.11"
-          cache: pip
-      - run: pip install ruff==0.9.10
-      - run: ruff check app/ collector/
-      - run: ruff format --check app/ collector/
-
-  test-frontend:
-    needs: [detect-changes, lint-frontend]
-    if: >-
-      always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.frontend == 'true'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - name: Run tests with coverage
-        run: npm run test -- --coverage
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: frontend-coverage
-          path: frontend/coverage/
-          retention-days: 30
-
-  test-backend:
-    needs: [detect-changes, lint-backend]
-    if: >-
-      always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.backend == 'true'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: blacklist
-          POSTGRES_PASSWORD: blacklist
-          POSTGRES_DB: blacklist_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U blacklist"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      DATABASE_URL: postgresql://blacklist:blacklist@localhost:5432/blacklist_test
-      REDIS_URL: redis://localhost:6379/0
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: blacklist_test
-      POSTGRES_USER: blacklist
-      POSTGRES_PASSWORD: blacklist
-      PYTHONPATH: app
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.11"
-          cache: pip
-      - run: pip install -r app/requirements.txt pytest-cov
-      - name: Run tests with coverage
-        run: |
-          python -m pytest tests/unit --ignore=tests/unit/collector -v \
-            --cov=app/core \
-            --cov-report=term-missing \
-            --cov-report=xml:coverage.xml \
-            --cov-fail-under=80
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: backend-coverage
-          path: coverage.xml
-          retention-days: 30
-
-  test-collector:
-    needs: [detect-changes, lint-backend]
-    if: >-
-      always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.collector == 'true'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.11"
-          cache: pip
-      - run: pip install -r collector/requirements.txt pytest-cov
-      - name: Run collector tests with coverage
-        env:
-          SECUDIUM_EMAIL: ${{ secrets.SECUDIUM_EMAIL }}
-          SECUDIUM_EMAIL_PASSWORD: ${{ secrets.SECUDIUM_EMAIL_PASSWORD }}
-          PYTHONPATH: collector
-        run: |
-          python -m pytest tests/unit/collector -v \
-            -o 'pythonpath=["collector"]' \
-            --cov=collector/core \
-            --cov-report=term-missing \
-            --cov-report=xml:collector-coverage.xml
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: collector-coverage
-          path: collector-coverage.xml
-          retention-days: 30
-
-  test-integration:
-    needs: [detect-changes, lint-backend, test-backend]
-    if: >-
-      always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.backend == 'true'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: blacklist
-          POSTGRES_PASSWORD: blacklist
-          POSTGRES_DB: blacklist_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U blacklist"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      DATABASE_URL: postgresql://blacklist:blacklist@localhost:5432/blacklist_test
-      REDIS_URL: redis://localhost:6379/0
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: blacklist_test
-      POSTGRES_USER: blacklist
-      POSTGRES_PASSWORD: blacklist
-      PYTHONPATH: app
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.11"
-          cache: pip
-      - run: pip install -r app/requirements.txt pytest
-      - name: Run integration tests
-        run: |
-          python -m pytest tests/integration -v \
-            --tb=short
-
-  build:
-    needs:
-      [
-        detect-changes,
-        lint-frontend,
-        lint-backend,
-        test-frontend,
-        test-backend,
-        test-collector,
-        test-integration,
-      ]
-    if: >-
-      always() && !failure() && !cancelled() &&
-      (needs.detect-changes.outputs.frontend == 'true' ||
-       needs.detect-changes.outputs.backend == 'true' ||
-       needs.detect-changes.outputs.collector == 'true')
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [frontend, app, collector]
-        include:
-          - service: frontend
-            context: .
-            dockerfile: frontend/Dockerfile
-          - service: app
-            context: .
-            dockerfile: app/Dockerfile
-          - service: collector
-            context: .
-            dockerfile: collector/Dockerfile
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          load: true
-          tags: blacklist-${{ matrix.service }}:ci
-          build-args: |
-            APP_VERSION=ci
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - run: docker save blacklist-${{ matrix.service }}:ci | gzip > ${{ matrix.service }}.tar.gz
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: image-${{ matrix.service }}
-          path: ${{ matrix.service }}.tar.gz
-          retention-days: 1
-
-  scan-images:
-    needs: build
-    if: needs.build.result == 'success'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [frontend, app, collector]
-    steps:
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: image-${{ matrix.service }}
-      - name: Load image
-        run: gunzip -c ${{ matrix.service }}.tar.gz | docker load
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518
-        with:
-          image-ref: blacklist-${{ matrix.service }}:ci
-          format: table
-          exit-code: "1"
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-
-  e2e:
-    needs: build
-    if: needs.build.result == 'success'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          pattern: image-*
-          merge-multiple: true
-      - name: Load images
-        run: |
-          for f in *.tar.gz; do
-            gunzip -c "$f" | docker load
-          done
-      - name: Start services
-        run: docker compose -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 120
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - working-directory: frontend
-        run: npm ci
-      - working-directory: frontend
-        run: npx playwright install --with-deps chromium webkit
-      - name: Run E2E tests
-        working-directory: frontend
-        run: npm run test:e2e
-        env:
-          PLAYWRIGHT_BASE_URL: https://localhost:3443
-          WEBKIT_ENABLED: "true"
-      - name: Collect logs
-        if: failure()
-        run: docker compose -f .github/docker-compose.ci.yml logs --no-color > docker-logs.txt 2>&1
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        if: failure()
-        with:
-          name: e2e-failure-logs
-          path: |
-            docker-logs.txt
-            frontend/test-results/
-          retention-days: 7
-      - if: always()
-        run: docker compose -f .github/docker-compose.ci.yml down -v
-
-  coverage-report:
-    needs: [test-frontend, test-backend, test-collector]
-    if: always() && !cancelled()
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 5
-    steps:
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          pattern: "*-coverage"
-          merge-multiple: true
-      - name: Coverage summary
-        run: |
-          echo "## Coverage Artifacts" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d coverage ]; then
-            echo "✅ Frontend coverage report uploaded" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f coverage.xml ]; then
-            echo "✅ Backend coverage report uploaded" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f collector-coverage.xml ]; then
-            echo "✅ Collector coverage report uploaded" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Download artifacts from the Actions tab for detailed reports." >> "$GITHUB_STEP_SUMMARY"
-
-  # Single required status check for branch protection.
-  # Solves: path-filtered jobs get SKIPPED, which doesn't satisfy required checks.
-  # Make 'ci-gate' the ONLY required check in branch protection settings.
-  ci-gate:
-    needs:
-      [
-        detect-changes,
-        lint-frontend,
-        lint-backend,
-        test-frontend,
-        test-backend,
-        test-collector,
-        test-integration,
-        build,
-        coverage-report,
-      ]
-    if: always() && !cancelled()
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 5
-    steps:
-      - name: Evaluate job results
-        run: |
-          echo "## CI Gate Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          results=(
-            "detect-changes=${{ needs.detect-changes.result }}"
-            "lint-frontend=${{ needs.lint-frontend.result }}"
-            "lint-backend=${{ needs.lint-backend.result }}"
-            "test-frontend=${{ needs.test-frontend.result }}"
-            "test-backend=${{ needs.test-backend.result }}"
-            "test-collector=${{ needs.test-collector.result }}"
-            "test-integration=${{ needs.test-integration.result }}"
-            "build=${{ needs.build.result }}"
-            "coverage-report=${{ needs.coverage-report.result }}"
-          )
-          failed=false
-          for r in "${results[@]}"; do
-            job="${r%%=*}"
-            result="${r##*=}"
-            if [ "$result" = "failure" ]; then
-              echo "❌ $job: $result" >> "$GITHUB_STEP_SUMMARY"
-              failed=true
-            elif [ "$result" = "cancelled" ]; then
-              echo "⚠️ $job: $result" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "✅ $job: $result" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-          if [ "$failed" = "true" ]; then
-            echo ""
-            echo "CI gate FAILED — one or more jobs failed."
-            exit 1
-          fi
-          echo ""
-          echo "CI gate PASSED — all jobs succeeded or were skipped."
-
-  push-images:
-    needs: [build, e2e, scan-images]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 30
-    concurrency:
-      group: deploy-ghcr-master
-      cancel-in-progress: false
-    permissions:
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Reuse artifacts from build job (no rebuild)
-          - service: frontend
-            from-artifact: true
-          - service: app
-            from-artifact: true
-          - service: collector
-            from-artifact: true
-          # Build fresh (not in CI build matrix, lightweight images)
-          - service: postgres
-            from-artifact: false
-            context: ./postgres
-            dockerfile: postgres/Dockerfile
-          - service: redis
-            from-artifact: false
-            context: ./redis
-            dockerfile: redis/Dockerfile
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        if: ${{ !matrix.from-artifact }}
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-        if: ${{ !matrix.from-artifact }}
-
-      # Load pre-built image from artifact (frontend, app, collector)
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        if: ${{ matrix.from-artifact }}
-        with:
-          name: image-${{ matrix.service }}
-      - name: Load image from artifact
-        if: ${{ matrix.from-artifact }}
-        run: gunzip -c ${{ matrix.service }}.tar.gz | docker load
-
-      # Build fresh (postgres, redis — not part of CI test matrix)
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        if: ${{ !matrix.from-artifact }}
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          load: true
-          tags: blacklist-${{ matrix.service }}:ci
-          build-args: |
-            APP_VERSION=latest
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Push to GHCR
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Tag and push to GHCR
-        run: |
-          IMAGE="ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}"
-          docker tag "blacklist-${{ matrix.service }}:ci" "${IMAGE}:latest"
-          docker push "${IMAGE}:latest"
+#BT|# Consolidated CI Pipeline
+#XN|# Replaces: ci.yml (frontend-only) + ci-new.yml (self-hosted only)
+#PT|# Fixes: vitest continue-on-error, missing backend CI
+#XB|# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
+#TZ|name: CI
+#SY|
+#PQ|on:
+#NX|  push:
+#BK|    branches: [master]
+#NK|  pull_request:
+#BK|    branches: [master]
+#TX|
+#PR|permissions:
+#XX|  contents: read
+#NY|  packages: write
+#VP|
+#ZY|concurrency:
+#PP|  group: ci-${{ github.ref }}
+#WB|  cancel-in-progress: true
+#YQ|
+#WW|jobs:
+#VP|  detect-changes:
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#TT|    timeout-minutes: 5
+#WB|    outputs:
+#ZK|      frontend: ${{ steps.filter.outputs.frontend }}
+#WY|      backend: ${{ steps.filter.outputs.backend }}
+#VH|      collector: ${{ steps.filter.outputs.collector }}
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#JM|        with:
+#SK|          fetch-depth: 0
+#XZ|      - name: Detect changed paths
+#VQ|        id: filter
+#TP|        run: |
+#WZ|          if [ "${{ github.event_name }}" = "pull_request" ]; then
+#PN|            DIFF_TARGET="origin/${{ github.base_ref }}...HEAD"
+#SQ|          else
+#RB|            DIFF_TARGET="HEAD~1"
+#HB|          fi
+#QX|          CHANGED=$(git diff --name-only $DIFF_TARGET 2>/dev/null || git diff --name-only HEAD)
+#HY|          echo "Changed files:"
+#WR|          echo "$CHANGED"
+#BW|          echo "frontend=$(echo "$CHANGED" | grep -q '^frontend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+#TB|          echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+#TP|          echo "collector=$(echo "$CHANGED" | grep -q '^collector/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+#VJ|
+#KY|  # Replaces inline lint-frontend with reusable workflow
+#VN|  lint-frontend:
+#VJ|    needs: detect-changes
+#WY|    if: needs.detect-changes.outputs.frontend == 'true'
+#PT|    uses: ./.github/workflows/_ci-node.yml
+#JM|    with:
+#TZ|      node-version: "20"
+#QB|      working-directory: frontend
+#QW|      run-lint: true
+#ZZ|      run-typecheck: true
+#XH|    secrets: inherit
+#QH|
+#PR|  lint-backend:
+#VJ|    needs: detect-changes
+#XT|    if: >-
+#QJ|      needs.detect-changes.outputs.backend == 'true' ||
+#SV|      needs.detect-changes.outputs.collector == 'true'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#XH|    timeout-minutes: 10
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#HH|      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+#JM|        with:
+#YR|          python-version: "3.11"
+#NM|          cache: pip
+#YM|      - run: pip install ruff==0.9.10
+#WV|      - run: ruff check app/ collector/
+#VY|      - run: ruff format --check app/ collector/
+#JW|
+#VH|  test-frontend:
+#SB|    needs: [detect-changes, lint-frontend]
+#XT|    if: >-
+#JJ|      always() && !failure() && !cancelled() &&
+#TV|      needs.detect-changes.outputs.frontend == 'true'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#RK|    timeout-minutes: 15
+#BS|    defaults:
+#ZN|      run:
+#QB|        working-directory: frontend
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#JS|      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+#JM|        with:
+#YJ|          node-version: 20
+#PJ|          cache: npm
+#QW|          cache-dependency-path: frontend/package-lock.json
+#YR|      - run: npm ci
+#HS|      - name: Run tests with coverage
+#RJ|        run: npm run test -- --coverage
+#KT|      - name: Upload coverage report
+#PX|        if: always()
+#YP|        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+#JM|        with:
+#JZ|          name: frontend-coverage
+#HM|          path: frontend/coverage/
+#WJ|          retention-days: 30
+#NJ|
+#XS|  test-backend:
+#YX|    needs: [detect-changes, lint-backend]
+#XT|    if: >-
+#JJ|      always() && !failure() && !cancelled() &&
+#JW|      needs.detect-changes.outputs.backend == 'true'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#XJ|    timeout-minutes: 20
+#QT|    services:
+#WJ|      postgres:
+#VJ|        image: postgres:15
+#JR|        env:
+#PQ|          POSTGRES_USER: blacklist
+#MY|          POSTGRES_PASSWORD: blacklist
+#RP|          POSTGRES_DB: blacklist_test
+#WJ|        ports:
+#TX|          - 5432:5432
+#RV|        options: >-
+#ZJ|          --health-cmd="pg_isready -U blacklist"
+#VY|          --health-interval=10s
+#ZR|          --health-timeout=5s
+#MP|          --health-retries=5
+#TB|      redis:
+#YH|        image: redis:7-alpine
+#WJ|        ports:
+#KM|          - 6379:6379
+#RV|        options: >-
+#VH|          --health-cmd="redis-cli ping"
+#VY|          --health-interval=10s
+#ZR|          --health-timeout=5s
+#MP|          --health-retries=5
+#JR|    env:
+#SM|      DATABASE_URL: postgresql://blacklist:blacklist@localhost:5432/blacklist_test
+#XR|      REDIS_URL: redis://localhost:6379/0
+#TK|      POSTGRES_HOST: localhost
+#KJ|      POSTGRES_PORT: "5432"
+#RP|      POSTGRES_DB: blacklist_test
+#PQ|      POSTGRES_USER: blacklist
+#MY|      POSTGRES_PASSWORD: blacklist
+#ZK|      PYTHONPATH: app
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#HH|      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+#JM|        with:
+#YR|          python-version: "3.11"
+#NM|          cache: pip
+#BB|      - run: pip install -r app/requirements.txt pytest-cov
+#HS|      - name: Run tests with coverage
+#TP|        run: |
+#JS|          python -m pytest tests/unit --ignore=tests/unit/collector -v \
+#TN|            --cov=app/core \
+#NV|            --cov-report=term-missing \
+#QK|            --cov-report=xml:coverage.xml \
+#QM|            --cov-fail-under=80
+#KT|      - name: Upload coverage report
+#PX|        if: always()
+#YP|        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+#JM|        with:
+#NP|          name: backend-coverage
+#ZX|          path: coverage.xml
+#WJ|          retention-days: 30
+#NX|
+#TB|  test-collector:
+#YX|    needs: [detect-changes, lint-backend]
+#XT|    if: >-
+#JJ|      always() && !failure() && !cancelled() &&
+#SV|      needs.detect-changes.outputs.collector == 'true'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#XH|    timeout-minutes: 10
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#HH|      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+#JM|        with:
+#YR|          python-version: "3.11"
+#NM|          cache: pip
+#ZT|      - run: pip install -r collector/requirements.txt pytest-cov
+#RN|      - name: Run collector tests with coverage
+#JR|        env:
+#VZ|          SECUDIUM_EMAIL: ${{ secrets.SECUDIUM_EMAIL }}
+#QW|          SECUDIUM_EMAIL_PASSWORD: ${{ secrets.SECUDIUM_EMAIL_PASSWORD }}
+#XJ|          PYTHONPATH: collector
+#TP|        run: |
+#XJ|          python -m pytest tests/unit/collector -v \
+#QW|            -o 'pythonpath=["collector"]' \
+#ZS|            --cov=collector/core \
+#NV|            --cov-report=term-missing \
+#PW|            --cov-report=xml:collector-coverage.xml
+#KT|      - name: Upload coverage report
+#PX|        if: always()
+#YP|        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+#JM|        with:
+#ZB|          name: collector-coverage
+#JQ|          path: collector-coverage.xml
+#WJ|          retention-days: 30
+#JR|
+#RV|  test-integration:
+#MJ|    needs: [detect-changes, lint-backend, test-backend]
+#XT|    if: >-
+#JJ|      always() && !failure() && !cancelled() &&
+#JW|      needs.detect-changes.outputs.backend == 'true'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#XJ|    timeout-minutes: 20
+#QT|    services:
+#WJ|      postgres:
+#VJ|        image: postgres:15
+#JR|        env:
+#PQ|          POSTGRES_USER: blacklist
+#MY|          POSTGRES_PASSWORD: blacklist
+#RP|          POSTGRES_DB: blacklist_test
+#WJ|        ports:
+#TX|          - 5432:5432
+#RV|        options: >-
+#ZJ|          --health-cmd="pg_isready -U blacklist"
+#VY|          --health-interval=10s
+#ZR|          --health-timeout=5s
+#MP|          --health-retries=5
+#TB|      redis:
+#YH|        image: redis:7-alpine
+#WJ|        ports:
+#KM|          - 6379:6379
+#RV|        options: >-
+#VH|          --health-cmd="redis-cli ping"
+#VY|          --health-interval=10s
+#ZR|          --health-timeout=5s
+#MP|          --health-retries=5
+#JR|    env:
+#SM|      DATABASE_URL: postgresql://blacklist:blacklist@localhost:5432/blacklist_test
+#XR|      REDIS_URL: redis://localhost:6379/0
+#TK|      POSTGRES_HOST: localhost
+#KJ|      POSTGRES_PORT: "5432"
+#RP|      POSTGRES_DB: blacklist_test
+#PQ|      POSTGRES_USER: blacklist
+#MY|      POSTGRES_PASSWORD: blacklist
+#ZK|      PYTHONPATH: app
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#HH|      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+#JM|        with:
+#YR|          python-version: "3.11"
+#NM|          cache: pip
+#YZ|      - run: pip install -r app/requirements.txt pytest
+#MP|      - name: Run integration tests
+#TP|        run: |
+#VR|          python -m pytest tests/integration -v \
+#SX|            --tb=short
+#JX|
+#TK|  build:
+#YQ|    needs:
+#QH|      [
+#PT|        detect-changes,
+#TQ|        lint-frontend,
+#PX|        lint-backend,
+#KT|        test-frontend,
+#WX|        test-backend,
+#MK|        test-collector,
+#PB|        test-integration,
+#BT|      ]
+#XT|    if: >-
+#JJ|      always() && !failure() && !cancelled() &&
+#KT|      (needs.detect-changes.outputs.frontend == 'true' ||
+#QJ|       needs.detect-changes.outputs.backend == 'true' ||
+#WV|       needs.detect-changes.outputs.collector == 'true')
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#BK|    timeout-minutes: 30
+#JB|    strategy:
+#MP|      fail-fast: false
+#HK|      matrix:
+#VN|        service: [frontend, app, collector]
+#VP|        include:
+#BM|          - service: frontend
+#MZ|            context: .
+#QX|            dockerfile: frontend/Dockerfile
+#VX|          - service: app
+#MZ|            context: .
+#WZ|            dockerfile: app/Dockerfile
+#ZJ|          - service: collector
+#MZ|            context: .
+#XK|            dockerfile: collector/Dockerfile
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#NB|      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+#PY|      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+#JM|        with:
+#QW|          context: ${{ matrix.context }}
+#MK|          file: ${{ matrix.dockerfile }}
+#VH|          load: true
+#WN|          tags: blacklist-${{ matrix.service }}:ci
+#QZ|          build-args: |
+#RQ|            APP_VERSION=ci
+#XN|            GIT_COMMIT=${{ github.sha }}
+#ZM|            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+#VQ|          cache-from: type=gha
+#BX|          cache-to: type=gha,mode=max
+#BK|      - run: docker save blacklist-${{ matrix.service }}:ci | gzip > ${{ matrix.service }}.tar.gz
+#HX|      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+#JM|        with:
+#BS|          name: image-${{ matrix.service }}
+#RR|          path: ${{ matrix.service }}.tar.gz
+#MB|          retention-days: 1
+#NK|
+#JS|  scan-images:
+#HN|    needs: build
+#MT|    if: needs.build.result == 'success'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#RK|    timeout-minutes: 15
+#JB|    strategy:
+#MP|      fail-fast: false
+#HK|      matrix:
+#VN|        service: [frontend, app, collector]
+#TR|    steps:
+#HN|      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+#JM|        with:
+#BS|          name: image-${{ matrix.service }}
+#RR|      - name: Load image
+#JN|        run: gunzip -c ${{ matrix.service }}.tar.gz | docker load
+#YJ|      - name: Run Trivy vulnerability scanner
+#MV|        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # 0.34.1
+#JM|        with:
+#BM|          image-ref: blacklist-${{ matrix.service }}:ci
+#HH|          format: table
+#QR|          exit-code: "1"
+#BT|          severity: CRITICAL,HIGH
+#ZS|          ignore-unfixed: true
+#QR|
+#QQ|  e2e:
+#HN|    needs: build
+#MT|    if: needs.build.result == 'success'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#BK|    timeout-minutes: 30
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#HN|      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+#JM|        with:
+#XK|          pattern: image-*
+#RY|          merge-multiple: true
+#NZ|      - name: Load images
+#TP|        run: |
+#BJ|          for f in *.tar.gz; do
+#BB|            gunzip -c "$f" | docker load
+#PX|          done
+#BJ|      - name: Start services
+#PJ|        run: docker compose -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 120
+#JS|      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+#JM|        with:
+#YJ|          node-version: 20
+#PJ|          cache: npm
+#QW|          cache-dependency-path: frontend/package-lock.json
+#XX|      - working-directory: frontend
+#NZ|        run: npm ci
+#XX|      - working-directory: frontend
+#TJ|        run: npx playwright install --with-deps chromium webkit
+#BH|      - name: Run E2E tests
+#QB|        working-directory: frontend
+#RT|        run: npm run test:e2e
+#JR|        env:
+#ZR|          PLAYWRIGHT_BASE_URL: https://localhost:3443
+#YW|          WEBKIT_ENABLED: "true"
+#QS|      - name: Collect logs
+#PM|        if: failure()
+#KX|        run: docker compose -f .github/docker-compose.ci.yml logs --no-color > docker-logs.txt 2>&1
+#HX|      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+#PM|        if: failure()
+#JM|        with:
+#YH|          name: e2e-failure-logs
+#RR|          path: |
+#SS|            docker-logs.txt
+#BZ|            frontend/test-results/
+#NS|          retention-days: 7
+#TM|      - if: always()
+#VV|        run: docker compose -f .github/docker-compose.ci.yml down -v
+#HM|
+#BQ|  coverage-report:
+#NB|    needs: [test-frontend, test-backend, test-collector]
+#TM|    if: always() && !cancelled()
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#TT|    timeout-minutes: 5
+#TR|    steps:
+#HN|      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+#JM|        with:
+#HW|          pattern: "*-coverage"
+#RY|          merge-multiple: true
+#TQ|      - name: Coverage summary
+#TP|        run: |
+#ZS|          echo "## Coverage Artifacts" >> "$GITHUB_STEP_SUMMARY"
+#VJ|          echo "" >> "$GITHUB_STEP_SUMMARY"
+#QH|          if [ -d coverage ]; then
+#XJ|            echo "✅ Frontend coverage report uploaded" >> "$GITHUB_STEP_SUMMARY"
+#HB|          fi
+#NY|          if [ -f coverage.xml ]; then
+#NS|            echo "✅ Backend coverage report uploaded" >> "$GITHUB_STEP_SUMMARY"
+#HB|          fi
+#WW|          if [ -f collector-coverage.xml ]; then
+#QS|            echo "✅ Collector coverage report uploaded" >> "$GITHUB_STEP_SUMMARY"
+#HB|          fi
+#VJ|          echo "" >> "$GITHUB_STEP_SUMMARY"
+#JJ|          echo "Download artifacts from the Actions tab for detailed reports." >> "$GITHUB_STEP_SUMMARY"
+#RN|
+#QH|  # Single required status check for branch protection.
+#NV|  # Solves: path-filtered jobs get SKIPPED, which doesn't satisfy required checks.
+#XW|  # Make 'ci-gate' the ONLY required check in branch protection settings.
+#VV|  ci-gate:
+#YQ|    needs:
+#BN|      [
+#PT|        detect-changes,
+#TQ|        lint-frontend,
+#PX|        lint-backend,
+#KT|        test-frontend,
+#WX|        test-backend,
+#MK|        test-collector,
+#PB|        test-integration,
+#MK|        build,
+#NM|        coverage-report,
+#BX|      ]
+#TM|    if: always() && !cancelled()
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#TT|    timeout-minutes: 5
+#TR|    steps:
+#WP|      - name: Evaluate job results
+#TP|        run: |
+#NZ|          echo "## CI Gate Summary" >> "$GITHUB_STEP_SUMMARY"
+#VJ|          echo "" >> "$GITHUB_STEP_SUMMARY"
+#NQ|          results=(
+#HK|            "detect-changes=${{ needs.detect-changes.result }}"
+#QQ|            "lint-frontend=${{ needs.lint-frontend.result }}"
+#KB|            "lint-backend=${{ needs.lint-backend.result }}"
+#ZK|            "test-frontend=${{ needs.test-frontend.result }}"
+#MN|            "test-backend=${{ needs.test-backend.result }}"
+#PT|            "test-collector=${{ needs.test-collector.result }}"
+#HQ|            "test-integration=${{ needs.test-integration.result }}"
+#BT|            "build=${{ needs.build.result }}"
+#KK|            "coverage-report=${{ needs.coverage-report.result }}"
+#HX|          )
+#PM|          failed=false
+#RX|          for r in "${results[@]}"; do
+#RK|            job="${r%%=*}"
+#YX|            result="${r##*=}"
+#SJ|            if [ "$result" = "failure" ]; then
+#XS|              echo "❌ $job: $result" >> "$GITHUB_STEP_SUMMARY"
+#XS|              failed=true
+#NS|            elif [ "$result" = "cancelled" ]; then
+#WQ|              echo "⚠️ $job: $result" >> "$GITHUB_STEP_SUMMARY"
+#SQ|            else
+#WH|              echo "✅ $job: $result" >> "$GITHUB_STEP_SUMMARY"
+#HB|            fi
+#PX|          done
+#KB|          if [ "$failed" = "true" ]; then
+#PW|            echo ""
+#BM|            echo "CI gate FAILED — one or more jobs failed."
+#HN|            exit 1
+#HB|          fi
+#PW|          echo ""
+#QM|          echo "CI gate PASSED — all jobs succeeded or were skipped."
+#VQ|
+#JX|  push-images:
+#KN|    needs: [build, e2e, scan-images]
+#XT|    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+#VW|    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+#BK|    timeout-minutes: 30
+#ZY|    concurrency:
+#SW|      group: deploy-ghcr-master
+#JJ|      cancel-in-progress: false
+#PR|    permissions:
+#NY|      packages: write
+#JB|    strategy:
+#MP|      fail-fast: false
+#HK|      matrix:
+#VP|        include:
+#BK|          # Reuse artifacts from build job (no rebuild)
+#BM|          - service: frontend
+#PB|            from-artifact: true
+#VX|          - service: app
+#PB|            from-artifact: true
+#ZJ|          - service: collector
+#PB|            from-artifact: true
+#BJ|          # Build fresh (not in CI build matrix, lightweight images)
+#PK|          - service: postgres
+#SZ|            from-artifact: false
+#TT|            context: ./postgres
+#PN|            dockerfile: postgres/Dockerfile
+#XK|          - service: redis
+#SZ|            from-artifact: false
+#WB|            context: ./redis
+#BP|            dockerfile: redis/Dockerfile
+#TR|    steps:
+#SQ|      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#RJ|        if: ${{ !matrix.from-artifact }}
+#NB|      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+#RJ|        if: ${{ !matrix.from-artifact }}
+#HK|
+#MJ|      # Load pre-built image from artifact (frontend, app, collector)
+#HN|      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+#RN|        if: ${{ matrix.from-artifact }}
+#JM|        with:
+#BS|          name: image-${{ matrix.service }}
+#RJ|      - name: Load image from artifact
+#RN|        if: ${{ matrix.from-artifact }}
+#JN|        run: gunzip -c ${{ matrix.service }}.tar.gz | docker load
+#QB|
+#XP|      # Build fresh (postgres, redis — not part of CI test matrix)
+#PY|      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+#RJ|        if: ${{ !matrix.from-artifact }}
+#JM|        with:
+#QW|          context: ${{ matrix.context }}
+#MK|          file: ${{ matrix.dockerfile }}
+#VH|          load: true
+#WN|          tags: blacklist-${{ matrix.service }}:ci
+#QZ|          build-args: |
+#WV|            APP_VERSION=latest
+#XN|            GIT_COMMIT=${{ github.sha }}
+#ZM|            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+#VQ|          cache-from: type=gha
+#BX|          cache-to: type=gha,mode=max
+#MK|
+#MJ|      # Push to GHCR
+#RP|      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+#JM|        with:
+#PB|          registry: ghcr.io
+#SR|          username: ${{ github.actor }}
+#TR|          password: ${{ secrets.GITHUB_TOKEN }}
+#TV|      - name: Tag and push to GHCR
+#TP|        run: |
+#MT|          IMAGE="ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}"
+#WP|          docker tag "blacklist-${{ matrix.service }}:ci" "${IMAGE}:latest"
+#ZK|          docker push "${IMAGE}:latest"
