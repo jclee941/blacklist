@@ -264,6 +264,7 @@ setup_secrets() {
 # Blacklist Platform Secrets (auto-generated)
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+COMPOSE_PROJECT_NAME=blacklist
 CREDENTIAL_MASTER_KEY=${master_key}
 SECRET_KEY=${secret_key}
 CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
