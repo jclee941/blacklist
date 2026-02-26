@@ -1,0 +1,3 @@
+# Self-signed SSL certificate generated at Docker build time (not a real secret)
+# frontend/Dockerfile generates this via `openssl req -x509 -newkey rsa:2048 ...`
+ssl/server.key

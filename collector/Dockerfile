@@ -7,7 +7,7 @@
 # ============================================================================
 
 # ---- Stage 1: Build (gcc, libpq-dev for C extensions) ----
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /build
 
@@ -18,9 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY collector/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ---- Stage 2: Runtime (minimal) ----
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 ARG APP_VERSION="0.0.0-dev"
 ARG BUILD_DATE=""
@@ -46,6 +47,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy pre-built Python packages from builder stage
 COPY --from=builder /install /usr/local
+
+# Upgrade pip/setuptools/wheel to patch CVEs from base image
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Copy collector source (flattened layout)
 COPY collector/core/ /app/core/

@@ -41,6 +41,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       FLASK_ENV: testing
       SECRET_KEY: ci-test-secret-key
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: blacklist
+      POSTGRES_PASSWORD: blacklist
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:2542/health || exit 1"]
       interval: 5s
@@ -60,6 +66,12 @@ services:
     environment:
       DATABASE_URL: postgresql://blacklist:blacklist@postgres:5432/blacklist
       REDIS_URL: redis://redis:6379/0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: blacklist
+      POSTGRES_PASSWORD: blacklist
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8545/health || exit 1"]
       interval: 5s

@@ -9,7 +9,7 @@
 # ============================================================================
 # STAGE 1: Python Dependencies and Application Build
 # ============================================================================
-FROM python:3.11-slim-bullseye AS python-base
+FROM python:3.11-slim-bookworm AS python-base
 
 # Python optimization settings
 ENV PYTHONUNBUFFERED=1 \
@@ -75,6 +75,9 @@ RUN set -e && \
         fi; \
     done
 
+# Upgrade pip/setuptools/wheel to fix known CVEs in base image
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
 # ============================================================================
 # Application Source Code
 # ============================================================================
@@ -97,7 +100,7 @@ RUN mkdir -p logs
 # Minimal production image with only runtime dependencies
 # Security: Non-root user, minimal attack surface
 # ============================================================================
-FROM python:3.11-slim-bullseye AS production
+FROM python:3.11-slim-bookworm AS production
 
 # ============================================================================
 # Build Arguments (Metadata Only — NO secrets!)
@@ -147,6 +150,9 @@ RUN set -e && \
         && rm -rf /var/lib/apt/lists/* \
         && apt-get clean && \
     echo "✅ Runtime dependencies installed"
+
+# Upgrade pip/setuptools/wheel to patch CVEs from base image
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ============================================================================
 # Security: Non-Root User Creation
