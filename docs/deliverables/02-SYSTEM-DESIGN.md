@@ -138,7 +138,6 @@ collector/
 ├── run_collector.py        # CollectorApplication entry point
 ├── config.py               # CollectorConfig
 ├── scheduler.py            # CollectionScheduler (APScheduler, adaptive 300s–3600s)
-├── scheduler_api.py        # Scheduler REST API
 ├── health_server.py        # HealthServer (:8545)
 └── core/
     ├── database.py         # Collector DatabaseService

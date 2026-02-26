@@ -44,7 +44,7 @@ class CollectionScheduler:
         # 자동 수집 비활성화 플래그 (환경변수)
         self.auto_collection_disabled = os.getenv("DISABLE_AUTO_COLLECTION", "false").lower() == "true"
 
-        # 지원하는 수집 소스 (scheduler_api에서 validation에 사용)
+        # 지원하는 수집 소스 (health_server API에서 validation에 사용)
         # SECUDIUM: 수동 수집만 지원 (자동 스케줄 없음)
         self.collectors = {
             "REGTECH": "_collect_regtech_data",

@@ -15,7 +15,6 @@ collector/
 ├── run_collector.py         # entry point (288L) → CollectorApplication
 ├── config.py                # CollectorConfig, env-based + credential cache
 ├── scheduler.py             # APScheduler (700L), daily REGTECH 02:00, IP cleanup midnight
-├── scheduler_api.py         # REST trigger for manual collection
 ├── health_server.py         # Flask+Waitress on :8545 (500L)
 ├── monitoring_scheduler.py  # periodic health reporting
 ├── fortimanager_uploader.py # push blacklist to FortiManager
@@ -65,5 +64,4 @@ collector/
 | `CollectorApplication` | class | `run_collector.py:50` | high | entry point, lifecycle orchestration |
 | `HealthServer` | class | `health_server.py:40` | high | Flask+Waitress on :8545 (500L) |
 | `FortiManagerUploader` | class | `fortimanager_uploader.py:25` | med | push blacklist to FortiManager |
-| `create_scheduler_api` | function | `scheduler_api.py:13` | med | REST trigger for manual collection |
 | `OTPEmailReader` | class | `utils/otp_email_reader.py:19` | med | IMAP OTP reader for Secudium auth |

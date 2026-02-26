@@ -70,7 +70,6 @@
 | test_fortinet_api.py | 10 | ✅ PASS |
 | test_ip_management_api.py | 14 | ✅ PASS |
 | test_monitoring_api.py | 8 | ✅ PASS |
-| test_scheduler_api.py | 8 | ✅ PASS |
 | test_admin_api.py | 8 | ✅ PASS |
 
 #### 주요 테스트 항목

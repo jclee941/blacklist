@@ -22,7 +22,6 @@ collector/
 ├── run_collector.py         # 메인 실행 스크립트 (Entry Point, :8545)
 ├── config.py                # 환경 설정
 ├── scheduler.py             # APScheduler 스케줄링 관리
-├── scheduler_api.py         # 수집 트리거 REST API
 ├── health_server.py         # 헬스체크 서버
 ├── monitoring_scheduler.py  # 모니터링 스케줄
 ├── core/                    # 핵심 로직
