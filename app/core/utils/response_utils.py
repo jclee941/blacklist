@@ -3,7 +3,6 @@ Response Utility Functions
 Standardized response formatting for API endpoints
 
 Created: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
-Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 from flask import jsonify, request

@@ -24,7 +24,6 @@ Service Categories:
 - Business Logic: blacklist_service, analytics_service, scoring_service, expiry_service, ab_test_service
 
 Created: 2025-11-21 (Service DI Improvement - HIGH PRIORITY #2)
-Reference: docs/102-SERVICE-DI-IMPROVEMENT-PLAN.md
 """
 
 from typing import Dict, Any

@@ -17,7 +17,6 @@ Usage:
 
 Created: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
 Updated: 2025-11-21 (Phase 4: Error Metrics Integration)
-Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 import logging

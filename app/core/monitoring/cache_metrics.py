@@ -3,7 +3,6 @@ Cache Metrics Collector
 Tracks cache hit/miss rates, latency, and provides monitoring capabilities
 
 Created: 2025-11-21 (Redis Query Caching - MEDIUM PRIORITY #8)
-Reference: docs/108-REDIS-CACHING-IMPLEMENTATION.md
 """
 
 import logging

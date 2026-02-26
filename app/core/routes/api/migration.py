@@ -2,7 +2,6 @@
 데이터베이스 마이그레이션 및 정리 라우트
 
 Updated: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
-Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 import logging

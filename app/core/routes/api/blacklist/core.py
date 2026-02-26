@@ -4,7 +4,6 @@ Core Blacklist Operations
 Routes: /blacklist/list, /blacklist/stats, /blacklist/check, /json
 
 Updated: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
-Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 from flask import Blueprint, jsonify, request, current_app, g

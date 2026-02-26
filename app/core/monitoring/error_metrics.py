@@ -3,7 +3,6 @@ Error Metrics Collector
 Tracks error rates, exception types, and provides monitoring capabilities
 
 Created: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
-Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 import logging

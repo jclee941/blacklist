@@ -3,7 +3,6 @@ Database Schema and Table Browser API
 Provides database schema information and table browsing functionality
 
 Updated: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
-Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 from flask import Blueprint, jsonify, request, g, current_app

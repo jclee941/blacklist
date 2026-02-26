@@ -3,7 +3,6 @@
 통계, 로그, 데이터베이스 관리 API
 
 Updated: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
-Reference: docs/104-ERROR-HANDLING-STANDARDIZATION-PLAN.md
 """
 
 from . import api_bp

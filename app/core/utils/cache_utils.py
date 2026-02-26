@@ -3,7 +3,6 @@ Redis caching utility functions with metrics integration
 공통 캐시 작업 유틸리티
 
 Updated: 2025-11-21 (Cache Metrics Integration - MEDIUM PRIORITY #8)
-Reference: docs/108-REDIS-CACHING-IMPLEMENTATION.md
 """
 
 import json
