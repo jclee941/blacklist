@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.7] - 2026-02-26
+
+### Fixed
+- fix(collection): fix secudium manual collection flow bugs
+
+### Changed
+- refactor: document SECUDIUM trigger_all exclusion, remove redundant hasattr
+- chore: add verify-* Makefile targets and document in AGENTS.md
+
+---
+
 ## [3.6.6] - 2026-02-26
 
 ### Fixed
