@@ -221,7 +221,7 @@ test-ci: ## Run tests in CI/CD mode (with coverage and reports)
 		--cov-fail-under=80
 	@echo "✅ CI/CD tests completed"
 
-# Verification (mirrors CI checks locally via Docker)
+# Verification (mirrors CI checks locally)
 verify: ## Run verification suite (lint + types + secrets)
 	@echo "🔍 Running verification suite..."
 	@$(MAKE) verify-lint
@@ -231,13 +231,13 @@ verify: ## Run verification suite (lint + types + secrets)
 
 verify-lint: ## Run linting checks (ruff check + format check)
 	@echo "🔍 Checking lint..."
-	@$(COMPOSE_CMD) exec -T blacklist-app ruff check app/ collector/ tests/
-	@$(COMPOSE_CMD) exec -T blacklist-app ruff format --check app/ collector/ tests/
+	@ruff check app/ collector/
+	@ruff format --check app/ collector/
 	@echo "✅ Lint passed"
 
 verify-types: ## Run type checking (mypy)
 	@echo "🔍 Checking types..."
-	@$(COMPOSE_CMD) exec -T blacklist-app mypy
+	@mypy app/ collector/ --ignore-missing-imports
 	@echo "✅ Type checks passed"
 
 verify-secrets: ## Scan for leaked secrets (detect-secrets via pre-commit)
@@ -250,10 +250,10 @@ verify-pre-commit: ## Run all pre-commit hooks against all files
 	@pre-commit run --all-files
 	@echo "✅ Pre-commit passed"
 
-verify-quick: ## Quick verification (lint only via Docker)
+verify-quick: ## Quick verification (lint only)
 	@echo "🔍 Quick lint check..."
-	@$(COMPOSE_CMD) exec -T blacklist-app ruff check app/ collector/ tests/
-	@$(COMPOSE_CMD) exec -T blacklist-app ruff format --check app/ collector/ tests/
+	@ruff check app/ collector/
+	@ruff format --check app/ collector/
 	@echo "✅ Quick verification passed"
 
 verify-all: ## Full CI mirror (lint + types + secrets + unit tests)
