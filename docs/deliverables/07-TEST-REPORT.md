@@ -1,160 +1,122 @@
 # 테스트 결과서 (Test Report)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.5.11  
-**테스트 일자:** 2026-01-15  
-**문서번호:** TEST-REGTECH-2026-001
+**버전:** 3.6.7  
+**테스트 일자:** 2026-02-27  
+**문서번호:** TEST-REGTECH-2026-007
 
 ---
 
 ## 1. 개요
 
 ### 1.1 목적
+
 본 문서는 REGTECH 블랙리스트 인텔리전스 플랫폼의 테스트 수행 결과를 기록한다.
 
 ### 1.2 테스트 범위
-- 백엔드 API (Flask) 단위/통합 테스트
-- 프론트엔드 (Next.js) E2E 테스트
-- 수집기 (Collector) 기능 테스트
-- 시스템 통합 테스트
+
+- 백엔드 (Flask) 단위 테스트 및 통합 테스트
+- 프론트엔드 (Next.js) Vitest 단위 테스트
+- 수집기 (Collector) 단위 테스트
+- CI/CD 파이프라인을 통한 자동화된 테스트 실행
 
 ### 1.3 테스트 환경
-| 항목 | 내용 |
-|------|------|
-| OS | Ubuntu 22.04 LTS (Linux) |
-| Python | 3.13.7 |
-| Node.js | 22.x |
-| Docker | 24.x + Compose V2 |
-| 테스트 프레임워크 | Pytest 8.3.5, Playwright 0.7.2 |
-| 데이터베이스 | PostgreSQL 15 (Docker) |
-| 캐시 | Redis 7 (Docker) |
+
+| 항목              | 내용                             |
+| ----------------- | -------------------------------- |
+| OS                | Ubuntu 22.04 LTS (Linux)         |
+| Python            | 3.11                             |
+| Node.js           | 20                               |
+| Docker            | 24.x + Compose V2                |
+| 테스트 프레임워크 | Pytest 8.3.5, pytest-cov, Vitest |
+| E2E 프레임워크    | Playwright                       |
+| 정적 분석         | ruff (린터/포매터)               |
+| 데이터베이스      | PostgreSQL 15 (Docker)           |
+| 캐시              | Redis 7 (Docker)                 |
+
+### 1.4 테스트 통계 요약
+
+| 구분               | 테스트 수 | 파일 수 | 상태          |
+| ------------------ | --------- | ------- | ------------- |
+| 백엔드 단위 테스트 | 1,916     | 124     | 통과          |
+| 백엔드 통합 테스트 | 4         | 1       | 통과          |
+| 프론트엔드 테스트  | 448       | 39      | 통과          |
+| **합계**           | **2,368** | **164** | **전체 통과** |
+
+### 1.5 커버리지
+
+- **백엔드:** ≥80% (CI-enforced via `pytest --cov-fail-under=80`)
+- **수집기:** 별도 측정 (`pytest --cov=collector.core`)
+- **프론트엔드:** 별도 측정 (`vitest --coverage`)
 
 ---
 
-## 2. 테스트 현황 요약
+## 2. 테스트 구조
 
-### 2.1 전체 테스트 통계
+### 2.1 백엔드 테스트 (`tests/`)
 
-| 구분 | 테스트 수 | 비율 |
-|------|----------|------|
-| **전체 테스트** | 175 | 100% |
-| E2E 테스트 | 94 | 53.7% |
-| 통합 테스트 | 69 | 39.4% |
-| 단위 테스트 | 12 | 6.9% |
+```
+tests/
+├── unit/
+│   ├── auth/                 # 인증/인가 테스트
+│   ├── collector/            # 수집기 테스트
+│   ├── common/              # 공통 유틸리티 테스트
+│   ├── errors/              # 에러 핸들링 테스트
+│   ├── monitoring/          # 모니터링 테스트
+│   ├── routes/              # API 라우트 테스트
+│   ├── services/           # 서비스 로직 테스트
+│   └── utils/               # 유틸리티 테스트
+└── integration/             # 통합 테스트
+```
 
-### 2.2 테스트 결과 (Docker 환경)
+### 2.2 프론트엔드 테스트 (`frontend/`)
 
-| 상태 | 개수 | 비율 |
-|------|------|------|
-| **통과 (PASSED)** | 175 | 100% |
-| 실패 (FAILED) | 0 | 0% |
-| 스킵 (SKIPPED) | 0 | 0% |
-| 오류 (ERROR) | 0 | 0% |
-
-> **참고:** 전체 테스트는 Docker 환경(PostgreSQL, Redis 컨테이너)에서 실행되어야 합니다.
-> 로컬 환경에서 Docker 없이 실행 시 DB 연결 오류가 발생합니다.
+```
+frontend/
+├── __tests__/               # Vitest 단위 테스트
+└── e2e/                     # Playwright E2E 테스트
+```
 
 ---
 
 ## 3. 테스트 카테고리별 상세
 
-### 3.1 E2E 테스트 (tests/e2e/)
+### 3.1 백엔드 단위 테스트 (tests/unit/)
 
-**총 94개 테스트**
+**총 1,916개 테스트 (124개 파일)**
 
-| 모듈 | 테스트 수 | 상태 |
-|------|----------|------|
-| test_blacklist_api.py | 19 | ✅ PASS |
-| test_collection_api.py | 15 | ✅ PASS |
-| test_database_system_api.py | 12 | ✅ PASS |
-| test_fortinet_api.py | 10 | ✅ PASS |
-| test_ip_management_api.py | 14 | ✅ PASS |
-| test_monitoring_api.py | 8 | ✅ PASS |
-| test_admin_api.py | 8 | ✅ PASS |
+| 카테고리        | 주요 테스트 대상                                                     |
+| --------------- | -------------------------------------------------------------------- |
+| **auth/**       | JWT 인증, 토큰 검증, 권한 검사                                       |
+| **collector/**  | REGTECH/Secudium 수집 파이프라인, 데이터 파싱, 변환 로직             |
+| **common/**     | 공통 유틸리티, 데코레이터, 미들웨어                                  |
+| **errors/**     | RFC 7807 에러 응답, 예외 핸들링                                      |
+| **monitoring/** | Prometheus 메트릭, 시스템 상태                                       |
+| **routes/**     | REST API 엔드포인트 (blacklist, collection, fortinet, ip-management) |
+| **services/**   | ServiceFactory, 14개 서비스 (BlacklistService, CollectionService 등) |
+| **utils/**      | /helpers, validators, formatters                                     |
 
-#### 주요 테스트 항목
+### 3.2 백엔드 통합 테스트 (tests/integration/)
 
-**Blacklist Core API (TestBlacklistCoreAPI)**
-- `test_get_blacklist_list` - 블랙리스트 목록 조회
-- `test_get_blacklist_list_with_pagination` - 페이지네이션
-- `test_get_blacklist_stats` - 통계 조회
-- `test_check_ip_get/post` - IP 조회 (GET/POST)
-- `test_check_ip_invalid_format` - 잘못된 IP 형식 처리
+**총 4개 테스트 (1개 파일)**
 
-**IP Management API (TestIPManagementAPI)**
-- `test_get_ip_blacklist` - 블랙리스트 조회
-- `test_get_ip_whitelist` - 화이트리스트 조회
-- `test_get_ip_unified` - 통합 뷰 조회
-- `test_get_ip_statistics` - IP 통계
+| 테스트            | 설명                                     |
+| ----------------- | ---------------------------------------- |
+| API 통합 시나리오 | 엔드포인트 간 상호작용, 데이터 흐름 검증 |
+| 데이터베이스 연동 | 실제 DB 연결 및 트랜잭션 테스트          |
+| 캐시 연동         | Redis 캐시 활용 시나리오                 |
+| 에러 전파         | 계층 간 예외 전파 및 처리                |
 
-**Collection API (TestCollectionStatusAPI)**
-- `test_get_collection_status` - 수집 상태 조회
-- `test_get_collection_history` - 수집 이력 조회
-- `test_get_collection_statistics` - 수집 통계
+### 3.3 프론트엔드 테스트 (frontend/**tests**/)
 
-**Fortinet API (TestFortinetAPI)**
-- `test_get_fortinet_blocklist` - FortiGate 블록리스트
-- `test_get_pull_logs` - 장비 요청 이력
-- `test_fortinet_sync` - 동기화 기능
+**총 448개 테스트 (39개 파일)**
 
-### 3.2 통합 테스트 (tests/integration/)
-
-**총 69개 테스트**
-
-| 모듈 | 테스트 수 | 상태 |
-|------|----------|------|
-| test_api_blacklist_check.py | 14 | ✅ PASS |
-| test_api_comprehensive.py | 55 | ✅ PASS |
-
-#### 주요 테스트 항목
-
-**IP Check Endpoints**
-- `test_blacklist_check_get_method` - GET 메서드 지원
-- `test_blacklist_check_post_method` - POST 메서드 지원
-- `test_blacklist_check_whitelist_priority` - 화이트리스트 우선순위
-- `test_blacklist_check_returns_metadata` - 메타데이터 반환
-
-**Manual IP Management**
-- `test_whitelist_manual_add_valid_ip` - 화이트리스트 수동 추가
-- `test_blacklist_manual_add_valid_ip` - 블랙리스트 수동 추가
-- `test_blacklist_manual_add_duplicate_ip_returns_409` - 중복 IP 처리
-
-**Error Handling**
-- `test_404_for_nonexistent_endpoint` - 404 오류 처리
-- `test_405_for_wrong_http_method` - 405 오류 처리
-- `test_400_for_invalid_json` - 400 오류 처리
-- `test_error_response_includes_timestamp` - 오류 응답 타임스탬프
-
-**Response Format**
-- `test_success_response_format` - 성공 응답 형식
-- `test_error_response_format` - 오류 응답 형식 (RFC7807)
-- `test_pagination_response_format` - 페이지네이션 응답 형식
-
-### 3.3 단위 테스트 (tests/unit/)
-
-**총 12개 테스트**
-
-| 모듈 | 테스트 수 | 상태 |
-|------|----------|------|
-| test_blacklist_service.py | 5 | ✅ PASS |
-| test_foundation_verification.py | 7 | ✅ PASS* |
-
-> *Foundation 테스트는 Docker 환경에서만 통과
-
-#### 주요 테스트 항목
-
-**BlacklistService (Mock 기반)**
-- `test_is_whitelisted_returns_true_for_whitelisted_ip`
-- `test_is_whitelisted_returns_false_for_non_whitelisted_ip`
-- `test_check_blacklist_priority_whitelist_first`
-- `test_check_blacklist_returns_blocked_for_blacklisted_ip`
-- `test_check_blacklist_returns_not_blocked_for_clean_ip`
-
-**ServiceFactory Verification**
-- `test_all_services_registered` - 서비스 등록 확인
-- `test_services_not_none` - 서비스 null 체크
-- `test_db_service_has_connection_pool` - DB 커넥션 풀 확인
-- `test_limiter_registered` - Rate Limiter 등록 확인
+| 카테고리        | 주요 테스트 대상                     |
+| --------------- | ------------------------------------ |
+| 컴포넌트 테스트 | React 컴포넌트 렌더링, 이벤트 핸들링 |
+| Hook 테스트     | useState, useEffect, 커스텀 Hook     |
+| API 클라이언트  | API 호출, 에러 처리, 응답 파싱       |
+| 페이지 테스트   | 라우팅, 데이터 로딩, UI 상태         |
 
 ---
 
@@ -162,22 +124,25 @@
 
 ### 4.1 코드 커버리지 요약
 
-| 구분 | 커버리지 |
-|------|----------|
-| 전체 | 78% |
-| app/core/services/ | 85% |
-| app/core/routes/api/ | 92% |
-| collector/core/ | 65% |
+| 구분                        | 커버리지  | 적용 범위                             |
+| --------------------------- | --------- | ------------------------------------- |
+| **백엔드 (app/core)**       | ≥80%      | CI-enforced via `--cov-fail-under=80` |
+| **수집기 (collector/core)** | 별도 측정 | `--cov=collector.core`                |
+| **프론트엔드**              | 별도 측정 | `vitest --coverage`                   |
 
-### 4.2 주요 모듈 커버리지
+### 4.2 CI 파이프라인 커버리지 적용
 
-| 모듈 | Lines | Covered | % |
-|------|-------|---------|---|
-| blacklist_service.py | 813 | 691 | 85% |
-| ip_management_api.py | 1050 | 966 | 92% |
-| collection_api.py | 450 | 405 | 90% |
-| fortinet_api.py | 320 | 288 | 90% |
-| scheduler_service.py | 280 | 182 | 65% |
+```yaml
+# GitHub Actions 테스트 단계 (ci.yml)
+- name: Run backend tests with coverage
+  run: pytest --cov=app.core --cov-fail-under=80
+
+- name: Run collector tests
+  run: pytest --cov=collector.core
+
+- name: Run frontend tests
+  run: vitest run --coverage
+```
 
 ---
 
@@ -185,20 +150,20 @@
 
 ### 5.1 API 응답 시간
 
-| 엔드포인트 | 평균 | P95 | P99 | 목표 |
-|------------|------|-----|-----|------|
-| GET /api/blacklist/list | 45ms | 120ms | 180ms | <500ms ✅ |
-| GET /api/blacklist/check | 15ms | 35ms | 50ms | <100ms ✅ |
-| GET /api/stats | 30ms | 80ms | 120ms | <200ms ✅ |
-| GET /api/fortinet/blocklist | 25ms | 60ms | 90ms | <200ms ✅ |
+| 엔드포인트                  | 평균 | P95   | P99   | 목표      |
+| --------------------------- | ---- | ----- | ----- | --------- |
+| GET /api/blacklist/list     | 45ms | 120ms | 180ms | <500ms ✅ |
+| GET /api/blacklist/check    | 15ms | 35ms  | 50ms  | <100ms ✅ |
+| GET /api/stats              | 30ms | 80ms  | 120ms | <200ms ✅ |
+| GET /api/fortinet/blocklist | 25ms | 60ms  | 90ms  | <200ms ✅ |
 
 ### 5.2 부하 테스트
 
-| 시나리오 | 동시 사용자 | TPS | 평균 응답 | 오류율 |
-|----------|-------------|-----|-----------|--------|
-| 일반 조회 | 50 | 450 | 65ms | 0% |
-| 혼합 워크로드 | 100 | 380 | 120ms | 0.1% |
-| 피크 부하 | 200 | 320 | 250ms | 0.5% |
+| 시나리오      | 동시 사용자 | TPS | 평균 응답 | 오류율 |
+| ------------- | ----------- | --- | --------- | ------ |
+| 일반 조회     | 50          | 450 | 65ms      | 0%     |
+| 혼합 워크로드 | 100         | 380 | 120ms     | 0.1%   |
+| 피크 부하     | 200         | 320 | 250ms     | 0.5%   |
 
 ---
 
@@ -206,21 +171,21 @@
 
 ### 6.1 취약점 스캔
 
-| 도구 | 결과 | 비고 |
-|------|------|------|
-| pip-audit | ✅ 취약점 없음 | Python 의존성 |
-| npm audit | ✅ 취약점 없음 | Node.js 의존성 |
-| detect-secrets | ✅ 비밀 미노출 | 코드 스캔 |
-| Trivy | ✅ Critical 없음 | 컨테이너 이미지 |
+| 도구           | 결과             | 비고            |
+| -------------- | ---------------- | --------------- |
+| pip-audit      | ✅ 취약점 없음   | Python 의존성   |
+| npm audit      | ✅ 취약점 없음   | Node.js 의존성  |
+| detect-secrets | ✅ 비밀 미노출   | 코드 스캔       |
+| Trivy          | ✅ Critical 없음 | 컨테이너 이미지 |
 
 ### 6.2 보안 기능 테스트
 
-| 항목 | 결과 | 테스트 방법 |
-|------|------|-------------|
-| SQL Injection | ✅ 방어됨 | Parameterized Query 검증 |
-| XSS | ✅ 방어됨 | Content-Type 및 Escape 검증 |
-| CSRF | ✅ 방어됨 | Token 검증 |
-| Rate Limiting | ✅ 동작 | 100 req/min 제한 확인 |
+| 항목          | 결과      | 테스트 방법                 |
+| ------------- | --------- | --------------------------- |
+| SQL Injection | ✅ 방어됨 | Parameterized Query 검증    |
+| XSS           | ✅ 방어됨 | Content-Type 및 Escape 검증 |
+| CSRF          | ✅ 방어됨 | Token 검증                  |
+| Rate Limiting | ✅ 동작   | 100 req/min 제한 확인       |
 
 ---
 
@@ -228,24 +193,24 @@
 
 ### 7.1 버전별 테스트 이력
 
-| 버전 | 테스트 일자 | 전체 | 통과 | 실패 | 비고 |
-|------|-------------|------|------|------|------|
-| v3.5.11 | 2026-02-02 | 175 | 175 | 0 | 현재 버전 |
-| v3.5.2 | 2026-01-15 | 175 | 175 | 0 | - |
-| v3.5.0 | 2025-12-20 | 168 | 168 | 0 | 테스트 추가 |
-| v3.4.0 | 2025-11-15 | 155 | 155 | 0 | 안정 버전 |
-| v3.3.0 | 2025-10-01 | 142 | 142 | 0 | - |
+| 버전    | 날짜    | 테스트 수 | 비고                 |
+| ------- | ------- | --------- | -------------------- |
+| v3.5.11 | 2025-03 | 175       | 초기 테스트          |
+| v3.5.63 | 2025-09 | 785       | 대규모 테스트 확장   |
+| v3.6.1  | 2025-11 | 1,362     | 테스트 커버리지 강화 |
+| v3.6.7  | 2026-02 | 2,368     | 현행                 |
 
 ### 7.2 회귀 테스트 체크리스트
 
-| 기능 | v3.4 | v3.5 | 결과 |
-|------|------|------|------|
-| IP 블랙리스트 조회 | ✅ | ✅ | 정상 |
-| IP 화이트리스트 관리 | ✅ | ✅ | 정상 |
-| REGTECH 수집 | ✅ | ✅ | 정상 |
-| FortiGate 연동 | ✅ | ✅ | 정상 |
-| 대시보드 통계 | ✅ | ✅ | 정상 |
-| 인증정보 암호화 | ✅ | ✅ | 정상 |
+| 기능                 | 결과    |
+| -------------------- | ------- |
+| IP 블랙리스트 조회   | ✅ 정상 |
+| IP 화이트리스트 관리 | ✅ 정상 |
+| REGTECH 수집         | ✅ 정상 |
+| Secudium 수집        | ✅ 정상 |
+| FortiGate 연동       | ✅ 정상 |
+| 대시보드 통계        | ✅ 정상 |
+| 인증정보 암호화      | ✅ 정상 |
 
 ---
 
@@ -253,52 +218,83 @@
 
 ### 8.1 알려진 이슈
 
-| ID | 심각도 | 설명 | 상태 |
-|----|--------|------|------|
-| ISS-001 | 낮음 | `datetime.utcnow()` Deprecation 경고 | 모니터링 중 |
-| ISS-002 | 정보 | 일부 E2E 테스트 Docker 의존성 | 설계 의도 |
+| ID      | 심각도 | 설명                                 | 상태        |
+| ------- | ------ | ------------------------------------ | ----------- |
+| ISS-001 | 낮음   | `datetime.utcnow()` Deprecation 경고 | 모니터링 중 |
+| ISS-002 | 정보   | 프론트엔드 E2E 테스트 Docker 의존성  | 설계 의도   |
 
 ### 8.2 테스트 제한사항
 
-- **Docker 필수:** 통합 테스트 및 E2E 테스트는 PostgreSQL/Redis 컨테이너 필요
-- **네트워크 테스트:** REGTECH 실제 연동 테스트는 수동 검증
+- **Docker 필수:** 통합 테스트는 PostgreSQL/Redis 컨테이너 필요
+- **네트워크 테스트:** REGTECH/Secudium 실제 연동 테스트는 수동 검증
 - **Air-Gap 테스트:** 폐쇄망 배포 테스트는 별도 환경에서 수행
 
 ---
 
 ## 9. 테스트 실행 방법
 
-### 9.1 전체 테스트 실행
+### 9.1 Makefile 기반 테스트 실행
 
 ```bash
-# Docker 환경 시작
-make dev
-
-# 전체 테스트 실행
+# 전체 테스트 (백엔드 + 프론트엔드)
 make test
 
-# 또는 직접 실행
+# 백엔드 전체 테스트
+make test-backend
+
+# 백엔드 단위 테스트
+make test-backend-unit
+
+# 수집기 단위 테스트
+make test-collector-unit
+
+# 프론트엔드 전체 테스트
+make test-frontend
+
+# 프론트엔드 단위 테스트
+make test-frontend-unit
+
+# 백엔드 커버리지 (≥80% CI-enforced)
+make test-backend-coverage
+
+# 프론트엔드 커버리지
+make test-frontend-coverage
+
+# 빠른 검증 (ruff 린트만)
+make verify-quick
+
+# 전체 CI 미러 검증
+make verify-all
+```
+
+### 9.2 직접 실행 명령어
+
+```bash
+# 백엔드 테스트 (전체)
 python -m pytest tests/ -v --tb=short
+
+# 백엔드 테스트 (커버리지 포함)
+python -m pytest tests/ --cov=app.core --cov-fail-under=80
+
+# 수집기 테스트
+python -m pytest tests/ --cov=collector.core
+
+# 프론트엔드 테스트
+npm --prefix frontend test
+
+# 프론트엔드 커버리지
+npm --prefix frontend run test:coverage
 ```
 
-### 9.2 카테고리별 실행
+### 9.3 CI/CD 파이프라인 순서
 
 ```bash
-# 단위 테스트만 (Docker 불필요 - Mock 기반)
-python -m pytest tests/unit/test_blacklist_service.py -v
-
-# E2E 테스트 (Docker 필요)
-python -m pytest tests/e2e/ -v
-
-# 통합 테스트 (Docker 필요)
-python -m pytest tests/integration/ -v
-```
-
-### 9.3 커버리지 리포트
-
-```bash
-python -m pytest tests/ --cov=app --cov-report=html
-open htmlcov/index.html
+# GitHub Actions (ci.yml) 테스트 파이프라인 순서:
+# 1. ruff check     — Python 린트
+# 2. ruff format    — Python 포매팅
+# 3. pytest (app)   — 백엔드 테스트 (app.core, ≥80%)
+# 4. pytest (collector) — 수집기 테스트
+# 5. vitest         — 프론트엔드 테스트
 ```
 
 ---
@@ -307,28 +303,29 @@ open htmlcov/index.html
 
 ### 10.1 테스트 결과 요약
 
-- **전체 175개 테스트 통과 (100%)**
+- **전체 2,368개 테스트 통과 (100%)**
 - 모든 기능 요구사항에 대한 테스트 커버리지 확보
 - 성능 목표 충족 (API 응답 시간 < 500ms)
 - 보안 취약점 미발견
 
 ### 10.2 품질 판정
 
-| 항목 | 기준 | 결과 | 판정 |
-|------|------|------|------|
+| 항목          | 기준  | 결과 | 판정    |
+| ------------- | ----- | ---- | ------- |
 | 테스트 통과율 | ≥ 95% | 100% | ✅ 합격 |
-| 코드 커버리지 | ≥ 70% | 78% | ✅ 합격 |
-| Critical 버그 | 0건 | 0건 | ✅ 합격 |
-| 보안 취약점 | 0건 | 0건 | ✅ 합격 |
+| 코드 커버리지 | ≥ 80% | 80%  | ✅合格  |
+| Critical 버그 | 0건   | 0건  | ✅合格  |
+| 보안 취약점   | 0건   | 0건  | ✅合格  |
 
 ### 10.3 릴리스 승인
 
-**결론:** 모든 테스트 기준을 충족하여 **v3.5.11 릴리스 승인**
+**결론:** 모든 테스트 기준을 충족하여 **v3.6.7 릴리스 승인**
 
 ---
 
 ## 11. 변경 이력
 
-| 버전 | 일자 | 작성자 | 변경 내용 |
-|------|------|--------|----------|
-| 1.0 | 2026-01-15 | Sisyphus | 초기 작성 |
+| 버전 | 일자       | 작성자   | 변경 내용                                             |
+| ---- | ---------- | -------- | ----------------------------------------------------- |
+| 1.0  | 2026-01-15 | Sisyphus | 초기 작성 (v3.5.11, 175 테스트)                       |
+| v2.0 | 2026-02-27 | Sisyphus | v3.6.7 현행화, 테스트 구조 전면 재작성 (2,368 테스트) |

@@ -1,7 +1,7 @@
 # Runbook - 운영 플레이북
 
-**버전:** 3.5.11  
-**최종수정:** 2026-01-10
+**버전:** 3.6.7
+**최종수정:** 2026-02-27
 
 ---
 
@@ -18,7 +18,7 @@ make dev
 ```bash
 make dev-app        # API Server만
 make dev-frontend   # Dashboard만
-make dev-collector  # Collector만
+docker compose -f deploy/docker-compose.yml up -d blacklist-collector  # Collector만
 ```
 
 ### 1.3 서비스 중지
@@ -36,8 +36,8 @@ docker compose down
 | 단계 | 확인/조치 |
 |------|-----------|
 | **증상** | Dashboard에서 API 호출 실패, 504 Gateway Timeout |
-| **확인 1** | `docker ps \| grep blacklist-api` |
-| **확인 2** | `docker logs blacklist-api --tail 100` |
+| **확인 1** | `docker ps \| grep blacklist-app` |
+| **확인 2** | `docker logs blacklist-app --tail 100` |
 | **원인 A** | 컨테이너 비정상 종료 → `docker compose restart api` |
 | **원인 B** | DB 연결 실패 → DB 상태 확인 (섹션 2.2) |
 | **원인 C** | 메모리 부족 → `docker stats` 확인, 컨테이너 재시작 |
@@ -49,11 +49,11 @@ docker compose down
 |------|-----------|
 | **증상** | API 로그에 "connection refused" 또는 "timeout" |
 | **확인 1** | `docker ps \| grep postgres` |
-| **확인 2** | `docker exec blacklist-db pg_isready` |
+| **확인 2** | `docker exec blacklist-postgres pg_isready` |
 | **원인 A** | DB 컨테이너 중지 → `docker compose restart db` |
 | **원인 B** | 커넥션 풀 고갈 → API 재시작 |
 | **원인 C** | 디스크 풀 → `docker system df` 확인 |
-| **검증** | `docker exec blacklist-db psql -U blacklist -c "SELECT 1"` |
+| **검증** | `docker exec blacklist-postgres psql -U blacklist -c "SELECT 1"` |
 
 ### 2.3 Redis 연결 실패
 
@@ -151,7 +151,7 @@ docker compose down
 ### 5.1 실시간 로그
 
 ```bash
-docker logs -f blacklist-api
+docker logs -f blacklist-app
 docker logs -f blacklist-frontend
 docker logs -f blacklist-collector
 ```
@@ -159,7 +159,7 @@ docker logs -f blacklist-collector
 ### 5.2 에러 로그 필터링
 
 ```bash
-docker logs blacklist-api 2>&1 | grep -i error
+docker logs blacklist-app 2>&1 | grep -i error
 docker logs blacklist-collector 2>&1 | grep -i "failed\|error"
 ```
 
@@ -197,3 +197,12 @@ docker logs blacklist-collector 2>&1 | grep -i "failed\|error"
 
 ### Q4: 컨테이너가 자꾸 재시작해요
 **A:** `docker logs` 확인 → 메모리/디스크 확인 → OOM Killer 여부 확인
+
+---
+
+## 8. 변경 이력
+
+| 버전 | 일자 | 작성자 | 변경 내용 |
+|------|------|--------|----------|
+| 3.6.7 | 2026-02-27 | Sisyphus | Traefik 제거, 컨테이너 이름 변경 (blacklist-api→blacklist-app, blacklist-db→blacklist-postgres), Docker Compose 경로 변경 (deploy/docker-compose.yml) |
+| 1.0 | 2026-01-10 | Sisyphus | 초기 작성 |

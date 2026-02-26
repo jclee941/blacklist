@@ -1,8 +1,8 @@
 # 운영 매뉴얼 (Operations Manual)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.5.11  
-**작성일:** 2026-01-15  
+**버전:** 3.6.7
+**작성일:** 2026-02-27
 **문서번호:** OPS-REGTECH-2026-001
 
 ---
@@ -16,8 +16,7 @@
 
 | 서비스 | 포트 | 역할 |
 |--------|------|------|
-| Traefik | 80, 443 | 리버스 프록시, SSL |
-| Frontend | 2543 | 웹 대시보드 |
+| Frontend | 443 | 웹 대시보드 (직접 SSL) |
 | API | 2542 | REST API |
 | Collector | 8545 | 데이터 수집 |
 | PostgreSQL | 5432 | 데이터 저장 |
@@ -57,14 +56,14 @@ docker compose logs -f
 
 #### API 헬스체크
 ```bash
-curl https://blacklist.<YOUR_DOMAIN>/health
+curl https://localhost/health
 ```
 
 **정상 응답:**
 ```json
 {
   "status": "healthy",
-  "version": "3.5.11"
+  "version": "3.6.7"
 }
 ```
 
@@ -75,7 +74,7 @@ curl http://localhost:8545/status
 
 #### 전체 시스템 상태
 ```bash
-curl https://blacklist.<YOUR_DOMAIN>/api/dashboard/status
+curl https://localhost/api/dashboard/status
 ```
 
 ### 2.3 로그 관리
@@ -148,6 +147,34 @@ curl http://localhost:8545/metrics
 - `collector_failed_runs`: 실패 횟수
 - `collector_total_ips`: 총 IP 개수
 
+### 3.5 Prometheus + Grafana 모니터링
+별도의 모니터링 스택을 통해 시스템 지표를 시각화할 수 있습니다:
+
+```bash
+# 모니터링 스택 시작
+docker compose -f deploy/docker-compose.monitoring.yml up -d
+```
+
+**서비스:**
+- Prometheus (port 9090): 메트릭 수집 및 저장
+- Grafana (port 3000): 시각화 대시보드
+
+**기본 접근:** admin/admin (첫 로그인 후 변경 필요)
+
+### 3.6 Watchtower 자동 업데이트
+Watchtower 컨테이너가 Docker Hub의 이미지 변경을 감지하여 자동으로 서비스를 업데이트합니다.
+
+```bash
+# 상태 확인
+docker ps | grep watchtower
+
+# 수동 업데이트 트리거
+docker run --rm --name watchtower \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  containrrr/watchtower --run-once
+```
+
+**참고:** 프로덕션 환경에서는 자동 업데이트 대신 수동 검증 후 배포를 권장합니다.
 ---
 
 ## 4. 백업 및 복구
@@ -321,7 +348,7 @@ docker compose exec blacklist-postgres psql -U blacklist -f /migrations/VXXX__up
 
 #### Step 6: 검증
 ```bash
-curl https://blacklist.<YOUR_DOMAIN>/health
+curl https://localhost/health
 ```
 
 ### 7.2 롤백 절차
@@ -374,5 +401,6 @@ docker compose exec -T blacklist-postgres psql -U blacklist < backup.sql
 
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
+| 3.6.7 | 2026-02-27 | Sisyphus | Traefik 제거, Frontend 직접 SSL (포트 443), 컨테이너 이름 변경, Docker Compose 경로 변경 (deploy/docker-compose.yml), Prometheus+Grafana 모니터링 추가, Watchtower 자동 업데이트 설명 추가 |
 | 1.0 | 2026-01-15 | Sisyphus | 초기 작성 |
 

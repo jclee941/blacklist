@@ -1,8 +1,8 @@
 # 설치 가이드 (Installation Guide)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.5.11  
-**작성일:** 2026-01-15  
+**버전:** 3.6.7
+**작성일:** 2026-02-27
 **문서번호:** INS-REGTECH-2026-001
 
 ---
@@ -51,10 +51,8 @@
 
 | 포트 | 서비스 | 외부 노출 |
 |------|--------|----------|
-| 80 | Traefik (HTTP) | Yes |
-| 443 | Traefik (HTTPS) | Yes |
 | 2542 | Flask API | No (내부) |
-| 2543 | Next.js Frontend | No (내부) |
+| 443 | Next.js Frontend (직접 SSL) | Yes |
 | 5432 | PostgreSQL | No (내부) |
 | 6379 | Redis | No (내부) |
 | 8545 | Collector | No (내부) |
@@ -70,7 +68,7 @@
 
 ```bash
 # GitLab에서 airgap 브랜치 클론
-git clone -b airgap git@gitlab.<YOUR_DOMAIN>:nextrade/blacklist.git
+git clone -b airgap https://github.com/qws941/blacklist.git
 cd blacklist
 
 # LFS 파일 다운로드
@@ -178,7 +176,7 @@ docker compose logs -f
 ### 4.1 사전 준비
 ```bash
 # 리포지토리 클론
-git clone git@gitlab.<YOUR_DOMAIN>:nextrade/blacklist.git
+git clone https://github.com/qws941/blacklist.git
 cd blacklist
 ```
 
@@ -201,7 +199,7 @@ cd scripts
 ### 5.1 빠른 시작
 ```bash
 # 리포지토리 클론
-git clone git@gitlab.<YOUR_DOMAIN>:nextrade/blacklist.git
+git clone https://github.com/qws941/blacklist.git
 cd blacklist
 
 # 전체 스택 시작 (핫 리로드)
@@ -227,29 +225,26 @@ cd collector && python -m collector.run_collector
 
 ## 6. SSL 인증서 설정
 
-### 6.1 인증서 파일 배치
+### 6.1 기본 SSL
+Frontend 컨테이너에는 자체 서명 SSL 인증서가 기본으로 내장되어 있습니다. 별도의 SSL 설정 없이도 HTTPS로 서비스됩니다.
+
+### 6.2 운영 환경 인증서 교체 (선택)
+운영 환경에서는 자체 인증서로 교체할 수 있습니다:
+
 ```bash
 # 인증서 디렉토리 생성
-mkdir -p /opt/blacklist/certs
+mkdir -p /opt/blacklist/ssl-certs
 
 # 인증서 파일 복사
-cp your-cert.pem /opt/blacklist/certs/cert.pem
-cp your-key.pem /opt/blacklist/certs/key.pem
+cp your-cert.pem /opt/blacklist/ssl-certs/cert.pem
+cp your-key.pem /opt/blacklist/ssl-certs/key.pem
 
 # 권한 설정
-chmod 644 /opt/blacklist/certs/cert.pem
-chmod 600 /opt/blacklist/certs/key.pem
+chmod 644 /opt/blacklist/ssl-certs/cert.pem
+chmod 600 /opt/blacklist/ssl-certs/key.pem
 ```
 
-### 6.2 Traefik 설정
-`traefik/traefik.yml`에서 인증서 경로 확인:
-```yaml
-tls:
-  certificates:
-    - certFile: /certs/cert.pem
-      keyFile: /certs/key.pem
-```
-
+`deploy/docker-compose.release.yml`의 ssl-certs 볼륨을 통해 인증서가 컨테이너에 마운트됩니다.
 ---
 
 ## 7. 초기 설정
@@ -261,16 +256,19 @@ docker compose exec blacklist-postgres psql -U blacklist -f /docker-entrypoint-i
 ```
 
 ### 7.2 인증정보 설정
-웹 UI에서 설정:
-1. `https://blacklist.<YOUR_DOMAIN>/settings` 접속
+첫 번째 실행 후 웹 UI에서 인증정보를 설정합니다:
+
+1. `https://localhost/settings` 접속
 2. **인증정보 설정** 메뉴 선택
-3. REGTECH 계정 정보 입력
+3. REGTECH/Secudium 계정 정보 입력
 4. **연결 테스트** 클릭
+
+**참고:** 마스터 키는 환경 변수로도 설정 가능합니다. `CREDENTIAL_MASTER_KEY` 환경 변수를 설정하면 파일 경로 대신 해당 키 값이 사용됩니다.
 
 ### 7.3 첫 수집 실행
 ```bash
 # 수동 수집 트리거
-curl -X POST https://blacklist.<YOUR_DOMAIN>/api/collection/regtech/trigger \
+curl -X POST https://localhost/api/collection/regtech/trigger \
   -H "Content-Type: application/json" \
   -d '{"start_date": "2026-01-01", "end_date": "2026-01-15"}'
 ```
@@ -335,5 +333,6 @@ docker compose up -d
 
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
+| 3.6.7 | 2026-02-27 | Sisyphus | Traefik 제거, Frontend 직접 SSL 지원, 컨테이너 이름 변경 (blacklist-api→blacklist-app, blacklist-db→blacklist-postgres), Docker Compose 경로 변경 (deploy/docker-compose.yml) |
 | 1.0 | 2026-01-15 | Sisyphus | 초기 작성 |
 

@@ -1,6 +1,6 @@
 # Blacklist Intelligence Platform — 문서 허브
 
-**버전**: 3.6.3  
+**버전**: 3.6.7  
 **최종 업데이트**: 2026-02
 
 위협 인텔리전스 플랫폼(REGTECH/Secudium/ISAP)의 중앙 문서 인덱스입니다.
@@ -24,8 +24,7 @@ docs/
 ├── deliverables/                # 납품 산출물 (공식 문서)
 │   ├── index.md                 # 산출물 인덱스
 │   └── 02-SYSTEM-DESIGN.md      # 시스템 설계서
-├── architecture/                # 아키텍처 다이어그램 원본
-│   └── blacklist-architecture.drawio
+├── architecture.drawio           # 아키텍처 다이어그램 (3탭)
 ├── CICD_PIPELINE.md             # CI/CD 파이프라인 설명
 ├── MONOREPO_STRUCTURE.md        # 모노레포 구조 설명
 └── CLOUDFLARE_MIGRATION.md      # Cloudflare 마이그레이션 기록
@@ -78,9 +77,17 @@ make release TYPE=patch      # 릴리스 자동화
 
 공식 프로젝트 산출물입니다. [산출물 인덱스](deliverables/index.md) 참조.
 
-| 문서                                              | 설명                                    |
-| ------------------------------------------------- | --------------------------------------- |
-| [시스템 설계서](deliverables/02-SYSTEM-DESIGN.md) | 시스템 구성도, 설계 원칙, 컴포넌트 상세 |
+| 문서 | 설명 |
+|------|------|
+| [01. 요구사항 명세서](deliverables/01-REQUIREMENTS-SPECIFICATION.md) | 기능/비기능 요구사항 33+19개 정의 |
+| [02. 시스템 설계서](deliverables/02-SYSTEM-DESIGN.md) | 시스템 구성도, 설계 원칙, 컴포넌트 상세 |
+| [03. API 레퍼런스](deliverables/03-API-REFERENCE.md) | REST API 48개 엔드포인트 상세 명세 |
+| [04. 설치 가이드](deliverables/04-INSTALLATION-GUIDE.md) | 환경별 설치 절차 (개발/스테이징/운영/Air-Gap) |
+| [05. 운영 가이드](deliverables/05-OPERATIONS-GUIDE.md) | 운영 절차, 모니터링, 장애대응 |
+| [06. 장애 대응 매뉴얼](deliverables/06-RUNBOOK.md) | 장애대응, 정기점검, 백업/복구 |
+| [07. 테스트 리포트](deliverables/07-TEST-REPORT.md) | 테스트 수행 결과 및 커버리지 |
+| [08. 검증 체크리스트](deliverables/08-VERIFICATION-CHECKLIST.md) | 요구사항 검증 체크리스트 |
+| [09. 환경 매트릭스](deliverables/09-ENVIRONMENT-MATRIX.md) | 환경별 설정, URL, 환경변수 |
 
 ---
 
@@ -90,7 +97,7 @@ make release TYPE=patch      # 릴리스 자동화
 
 | 문서                                                                                          | 범위                                 |
 | --------------------------------------------------------------------------------------------- | ------------------------------------ |
-| [루트 AGENTS.md](../AGENTS.md)                                                                | 프로젝트 전체 개요, 구조, 컨벤션     |
+| [루트 AGENTS.md](../AGENTS.md)                                                                | SSoT 동기화 (qws941/.github) — 거버넌스 정책 |
 | [app/AGENTS.md](../app/AGENTS.md)                                                             | Flask API 앱 팩토리, 미들웨어        |
 | [app/core/AGENTS.md](../app/core/AGENTS.md)                                                   | app/core 패키지 경계, 교차 모듈 계약 |
 | [app/core/services/AGENTS.md](../app/core/services/AGENTS.md)                                 | ServiceFactory DI, 14개 서비스       |
@@ -140,7 +147,7 @@ make release TYPE=patch      # 릴리스 자동화
 - **배포 파이프라인** — CI/CD 워크플로우
 - **ER 다이어그램** — 데이터베이스 관계도
 
-> 원본 drawio 파일: [architecture/blacklist-architecture.drawio](architecture/blacklist-architecture.drawio)
+> 원본 drawio 파일: [architecture.drawio](architecture.drawio)
 
 ### XWiki 호환성
 
@@ -154,7 +161,7 @@ XWiki 이식 기준과 예시는 전용 문서로 정리했습니다.
 ## 프로젝트 정보
 
 - **저장소**: [github.com/qws941/blacklist](https://github.com/qws941/blacklist)
-- **버전**: 3.6.3
+- **버전**: 3.6.7
 - **라이선스**: MIT
 - **릴리스**: [GitHub Releases](https://github.com/qws941/blacklist/releases)
 - **변경 이력**: [CHANGELOG.md](../CHANGELOG.md)

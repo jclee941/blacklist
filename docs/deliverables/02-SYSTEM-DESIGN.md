@@ -1,8 +1,8 @@
 # 시스템 설계서 (System Design)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.6.3  
-**작성일:** 2026-02-23  
+**버전:** 3.6.7
+**작성일:** 2026-02-27
 **문서번호:** DES-REGTECH-2026-001
 
 ---
@@ -89,7 +89,7 @@ frontend/
 │   └── api.ts              # Centralized API Client (필수 프록시)
 ├── hooks/                  # Custom React hooks
 ├── types/                  # TypeScript 인터페이스
-├── __tests__/              # Unit tests (Vitest, 44 files, 207+ tests)
+├── __tests__/              # Unit tests (Vitest, 39 files, 448 tests)
 └── e2e/                    # E2E tests (Playwright)
 ```
 
@@ -432,3 +432,4 @@ graph LR
 |------|------|----------|
 | 1.0 | 2026-01-15 | 초기 작성 (v3.5.11) |
 | 2.0 | 2026-02-23 | v3.6.3 전면 갱신: Traefik 제거, 포트 수정(Frontend=443), JWT 인증 체계, AES-256-GCM 암호화, 15 테이블/4 뷰 DB 스키마, 14 서비스 DI, Collector 아키텍처 갱신, Mermaid 다이어그램 |
+| 3.0 | 2026-02-27 | v3.6.7 현행화, 테스트 수 갱신: Frontend 테스트 39개 파일 448개로 증가, 총 164개 테스트 파일 2,368개 테스트
