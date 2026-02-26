@@ -3,7 +3,6 @@ Tests for error_metrics_api.py — /api/monitoring/errors/*
 These endpoints are attached directly to api_bp and use lazy imports.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 from flask import Flask, g
 
@@ -13,7 +12,6 @@ def _create_app():
     app.config["TESTING"] = True
 
     from core.routes.api_routes import api_bp
-    import core.routes.api.error_metrics_api  # triggers @api_bp.route decorators
 
     app.register_blueprint(api_bp)
 

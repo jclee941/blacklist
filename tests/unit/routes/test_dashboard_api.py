@@ -1,7 +1,7 @@
 """Unit tests for dashboard API routes."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, MagicMock
 from datetime import datetime
 from flask import Flask
 

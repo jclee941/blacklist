@@ -3,8 +3,7 @@ Tests for monitoring/metrics.py — cache monitoring endpoints.
 These use monitoring_bp (nested under api_bp).
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from flask import Flask, g
 
 

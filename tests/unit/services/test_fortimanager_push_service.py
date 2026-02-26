@@ -4,7 +4,6 @@ import os
 import time
 from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 
 
 def _make_service(db_service=None):
@@ -175,7 +174,7 @@ class TestHandleChangeNotification:
     def test_handle_change_rate_limited(self):
         svc, _ = _make_service()
         svc.last_update = time.time()  # Recent update - should be rate limited
-        with patch.object(svc, "fetch_blacklist") as mock_fetch:
+        with patch.object(svc, "fetch_blacklist"):
             svc.handle_change_notification("test payload")
         # Should NOT call fetch_blacklist due to rate limiting
         # (This may or may not be called depending on rate limit window)

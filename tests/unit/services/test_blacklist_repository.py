@@ -1,8 +1,7 @@
 """Tests for blacklist_repository.py"""
 
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, MagicMock
 
-import pytest
 
 from core.services.blacklist_repository import BlacklistRepository
 

@@ -1,6 +1,5 @@
 """Tests for app/core/routes/proxy_routes.py — API proxy forwarding to backend and collector."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 from flask import Flask
 import requests as real_requests

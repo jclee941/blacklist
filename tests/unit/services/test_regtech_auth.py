@@ -1,7 +1,6 @@
 import time
 from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 
 
 def _make_auth_manager():

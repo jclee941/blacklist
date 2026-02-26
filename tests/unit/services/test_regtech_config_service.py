@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 
 
 def _make_service():

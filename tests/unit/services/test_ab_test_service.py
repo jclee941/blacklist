@@ -1,7 +1,5 @@
 """Tests for core.services.ab_test_service"""
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 from core.services.ab_test_service import ABTestService
 
 

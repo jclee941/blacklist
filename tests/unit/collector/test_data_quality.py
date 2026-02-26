@@ -1,8 +1,6 @@
 """Tests for DataQualityManager pure methods from core/data_quality_manager.py."""
 
 import os
-import sys
-from unittest.mock import MagicMock
 
 import pytest
 

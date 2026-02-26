@@ -93,7 +93,6 @@ class TestCollectorStartupValidation:
     
     def test_missing_credentials_validation(self):
         """Startup validation catches missing credentials"""
-        from collector.exceptions import CredentialNotFoundError
         from collector.config import CollectorConfig
         
         # Clear cache

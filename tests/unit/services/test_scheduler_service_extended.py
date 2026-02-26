@@ -1,8 +1,6 @@
 """Extended tests for scheduler_service.py - covers uncovered methods."""
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
-from datetime import datetime
+from unittest.mock import Mock, MagicMock, patch
 
 
 class TestSchedulerServiceExtended:

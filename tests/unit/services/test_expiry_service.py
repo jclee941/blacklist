@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import date
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from app.core.services.expiry_service import IPExpiryService
 

@@ -1,7 +1,6 @@
 """Unit tests for CollectionValidator"""
 
 import pytest
-from unittest.mock import patch
 from datetime import datetime
 
 

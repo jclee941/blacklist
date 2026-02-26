@@ -1,9 +1,7 @@
 """Tests for collector/core/archive_manager.py — file archiving."""
 
 import os
-import pytest
-from unittest.mock import patch, MagicMock
-from datetime import datetime
+from unittest.mock import patch
 
 
 class TestGenerateArchiveFilename:

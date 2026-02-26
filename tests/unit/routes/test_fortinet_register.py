@@ -3,7 +3,6 @@ Tests for fortinet_register.py — /api/fortinet/register
 Uses its own blueprint: fortinet_register_bp.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 from flask import Flask, g
 import json

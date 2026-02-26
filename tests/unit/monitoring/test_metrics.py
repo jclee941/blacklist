@@ -1,6 +1,6 @@
 """Tests for core.monitoring.metrics — decorators, helper functions, update_entries_count."""
 
-from unittest.mock import MagicMock, Mock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 import pytest
 
 
@@ -99,7 +99,7 @@ class TestMetricHelpers:
 
         with patch("core.monitoring.metrics._metrics_cache", {}):
             with patch("core.monitoring.metrics._metric_exists", return_value=False):
-                from prometheus_client import Counter, REGISTRY
+                from prometheus_client import REGISTRY
 
                 name = "test_helper_counter_unique_1234"
                 try:

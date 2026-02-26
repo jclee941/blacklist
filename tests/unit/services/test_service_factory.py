@@ -1,7 +1,7 @@
 """Unit tests for service_factory module"""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 
 @pytest.mark.unit
@@ -102,6 +102,6 @@ class TestServiceFactory:
                 services = initialize_services(mock_app)
                 # If it returns, db_service should be None or missing
                 assert services.get("db_service") is None or "db_service" not in services
-            except Exception as e:
+            except Exception:
                 # Fatal error expected
                 assert True

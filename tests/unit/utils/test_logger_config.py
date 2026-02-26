@@ -1,9 +1,7 @@
 """Unit tests for core.utils.logger_config."""
 
 import logging
-from unittest.mock import patch, MagicMock
 
-import pytest
 
 from core.utils.logger_config import (
     StructuredFormatter,

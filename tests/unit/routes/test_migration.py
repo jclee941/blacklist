@@ -3,11 +3,9 @@ Tests for migration.py — /api/migration/* endpoints.
 migration_bp is a standalone Blueprint.
 """
 
-import pytest
 import os
 from unittest.mock import MagicMock, patch
 from flask import Flask, g
-from datetime import datetime
 
 
 def _create_app():

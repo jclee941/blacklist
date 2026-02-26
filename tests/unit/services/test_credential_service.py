@@ -2,9 +2,8 @@
 
 import json
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 
 
 def _make_service(db_service=None):

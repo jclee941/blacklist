@@ -1,6 +1,5 @@
 from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 
 from core.services.collection.regtech_data import REGTECHDataCollector
 

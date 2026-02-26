@@ -1,7 +1,7 @@
 """Unit tests for CollectionHistoryManager"""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime
 
 

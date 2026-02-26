@@ -9,7 +9,7 @@ import os
 import tempfile
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 PARSER_MODULE = "core.secudium_parsers"
 

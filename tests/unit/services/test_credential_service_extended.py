@@ -1,7 +1,6 @@
 """Extended tests for credential_service uncovered methods."""
 
 import json
-import pytest
 from unittest.mock import Mock, MagicMock, patch, mock_open
 from core.services.credential_service import CredentialService
 
@@ -67,13 +66,13 @@ class TestCredentialServiceExtended:
         file_data = json.dumps({"regtech_id": "fileuser", "regtech_pw": "filepass"})
         with patch("pathlib.Path.exists", return_value=True):
             with patch("builtins.open", mock_open(read_data=file_data.encode())):
-                result = svc.load_credentials()
+                svc.load_credentials()
 
     def test_load_credentials_not_found(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
         mock_cursor.fetchone.return_value = None
         with patch("os.path.exists", return_value=False):
-            result = svc.load_credentials()
+            svc.load_credentials()
 
     def test_get_credentials_from_collection_table(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()

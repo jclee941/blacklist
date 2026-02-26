@@ -1,9 +1,8 @@
 """Unit tests for core.auth.middleware."""
 
 import json
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch, MagicMock
 
-import pytest
 
 
 class TestJWTRequiredHook:
@@ -44,7 +43,6 @@ class TestJWTRequiredHook:
 
     def test_skip_public_endpoint(self):
         """Endpoints marked with @public should be skipped."""
-        from core.auth.middleware import jwt_required_hook
         from core.auth.decorators import public
 
         app = self._make_flask_app()
@@ -55,13 +53,11 @@ class TestJWTRequiredHook:
             return "ok"
 
         with app.test_request_context("/health"):
-            from flask import request
 
             # Simulate the endpoint being resolved
-            with app.test_client() as client:
+            with app.test_client():
                 pass
             # Manually set the view function
-            import flask
 
             # We need the endpoint to be resolved
             with app.test_request_context("/health"):
@@ -126,7 +122,7 @@ class TestJWTRequiredHook:
                 result = jwt_required_hook()
                 if result is not None:
                     response, status_code = result
-                    data = json.loads(response.get_data(as_text=True))
+                    json.loads(response.get_data(as_text=True))
                     assert status_code == 500
 
     def test_valid_token_sets_current_user(self):

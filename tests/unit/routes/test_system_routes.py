@@ -1,6 +1,5 @@
 """Tests for app/core/routes/system_routes.py — system monitoring blueprint."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 from flask import Flask
 

@@ -1,7 +1,6 @@
 """Extended tests for collection_service uncovered methods."""
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, MagicMock, patch
 from core.services.collection_service import CollectionService
 
 
@@ -56,7 +55,7 @@ class TestCollectionServiceExtended:
             patch.object(svc, "regtech_collector", mock_regtech, create=True),
             patch.object(svc, "history_manager", mock_history, create=True),
         ):
-            result = svc.trigger_regtech_collection(
+            svc.trigger_regtech_collection(
                 start_date="2024-01-01", end_date="2024-01-31", username="user", password="pass"
             )
 
@@ -88,7 +87,7 @@ class TestCollectionServiceExtended:
         svc.active_collections = {"regtech"}
         mock_status_mgr = MagicMock()
         with patch.object(svc, "status_manager", mock_status_mgr, create=True):
-            result = svc.stop_all_collections()
+            svc.stop_all_collections()
         assert len(svc.active_collections) == 0
 
     def test_stop_all_collections_exception(self):
@@ -96,7 +95,7 @@ class TestCollectionServiceExtended:
         mock_status_mgr = MagicMock()
         mock_status_mgr.stop_all_collections.side_effect = Exception("boom")
         with patch.object(svc, "status_manager", mock_status_mgr, create=True):
-            result = svc.stop_all_collections()
+            svc.stop_all_collections()
 
     def test_get_collection_stats_success(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
@@ -126,4 +125,4 @@ class TestCollectionServiceExtended:
     def test_save_collection_data_exception(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
         mock_cursor.execute.side_effect = Exception("DB error")
-        result = svc._save_collection_data([{"ip_address": "1.1.1.1"}], "REGTECH")
+        svc._save_collection_data([{"ip_address": "1.1.1.1"}], "REGTECH")

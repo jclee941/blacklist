@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from datetime import datetime
 from flask import Flask, g
 
 

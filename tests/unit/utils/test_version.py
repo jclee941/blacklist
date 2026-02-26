@@ -1,10 +1,8 @@
 """Unit tests for core.utils.version."""
 
 import os
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import patch
 
-import pytest
 
 from core.utils.version import get_app_version
 

@@ -1,8 +1,7 @@
 """CollectionScheduler 유닛 테스트"""
 
 import pytest
-import threading
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from app.core.services.scheduler_service import CollectionScheduler
 

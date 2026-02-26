@@ -1,10 +1,7 @@
 """Unit tests for core.monitoring.error_metrics."""
 
-import time
-from datetime import datetime, timedelta
-from unittest.mock import patch
+from datetime import datetime
 
-import pytest
 
 from core.monitoring.error_metrics import ErrorMetricsCollector, ErrorEvent
 

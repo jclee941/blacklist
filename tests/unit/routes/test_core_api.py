@@ -3,8 +3,7 @@ Tests for core_api.py — /api/docs, /api/health
 These endpoints are attached directly to api_bp.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from flask import Flask, g
 
 
@@ -13,7 +12,6 @@ def _create_app():
     app.config["TESTING"] = True
 
     from core.routes.api_routes import api_bp
-    import core.routes.api.core_api  # triggers @api_bp.route decorators
 
     app.register_blueprint(api_bp)
 

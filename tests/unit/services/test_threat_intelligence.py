@@ -1,6 +1,4 @@
-from unittest.mock import Mock, patch
 
-import pytest
 
 from core.services.collection.threat_intelligence import ThreatIntelligenceCollector
 

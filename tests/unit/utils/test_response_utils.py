@@ -1,9 +1,7 @@
 """Unit tests for core.utils.response_utils."""
 
 import json
-from unittest.mock import patch, MagicMock
 
-import pytest
 from flask import Flask
 
 from core.utils.response_utils import (

@@ -4,7 +4,6 @@ import json
 import os
 from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 
 
 def _make_service(db_service=None):
@@ -72,7 +71,7 @@ class TestSetupEncryption:
                 try:
                     from core.services.secure_credential_service import SecureCredentialService
 
-                    svc = SecureCredentialService(db_service=Mock())
+                    SecureCredentialService(db_service=Mock())
                     # If it doesn't raise, it might use a fallback
                     assert True
                 except (RuntimeError, Exception):

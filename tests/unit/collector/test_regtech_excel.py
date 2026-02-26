@@ -4,7 +4,6 @@ import os
 import tempfile
 from unittest.mock import patch, MagicMock
 
-import pytest
 import pandas as pd
 
 from core.regtech_excel import parse_excel_file, download_excel_data

@@ -1,8 +1,7 @@
 """Unit tests for SettingsService"""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import json
+from unittest.mock import Mock, patch
 import os
 import hashlib
 import base64

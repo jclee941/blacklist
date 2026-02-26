@@ -1,6 +1,5 @@
 """Unit tests for core.auth.decorators."""
 
-import pytest
 
 from core.auth.decorators import public
 

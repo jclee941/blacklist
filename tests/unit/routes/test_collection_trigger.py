@@ -1,7 +1,7 @@
 """Unit tests for collection trigger route."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from flask import Flask
 
 from core.errors.handlers import register_error_handlers

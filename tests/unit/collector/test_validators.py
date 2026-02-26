@@ -1,6 +1,5 @@
 """Tests for collector/core/validators.py — IP validation and normalization."""
 
-import pytest
 from core.validators import (
     validate_ip,
     validate_ip_or_cidr,

@@ -11,11 +11,8 @@ import pytest
 import threading
 import time
 import os
-import tempfile
-import imaplib
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch, Mock
-from typing import Dict, Any
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.unit
@@ -294,7 +291,7 @@ class TestIPCacheEvictionLRU:
             service.ip_cache[f"192.168.0.{i}"] = current_time + i
 
         # Run eviction
-        evicted = service._evict_stale_ips()
+        service._evict_stale_ips()
 
         # Verify oldest were evicted, newest were kept
         remaining_ips = list(service.ip_cache.keys())
@@ -321,7 +318,7 @@ class TestIPCacheEvictionLRU:
             service.ip_cache[f"192.168.0.{i}"] = current_time + i
 
         # Run eviction
-        evicted = service._evict_stale_ips()
+        service._evict_stale_ips()
 
         # Verify both TTL and LRU eviction happened
         for i in range(5):

@@ -1,9 +1,7 @@
 """Tests for DatabaseService pure helper methods from core/database.py."""
 
 import os
-import sys
 from datetime import date
-from unittest.mock import MagicMock, patch
 
 import pytest
 

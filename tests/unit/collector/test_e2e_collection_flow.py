@@ -6,7 +6,7 @@ network I/O: authenticate → fetch list → download → parse → insert → l
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 COLLECTOR_MODULE = "core.secudium_collector"
 
@@ -209,7 +209,7 @@ class TestCollectDataE2E:
             ),
             patch.object(c, "_insert_ips") as mock_insert,
         ):
-            result = c.collect_data("2025-01-01", "2025-01-31")
+            c.collect_data("2025-01-01", "2025-01-31")
 
         if c.db_service is None:
             mock_insert.assert_not_called()

@@ -1,9 +1,7 @@
 """Tests for collection_service.py"""
 
-import time
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 
 
 def _make_service(db_service=None):
@@ -162,7 +160,7 @@ class TestGetCollectionHistory:
     def test_get_history_delegates(self, mock_hist):
         svc, _ = _make_service()
         mock_hist.get_recent_history = Mock(return_value=[{"date": "2024-01-01"}])
-        result = svc.get_collection_history(days=7, limit=10)
+        svc.get_collection_history(days=7, limit=10)
         mock_hist.get_recent_history.assert_called_once()
 
 

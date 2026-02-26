@@ -1,6 +1,5 @@
 """Tests for app/core/routes/api/blacklist/collection.py — REGTECH collection trigger via collector."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 from flask import Flask
 

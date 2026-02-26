@@ -1,10 +1,7 @@
 """Unit tests for core.monitoring.cache_metrics."""
 
-import time
 from datetime import datetime
-from unittest.mock import patch
 
-import pytest
 
 from core.monitoring.cache_metrics import CacheMetricsCollector, CacheEvent
 

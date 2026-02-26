@@ -1,7 +1,7 @@
 """Extended tests for database_service.py - covers uncovered methods."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 
 

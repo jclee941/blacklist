@@ -7,9 +7,8 @@ Verifies:
 - New email detection (ignores pre-existing emails)
 """
 
-import email
 from email.mime.text import MIMEText
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 import pytest
 
 OTP_MODULE = "utils.otp_email_reader"

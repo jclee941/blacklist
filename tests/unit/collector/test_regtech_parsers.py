@@ -1,6 +1,5 @@
 """Tests for collector/core/regtech_parsers.py — parsing utilities."""
 
-import pytest
 from core.regtech_parsers import (
     parse_date,
     is_valid_ip,

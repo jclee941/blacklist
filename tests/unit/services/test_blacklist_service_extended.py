@@ -1,8 +1,7 @@
 """Extended tests for blacklist_service.py - covers uncovered methods."""
 
 import asyncio
-import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 
 
@@ -40,7 +39,6 @@ class TestBlacklistServiceExtended:
         assert result["data"] == ["1.1.1.1", "2.2.2.2"]
 
     def test_get_active_blacklist_enhanced(self):
-        from datetime import datetime
 
         svc, _, _ = self._make_service()
         enhanced_data = [

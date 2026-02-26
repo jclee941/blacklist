@@ -1,9 +1,6 @@
 """Unit tests for core.auth.jwt_service."""
 
-import os
-import time
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, MagicMock
 
 import jwt
 import pytest

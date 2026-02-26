@@ -5,7 +5,6 @@ Covers: /api/monitoring/dashboard, /api/system-stats, /api/chart/data,
         /api/database/schema, /api/database/schema/update, /api/database/schema/fix
 """
 
-import pytest
 import os
 from unittest.mock import MagicMock, patch, mock_open
 from flask import Flask, g
@@ -17,7 +16,6 @@ def _create_app():
     app.config["TESTING"] = True
 
     from core.routes.api_routes import api_bp
-    import core.routes.api.system_api  # triggers @api_bp.route decorators
 
     app.register_blueprint(api_bp)
 

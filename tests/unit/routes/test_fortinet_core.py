@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from datetime import datetime, date
+from datetime import datetime
 from flask import Flask, g
 
 
@@ -9,7 +9,6 @@ def make_app():
     app.config["TESTING"] = True
 
     from core.routes.api.fortinet.core import fortinet_core_bp
-    from core.routes.api.fortinet import fortinet_core_bp as init_bp
     from core.errors.handlers import register_error_handlers
 
     app.register_blueprint(fortinet_core_bp, url_prefix="/api/fortinet")

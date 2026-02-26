@@ -1,7 +1,7 @@
 """Unit tests for CollectionStatusManager"""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 
 @pytest.mark.unit

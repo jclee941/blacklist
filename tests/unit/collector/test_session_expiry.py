@@ -8,7 +8,7 @@ Verifies:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 COLLECTOR_MODULE = "core.secudium_collector"
 
@@ -64,7 +64,7 @@ class TestSessionExpiry401:
         collector.authenticate = MagicMock(return_value=True)
 
         with patch(f"{COLLECTOR_MODULE}.parse_black_ip_list", return_value=[]):
-            results = collector._fetch_black_ip_list("2025-01-01", "2025-01-31")
+            collector._fetch_black_ip_list("2025-01-01", "2025-01-31")
             collector.authenticate.assert_called()
 
     def test_401_reauth_failure_returns_partial(self, collector):

@@ -7,7 +7,7 @@ Verifies paginated _fetch_black_ip_list correctly handles:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 COLLECTOR_MODULE = "core.secudium_collector"
 

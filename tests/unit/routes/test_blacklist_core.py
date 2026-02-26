@@ -1,7 +1,7 @@
 """Unit tests for blacklist core API routes."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from flask import Flask
 
 from core.errors.handlers import register_error_handlers

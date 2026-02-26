@@ -2,7 +2,6 @@
 
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 
 class TestGetRedisClient:
@@ -120,7 +119,7 @@ class TestCachedDecorator:
     """Tests for @cached decorator."""
 
     def test_cached_calls_function_on_miss(self):
-        from core.utils.cache_utils import cached, CacheManager
+        from core.utils.cache_utils import cached
 
         call_count = 0
 

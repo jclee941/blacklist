@@ -1,9 +1,8 @@
 """Extended tests for core.utils.cache_utils — Redis-backed paths, _record_metric, clear_pattern."""
 
 import json
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 class TestCacheManagerWithRedis:

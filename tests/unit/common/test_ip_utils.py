@@ -1,6 +1,5 @@
 """Tests for core.common.ip_utils"""
 
-import pytest
 from core.common.ip_utils import IPUtils
 
 

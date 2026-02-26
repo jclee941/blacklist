@@ -1,7 +1,7 @@
 """Unit tests for settings API routes."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from flask import Flask
 
 
