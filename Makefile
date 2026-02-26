@@ -146,10 +146,6 @@ test-backend-integration: ## Run backend integration tests
 	@echo "🧪 Running backend integration tests..."
 	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/integration -v
 
-test-backend-e2e: ## Run backend E2E tests
-	@echo "🧪 Running backend E2E tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/e2e -v
-
 test-backend-coverage: ## Run backend tests with coverage report
 	@echo "🧪 Running backend tests with coverage..."
 	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v \
