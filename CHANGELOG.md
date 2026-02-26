@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.5] - 2026-02-26
+
+### Fixed
+- fix(ci): add ci-gate aggregation job for branch protection compatibility
+- fix(ci): remove custom CodeQL job conflicting with GitHub default setup
+- fix(ci): add eslint-plugin-react-hooks as explicit devDep
+
+---
+
 ## [3.6.4] - 2026-02-26
 
 ### Added
