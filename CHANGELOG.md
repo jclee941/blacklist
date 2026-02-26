@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [3.6.6] - 2026-02-26
+
+### Fixed
+- fix(ci): add always() to e2e and scan-images job conditions to prevent systematic skipping
+- fix(ci): strip LINE#ID prefixes from ci.yml and release.yml
+- fix(ci): add version comments, timeouts, and concurrency to 5 workflow files
+- fix(ci): disable 5 ghost workflows (commitlint, lock-threads, pr-size, release-drafter, welcome)
+- fix(deploy): resolve credential save error and volume naming issue
+
+### Changed
+- refactor(e2e): split collection-process.spec.ts into 4 files by concern (609 LOC → 4 files)
+- chore: remove stale tests/e2e/ directory, NavBar test, and Makefile target
+- chore(deps): bump marshmallow from 3.20.1 to 3.26.2
 
 ---
 
