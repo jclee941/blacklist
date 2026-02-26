@@ -323,11 +323,11 @@ bash scripts/sync-rulesets.sh --repo qws941/terraform
 
 # Local verification (blacklist project)
 make verify-quick      # Lint only (fastest feedback)
-make verify-lint       # ruff check + format --check (direct)
-make verify-types      # mypy (direct)
-make verify-secrets    # detect-secrets via pre-commit
+make verify-lint       # ruff check + format --check (requires ruff)
+make verify-types      # mypy (skips gracefully if mypy not installed; not required by CI)
+make verify-secrets    # detect-secrets scan (skips gracefully if detect-secrets not installed)
 make verify            # lint + types + secrets
-make verify-pre-commit # all pre-commit hooks
+make verify-pre-commit # all pre-commit hooks (requires pre-commit)
 make verify-all        # full CI mirror (verify + test-backend)
 ```
 
