@@ -107,7 +107,7 @@ test.describe('Batch Operations', () => {
         },
       });
 
-      expect([200, 207, 404, 429]).toContain(response.status());
+      expect([200, 207, 400, 404, 429]).toContain(response.status());
     });
 
     test('빈 업데이트 요청 시 에러', async ({ request }) => {

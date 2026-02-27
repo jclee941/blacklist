@@ -43,7 +43,7 @@ test.describe('Regression: Issue #002 - Collection IP count shows 0', () => {
     page,
   }) => {
     // STEP 1: Mock the statistics API to return known total_items values
-    await page.route('**/api/collection/statistics**', async (route) => {
+    await page.route('**/api/proxy/collection/statistics**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -78,7 +78,7 @@ test.describe('Regression: Issue #002 - Collection IP count shows 0', () => {
     });
 
     // STEP 2: Also mock the status endpoint for collector cards
-    await page.route('**/api/collection/status**', async (route) => {
+    await page.route('**/api/proxy/collection/status**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -136,7 +136,7 @@ test.describe('Regression: Issue #002 - Collection IP count shows 0', () => {
   test('should correctly map total_items from statistics API @regression', async ({ page }) => {
     // STEP 1: Intercept the statistics API call and verify response is consumed
     let statisticsRequested = false;
-    await page.route('**/api/collection/statistics**', async (route) => {
+    await page.route('**/api/proxy/collection/statistics**', async (route) => {
       statisticsRequested = true;
       await route.fulfill({
         status: 200,
@@ -164,7 +164,7 @@ test.describe('Regression: Issue #002 - Collection IP count shows 0', () => {
       });
     });
 
-    await page.route('**/api/collection/status**', async (route) => {
+    await page.route('**/api/proxy/collection/status**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
