@@ -11,6 +11,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.8] - 2026-02-27
+
+### Changed
+- style(tests): apply ruff format normalization across test suite
+
+### Fixed
+- fix(api): replace hardcoded ports with config-driven values in system status
+- fix(ci): resolve scan-images CVEs, e2e env vars, and secrets baseline
+- fix(makefile): graceful skip for verify-types and verify-secrets targets
+- fix(makefile): run verify targets directly instead of via Docker
+- fix(release): add [Unreleased] section to CHANGELOG for release script compatibility
+- fix(tests): remove unused imports and variables across test suite
+
+### CI/CD
+- ci: re-trigger CI after stuck test-backend job
+
+### Other
+- docs: update AGENTS.md hierarchy to v3.6.7 with project-specific content
+- docs: update all deliverables to v3.6.7 with current codebase metrics
+
+---
+
 ## [3.6.7] - 2026-02-26
 
 ### Fixed
