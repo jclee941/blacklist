@@ -24,22 +24,22 @@ def get_system_containers():
     try:
         # Docker API is not available in container, return service status instead
         services = {
-            "blacklist-app": {"status": "running", "health": "healthy", "port": 2542},
+            "blacklist-app": {"status": "running", "health": "healthy", "port": config.APP_PORT},
             "blacklist-frontend": {
                 "status": "running",
                 "health": "healthy",
-                "port": 2543,
+                "port": config.FRONTEND_PORT,
             },
             "blacklist-postgres": {
                 "status": "running",
                 "health": "healthy",
-                "port": 5432,
+                "port": config.POSTGRES_PORT,
             },
-            "blacklist-redis": {"status": "running", "health": "healthy", "port": 6379},
+            "blacklist-redis": {"status": "running", "health": "healthy", "port": config.REDIS_PORT},
             "blacklist-collector": {
                 "status": "running",
                 "health": "healthy",
-                "port": 8545,
+                "port": config.COLLECTOR_PORT,
             },
         }
 

@@ -200,6 +200,14 @@ class AppConfig:
         return int(os.getenv("APP_PORT", "2542"))
 
     @property
+    def FRONTEND_PORT(self) -> int:
+        return int(os.getenv("FRONTEND_PORT", "2543"))
+
+    @property
+    def COLLECTOR_PORT(self) -> int:
+        return int(os.getenv("COLLECTOR_PORT", "8545"))
+
+    @property
     def APP_VERSION(self) -> Optional[str]:
         return os.getenv("APP_VERSION")
 

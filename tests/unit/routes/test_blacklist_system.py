@@ -22,7 +22,7 @@ class TestSystemContainers:
         return app.test_client()
 
     def test_containers_status_success(self, client, app):
-        """GET /system/containers returns service status"""
+        """GET /system/containers returns service status with config-driven ports"""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
@@ -37,6 +37,21 @@ class TestSystemContainers:
         assert len(data["services"]) == 5  # 5 services
         assert "blacklist-app" in data["services"]
         assert data["services"]["blacklist-app"]["health"] == "healthy"
+
+    @patch.dict("os.environ", {"APP_PORT": "9000", "FRONTEND_PORT": "9001", "COLLECTOR_PORT": "9002"})
+    def test_containers_ports_from_config(self, client, app):
+        """GET /system/containers uses config-driven port values"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        app.extensions["db_service"].get_connection.return_value = mock_conn
+
+        response = client.get("/system/containers")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["services"]["blacklist-app"]["port"] == 9000
+        assert data["services"]["blacklist-frontend"]["port"] == 9001
+        assert data["services"]["blacklist-collector"]["port"] == 9002
 
     def test_containers_db_unhealthy(self, client, app):
         """GET /system/containers with DB check failure marks postgres unhealthy"""
