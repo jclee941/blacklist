@@ -26,6 +26,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
       collector: ${{ steps.filter.outputs.collector }}
+      ci: ${{ steps.filter.outputs.ci }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -44,6 +45,7 @@ jobs:
           echo "frontend=$(echo "$CHANGED" | grep -q '^frontend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "collector=$(echo "$CHANGED" | grep -q '^collector/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "ci=$(echo "$CHANGED" | grep -qE '^(\.github/|postgres/|deploy/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   # Replaces inline lint-frontend with reusable workflow
   lint-frontend:
@@ -262,7 +264,8 @@ jobs:
       always() && !failure() && !cancelled() &&
       (needs.detect-changes.outputs.frontend == 'true' ||
        needs.detect-changes.outputs.backend == 'true' ||
-       needs.detect-changes.outputs.collector == 'true')
+       needs.detect-changes.outputs.collector == 'true' ||
+       needs.detect-changes.outputs.ci == 'true')
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     strategy:
