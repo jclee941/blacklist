@@ -89,7 +89,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://app:2542
     healthcheck:
-      test: ["CMD-SHELL", "curl -sfk https://localhost:443 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO /dev/null --no-check-certificate https://localhost:443 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 15
