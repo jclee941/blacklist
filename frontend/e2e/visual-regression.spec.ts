@@ -8,6 +8,8 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Visual Regression Tests', () => {
+  test.skip(({ browserName }) => browserName === 'webkit', 'No webkit baseline snapshots');
+
   test('homepage desktop view @visual', async ({ page }) => {
     // Set consistent viewport size for desktop
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -117,6 +119,8 @@ test.describe('Visual Regression Tests', () => {
 });
 
 test.describe('Component Visual Tests', () => {
+  test.skip(({ browserName }) => browserName === 'webkit', 'No webkit baseline snapshots');
+
   test('navbar component @visual', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
@@ -146,6 +150,8 @@ test.describe('Component Visual Tests', () => {
 });
 
 test.describe('Responsive Design Tests', () => {
+  test.skip(({ browserName }) => browserName === 'webkit', 'No webkit baseline snapshots');
+
   const viewports = [
     { name: 'mobile-portrait', width: 375, height: 667 },
     { name: 'mobile-landscape', width: 667, height: 375 },
