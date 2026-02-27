@@ -76,9 +76,9 @@ describe('OtpInputDialog', () => {
     expect(screen.getByText('OTP 인증')).toBeInTheDocument();
   });
 
-  it('displays service name in instruction text', () => {
+  it('displays simplified instruction text', () => {
     render(<OtpInputDialog {...defaultProps} />);
-    expect(screen.getByText(/SECUDIUM 연결을 위해/)).toBeInTheDocument();
+    expect(screen.getByText(/OTP를 입력해주세요/)).toBeInTheDocument();
   });
 
   it('renders OTP input with maxLength 6', () => {
