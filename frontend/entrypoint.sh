@@ -14,6 +14,7 @@ if [ ! -f "$SSL_KEY" ] || [ ! -f "$SSL_CERT" ]; then
     -keyout "$SSL_KEY" \
     -out "$SSL_CERT" \
     -subj "/CN=blacklist/O=Blacklist/C=KR"
+  chmod 600 "$SSL_KEY"
   echo "> SSL certificate generated: $SSL_KEY, $SSL_CERT"
 fi
 
