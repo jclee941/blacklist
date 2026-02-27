@@ -64,15 +64,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/server.js ./server.js
+COPY frontend/entrypoint.sh ./entrypoint.sh
 
+# Keep openssl for runtime SSL cert generation (entrypoint.sh)
 RUN apk add --no-cache openssl && \
     mkdir -p /app/ssl && \
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-      -keyout /app/ssl/server.key \
-      -out /app/ssl/server.crt \
-      -subj "/CN=blacklist/O=Blacklist/C=KR" >/dev/null 2>&1 && \
-    chown -R nextjs:nodejs /app/ssl && \
-    apk del openssl
+    chown -R nextjs:nodejs /app/ssl
 
 USER nextjs
 
@@ -94,4 +91,4 @@ ENV HOSTNAME="0.0.0.0"
 ENV SSL_KEY_PATH=/app/ssl/server.key
 ENV SSL_CERT_PATH=/app/ssl/server.crt
 
-CMD ["node", "server.js"]
+CMD ["sh", "entrypoint.sh"]
