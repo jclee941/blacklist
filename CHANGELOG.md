@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.9] - 2026-02-27
+
+### Removed
+- refactor(collector): remove IMAP-based OTP auto-reader (`OTPEmailReader`) from Secudium collector
+- refactor(api): remove auto-OTP credential fields and trigger logic
+- refactor(frontend): remove auto-OTP UI controls from credential modal
+- refactor(deploy): remove SSL certificate bind mounts from release compose and installer
+
+### Changed
+- refactor(frontend): simplify OTP input dialog to manual-only flow
+- docs: refresh AGENTS.md hierarchy to v3.6.8
+
+### Fixed
+- fix(tests): clean up test references to removed OTP email reader
+
+---
+
 ## [3.6.8] - 2026-02-27
 
 ### Changed
