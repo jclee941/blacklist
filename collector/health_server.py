@@ -10,7 +10,6 @@ from waitress import serve  # type: ignore[import-untyped]
 import threading
 import logging
 from collections import deque
-from collector.config import CollectorConfig
 from core.database import DatabaseService
 
 logger = logging.getLogger(__name__)
@@ -168,56 +167,29 @@ class HealthServer:
                 elif source_upper == "SECUDIUM":
                     from core.secudium_collector import SecudiumCollector
 
-                    config = credentials.get("config", {})
-                    otp_mode = config.get("otp_mode", "auto")
-
                     collector = SecudiumCollector()
 
-                    if otp_mode == "auto":
-                        # Auto mode: full auth with IMAP OTP reading
-                        otp_config = CollectorConfig.get_secudium_otp_config()
-                        email = config.get("email", "") or otp_config["email"]
-                        email_password = config.get("email_password", "") or otp_config["email_password"]
-                        imap_server = config.get("imap_server", "") or otp_config["imap_server"]
-
-                        if not email or not email_password:
-                            return jsonify(
-                                {
-                                    "success": False,
-                                    "error": "OTP 자동 인증에 필요한 이메일 설정이 없습니다",
-                                    "timestamp": datetime.now().isoformat(),
-                                }
-                            )
-
-                        auth_result = collector.authenticate(
-                            username,
-                            password,
-                            email_address=email,
-                            email_password=email_password,
-                            imap_server=imap_server,
+                    # Always manual OTP: step 1 only, return otp_required if needed
+                    step1_result = collector.authenticate_step1(username, password)
+                    if step1_result == "otp_required":
+                        with self._pending_auth_lock:
+                            self._secudium_pending_auth = {
+                                "collector": collector,
+                                "username": username,
+                                "timestamp": datetime.now(),
+                            }
+                        return jsonify(
+                            {
+                                "success": True,
+                                "otp_required": True,
+                                "message": "OTP 입력이 필요합니다",
+                                "timestamp": datetime.now().isoformat(),
+                            }
                         )
+                    elif step1_result == "success":
+                        auth_result = True
                     else:
-                        # Manual mode: step 1 only, return otp_required
-                        step1_result = collector.authenticate_step1(username, password)
-                        if step1_result == "otp_required":
-                            with self._pending_auth_lock:
-                                self._secudium_pending_auth = {
-                                    "collector": collector,
-                                    "username": username,
-                                    "timestamp": datetime.now(),
-                                }
-                            return jsonify(
-                                {
-                                    "success": True,
-                                    "otp_required": True,
-                                    "message": "OTP 입력이 필요합니다",
-                                    "timestamp": datetime.now().isoformat(),
-                                }
-                            )
-                        elif step1_result == "success":
-                            auth_result = True
-                        else:
-                            auth_result = False
+                        auth_result = False
 
                 test_timestamp = datetime.now()
                 test_message = "인증 성공" if auth_result else "인증 실패"

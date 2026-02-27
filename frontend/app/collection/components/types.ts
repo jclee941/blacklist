@@ -15,9 +15,6 @@ export interface Credential {
   last_collection?: string;
   connection_status?: 'connected' | 'locked' | 'failed' | 'unknown';
   status_message?: string;
-  otp_mode?: OtpMode;
-  email?: string;
-  imap_server?: string;
 }
 
 export interface CollectionStatus {
@@ -49,15 +46,6 @@ export interface CredentialFormState {
   password: string;
   enabled: boolean;
   collection_interval: string;
-}
-
-export type OtpMode = 'auto' | 'manual';
-
-export interface SecudiumCredentialFormState extends CredentialFormState {
-  otp_mode: OtpMode;
-  email: string;
-  email_password: string;
-  imap_server: string;
 }
 
 export interface NotificationState {

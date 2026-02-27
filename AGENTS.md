@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
 **Generated:** 2026-02-27
-**Commit:** d7bb4be
+**Commit:** cd16ec1
 **Branch:** master
 
 ## OVERVIEW
@@ -94,7 +94,7 @@ make bundle                 # Create offline deployment bundle
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
-- 22 `type: ignore` comments — reduce, never add new ones.
+- 9 `type: ignore` comments — reduce, never add new ones.
 - Hardcoded `0.0.0.0` in some configs — use env vars.
 - `time.sleep` in collector scheduler — use APScheduler native waits.
 - OTP flow calls wrong endpoint (`submitOtp` → should be `verifyOtp`).
@@ -115,7 +115,7 @@ make bundle                 # Create offline deployment bundle
 
 ## NOTES
 
-- Version 3.6.7. Three independent services sharing only PostgreSQL + Redis.
+- Version 3.6.8. Three independent services sharing only PostgreSQL + Redis.
 - Collector runs independently — zero imports from `app/`. Separate Docker container.
 - Frontend standalone build with embedded SSL certificates for offline deployment.
 - `mock-fortigate/` is a standalone Flask app for FortiGate API testing (not production).

@@ -48,7 +48,6 @@ class CollectionScheduler:
         # SECUDIUM: 수동 수집만 지원 (자동 스케줄 없음)
         self.collectors = {
             "REGTECH": "_collect_regtech_data",
-            "SECUDIUM": "_collect_secudium_data",
         }
 
         self._active_collections: set[str] = set()
@@ -628,15 +627,12 @@ class CollectionScheduler:
             if source == "REGTECH":
                 result = self._collect_regtech_data(username, password, max_pages=50)
             elif source == "SECUDIUM":
-                config = credentials.get("config", {})
-                otp_config = CollectorConfig.get_secudium_otp_config()
-                result = self._collect_secudium_data(
-                    username,
-                    password,
-                    email_address=config.get("email", "") or otp_config["email"],
-                    email_password=config.get("email_password", "") or otp_config["email_password"],
-                    imap_server=config.get("imap_server", "") or otp_config["imap_server"],
-                )
+                return {
+                    "success": False,
+                    "otp_required": True,
+                    "error": "SECUDIUM 수집은 OTP 인증이 필요합니다. 수집 관리 페이지에서 연결 테스트 후 수집하세요.",
+                    "collected_count": 0,
+                }
             else:
                 return {
                     "success": False,

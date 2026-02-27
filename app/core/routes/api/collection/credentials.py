@@ -121,13 +121,6 @@ def manage_credentials(source: str):
                 else None,
             }
 
-            # Include Secudium OTP config fields
-            if source_upper == "SECUDIUM":
-                config = credentials.get("config", {})
-                response_data["otp_mode"] = config.get("otp_mode", "auto")
-                response_data["email"] = config.get("email", "")
-                response_data["imap_server"] = config.get("imap_server", "imap.kakao.com")
-
             return jsonify(
                 {
                     "success": True,
@@ -161,15 +154,7 @@ def manage_credentials(source: str):
             # Convert interval to seconds
             interval_seconds = interval_string_to_seconds(collection_interval)
 
-            # Build config for Secudium OTP settings
             config = {}
-            if source_upper == "SECUDIUM":
-                config = {
-                    "otp_mode": data.get("otp_mode", "auto"),
-                    "email": data.get("email", ""),
-                    "email_password": data.get("email_password", ""),
-                    "imap_server": data.get("imap_server", "imap.kakao.com"),
-                }
 
             # Determine if we have a new password provided
             has_new_password = password and password != "***masked***"
@@ -253,7 +238,11 @@ def submit_secudium_otp():
     result = call_collector_api(
         "/api/test-auth/secudium/otp",
         method="POST",
-        data={"otp_code": otp_code, "session_id": session_id},
+        data={
+            "otp_code": otp_code,
+            "session_id": session_id,
+            "trigger_collect": data.get("trigger_collect", False),
+        },
     )
 
     if result.get("success"):

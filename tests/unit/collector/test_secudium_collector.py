@@ -12,20 +12,19 @@ def _make_mock_config():
     config = MagicMock()
     config.SECUDIUM_BASE_URL = "https://secudium.test.local"
     config.get_secudium_credentials.return_value = ("testuser", "testpass")
+    config.get_secudium_otp_config.return_value = {
+        "email": "test@example.com",
+        "email_password": "emailpass",
+        "imap_server": "imap.test.local",
+        "otp_mode": "manual",
+    }
     config.REQUEST_TIMEOUT = 30
     config.BATCH_SIZE = 100
     return config
 
 
 @pytest.fixture
-def mock_env(monkeypatch):
-    monkeypatch.setenv("SECUDIUM_EMAIL", "test@example.com")
-    monkeypatch.setenv("SECUDIUM_EMAIL_PASSWORD", "emailpass")
-    monkeypatch.setenv("SECUDIUM_IMAP_SERVER", "imap.test.local")
-
-
-@pytest.fixture
-def collector(mock_env):
+def collector():
     with patch(f"{COLLECTOR_MODULE}.CollectorConfig", _make_mock_config()):
         from core.secudium_collector import SecudiumCollector, auth_rate_limiter
 

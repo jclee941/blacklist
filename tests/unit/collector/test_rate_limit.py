@@ -14,20 +14,15 @@ COLLECTOR_MODULE = "core.secudium_collector"
 
 
 @pytest.fixture
-def mock_env(monkeypatch):
-    monkeypatch.setenv("SECUDIUM_BASE_URL", "https://test.secudium.com")
-    monkeypatch.setenv("SECUDIUM_EMAIL_ADDRESS", "test@example.com")
-    monkeypatch.setenv("SECUDIUM_EMAIL_PASSWORD", "emailpass")
-    monkeypatch.setenv("SECUDIUM_IMAP_SERVER", "imap.test.com")
-
-
-@pytest.fixture
-def collector(mock_env):
+def collector():
     with patch(f"{COLLECTOR_MODULE}.CollectorConfig") as mock_config:
         mock_config.SECUDIUM_BASE_URL = "https://test.secudium.com"
-        mock_config.SECUDIUM_EMAIL_ADDRESS = "test@example.com"
-        mock_config.SECUDIUM_EMAIL_PASSWORD = "emailpass"
-        mock_config.SECUDIUM_IMAP_SERVER = "imap.test.com"
+        mock_config.get_secudium_otp_config.return_value = {
+            "email": "test@example.com",
+            "email_password": "emailpass",
+            "imap_server": "imap.test.com",
+            "otp_mode": "manual",
+        }
 
         from core.secudium_collector import SecudiumCollector
 

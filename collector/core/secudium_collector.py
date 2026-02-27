@@ -1,14 +1,14 @@
 """
 Secudium (ISAP) Black IP Collector
 
-Authenticates to secudium.skinfosec.co.kr using ID/PW + OTP (via IMAP email),
+Authenticates to secudium.skinfosec.co.kr using ID/PW + OTP (manual user input),
 collects Black IP lists, downloads XLS attachments, and inserts into the database.
 
-Auth flow:
-1. POST /isap-api/loginProcess (is_otp=N) → check if OTP required
-2. If OTP required: read OTP from email via OTPEmailReader
-3. POST /isap-api/loginProcess (is_otp=Y, otp_value=XXXXXX) → get X-Auth-Token
-4. GET /isap-api/secinfo/list/black_ip → DHTMLX grid JSON
+Auth flow (manual OTP):
+1. authenticate_step1(): POST /isap-api/loginProcess (is_otp=N) → check if OTP required
+2. User enters OTP from KakaoTalk
+3. authenticate_step2(): POST /isap-api/loginProcess (is_otp=Y, otp_value=XXXXXX) → get X-Auth-Token
+4. collect_data(): GET /isap-api/secinfo/list/black_ip → DHTMLX grid JSON
 5. GET /isap-api/file/SECINFO/download → XLS binary
 
 Token format: X-Auth-Token={userId}:{timestamp}:{sha256hash}
@@ -36,7 +36,6 @@ from core.secudium_parsers import (
     parse_xls_file,
 )
 from core.rate_limiter import auth_rate_limiter
-from utils.otp_email_reader import OTPEmailReader
 
 logger = structlog.get_logger(__name__)
 
@@ -65,12 +64,6 @@ class SecudiumCollector:
         self._user_info: dict = {}
         self._pending_username: Optional[str] = None
         self._pending_password: Optional[str] = None
-
-        # OTP email reader config (DB-only)
-        otp_config = CollectorConfig.get_secudium_otp_config()
-        self._otp_email = otp_config["email"]
-        self._otp_email_password = otp_config["email_password"]
-        self._otp_imap_server = otp_config["imap_server"]
 
         # Rate limiting
         self._request_delay = 1.0  # seconds between requests
@@ -130,90 +123,18 @@ class SecudiumCollector:
 
     # ─── Authentication ───────────────────────────────────────────
 
-    def authenticate(
-        self,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        email_address: Optional[str] = None,
-        email_password: Optional[str] = None,
-        imap_server: Optional[str] = None,
-    ) -> bool:
+    def authenticate(self) -> bool:
         """
-        Authenticate to Secudium ISAP portal.
+        Check if a valid cached token exists.
 
-        Flow:
-        1. Try login without OTP (is_otp=N)
-        2. If OTP required, read OTP from email via IMAP
-        3. Re-login with OTP (is_otp=Y, otp_value=XXXXXX)
-        4. Verify token via /myinfo
-
-        Args:
-            username: Override CollectorConfig credentials (for test-auth)
-            password: Override CollectorConfig credentials (for test-auth)
-            email_address: Override IMAP email for OTP reading
-            email_password: Override IMAP email password
-            imap_server: Override IMAP server hostname
-
-        Returns True if authentication successful.
+        Returns True if a cached token is still valid (set by prior step1+step2 flow).
+        Returns False if no valid token — caller must handle (e.g. prompt user for OTP).
         """
         if self._is_token_valid():
             logger.info("secudium_using_cached_token")
             return True
 
-        if not auth_rate_limiter.wait_if_needed():
-            logger.error("secudium_auth_rate_limited")
-            return False
-
-        self._auth_attempts += 1
-
-        # Use provided credentials or fall back to env config
-        if username and password:
-            secudium_id, secudium_pw = username, password
-        else:
-            secudium_id, secudium_pw = CollectorConfig.get_secudium_credentials()
-
-        if not secudium_id or not secudium_pw:
-            logger.error("secudium_credentials_missing")
-            return False
-
-        # Override OTP email settings if provided
-        otp_email = email_address or self._otp_email
-        otp_email_pw = email_password or self._otp_email_password
-        otp_imap = imap_server or self._otp_imap_server
-
-        self.session.cookies.clear()
-
-        # Step 1: Login without OTP
-        logger.info("secudium_login_attempt", attempt=self._auth_attempts, with_otp=False)
-        login_result = self._login(secudium_id, secudium_pw, is_otp=False, otp_value="")
-
-        if login_result == "success":
-            logger.info("secudium_login_success_no_otp")
-            self._auth_attempts = 0
-            return True
-
-        if login_result == "otp_required":
-            # Step 2: Read OTP from email (using overridden or default settings)
-            logger.info("secudium_otp_required", email=otp_email)
-            otp_code = self._read_otp_from_email(
-                email_address=otp_email,
-                email_password=otp_email_pw,
-                imap_server=otp_imap,
-            )
-            if not otp_code:
-                logger.error("secudium_otp_read_failed")
-                return False
-
-            # Step 3: Re-login with OTP
-            logger.info("secudium_login_attempt", attempt=self._auth_attempts, with_otp=True)
-            login_result = self._login(secudium_id, secudium_pw, is_otp=True, otp_value=otp_code)
-
-            if login_result == "success":
-                logger.info("secudium_login_success_with_otp")
-                self._auth_attempts = 0
-                return True
-
-        logger.error("secudium_login_failed", result=login_result)
+        logger.info("secudium_no_valid_token")
         return False
 
     def authenticate_step1(self, username: str, password: str) -> str:
@@ -462,37 +383,6 @@ class SecudiumCollector:
             self._token = SecudiumCollector._cached_token
             self._set_token_cookie()
             return True
-
-    def _read_otp_from_email(
-        self,
-        email_address: Optional[str] = None,
-        email_password: Optional[str] = None,
-        imap_server: Optional[str] = None,
-    ) -> Optional[str]:
-        """Read OTP code from email using OTPEmailReader."""
-        email = email_address or self._otp_email
-        email_pw = email_password or self._otp_email_password
-        imap_srv = imap_server or self._otp_imap_server
-
-        if not email or not email_pw:
-            logger.error("secudium_otp_email_credentials_missing")
-            return None
-
-        try:
-            reader = OTPEmailReader(
-                email_address=email,
-                email_password=email_pw,
-                imap_server=imap_srv,
-            )
-            otp_code = reader.get_latest_otp(max_wait_seconds=60)
-            if otp_code:
-                logger.info("secudium_otp_received", otp_length=len(otp_code))
-            else:
-                logger.warning("secudium_otp_timeout")
-            return otp_code
-        except Exception as e:
-            logger.error("secudium_otp_reader_error", error=str(e))
-            return None
 
     # ─── Data Collection ──────────────────────────────────────────
 

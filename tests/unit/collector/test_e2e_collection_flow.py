@@ -12,20 +12,15 @@ COLLECTOR_MODULE = "core.secudium_collector"
 
 
 @pytest.fixture
-def mock_env(monkeypatch):
-    monkeypatch.setenv("SECUDIUM_BASE_URL", "https://test.secudium.com")
-    monkeypatch.setenv("SECUDIUM_EMAIL_ADDRESS", "test@example.com")
-    monkeypatch.setenv("SECUDIUM_EMAIL_PASSWORD", "emailpass")
-    monkeypatch.setenv("SECUDIUM_IMAP_SERVER", "imap.test.com")
-
-
-@pytest.fixture
-def collector(mock_env):
+def collector():
     with patch(f"{COLLECTOR_MODULE}.CollectorConfig") as mock_config:
         mock_config.SECUDIUM_BASE_URL = "https://test.secudium.com"
-        mock_config.SECUDIUM_EMAIL_ADDRESS = "test@example.com"
-        mock_config.SECUDIUM_EMAIL_PASSWORD = "emailpass"
-        mock_config.SECUDIUM_IMAP_SERVER = "imap.test.com"
+        mock_config.get_secudium_otp_config.return_value = {
+            "email": "test@example.com",
+            "email_password": "emailpass",
+            "imap_server": "imap.test.com",
+            "otp_mode": "manual",
+        }
 
         from core.secudium_collector import SecudiumCollector
 
@@ -172,13 +167,16 @@ class TestCollectDataE2E:
             start_date = args[0][0] if args[0] else args[1].get("start_date")
             assert start_date is not None
 
-    def test_insert_skipped_when_no_db(self, mock_env):
+    def test_insert_skipped_when_no_db(self):
         """If db_service is None, _insert_ips is not called."""
         with patch(f"{COLLECTOR_MODULE}.CollectorConfig") as mock_config:
             mock_config.SECUDIUM_BASE_URL = "https://test.secudium.com"
-            mock_config.SECUDIUM_EMAIL_ADDRESS = "test@example.com"
-            mock_config.SECUDIUM_EMAIL_PASSWORD = "emailpass"
-            mock_config.SECUDIUM_IMAP_SERVER = "imap.test.com"
+            mock_config.get_secudium_otp_config.return_value = {
+                "email": "test@example.com",
+                "email_password": "emailpass",
+                "imap_server": "imap.test.com",
+                "otp_mode": "manual",
+            }
 
             from core.secudium_collector import SecudiumCollector
 

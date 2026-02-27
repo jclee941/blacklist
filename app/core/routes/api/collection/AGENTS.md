@@ -1,8 +1,8 @@
 # COLLECTION API KNOWLEDGE BASE
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** d7bb4be
-**Branch:** master | **Version:** 3.6.7
+**Commit:** cd16ec1
+**Branch:** master | **Version:** 3.6.8
 
 ## OVERVIEW
 

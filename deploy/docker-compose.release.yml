@@ -28,8 +28,6 @@ services:
       file: base.yml
       service: blacklist-frontend
     image: blacklist-frontend:latest
-    volumes:
-      - ./ssl:/app/ssl:ro
 
 volumes:
   blacklist-pgdata:

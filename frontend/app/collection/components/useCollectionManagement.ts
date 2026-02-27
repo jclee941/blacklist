@@ -16,7 +16,6 @@ import type {
   BlacklistStats,
   CredentialFormState,
   NotificationState,
-  SecudiumCredentialFormState,
 } from './types';
 
 const COLLECTORS = ['REGTECH', 'SECUDIUM'];
@@ -27,17 +26,6 @@ const INITIAL_FORM_STATE: CredentialFormState = {
   password: '',
   enabled: true,
   collection_interval: 'daily',
-};
-
-const SECUDIUM_INITIAL_FORM_STATE: SecudiumCredentialFormState = {
-  username: '',
-  password: '',
-  enabled: true,
-  collection_interval: 'daily',
-  otp_mode: 'manual',
-  email: '',
-  email_password: '',
-  imap_server: 'imap.kakao.com',
 };
 
 export function useCollectionManagement() {
@@ -51,9 +39,7 @@ export function useCollectionManagement() {
   const [showCredentialModal, setShowCredentialModal] = useState(false);
   const [editingService, setEditingService] = useState<string | null>(null);
   const [notification, setNotification] = useState<NotificationState | null>(null);
-  const [credentialForm, setCredentialForm] = useState<
-    CredentialFormState | SecudiumCredentialFormState
-  >(INITIAL_FORM_STATE);
+  const [credentialForm, setCredentialForm] = useState<CredentialFormState>(INITIAL_FORM_STATE);
 
   const [saving, setSaving] = useState(false);
 
@@ -75,9 +61,6 @@ export function useCollectionManagement() {
               last_collection: data.data.last_collection,
               connection_status: data.data.connection_status ?? ('unknown' as const),
               status_message: data.data.status_message,
-              otp_mode: data.data.otp_mode,
-              email: data.data.email,
-              imap_server: data.data.imap_server,
             };
           }
         } catch {
@@ -225,33 +208,27 @@ export function useCollectionManagement() {
     async (serviceName: string) => {
       setTriggeringCollection((prev) => ({ ...prev, [serviceName]: true }));
       try {
-        // SECUDIUM manual OTP: check if OTP is needed before triggering collection
-        // Only test auth for manual OTP mode — auto mode is handled by the collector
+        // SECUDIUM: test auth first — OTP may be required
         if (serviceName === 'SECUDIUM') {
-          const cred = credentials.find((c) => c.service_name === serviceName);
-          const otpMode = cred?.otp_mode || 'auto';
+          const authData = await testCredential(serviceName.toLowerCase());
+          const authInnerData = authData?.data;
 
-          if (otpMode === 'manual') {
-            const authData = await testCredential(serviceName.toLowerCase());
-            const authInnerData = authData?.data;
+          if (authInnerData?.status === 'otp_required') {
+            setOtpServiceName(serviceName);
+            setShowOtpDialog(true);
+            setNotification({
+              type: 'success',
+              message: `${serviceName}: OTP 인증이 필요합니다. 인증 후 수집이 시작됩니다.`,
+            });
+            return;
+          }
 
-            if (authInnerData?.status === 'otp_required') {
-              setOtpServiceName(serviceName);
-              setShowOtpDialog(true);
-              setNotification({
-                type: 'success',
-                message: `${serviceName}: OTP 인증이 필요합니다. 인증 후 수집이 시작됩니다.`,
-              });
-              return;
-            }
-
-            if (!authData.success || authInnerData?.status === 'failed') {
-              setNotification({
-                type: 'error',
-                message: `${serviceName} 인증 실패: ${authInnerData?.message || authInnerData?.error_code || '알 수 없는 오류'}`,
-              });
-              return;
-            }
+          if (!authData.success || authInnerData?.status === 'failed') {
+            setNotification({
+              type: 'error',
+              message: `${serviceName} 인증 실패: ${authInnerData?.message || authInnerData?.error_code || '알 수 없는 오류'}`,
+            });
+            return;
           }
         }
 
@@ -283,24 +260,12 @@ export function useCollectionManagement() {
       const cred = credentials.find((c) => c.service_name === serviceName);
       setEditingService(serviceName);
 
-      if (serviceName === 'SECUDIUM') {
-        setCredentialForm({
-          ...SECUDIUM_INITIAL_FORM_STATE,
-          username: cred?.username || '',
-          enabled: cred?.enabled ?? true,
-          collection_interval: cred?.collection_interval || 'daily',
-          otp_mode: cred?.otp_mode || 'auto',
-          email: cred?.email || '',
-          imap_server: cred?.imap_server || 'imap.kakao.com',
-        } as SecudiumCredentialFormState);
-      } else {
-        setCredentialForm({
-          ...INITIAL_FORM_STATE,
-          username: cred?.username || '',
-          enabled: cred?.enabled ?? true,
-          collection_interval: cred?.collection_interval || 'daily',
-        });
-      }
+      setCredentialForm({
+        ...INITIAL_FORM_STATE,
+        username: cred?.username || '',
+        enabled: cred?.enabled ?? true,
+        collection_interval: cred?.collection_interval || 'daily',
+      });
 
       setShowCredentialModal(true);
     },
@@ -325,20 +290,6 @@ export function useCollectionManagement() {
     if (!existingCred?.username && !credentialForm.password.trim()) {
       setNotification({ type: 'error', message: '비밀번호를 입력하세요.' });
       return;
-    }
-
-    if (editingService === 'SECUDIUM') {
-      const form = credentialForm as SecudiumCredentialFormState;
-      if (form.otp_mode === 'auto') {
-        if (!form.email?.trim()) {
-          setNotification({ type: 'error', message: '이메일을 입력하세요.' });
-          return;
-        }
-        if (!form.email_password?.trim()) {
-          setNotification({ type: 'error', message: '이메일 비밀번호를 입력하세요.' });
-          return;
-        }
-      }
     }
 
     setSaving(true);

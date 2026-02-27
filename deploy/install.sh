@@ -208,29 +208,6 @@ load_images() {
     log_success "All images loaded"
 }
 
-setup_ssl() {
-    log_step "Setup SSL Certificates"
-
-    local ssl_dir="${SCRIPT_DIR}/ssl"
-    mkdir -p "${ssl_dir}"
-
-    if [ -f "${ssl_dir}/server.crt" ] && [ -f "${ssl_dir}/server.key" ]; then
-        log_info "SSL certificates already exist"
-        return 0
-    fi
-
-    log_info "Generating self-signed certificate..."
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout "${ssl_dir}/server.key" \
-        -out "${ssl_dir}/server.crt" \
-        -subj "/CN=blacklist/O=Blacklist/C=KR" \
-        2>/dev/null
-
-    chmod 600 "${ssl_dir}/server.key"
-    chmod 644 "${ssl_dir}/server.crt"
-    log_success "SSL certificates created"
-}
-
 setup_secrets() {
     log_step "Setup Environment Secrets"
 
@@ -362,19 +339,16 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
-    echo "  --skip-ssl     Skip SSL certificate generation"
     echo "  --help, -h     Show this help"
     echo ""
 }
 
 main() {
     local skip_load=false
-    local skip_ssl=false
 
     for arg in "$@"; do
         case $arg in
             --skip-load) skip_load=true ;;
-            --skip-ssl) skip_ssl=true ;;
             --help|-h) show_help; exit 0 ;;
             *) log_warning "Unknown option: $arg" ;;
         esac
@@ -393,12 +367,6 @@ main() {
         load_images
     else
         log_info "Skipping image load (--skip-load)"
-    fi
-
-    if [ "$skip_ssl" = false ]; then
-        setup_ssl
-    else
-        log_info "Skipping SSL setup (--skip-ssl)"
     fi
 
     setup_secrets

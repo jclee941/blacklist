@@ -1,8 +1,8 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** d7bb4be
-**Branch:** master | **Version:** 3.6.7
+**Commit:** cd16ec1
+**Branch:** master | **Version:** 3.6.8
 
 ## OVERVIEW
 
@@ -13,7 +13,7 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 | File                     | LOC  | Role                                   |
 | ------------------------ | ---- | -------------------------------------- |
 | `fortigate_collector.py` | 680  | FortiGate device collection (hotspot)  |
-| `secudium_collector.py`  | 676  | Secudium platform + OTP auth (hotspot) |
+| `secudium_collector.py`  | 781  | Secudium platform + OTP auth (hotspot) |
 | `database.py`            | 664  | maxconn=20, IP cache eviction          |
 | `authentication.py`      | ~100 | Fernet credential decryption           |
 | `data_normalizer.py`     | ~80  | IP/domain normalization                |
@@ -33,7 +33,7 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 ## NOTES
 
 - Recent updates include token lifecycle hardening and major type-check cleanup.
-- Hotspots: `fortigate_collector.py` and `secudium_collector.py` (~680L each).
+- Hotspots: `fortigate_collector.py` and `secudium_collector.py` (~680-780L each).
 
 
 ## CODE MAP
@@ -41,7 +41,7 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
 | `FortiGateCollector` | class | `fortigate_collector.py` | high | FortiGate device collection (680L hotspot) |
-| `SecudiumCollector` | class | `secudium_collector.py` | high | Secudium platform + OTP auth (676L hotspot) |
+| `SecudiumCollector` | class | `secudium_collector.py` | high | Secudium platform + OTP auth (781L hotspot) |
 | `MultiSourceCollector` | class | `multi_source/collector.py:15` | high | async feed aggregation + dedup |
 | `RegtechCollector` | class | `regtech/collector.py:36` | high | REGTECH ETL pipeline |
 | `validate_ip` | function | `validators.py:17` | med | IP/CIDR validation + normalization |

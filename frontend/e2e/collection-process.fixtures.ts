@@ -129,7 +129,6 @@ export function mockCollectionApis(page: Page) {
               collection_interval: 'daily',
               connection_status: 'connected',
               status_message: '연결됨',
-              otp_mode: 'manual',
             },
           }),
         });

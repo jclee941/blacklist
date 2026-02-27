@@ -42,6 +42,21 @@ def trigger_collection(source: str):
 
     # Check if API call failed
     if result.get("success") is False:
+        # SECUDIUM requires OTP — return otp_required so frontend can show OTP dialog
+        if result.get("otp_required"):
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {
+                        "status": "otp_required",
+                        "message": result.get("error", "OTP 인증이 필요합니다"),
+                        "otp_required": True,
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "request_id": g.request_id,
+                }
+            )
+
         error_msg = result.get("error", "Unknown error")
         if "Cannot connect" in error_msg:
             raise ServiceUnavailableError(

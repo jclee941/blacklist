@@ -193,32 +193,6 @@ class CollectorConfig:
         return (username, password)
 
     @classmethod
-    def get_secudium_otp_config(cls) -> Dict[str, str]:
-        """
-        SECUDIUM OTP 설정 반환 (DB-only)
-
-        Returns:
-            Dict with keys: email, email_password, imap_server, otp_mode
-            Values may be empty if not configured in DB.
-        """
-        cls._load_credentials_from_db()
-        creds = cls._credentials_cache.get("SECUDIUM", {})
-        config = creds.get("config", {})
-
-        email = config.get("email", "")
-        if not email:
-            logger.warning(
-                "secudium_otp_not_configured: OTP email not found in database. Configure via API: POST /api/credentials"
-            )
-
-        return {
-            "email": email,
-            "email_password": config.get("email_password", ""),
-            "imap_server": config.get("imap_server", "imap.kakao.com"),
-            "otp_mode": config.get("otp_mode", "manual"),
-        }
-
-    @classmethod
     def clear_credentials_cache(cls) -> None:
         """Scrub decrypted credentials from memory."""
         for source in list(cls._credentials_cache.keys()):

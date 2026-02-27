@@ -1,8 +1,8 @@
 # COLLECTOR KNOWLEDGE BASE
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** d7bb4be
-**Branch:** master | **Version:** 3.6.7
+**Commit:** cd16ec1
+**Branch:** master | **Version:** 3.6.8
 
 ## OVERVIEW
 
@@ -22,7 +22,7 @@ collector/
 │   ├── regtech/             # REGTECH auth + collection
 │   ├── multi_source/        # async feed aggregation
 │   ├── fortigate_collector.py  # FortiGate device collection (680L)
-│   ├── secudium_collector.py   # Secudium platform + OTP auth (676L)
+│   ├── secudium_collector.py   # Secudium platform + OTP auth (781L)
 │   └── database.py          # collector DB layer (664L)
 ├── api/                     # collector API endpoints
 └── utils/

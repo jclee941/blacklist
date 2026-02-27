@@ -41,11 +41,7 @@ export default function OtpInputDialog({
     <Modal isOpen={show} onClose={onClose} title="OTP 인증" size="sm">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="text-center space-y-2">
-          <p className="text-gray-300">
-            {serviceName} 연결을 위해 카카오톡으로 전송된
-            <br />
-            OTP 번호 6자리를 입력하세요.
-          </p>
+          <p className="text-gray-300">OTP를 입력해주세요.</p>
         </div>
 
         <div className="flex justify-center">
