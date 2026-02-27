@@ -1,8 +1,8 @@
 # BLACKLIST API KNOWLEDGE BASE
 
-**Generated:** 2026-02-26 00:00 Asia/Seoul
-**Commit:** 803209d
-**Branch:** master | **Version:** 3.6.4
+**Generated:** 2026-02-27 00:00 Asia/Seoul
+**Commit:** d7bb4be
+**Branch:** master | **Version:** 3.6.7
 
 ## OVERVIEW
 
@@ -27,7 +27,6 @@ Core blacklist API package. 5 blueprints registered via `__init__.py`.
 ## KNOWN ISSUES
 
 - Legacy 404/500 handlers in `__init__.py` (should use global handlers).
-- `system.py` has hardcoded port numbers in mock status — should use config values.
 
 
 ## CODE MAP
