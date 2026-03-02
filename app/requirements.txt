@@ -28,7 +28,7 @@ Flask-WTF==1.2.2            # CSRF protection
 Flask-Limiter==4.1.1        # Rate limiting / DOS protection
 
 # API & JSON Processing
-marshmallow==3.26.2
+marshmallow==4.2.2
 jsonschema==4.26.0
 
 # Utilities
