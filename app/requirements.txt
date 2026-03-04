@@ -7,7 +7,7 @@ MarkupSafe==3.0.3
 
 # Database & Connection Pooling
 psycopg2-binary==2.9.11
-redis==7.2.0
+redis==7.2.1
 
 # Data Processing & Analysis
 pandas>=2.2.0  # Python 3.13 compatible
