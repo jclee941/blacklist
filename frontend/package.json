@@ -62,7 +62,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^4.0.16",
-    "eslint": "^10.0.2",
+    "eslint": "^9.39.3",
     "eslint-config-next": "^15.5.9",
     "eslint-plugin-react-hooks": "^5.0.0",
     "@commitlint/cli": "^20.4.2",
