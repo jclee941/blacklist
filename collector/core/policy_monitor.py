@@ -10,11 +10,19 @@ import logging
 import hashlib
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional, cast
 import requests
 from bs4 import BeautifulSoup  # type: ignore[import-untyped]
 import psycopg2  # type: ignore[import-untyped]
 from psycopg2.extras import RealDictCursor  # type: ignore[import-untyped]
+
+from .policy_monitor_support import (
+    ALERTS_TABLE_SQL,
+    MONITORING_TABLE_SQL,
+    STRUCTURE_KEYS,
+    create_availability_error,
+    create_monitoring_error,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -27,11 +35,11 @@ class REGTECHPolicyMonitor:
         self.config = config
         self.base_url = config.get("regtech_base_url", "https://regtech.fsec.or.kr")
         self.session = requests.Session()
-        self.session.timeout = 30
+        setattr(self.session, "timeout", 30)
 
         # 모니터링 상태 저장소
-        self.last_check_time = None
-        self.baseline_structure = None
+        self.last_check_time: Optional[datetime] = None
+        self.baseline_structure: Optional[Dict[str, Any]] = None
         self.baseline_headers = None
         self.data_availability_history = []
 
@@ -184,7 +192,7 @@ class REGTECHPolicyMonitor:
                 availability_info["error_messages"].append("No data available message found")
             elif response.text and "오류" in response.text:
                 availability_info["status"] = "error"
-                error_text = soup.find(text=lambda text: text and "오류" in text)
+                error_text = soup.find(string=lambda text: bool(text and "오류" in text))
                 if error_text:
                     availability_info["error_messages"].append(str(error_text).strip())
             else:
@@ -203,13 +211,9 @@ class REGTECHPolicyMonitor:
 
         except Exception as e:
             logger.error(f"데이터 가용성 확인 중 오류: {e}")
-            return {
-                "timestamp": datetime.now().isoformat(),
-                "status": "error",
-                "error_messages": [str(e)],
-            }
+            return create_availability_error(str(e))
 
-    def _compare_structures(self, current: Dict, baseline: Dict) -> Dict[str, Any]:
+    def _compare_structures(self, current: Dict[str, Any], baseline: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """구조 변경 사항 비교"""
         if not baseline:
             return {"change_detected": False, "message": "No baseline to compare"}
@@ -222,19 +226,10 @@ class REGTECHPolicyMonitor:
         }
 
         # 구조 요소 변경 확인
-        structure_keys = [
-            "forms",
-            "tables",
-            "inputs",
-            "selects",
-            "buttons",
-            "scripts",
-            "css_links",
-        ]
         changed_elements = 0
-        total_elements = len(structure_keys)
+        total_elements = len(STRUCTURE_KEYS)
 
-        for key in structure_keys:
+        for key in STRUCTURE_KEYS:
             if current.get(key, 0) != baseline.get(key, 0):
                 changed_elements += 1
                 changes["changes"].append(f"{key}: {baseline.get(key, 0)} → {current.get(key, 0)}")
@@ -275,25 +270,19 @@ class REGTECHPolicyMonitor:
 
         return changes
 
-    def _store_monitoring_data(self, structure_data: Dict, availability_data: Dict, change_analysis: Dict):
+    def _store_monitoring_data(
+        self,
+        structure_data: Dict[str, Any],
+        availability_data: Dict[str, Any],
+        change_analysis: Dict[str, Any],
+    ):
         """모니터링 데이터 저장"""
         try:
             conn = self._get_db_connection()
             cursor = conn.cursor()
 
             # 모니터링 테이블이 없으면 생성
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS regtech_monitoring (
-                    id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    structure_data JSONB,
-                    availability_data JSONB,
-                    change_analysis JSONB,
-                    alert_sent BOOLEAN DEFAULT FALSE
-                )
-            """
-            )
+            cursor.execute(MONITORING_TABLE_SQL)
 
             # 데이터 삽입
             cursor.execute(
@@ -325,18 +314,7 @@ class REGTECHPolicyMonitor:
             conn = self._get_db_connection()
             cursor = conn.cursor()
 
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS regtech_alerts (
-                    id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    alert_type VARCHAR(50),
-                    message TEXT,
-                    details JSONB,
-                    resolved BOOLEAN DEFAULT FALSE
-                )
-            """
-            )
+            cursor.execute(ALERTS_TABLE_SQL)
 
             cursor.execute(
                 """
@@ -375,7 +353,7 @@ class REGTECHPolicyMonitor:
                 (self.consecutive_no_data_threshold,),
             )
 
-            results = cursor.fetchall()
+            results = cast(list[Dict[str, Any]], cursor.fetchall())
             cursor.close()
             conn.close()
 
@@ -396,11 +374,7 @@ class REGTECHPolicyMonitor:
         try:
             # 인증
             if not self._authenticate_regtech():
-                return {
-                    "success": False,
-                    "error": "Authentication failed",
-                    "timestamp": datetime.now().isoformat(),
-                }
+                return create_monitoring_error("Authentication failed")
 
             # 현재 포털 구조 분석
             current_structure = self._get_portal_structure_fingerprint()
@@ -462,11 +436,7 @@ class REGTECHPolicyMonitor:
 
         except Exception as e:
             logger.error(f"모니터링 검사 중 오류: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-            }
+            return create_monitoring_error(str(e))
 
     def get_monitoring_summary(self, days: int = 7) -> Dict[str, Any]:
         """모니터링 요약 정보"""
@@ -489,7 +459,8 @@ class REGTECHPolicyMonitor:
                 (days,),
             )
 
-            summary = dict(cursor.fetchone())
+            summary_row = cursor.fetchone()
+            summary = dict(cast(Dict[str, Any], summary_row or {}))
 
             # 최근 알림 조회
             cursor.execute(
@@ -502,7 +473,8 @@ class REGTECHPolicyMonitor:
                 (days,),
             )
 
-            alerts_summary = {row["alert_type"]: row["count"] for row in cursor.fetchall()}
+            alert_rows = cast(list[Dict[str, Any]], cursor.fetchall())
+            alerts_summary = {row["alert_type"]: row["count"] for row in alert_rows}
 
             cursor.close()
             conn.close()
