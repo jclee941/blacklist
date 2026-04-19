@@ -28,7 +28,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN set -e && \
     echo "🔍 Installing system dependencies..." && \
     for i in 1 2 3; do \
-        apt-get update && apt-get install -y \
+        apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
             gcc \
             g++ \
             libpq-dev \
@@ -143,7 +143,7 @@ COPY --from=python-base /usr/local/bin /usr/local/bin
 # ============================================================================
 RUN set -e && \
     echo "🔍 Installing runtime dependencies..." && \
-    apt-get update && apt-get install -y \
+    apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         libpq5 \
         curl \
         bash \

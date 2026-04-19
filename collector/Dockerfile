@@ -1,7 +1,7 @@
 # ============================================================================
 # Blacklist Data Collector Service - Container Image
 # ============================================================================
-# Purpose: REGTECH/SECUDIUM automated data collection service
+# Purpose: REGTECH automated data collection service
 # Architecture: Multi-stage build (build deps separated from runtime)
 # Dependencies: PostgreSQL 15, Redis 7, Python 3.11
 # ============================================================================
@@ -11,7 +11,7 @@ FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /build
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         gcc \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -39,7 +39,7 @@ LABEL com.docker.compose.service=collector
 WORKDIR /app
 
 # Runtime-only system deps (no build tools, no Playwright browser libs)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         postgresql-client \
         libpq5 \
         curl \
@@ -55,6 +55,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 COPY collector/core/ /app/core/
 COPY collector/utils/ /app/utils/
 COPY collector/*.py /app/collector/
+COPY collector/scheduler/ /app/collector/scheduler/
 
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \

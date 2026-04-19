@@ -68,7 +68,7 @@ COPY frontend/entrypoint.sh ./entrypoint.sh
 
 # Keep openssl for runtime SSL cert generation (entrypoint.sh)
 # Remove system npm/npx/corepack — unused at runtime, carries known vulns
-RUN apk add --no-cache openssl && \
+RUN apk upgrade --no-cache && apk add --no-cache openssl && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack && \
     rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack && \
     mkdir -p /app/ssl && \
