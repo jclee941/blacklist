@@ -51,13 +51,10 @@ COPY --from=builder /install /usr/local
 # Upgrade pip/setuptools/wheel to patch CVEs from base image
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Copy collector source
-COPY collector/core/ /app/core/
-COPY collector/utils/ /app/utils/
-COPY collector/*.py /app/collector/
-COPY collector/scheduler/ /app/collector/scheduler/
+# Copy entire collector package preserving structure
+COPY collector/ /app/collector/
 
-ENV PYTHONPATH=/app \
+ENV PYTHONPATH=/app:/app/collector \
     PYTHONUNBUFFERED=1 \
     TZ=Asia/Seoul \
     POSTGRES_HOST=blacklist-postgres \
