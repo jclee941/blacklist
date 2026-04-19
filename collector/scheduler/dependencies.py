@@ -1,7 +1,6 @@
 """Shared scheduler dependencies with flexible import strategy."""
 
 import importlib
-import sys
 
 
 def _import_with_fallback(module_path, relative_module, attr):
