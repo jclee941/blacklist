@@ -1,7 +1,8 @@
 """Unit tests for service_factory module"""
 
+import sys
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 
 @pytest.mark.unit
@@ -33,61 +34,52 @@ class TestServiceFactory:
 
         result = get_service_info()
 
-        # Should have 14 services
+        # Should have 15 services (14 original + cloudflare)
         total = result.get("total_services", 0)
         assert total >= 10  # At least 10 services
 
     # --- initialize_services ---
 
-    def test_initialize_services_includes_db_service(self):
+    @patch("psycopg2.connect")
+    def test_initialize_services_includes_db_service(self, mock_connect):
         """initialize_services creates a db_service entry"""
+        mock_connect.return_value = MagicMock()
         mock_app = Mock()
         mock_app.extensions = {}
 
         from app.core.services.service_factory import initialize_services
 
-        try:
-            services = initialize_services(mock_app)
-            # db_service should be the first created
-            assert "db_service" in services
-        except Exception:
-            # DB initialization may fail in test env, that's OK
-            pass
+        services = initialize_services(mock_app)
+        assert "db_service" in services
 
-    def test_initialize_services_returns_dict(self):
+    @patch("psycopg2.connect")
+    def test_initialize_services_returns_dict(self, mock_connect):
         """initialize_services returns a dict"""
+        mock_connect.return_value = MagicMock()
         mock_app = Mock()
         mock_app.extensions = {}
 
         from app.core.services.service_factory import initialize_services
 
-        # Mock all service classes to prevent actual initialization
-        with patch.dict("os.environ", {"SECRET_KEY": "test", "DATABASE_URL": "sqlite://"}):
-            try:
-                services = initialize_services(mock_app)
-                assert isinstance(services, dict)
-            except Exception:
-                # Expected if some services can't initialize without DB
-                pass
+        services = initialize_services(mock_app)
+        assert isinstance(services, dict)
 
-    def test_initialize_services_handles_individual_failures(self):
+    @patch("psycopg2.connect")
+    def test_initialize_services_handles_individual_failures(self, mock_connect):
         """Individual service init failure doesn't crash entire initialization"""
+        mock_connect.return_value = MagicMock()
         mock_app = Mock()
         mock_app.extensions = {}
 
         from app.core.services.service_factory import initialize_services
 
-        # DB will fail, but the function should handle it with try/except
-        try:
-            services = initialize_services(mock_app)
-            # If it returns, should be a dict
-            assert isinstance(services, dict)
-        except Exception:
-            # Some failures are expected in test env
-            pass
+        services = initialize_services(mock_app)
+        assert isinstance(services, dict)
 
-    def test_initialize_services_db_failure_is_handled(self):
+    @patch("psycopg2.connect")
+    def test_initialize_services_db_failure_is_handled(self, mock_connect):
         """DatabaseService failure is handled gracefully"""
+        mock_connect.return_value = MagicMock()
         mock_app = Mock()
         mock_app.extensions = {}
 
@@ -100,8 +92,6 @@ class TestServiceFactory:
         ):
             try:
                 services = initialize_services(mock_app)
-                # If it returns, db_service should be None or missing
                 assert services.get("db_service") is None or "db_service" not in services
             except Exception:
-                # Fatal error expected
                 assert True

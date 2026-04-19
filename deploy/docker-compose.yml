@@ -13,7 +13,7 @@ services:
       file: deploy/base.yml
       service: blacklist-redis
     build:
-      context: ./redis
+      context: deploy/redis
       dockerfile: Dockerfile
     image: blacklist-redis:latest
 
