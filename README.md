@@ -6,17 +6,47 @@
 [![Docker](https://img.shields.io/badge/Docker-5%20Services-blue)](#architecture)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-Threat intelligence platform for collecting, managing, and analyzing IP blacklist data from **REGTECH** (Korean Financial Security Institute) and **Secudium/ISAP** (SK Shielders).
+Threat intelligence platform for collecting, managing, and distributing IP blacklist data from REGTECH (Korean Financial Security Institute).
+
+## Data Flow Diagram
+
+```
+┌─────────────┐
+│   REGTECH   │
+│ (Scheduled) │
+└──────┬──────┘
+       │
+        ┌────────▼────────┐
+        │    Collector     │ :8545
+        │  (Python ETL)   │
+       └────────┬────────┘
+                │
+       ┌────────▼────────┐     ┌──────────┐
+       │   PostgreSQL    │────▶│  Redis   │
+       │   (15 tables)   │     │ (Cache)  │
+       └────────┬────────┘     └──────────┘
+                │
+       ┌────────▼────────┐
+       │    Flask API    │ :2542
+       │  (Threat Feed)  │
+       └───┬─────────┬───┘
+           │         │
+    ┌──────▼───┐ ┌───▼──────────┐
+    │ FortiGate│ │  Cloudflare  │
+    │  (pull)  │ │  (planned)   │
+    └──────────┘ └──────────────┘
+```
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-Source Collection** | Automated ETL from REGTECH and Secudium/ISAP threat feeds |
-| **Real-time Dashboard** | Next.js 15 frontend with live metrics, analytics, and FortiGate logs |
-| **FortiGate Integration** | Direct push to FortiManager address objects and policies |
-| **Offline Deployment** | Self-contained Docker bundles for offline environments |
-| **Secure Credentials** | AES-256-GCM encrypted authentication |
+| **Automated Collection** | Scheduled ETL from REGTECH threat feeds |
+| **Real-time Dashboard** | Next.js 15 frontend with live metrics and analytics |
+| **FortiGate Integration** | Public threat feed API for FortiGate external connector polling |
+| **Cloudflare WAF** | IP list push to Cloudflare WAF rules (planned) |
+| **Offline Deployment** | Self-contained Docker bundles for air-gapped environments |
+| **Secure Credentials** | AES-256-GCM encrypted authentication storage |
 | **992+ Automated Tests** | Backend (pytest), Frontend (vitest), E2E (Playwright) |
 
 ## Architecture
@@ -30,6 +60,19 @@ Threat intelligence platform for collecting, managing, and analyzing IP blacklis
 | `blacklist-redis` | Redis 7 Alpine | 6379 | `blacklist-redis-data` |
 
 All services use `network_mode: host` and Docker named volumes for persistent storage.
+
+## Integrations
+
+### FortiGate (Active)
+FortiGate devices poll the server's public threat feed endpoints to retrieve blocked IPs. No authentication required, compatible with FortiGate 7.2+ External Connector.
+
+| Endpoint | Format | Description |
+|----------|--------|-------------|
+| `GET /api/fortinet/threat-feed` | JSON / Text | IP blocklist with snapshot/add/remove commands |
+| `GET /api/fortinet/json-connector` | JSON | IPs with metadata (risk level, country, confidence) |
+
+### Cloudflare WAF (Planned)
+Server-side push to Cloudflare Lists API for edge-level IP blocking. Enterprise plan (500K IP limit).
 
 ## Quick Start
 
@@ -56,16 +99,16 @@ tar -xzf blacklist-*.tar.gz && ./install.sh
 blacklist/
 ├── app/                    # Flask API (Manual DI, Raw SQL)        :2542
 │   ├── core/services/      # 14 services (ServiceFactory DI)
-│   ├── core/routes/        # REST API + Web admin (Korean UI)
+│   ├── core/routes/        # REST API + Web admin
 │   └── core/auth/          # JWT authentication
 ├── collector/              # ETL Service (independent)             :8545
-│   └── core/               # REGTECH + Secudium collectors
+│   └── core/               # REGTECH collectors
 ├── frontend/               # Next.js 15 Dashboard                  :443
 │   ├── app/                # App Router pages
 │   ├── lib/api.ts          # Centralized API client
 │   └── e2e/                # Playwright E2E tests
 ├── deploy/
-│   ├── docker-compose.yml  # Development compose (named volumes)
+│   ├── docker-compose.yml  # Development compose
 │   └── base.yml            # Shared service definitions
 ├── postgres/migrations/    # Raw SQL migrations (no ORM)
 └── tests/                  # Backend tests (pytest)
@@ -88,6 +131,17 @@ make test-frontend-unit     # Frontend only (vitest)
 make test-e2e               # E2E (Playwright)
 ```
 
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `GET /api/stats` | Dashboard statistics |
+| `GET /api/blacklist/list` | Paginated blacklist data |
+| `GET /api/collection/status` | Collector status |
+| `GET /api/fortinet/threat-feed` | FortiGate threat feed (public) |
+| `GET /api/fortinet/json-connector` | FortiGate JSON connector (public) |
+
 ## CI/CD Pipeline
 
 | Workflow | Trigger | Purpose |
@@ -101,15 +155,6 @@ make test-e2e               # E2E (Playwright)
 |-------------|--------|--------|
 | **Production** | Offline bundle (`docker load`) | Manual |
 
-## API
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Health check |
-| `GET /api/stats` | Dashboard statistics |
-| `GET /api/blacklist/list` | Paginated blacklist data |
-| `GET /api/collection/status` | Collector status |
-
 ## Documentation
 | Document | Path |
 |----------|------|
@@ -122,6 +167,6 @@ make test-e2e               # E2E (Playwright)
 
 ## Version
 
-**v3.6.4** (February 2026) — Production Stable
+**v3.6.9** (February 2026) — Production Stable
 
 [Releases](https://github.com/qws941/blacklist/releases) · [Changelog](CHANGELOG.md)
