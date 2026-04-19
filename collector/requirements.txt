@@ -9,15 +9,11 @@ aiohttp>=3.9.0
 pandas>=2.2.0  # Python 3.13 compatible
 numpy>=1.26.0  # Python 3.13 compatible
 openpyxl>=3.1.5
-xlrd>=2.0.1  # Required for parsing .xls (old Excel) files from SECUDIUM
 
 # Web Automation for REGTECH
 selenium==4.41.0
 beautifulsoup4==4.14.3
 
-# Web Automation for SECUDIUM (Browser-based download)
-# NOTE: playwright removed - SECUDIUM disabled in v3.1+
-# playwright==1.40.0
 
 # Utilities
 python-dateutil==2.9.0.post0
