@@ -24,7 +24,6 @@ from ..config import config
 from .credential.crypto import decrypt_data, encrypt_data, setup_encryption
 from .credential.database import close_connection, get_database_connection
 from .credential.helpers import (
-    delete_regtech_credentials,
     get_regtech_credentials,
     migrate_existing_credentials as migrate_existing_credentials_impl,
     save_regtech_credentials,

@@ -4,8 +4,8 @@ from flask import Blueprint
 
 regtech_admin_bp = Blueprint("regtech_admin", __name__)
 
-from .admin_collection_routes import register_admin_collection_routes
-from .admin_credentials_routes import register_admin_credentials_routes
+from .admin_collection_routes import register_admin_collection_routes  # noqa: E402
+from .admin_credentials_routes import register_admin_credentials_routes  # noqa: E402
 
 register_admin_credentials_routes(regtech_admin_bp)
 register_admin_collection_routes(regtech_admin_bp)

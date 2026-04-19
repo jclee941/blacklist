@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from ..config import config
 
 # Enhanced logging with tagging
 from ..utils.logger_config import collection_logger as logger

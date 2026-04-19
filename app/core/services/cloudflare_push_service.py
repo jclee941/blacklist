@@ -16,7 +16,6 @@ import psycopg2.extensions
 import select
 import logging
 import requests
-from typing import Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
