@@ -343,7 +343,16 @@ jobs:
             gunzip -c "$f" | docker load
           done
       - name: Start services
-        run: docker compose -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 120
+        run: |
+          docker compose -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 120 || {
+            echo '::group::Collector logs'
+            docker compose -f .github/docker-compose.ci.yml logs collector
+            echo '::endgroup::'
+            echo '::group::App logs'
+            docker compose -f .github/docker-compose.ci.yml logs app
+            echo '::endgroup::'
+            exit 1
+          }
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 20
