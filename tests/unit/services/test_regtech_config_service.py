@@ -6,7 +6,7 @@ from unittest.mock import Mock, MagicMock, patch
 
 
 def _make_service():
-    from core.services.regtech_config_service import RegtechConfigService
+    from app.core.services.regtech_config_service import RegtechConfigService
 
     svc = RegtechConfigService()
     return svc
@@ -15,7 +15,7 @@ def _make_service():
 def _mock_secure_module():
     """Create a mock for the secure_credential_service module.
 
-    RegtechConfigService imports from core.services.secure_credential_service
+    RegtechConfigService imports from app.core.services.secure_credential_service
     INSIDE method bodies:
       from .secure_credential_service import secure_credential_service
       from .secure_credential_service import get_regtech_credentials
@@ -94,7 +94,7 @@ class TestGetRegtechCredentials:
             "password": "pass1",
             "config": {"base_url": "https://example.com"},
         }
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        with patch.dict("sys.modules", {"app.core.services.secure_credential_service": mock_mod}):
             result = svc.get_regtech_credentials()
         assert result is not None
         assert isinstance(result, dict)
@@ -103,7 +103,7 @@ class TestGetRegtechCredentials:
         svc = _make_service()
         mock_mod = _mock_secure_module()
         mock_mod.get_regtech_credentials.return_value = None
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        with patch.dict("sys.modules", {"app.core.services.secure_credential_service": mock_mod}):
             result = svc.get_regtech_credentials()
         assert result is None
 
@@ -113,12 +113,12 @@ class TestTestRegtechConnection:
         svc = _make_service()
         mock_mod = _mock_secure_module()
         mock_mod.get_regtech_credentials.return_value = None
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        with patch.dict("sys.modules", {"app.core.services.secure_credential_service": mock_mod}):
             result = svc.test_regtech_connection_enhanced()
         assert isinstance(result, dict)
         assert result.get("success") is False
 
-    @patch("core.services.regtech_config_service.requests")
+    @patch("app.core.services.regtech_config_service.requests")
     def test_connection_with_credentials(self, mock_requests):
         svc = _make_service()
         mock_mod = _mock_secure_module()
@@ -131,7 +131,7 @@ class TestTestRegtechConnection:
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "healthy"}
         mock_requests.get.return_value = mock_resp
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        with patch.dict("sys.modules", {"app.core.services.secure_credential_service": mock_mod}):
             result = svc.test_regtech_connection_enhanced()
         assert isinstance(result, dict)
 
@@ -176,17 +176,21 @@ class TestInitializeRegtechCredentials:
 class TestDeleteRegtechCredentials:
     def test_delete_success(self):
         svc = _make_service()
-        mock_mod = _mock_secure_module()
-        mock_mod.delete_regtech_credentials.return_value = True
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        mock_secure_service = Mock()
+        mock_secure_service.delete_credentials.return_value = True
+        mock_current_app = Mock()
+        mock_current_app.extensions = {"secure_credential_service": mock_secure_service}
+        with patch("app.core.services.regtech_config_service.current_app", mock_current_app):
             result = svc.delete_regtech_credentials()
         assert result is True
 
     def test_delete_failure(self):
         svc = _make_service()
-        mock_mod = _mock_secure_module()
-        mock_mod.delete_regtech_credentials.side_effect = Exception("error")
-        with patch.dict("sys.modules", {"core.services.secure_credential_service": mock_mod}):
+        mock_secure_service = Mock()
+        mock_secure_service.delete_credentials.side_effect = Exception("error")
+        mock_current_app = Mock()
+        mock_current_app.extensions = {"secure_credential_service": mock_secure_service}
+        with patch("app.core.services.regtech_config_service.current_app", mock_current_app):
             result = svc.delete_regtech_credentials()
         assert result is False
 

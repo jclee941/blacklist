@@ -139,33 +139,11 @@ SecureCredentialService (560줄)
 
 | 변수       | 기본값 | 설명                       |
 | ---------- | ------ | -------------------------- |
-| `FMG_HOST` | —      | FortiManager 호스트 (필수) |
-| `FMG_USER` | admin  | FortiManager 사용자        |
-| `FMG_PASS` | —      | FortiManager 비밀번호      |
-| `FMG_ADOM` | root   | FortiManager ADOM          |
-
-### Push 방식 (App → FortiManager)
-
-1. App이 활성 IP 목록을 DB에서 조회
-2. FortiManager에 JSON-RPC로 Address Object 생성
-3. 방화벽 정책 할당
-4. FortiManager가 FortiGate 장비에 정책 배포
-
 ### Pull 방식 (FortiGate → App)
 
 1. FortiGate 장비가 주기적으로 App에 접속
 2. `GET /api/fortinet/threat-feed` — Plain text IP 목록 반환
 3. FortiGate가 자체 차단 목록에 반영
-
-### 서비스
-
-```
-FortiManagerPushService (208줄)
-├── Persistent LISTEN 커넥션
-├── create_address_objects(ips)
-├── assign_policy(objects)
-└── push_to_device(device_id)
-```
 
 ---
 
@@ -253,11 +231,6 @@ curl -X POST http://localhost:2542/api/reset-database \
 
 | 변수       | 기본값 |
 | ---------- | ------ |
-| `FMG_HOST` | —      |
-| `FMG_USER` | admin  |
-| `FMG_PASS` | —      |
-| `FMG_ADOM` | root   |
-
 ### 시스템
 
 | 변수                 | 기본값        |

@@ -17,7 +17,6 @@ collector/
 ├── scheduler.py             # APScheduler (700L), daily REGTECH 02:00, IP cleanup midnight
 ├── health_server.py         # Flask+Waitress on :8545 (500L)
 ├── monitoring_scheduler.py  # periodic health reporting
-├── fortimanager_uploader.py # push blacklist to FortiManager
 ├── core/                    # ETL pipeline modules
 │   ├── regtech/             # REGTECH auth + collection
 │   ├── multi_source/        # async feed aggregation
@@ -61,4 +60,3 @@ collector/
 | --- | --- | --- | --- | --- |
 | `CollectorApplication` | class | `run_collector.py:50` | high | entry point, lifecycle orchestration |
 | `HealthServer` | class | `health_server.py:40` | high | Flask+Waitress on :8545 (500L) |
-| `FortiManagerUploader` | class | `fortimanager_uploader.py:25` | med | push blacklist to FortiManager |

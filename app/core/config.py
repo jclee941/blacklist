@@ -138,32 +138,6 @@ class AppConfig:
         return os.getenv("SETTINGS_ENCRYPTION_KEY")
 
     @property
-    def FMG_HOST(self) -> Optional[str]:
-        return os.getenv("FMG_HOST")
-
-    @property
-    def FMG_USER(self) -> str:
-        return os.getenv("FMG_USER", "admin")
-
-    @property
-    def FMG_PASS(self) -> Optional[str]:
-        return os.getenv("FMG_PASS")
-
-    @property
-    def FMG_ADOM(self) -> str:
-        return os.getenv("FMG_ADOM", "root")
-
-    @property
-    def REGTECH_ID(self) -> str:
-        """DEPRECATED: DB 우선, 환경변수는 fallback 전용. UI에서 설정 권장."""
-        return os.getenv("REGTECH_ID", "")
-
-    @property
-    def REGTECH_PW(self) -> str:
-        """DEPRECATED: DB 우선, 환경변수는 fallback 전용. UI에서 설정 권장."""
-        return os.getenv("REGTECH_PW", "")
-
-    @property
     def ADMIN_USERNAME(self) -> str:
         return os.getenv("ADMIN_USERNAME", "__SET_ADMIN_USERNAME__")
 

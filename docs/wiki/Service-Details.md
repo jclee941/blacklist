@@ -52,10 +52,6 @@ graph TD
         SC["scheduler_service<br/>CollectionScheduler<br/>220줄"]
     end
 
-    subgraph "4단계: Integration"
-        FM["fortimanager_service<br/>FortiManagerPushService<br/>208줄"]
-    end
-
     subgraph "5단계: Configuration"
         CR["credential_service<br/>CredentialService<br/>395줄"]
         SE["secure_credential_service<br/>SecureCredentialService<br/>560줄"]
@@ -74,7 +70,6 @@ graph TD
     DB --> AN
     DB --> CO
     DB --> SC
-    DB --> FM
     DB --> CR
     DB --> SE
     DB --> ST
@@ -173,24 +168,7 @@ graph TD
 
 ---
 
-### 5. 통합 서비스
-
-#### `fortimanager_service` — FortiManagerPushService
-
-| 항목 | 값 |
-|------|----|
-| **파일** | `app/core/services/fortimanager_push_service.py` |
-| **크기** | 208줄 |
-| **의존성** | `db_service` |
-| **역할** | FortiManager 정책 Push, 장비 관리 |
-
-- Persistent LISTEN 커넥션
-- Address Object 생성, 정책 할당
-- **알려진 이슈**: DI 위반 (의도적 — standalone fallback)
-
----
-
-### 6. 인증정보 서비스
+### 5. 인증정보 서비스
 
 #### `credential_service` — CredentialService
 

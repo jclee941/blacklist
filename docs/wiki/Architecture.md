@@ -26,7 +26,6 @@ graph TD
 
     subgraph "Clients"
         BROWSER["웹 브라우저"]
-        FORTIMGR["FortiManager"]
     end
 
     REGTECH -->|HTTPS| COLLECTOR
@@ -117,14 +116,7 @@ sequenceDiagram
 sequenceDiagram
     participant FG as FortiGate 장비
     participant A as App (:2542)
-    participant FM as FortiManager
     participant DB as PostgreSQL
-
-    Note over A,FM: Push 방식 (App → FortiManager)
-    A->>DB: SELECT active IPs
-    A->>FM: JSON-RPC: Address Object 생성
-    A->>FM: JSON-RPC: 정책 할당
-    FM-->>FG: 정책 배포
 
     Note over FG,A: Pull 방식 (FortiGate → App)
     FG->>A: GET /api/fortinet/threat-feed
@@ -143,7 +135,6 @@ sequenceDiagram
 | App → Collector | HTTP (8545) | 없음 | 내부 네트워크 전용 |
 | App → PostgreSQL | TCP (5432) | 패스워드 | ThreadedConnectionPool |
 | App → Redis | TCP (6379) | 없음 | 캐시 전용 |
-| App → FortiManager | HTTPS | API 키 | JSON-RPC |
 | Collector → REGTECH | HTTPS | 다단계 인증 | 세션 기반 |
 
 ---
@@ -216,8 +207,6 @@ graph TD
     end
 
     subgraph "Integration Layer"
-        FM["fortimanager_service<br/>FortiManagerService"]
-        FMP["fortimanager_push_service<br/>FortiManagerPushService"]
         TF["threat_feed_service<br/>ThreatFeedService"]
     end
 
@@ -237,14 +226,11 @@ graph TD
     DB --> SET
     DB --> STATS
     DB --> ANAL
-    DB --> FM
     REDIS --> CACHE
     CACHE --> BL
     CACHE --> STATS
     CRED --> SET
     CRED --> COLL
-    BL --> FMP
-    FM --> FMP
     BL --> TF
     DB --> HEALTH
     REDIS --> HEALTH
@@ -262,12 +248,10 @@ graph TD
 6. blacklist_service    # 블랙리스트 CRUD
 7. collection_service   # 수집 관리
 8. firewall_service     # 방화벽 규칙
-9. fortimanager_service # FortiManager API
-10. fortimanager_push_service  # 정책 Push
-11. threat_feed_service  # Threat Feed 생성
-12. statistics_service   # 통계/분석
-13. analytics_service    # 분석 엔진
-14. health_service       # 헬스체크 (마지막 — 모든 서비스 상태 확인)
+9. threat_feed_service  # Threat Feed 생성
+10. statistics_service   # 통계/분석
+11. analytics_service    # 분석 엔진
+12. health_service       # 헬스체크 (마지막 — 모든 서비스 상태 확인)
 ```
 
 ---

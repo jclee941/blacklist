@@ -13,7 +13,7 @@
 1. **Infra**: `database_service`, `redis_service`
 2. **Dependents**: `blacklist_service`, `analytics_service`
 3. **Collection**: `collection_service`, `collection_history`, `collection_status`
-4. **Integration**: `fortimanager_push_service`, `fortigate_service`
+4. **Integration**: `fortigate_service`
 5. **Config**: `credential_service`, `secure_credential_service`
 6. **Business**: `scoring_service`, `export_service`
 7. **Admin**: `admin_service`, `monitoring_service`
@@ -42,7 +42,6 @@
 
 ## NOTES
 
-- DI violations: `fortimanager_push_service.py` + `settings_service.py` (intentional, optional `db_service` param).
 
 
 ## CODE MAP

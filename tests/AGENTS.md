@@ -40,11 +40,6 @@ tests/
 - E2E timeout: 60s. Multi-browser snapshots.
 - E2E regression format: `issue-{NUMBER}-{description}.spec.ts` with `PROBLEM`/`ROOT CAUSE`/`FIX` comments.
 
-## MOCK FORTIGATE
-
-- `tests/mock-fortigate/`: standalone Flask app simulating FortiManager JSON-RPC.
-- Own `Dockerfile` + `config.py` (27L).
-
 ## ANTI-PATTERNS
 
 - Real credentials in test code (use `MOCK_CREDENTIALS`).
@@ -59,5 +54,4 @@ tests/
 | `unit/routes/` | directory | `unit/routes/` | high | 43 test files covering all API endpoints |
 | `unit/services/` | directory | `unit/services/` | high | 28 test files covering service layer |
 | `unit/collector/` | directory | `unit/collector/` | high | 24 test files covering ETL pipelines |
-| `mock-fortigate/` | directory | `mock-fortigate/` | med | standalone FortiManager mock (Flask, 320L) |
 | `e2e/` | directory | `e2e/` | med | 6 Playwright specs + 42 snapshots |

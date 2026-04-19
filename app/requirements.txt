@@ -23,13 +23,10 @@ beautifulsoup4==4.14.3
 cryptography==46.0.5
 bcrypt==5.0.0
 PyJWT>=2.8.0                # JWT token encoding/decoding
-Flask-Login==0.6.3          # User session management
 Flask-WTF==1.2.2            # CSRF protection
 Flask-Limiter==4.1.1        # Rate limiting / DOS protection
 
 # API & JSON Processing
-marshmallow==4.2.2
-jsonschema==4.26.0
 
 # Utilities
 python-dotenv==1.2.2

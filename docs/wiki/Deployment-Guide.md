@@ -102,7 +102,6 @@ cp deploy/.env.example .env
 | `JWT_EXPIRY_HOURS`    | 8                               | JWT 만료 시간                       |
 | `ADMIN_USERNAME`      | **SET_ADMIN_USERNAME**          | 관리자 계정 (배포 시 변경 필수)     |
 | `ADMIN_PASSWORD`      | **SET_ADMIN_PASSWORD**          | 관리자 비밀번호 (배포 시 변경 필수) |
-| `FMG_HOST`            | —                               | FortiManager 호스트                 |
 
 | `COLLECTOR_URL`       | http://blacklist-collector:8545 | Collector URL                       |
 | `LOG_LEVEL`           | INFO                            | 로그 레벨                           |

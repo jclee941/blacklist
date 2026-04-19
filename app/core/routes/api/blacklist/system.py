@@ -7,6 +7,7 @@ Routes: /system/containers, /credential/status, /credentials/regtech, /database/
 from flask import Blueprint, jsonify, current_app
 from datetime import datetime
 import logging
+import os
 from ....config import config
 
 logger = logging.getLogger(__name__)
@@ -92,8 +93,8 @@ def get_credential_status():
             pass
 
         if not regtech_id or not regtech_pw:
-            regtech_id = config.REGTECH_ID
-            regtech_pw = config.REGTECH_PW
+            regtech_id = os.getenv("REGTECH_ID", "")
+            regtech_pw = os.getenv("REGTECH_PW", "")
             if regtech_id and regtech_pw:
                 source = "environment"
 
@@ -139,8 +140,8 @@ def get_regtech_credentials():
             pass
 
         if not regtech_id or not regtech_pw:
-            regtech_id = config.REGTECH_ID
-            regtech_pw = config.REGTECH_PW
+            regtech_id = os.getenv("REGTECH_ID", "")
+            regtech_pw = os.getenv("REGTECH_PW", "")
             if regtech_id and regtech_pw:
                 source = "environment"
 

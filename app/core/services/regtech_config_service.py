@@ -4,6 +4,7 @@ REGTECH 인증정보 및 설정 관리를 위한 서비스
 """
 
 import logging
+import os
 import requests
 
 from ..config import config
@@ -237,7 +238,11 @@ class RegtechConfigService:
             return self._format_test_result(False, test_phases, start_time, "TEST_ERROR")
 
     def _format_test_result(
-        self, success: bool, phases: Dict, start_time: datetime, result_code: str
+        self,
+        success: bool,
+        phases: Dict[str, Dict[str, Any]],
+        start_time: datetime,
+        result_code: str,
     ) -> Dict[str, Any]:
         """테스트 결과 포맷팅"""
         duration = (datetime.now() - start_time).total_seconds()
@@ -292,8 +297,8 @@ class RegtechConfigService:
                 return True
 
             # DB에 없을 때만 환경변수에서 fallback 로드
-            default_username = config.REGTECH_ID
-            default_password = config.REGTECH_PW
+            default_username = os.getenv("REGTECH_ID", "")
+            default_password = os.getenv("REGTECH_PW", "")
 
             if not default_username or not default_password:
                 logger.warning("REGTECH 인증정보 없음. UI에서 설정하거나 환경변수(REGTECH_ID/REGTECH_PW)를 설정하세요.")
@@ -310,9 +315,8 @@ class RegtechConfigService:
     def delete_regtech_credentials(self) -> bool:
         """REGTECH 인증정보 삭제 - 보안 서비스 사용"""
         try:
-            from .secure_credential_service import delete_regtech_credentials
-
-            success = delete_regtech_credentials()
+            secure_credential_service = current_app.extensions["secure_credential_service"]
+            success = secure_credential_service.delete_credentials("REGTECH")
             if success:
                 logger.info("✅ REGTECH 인증정보 삭제 완료")
             else:

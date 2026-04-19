@@ -4,8 +4,6 @@ import logging
 
 from flask import current_app, jsonify, render_template, request
 
-from ...config import config
-
 logger = logging.getLogger(__name__)
 
 
@@ -71,27 +69,6 @@ def register_collection_panel_view_routes(bp, csrf):
                 )
                 logger.info("✅ REGTECH 인증 설정 완료 (암호화 저장)")
 
-            fmg_host = data.get("fmg_host", "").strip()
-            fmg_user = data.get("fmg_user", "admin").strip()
-            fmg_password = data.get("fmg_password", "").strip()
-            fmg_enabled = data.get("fmg_upload_enabled", False)
-            fmg_interval = data.get("fmg_upload_interval", 300)
-
-            if fmg_host and fmg_password:
-                secure_credential_service.save_credentials(
-                    "FORTIMANAGER",
-                    fmg_user,
-                    fmg_password,
-                    {
-                        "host": fmg_host,
-                        "enabled": fmg_enabled,
-                        "interval": fmg_interval,
-                        "api_url": config.BLACKLIST_API_URL + "/api/fortinet/active-ips",
-                        "filename": "nxtd-blacklist.txt",
-                    },
-                )
-                logger.info("✅ FortiManager 인증 설정 완료 (암호화 저장)")
-
             if regtech_username and regtech_password:
                 try:
                     scheduler = current_app.extensions.get("scheduler_service")
@@ -118,25 +95,12 @@ def register_collection_panel_view_routes(bp, csrf):
             regtech_username = regtech_creds.get("username", "") if regtech_creds else ""
             regtech_password = regtech_creds.get("password", "") if regtech_creds else ""
 
-            fmg_creds = secure_credential_service.get_credentials("FORTIMANAGER")
-            fmg_config = fmg_creds.get("config", {}) if fmg_creds else {}
-            fmg_host = fmg_config.get("host", "")
-            fmg_user = fmg_creds.get("username", "admin") if fmg_creds else "admin"
-            fmg_password = fmg_creds.get("password", "") if fmg_creds else ""
-            fmg_enabled = fmg_config.get("enabled", False)
-            fmg_interval = fmg_config.get("interval", 300)
-
             return jsonify(
                 {
                     "success": True,
                     "credentials": {
                         "regtech_username": regtech_username,
                         "regtech_password": regtech_password,
-                        "fmg_host": fmg_host,
-                        "fmg_user": fmg_user,
-                        "fmg_password": fmg_password,
-                        "fmg_upload_enabled": fmg_enabled,
-                        "fmg_upload_interval": fmg_interval,
                     },
                 }
             )

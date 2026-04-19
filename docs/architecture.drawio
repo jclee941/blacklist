@@ -66,7 +66,7 @@
         </mxCell>
 
         <!-- Service Layer -->
-        <mxCell id="api-services" value="&lt;b&gt;Service Layer (14 Services)&lt;/b&gt;&#xa;BlacklistService | DatabaseService&#xa;CollectionService | CredentialService&#xa;SecureCredentialService | AnalyticsService&#xa;SettingsService | ScoringService&#xa;ExpiryService | SchedulerService&#xa;FortiManagerPushService..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#66bb6a;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="api-services" value="&lt;b&gt;Service Layer (14 Services)&lt;/b&gt;&#xa;BlacklistService | DatabaseService&#xa;CollectionService | CredentialService&#xa;SecureCredentialService | AnalyticsService&#xa;SettingsService | ScoringService&#xa;ExpiryService | SchedulerService&#xa;CloudflarePushService..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#66bb6a;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="620" y="365" width="280" height="100" as="geometry" />
         </mxCell>
 
@@ -138,7 +138,7 @@
         <mxCell id="coll-ratelimit" value="&lt;b&gt;Rate Limiter&lt;/b&gt; + &lt;b&gt;Validators&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#c62828;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="500" y="870" width="150" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="coll-fmupload" value="&lt;b&gt;FortiManager Uploader&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="coll-fmupload" value="&lt;b&gt;Collector Utility&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="670" y="870" width="150" height="40" as="geometry" />
         </mxCell>
 
@@ -202,7 +202,7 @@
         <mxCell id="ext-fortigate" value="&lt;b&gt;FortiGate&lt;/b&gt;&#xa;방화벽" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e0e0;strokeColor=#757575;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="-230" y="840" width="140" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="ext-fortimgr" value="&lt;b&gt;FortiManager&lt;/b&gt;&#xa;정책 관리" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e0e0;strokeColor=#757575;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="ext-fortimgr" value="&lt;b&gt;Threat Feed Clients&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e0e0;strokeColor=#757575;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="-70" y="840" width="140" height="50" as="geometry" />
         </mxCell>
 
@@ -438,7 +438,7 @@
         <mxCell id="f3-threatfeed" value="&lt;b&gt;Threat Feed&lt;/b&gt;&#xa;GET /fortinet/threat-feed&#xa;(Public, No Auth)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#388e3c;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1140" y="360" width="160" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="f3-fmpush" value="&lt;b&gt;FortiManager Push&lt;/b&gt;&#xa;Blocklist Upload&#xa;JSON-RPC API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="f3-fmpush" value="&lt;b&gt;Cloudflare Push&lt;/b&gt;&#xa;Blocklist Upload&#xa;Lists API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1140" y="430" width="160" height="50" as="geometry" />
         </mxCell>
 

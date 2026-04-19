@@ -391,11 +391,11 @@ def debug_routes():
 
 @web_bp.route("/integrations", methods=["GET"])
 def integrations():
-    """FortiGate/FortiManager 통합 관리 페이지"""
+    """FortiGate 통합 관리 페이지"""
     try:
         return render_template(
             "integrations.html",
-            page_title="FortiGate/FortiManager 통합",
+            page_title="FortiGate 연동",
             timestamp=datetime.now().isoformat(),
         )
     except Exception as e:

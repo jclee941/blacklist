@@ -178,7 +178,6 @@ graph TD
 | `POSTGRES_PASSWORD` | app, collector | PostgreSQL password |
 | `REDIS_HOST` | app | Redis host |
 | `REDIS_PORT` | app | Redis port (default: 6379) |
-| `FORTIMANAGER_HOST` | app | FortiManager API endpoint |
 
 ---
 

@@ -8,7 +8,7 @@ import requests
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g, current_app
 from requests.auth import HTTPBasicAuth
-from core.exceptions import ValidationError, DatabaseError, InternalServerError
+from ....exceptions import ValidationError, DatabaseError, InternalServerError
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +134,6 @@ def register_to_fortigate():
                 }
             ), 200
 
-        # Note: FortiManager logic is better handled by FortiManagerPushService
-        # But keeping direct logic here as per original file structure to minimize risk
-        # Ideally this should delegate to app.extensions['fortimanager_service'] if applicable
-
         base_url = f"https://{device_ip}/api/v2"
         group_url = f"{base_url}/cmdb/firewall/addrgrp"
         address_url = f"{base_url}/cmdb/firewall/address"
@@ -169,7 +165,7 @@ def register_to_fortigate():
             if create_response.status_code not in [200, 201]:
                 raise InternalServerError(
                     message=f"Failed to create address group: {create_response.text}",
-                    details={"status_code": create_response.status_code},
+                    cause=f"status_code={create_response.status_code}",
                 )
 
         registered_count = 0
@@ -239,7 +235,7 @@ def register_to_fortigate():
         logger.error(f"FortiGate API error: {e}", exc_info=True)
         raise InternalServerError(
             message=f"Failed to communicate with FortiGate: {str(e)}",
-            details={"device_ip": device_ip},
+            cause=str(e),
         )
     except ValidationError:
         raise
@@ -247,5 +243,5 @@ def register_to_fortigate():
         logger.error(f"Error registering to FortiGate: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to register blacklist to FortiGate",
-            details={"error": str(e)},
+            cause=str(e),
         )

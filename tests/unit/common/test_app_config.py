@@ -205,13 +205,6 @@ class TestAppConfigEnvOverrides:
             cfg = AppConfig()
             assert cfg.SECRET_KEY == "my-secret"
 
-    def test_fmg_host_override(self):
-        with patch.dict(os.environ, {"FMG_HOST": "10.0.0.1"}):
-            from app.core.config import AppConfig
-
-            cfg = AppConfig()
-            assert cfg.FMG_HOST == "10.0.0.1"
-
     def test_migration_key_override(self):
         with patch.dict(os.environ, {"MIGRATION_KEY": "new-key-2026"}):
             from app.core.config import AppConfig
@@ -435,8 +428,6 @@ class TestAppConfigOptionalProperties:
         assert cfg.CREDENTIAL_ENCRYPTION_KEY is None
         assert cfg.ENCRYPTION_SALT is None
         assert cfg.SETTINGS_ENCRYPTION_KEY is None
-        assert cfg.FMG_HOST is None
-        assert cfg.FMG_PASS is None
         assert cfg.ADMIN_RESET_KEY is None
         assert cfg.APP_VERSION is None
 
@@ -445,8 +436,6 @@ class TestAppConfigOptionalProperties:
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.REGTECH_ID == ""
-        assert cfg.REGTECH_PW == ""
         assert cfg.GITHUB_TOKEN == ""
         assert cfg.GITHUB_REPO_OWNER == ""
         assert cfg.GITHUB_REPO_NAME == ""

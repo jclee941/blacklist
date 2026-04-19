@@ -7,7 +7,7 @@ import logging
 import time
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g, current_app, Response
-from core.exceptions import ValidationError, DatabaseError, InternalServerError
+from ....exceptions import ValidationError, DatabaseError, InternalServerError
 from .utils import _log_pull_request
 
 logger = logging.getLogger(__name__)
@@ -95,14 +95,14 @@ def get_active_ips():
         logger.error(f"Error getting active IPs: {e}", exc_info=True)
         raise DatabaseError(
             message="Failed to retrieve active IPs for FortiGate",
-            details={"page": page, "limit": limit, "error_type": type(e).__name__},
+            table="blacklist_ips_with_auto_inactive",
         )
 
 
 @fortinet_core_bp.route("/blocklist", methods=["GET"])
 def get_blocklist():
     """
-    Get FortiManager/FortiGate External Resource compatible blocklist
+    Get FortiGate External Resource compatible blocklist
     Returns plain text by default for FortiGate EBL compatibility
     """
     start_time = time.time()
@@ -173,7 +173,7 @@ def get_blocklist():
         else:
             raise DatabaseError(
                 message="Failed to generate blocklist",
-                details={"format": output_format, "error_type": type(e).__name__},
+                table="blacklist_ips_with_auto_inactive",
             )
 
 
@@ -204,5 +204,5 @@ def get_config():
         logger.error(f"Error getting config: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to retrieve FortiGate configuration",
-            details={"error_type": type(e).__name__},
+            cause=type(e).__name__,
         )

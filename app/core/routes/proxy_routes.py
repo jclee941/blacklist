@@ -14,11 +14,10 @@ logger = logging.getLogger(__name__)
 
 proxy_bp = Blueprint("proxy", __name__, url_prefix="/api/proxy")
 
-BACKEND_API_URL = config.BLACKLIST_API_URL
 COLLECTOR_SERVICE_URL = config.COLLECTOR_URL
 
 
-def forward_to_backend(endpoint: str, method: str = None):
+def forward_to_backend(endpoint: str, method: str | None = None):
     """
     Forward request to backend API
 
@@ -29,16 +28,18 @@ def forward_to_backend(endpoint: str, method: str = None):
     Returns:
         Response from backend API
     """
+    url = f"{config.BLACKLIST_API_URL}{endpoint}"
+
     try:
         method = method or request.method
-        url = f"{BACKEND_API_URL}{endpoint}"
+        query_params = request.args.to_dict(flat=False)
 
         # Prepare headers (forward relevant headers, always include Content-Type for JSON)
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
         # Forward request with same method, headers, and body
         if method == "GET":
-            response = requests.get(url, params=request.args, headers=headers, timeout=30)
+            response = requests.get(url, params=query_params, headers=headers, timeout=30)
         elif method == "POST":
             data = request.get_json(silent=True) or {}
             response = requests.post(url, json=data, headers=headers, timeout=30)

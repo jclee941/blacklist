@@ -1,7 +1,7 @@
 """Unit tests for core.exceptions module."""
 
-from core.exceptions.base_exceptions import BlacklistError, APIError, ExternalAPIError
-from core.exceptions.auth_exceptions import AuthenticationError, AuthorizationError
+from app.core.exceptions.base_exceptions import BlacklistError, APIError, ExternalAPIError
+from app.core.exceptions.auth_exceptions import AuthenticationError, AuthorizationError
 
 
 class TestBlacklistError:
@@ -69,7 +69,7 @@ class TestExternalAPIError:
     """Tests for ExternalAPIError exception."""
 
     def test_default_status_502(self):
-        err = ExternalAPIError("gateway timeout", api_name="FortiManager")
+        err = ExternalAPIError("gateway timeout", api_name="FortiGate")
         assert err.status_code == 502
 
     def test_inherits_status_code(self):

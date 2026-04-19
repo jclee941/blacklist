@@ -73,7 +73,6 @@ tests/
 │   ├── utils/          # Utility tests
 │   ├── collector/      # Collector unit tests
 │   └── ...             # 107 files total
-└── mock-fortigate/     # Mock FortiManager API server
 ```
 
 ### Frontend Unit Tests (Vitest)

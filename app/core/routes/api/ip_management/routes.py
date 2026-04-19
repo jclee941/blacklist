@@ -276,7 +276,6 @@ ip_management_legacy_bp.add_url_rule("/whitelist", view_func=create_whitelist, m
 ip_management_legacy_bp.add_url_rule("/whitelist/<int:id>", view_func=update_whitelist, methods=["PUT"])
 ip_management_legacy_bp.add_url_rule("/whitelist/<int:id>", view_func=delete_whitelist, methods=["DELETE"])
 ip_management_legacy_bp.add_url_rule("/blacklist", view_func=get_blacklist, methods=["GET"])
-ip_management_legacy_bp.add_url_rule("/blacklist/list", view_func=get_blacklist, methods=["GET"])
 ip_management_legacy_bp.add_url_rule("/blacklist", view_func=create_blacklist, methods=["POST"])
 ip_management_legacy_bp.add_url_rule("/blacklist/<int:id>", view_func=update_blacklist, methods=["PUT"])
 ip_management_legacy_bp.add_url_rule("/blacklist/<int:id>", view_func=delete_blacklist, methods=["DELETE"])

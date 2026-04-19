@@ -28,7 +28,6 @@ graph TD
 
     subgraph "Clients"
         BROWSER["웹 브라우저"]
-        FORTIMGR["FortiManager"]
     end
 
     REGTECH -->|HTTPS| COLLECTOR
@@ -39,7 +38,6 @@ graph TD
     APP -->|HTTP POST| COLLECTOR
     FRONTEND -->|Proxy /api/*| APP
     BROWSER -->|HTTPS :443| FRONTEND
-    APP -->|JSON-RPC| FORTIMGR
     FORTIGATE -->|Pull| APP
 ```
 
@@ -321,7 +319,6 @@ graph TD
     DB --> BL["BlacklistService"]
     DB --> AN["AnalyticsService"]
     DB --> COL["CollectionService"]
-    DB --> FMG["FortiManagerPushService"]
     DB --> CRED["CredentialService"]
     DB --> SCRED["SecureCredentialService"]
     DB --> RTC["RegtechConfigService"]
@@ -342,15 +339,14 @@ graph TD
 | 3 | AnalyticsService | `analytics_service` | 통계, 집계 |
 | 4 | CollectionService | `collection_service` | 수집 오케스트레이션 |
 | 5 | CollectionScheduler | `scheduler_service` | 백그라운드 스케줄링 |
-| 6 | FortiManagerPushService | `fortimanager_service` | FortiGate JSON-RPC |
-| 7 | CredentialService | `credential_service` | 인증정보 관리 |
-| 8 | SecureCredentialService | `secure_credential_service` | AES-256-GCM 암호화 |
-| 9 | RegtechConfigService | `regtech_config_service` | REGTECH 설정 |
-| 10 | SettingsService | `settings_service` | 시스템 설정 CRUD |
-| 11 | ScoringService | `scoring_service` | 위협 점수 산출 |
-| 12 | IPExpiryService | `expiry_service` | IP 만료 관리 |
-| 13 | ABTestService | `ab_test_service` | A/B 테스트 |
-| 14 | OptimizedBlacklistService | `optimized_blacklist_service` | 최적화 블랙리스트 |
+| 6 | CredentialService | `credential_service` | 인증정보 관리 |
+| 7 | SecureCredentialService | `secure_credential_service` | AES-256-GCM 암호화 |
+| 8 | RegtechConfigService | `regtech_config_service` | REGTECH 설정 |
+| 9 | SettingsService | `settings_service` | 시스템 설정 CRUD |
+| 10 | ScoringService | `scoring_service` | 위협 점수 산출 |
+| 11 | IPExpiryService | `expiry_service` | IP 만료 관리 |
+| 12 | ABTestService | `ab_test_service` | A/B 테스트 |
+| 13 | OptimizedBlacklistService | `optimized_blacklist_service` | 최적화 블랙리스트 |
 
 ---
 
@@ -385,7 +381,6 @@ graph TD
 | App → Collector | HTTP (8545) | 없음 (내부 전용) |
 | App → PostgreSQL | TCP (5432) | 패스워드 |
 | App → Redis | TCP (6379) | 없음 (캐시 전용) |
-| App → FortiManager | HTTPS | API 키 (JSON-RPC) |
 | Collector → REGTECH | HTTPS | 다단계 인증 (세션 기반) |
 
 ---

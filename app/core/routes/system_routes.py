@@ -5,6 +5,7 @@ System monitoring routes
 
 from flask import Blueprint, current_app, jsonify
 import logging
+import os
 from datetime import datetime
 
 from ..config import config
@@ -12,7 +13,7 @@ from ..config import config
 system_bp = Blueprint("system", __name__, url_prefix="/api/system")
 
 
-def _get_regtech_credential_status() -> dict:
+def _get_regtech_credential_status() -> dict[str, bool | int | str]:
     """REGTECH 인증정보 상태 확인 (DB 우선, 환경변수 fallback)"""
     try:
         secure_cred_svc = current_app.extensions.get("secure_credential_service")
@@ -30,12 +31,14 @@ def _get_regtech_credential_status() -> dict:
         pass
 
     # 환경변수 fallback
+    regtech_id = os.getenv("REGTECH_ID", "")
+    regtech_pw = os.getenv("REGTECH_PW", "")
     return {
-        "id_configured": bool(config.REGTECH_ID),
-        "pw_configured": bool(config.REGTECH_PW),
-        "id_length": len(config.REGTECH_ID),
-        "pw_length": len(config.REGTECH_PW),
-        "source": "environment" if config.REGTECH_ID else "none",
+        "id_configured": bool(regtech_id),
+        "pw_configured": bool(regtech_pw),
+        "id_length": len(regtech_id),
+        "pw_length": len(regtech_pw),
+        "source": "environment" if regtech_id else "none",
     }
 
 

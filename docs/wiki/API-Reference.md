@@ -181,7 +181,6 @@
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
 | GET | `/api/fortinet/devices` | FortiGate 장비 목록 |
-| POST | `/api/fortinet/register` | FortiManager 등록 (Address Object + 정책) |
 | GET | `/api/fortinet/config` | FortiGate 설정 |
 | GET | `/api/fortinet/health` | 연동 헬스체크 |
 

@@ -15,7 +15,7 @@
 
 - **IP 블랙리스트 관리** — 위협 IP 등록, 조회, 만료 처리, 화이트리스트 관리
 - **자동 수집 (ETL)** — REGTECH 소스에서 주기적 데이터 수집
-- **FortiGate 연동** — FortiManager 정책 Push, Threat Feed 제공
+- **FortiGate 연동** — Threat Feed 제공
 - **분석 대시보드** — 탐지 타임라인, 국가별/소스별 통계, 트렌드 분석
 - **모니터링** — Prometheus 메트릭, 서비스 헬스체크, 시스템 로그
 - **보안** — AES-256-GCM 크레덴셜 암호화, JWT 인증 (선택적)

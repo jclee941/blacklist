@@ -45,7 +45,7 @@ Service-level symbols in `core/services/AGENTS.md`.
 | App factory + middleware | `core/app.py`                      | csrf, request_id, security headers, compression       |
 | Blueprint registration   | `core/app.py`                      | modular `register_*_routes(app)` functions            |
 | Core package topology    | `core/AGENTS.md`                   | boundaries across routes/services/auth/db/utils       |
-| Config properties        | `core/config.py`                   | DB, Redis, URLs, Secrets, FMG, Admin, JWT, Collection |
+| Config properties        | `core/config.py`                   | DB, Redis, URLs, Secrets, Admin, JWT, Collection |
 | DI container             | `core/services/service_factory.py` | strict init order, `current_app.extensions[...]`      |
 
 ## COMPLEXITY HOTSPOTS
@@ -69,6 +69,5 @@ Service-level symbols in `core/services/AGENTS.md`.
 ## NOTES
 
 - JWT middleware DISABLED at `core/app.py:154-156` (internal deployment).
-- DI violations in `fortimanager_push_service.py` and `settings_service.py` are intentional (optional `db_service` param).
 - 3 rate limiter instances (Flask-Limiter ×2) identified for future consolidation.
 - Middleware chain: `csrf_protect_web_only` → `generate_request_id` → `add_security_headers` → `compress_response`.
