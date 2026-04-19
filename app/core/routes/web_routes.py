@@ -264,7 +264,7 @@ def statistics_page():
 
 @web_bp.route("/collection", methods=["GET"])
 def collection():
-    """데이터 수집 관리 페이지 - REGTECH & SECUDIUM 통합 카드 뷰"""
+    """데이터 수집 관리 페이지 - REGTECH 통합 카드 뷰"""
     # Use dependency injection via app.extensions
     collection_service = current_app.extensions["collection_service"]
 

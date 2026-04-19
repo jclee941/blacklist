@@ -181,8 +181,6 @@ jobs:
       - run: pip install -r collector/requirements.txt pytest-cov
       - name: Run collector tests with coverage
         env:
-          SECUDIUM_EMAIL: ${{ secrets.SECUDIUM_EMAIL }}
-          SECUDIUM_EMAIL_PASSWORD: ${{ secrets.SECUDIUM_EMAIL_PASSWORD }}
           PYTHONPATH: collector
         run: |
           python -m pytest tests/unit/collector -v \

@@ -6,7 +6,7 @@ Handles manual collection triggering
 import logging
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g
-from core.exceptions import ValidationError, ServiceUnavailableError, ExternalAPIError
+from ....exceptions import ValidationError, ServiceUnavailableError, ExternalAPIError
 from .utils import call_collector_api
 
 logger = logging.getLogger(__name__)
@@ -22,13 +22,13 @@ def trigger_collection(source: str):
     source_upper = source.upper()
 
     # Validate source parameter
-    if source_upper not in ["REGTECH", "SECUDIUM", "ALL"]:
+    if source_upper not in ["REGTECH", "ALL"]:
         raise ValidationError(
-            message=f"Invalid source: {source}. Only 'regtech', 'secudium', or 'all' is supported",
+            message=f"Invalid source: {source}. Only 'regtech' or 'all' is supported",
             field="source",
             details={
                 "provided_value": source,
-                "allowed_values": ["regtech", "secudium", "all"],
+                "allowed_values": ["regtech", "all"],
             },
         )
 
@@ -42,32 +42,17 @@ def trigger_collection(source: str):
 
     # Check if API call failed
     if result.get("success") is False:
-        # SECUDIUM requires OTP — return otp_required so frontend can show OTP dialog
-        if result.get("otp_required"):
-            return jsonify(
-                {
-                    "success": True,
-                    "data": {
-                        "status": "otp_required",
-                        "message": result.get("error", "OTP 인증이 필요합니다"),
-                        "otp_required": True,
-                    },
-                    "timestamp": datetime.now().isoformat(),
-                    "request_id": g.request_id,
-                }
-            )
-
         error_msg = result.get("error", "Unknown error")
         if "Cannot connect" in error_msg:
             raise ServiceUnavailableError(
-                service="Collector",
-                details={"error": error_msg, "source": source_upper},
+                message="Collector service unavailable",
+                service_name="Collector",
             )
         else:
             logger.error(f"❌ {source_upper} collection trigger failed: {error_msg}")
             raise ExternalAPIError(
-                service="Collector",
                 message=f"Collection trigger failed: {error_msg}",
+                api_name="Collector",
                 details={"source": source_upper, "force": force},
             )
 

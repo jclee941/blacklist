@@ -42,7 +42,7 @@ def api_collection_trigger(source):
         collection_service = current_app.extensions["collection_service"]
 
         # 소스 유효성 검증
-        valid_sources = ["regtech", "secudium"]
+        valid_sources = ["regtech"]
         if source.lower() not in valid_sources:
             return (
                 jsonify({"success": False, "error": f"Invalid source: {source}"}),
@@ -55,18 +55,20 @@ def api_collection_trigger(source):
         end_date = data.get("end_date")
 
         # 수집 실행 (날짜 파라미터 포함)
+        result = None
         if start_date and end_date:
             # 기간별 수집
             if source.lower() == "regtech":
                 result = collection_service.trigger_regtech_collection(start_date=start_date, end_date=end_date)
-            elif source.lower() == "secudium":
-                result = collection_service.trigger_secudium_collection(start_date=start_date, end_date=end_date)
 
             message = f"{source.upper()} 기간별 수집이 완료되었습니다. ({start_date} ~ {end_date})"
         else:
             # 일반 수집
             result = collection_service.trigger_collection(source.lower())
             message = f"{source.upper()} 수집이 완료되었습니다."
+
+        if result is None:
+            return jsonify({"success": False, "error": f"Invalid source: {source}"}), 400
 
         if result.get("success"):
             return jsonify(

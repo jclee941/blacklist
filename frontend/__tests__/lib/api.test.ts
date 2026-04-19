@@ -53,6 +53,7 @@ import {
   getBlacklistStats,
   getCollectionHistory,
   getCollectionStatistics,
+  getCloudflareCredentials,
   getCollectionStatus,
   getCredential,
   getDailyDetectionStats,
@@ -72,7 +73,9 @@ import {
   removeToken,
   searchIP,
   setToken,
+  saveCloudflareCredentials,
   testCredential,
+  testCloudflareConnection,
   triggerCollection,
   triggerCollectionService,
   updateCredential,
@@ -281,6 +284,7 @@ describe('lib/api', () => {
       await getDailyDetectionStats();
       await getDailyDetectionStats(7);
       await getSettingsGrouped();
+      await getCloudflareCredentials();
 
       expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(1, '/proxy/collection/status');
       expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(2, '/search/8.8.8.8');
@@ -305,6 +309,10 @@ describe('lib/api', () => {
         '/analytics/detection-timeline?days=7'
       );
       expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(11, '/settings/grouped');
+      expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
+        12,
+        '/proxy/collection/credentials/cloudflare'
+      );
     });
 
     it('maps mutating endpoints', async () => {
@@ -317,10 +325,15 @@ describe('lib/api', () => {
       await addIP('whitelist', { ip_address: '1.2.3.4', reason: 'manual' });
       await updateIP('blacklist', 9, { reason: 'updated' });
       await deleteIP('blacklist', 11);
-      await updateCredential('secudium', { username: 'user' });
+      await updateCredential('regtech', { username: 'user' });
       await updateSettingsBatch([{ key: 'a', value: 'b' }]);
+      await saveCloudflareCredentials({
+        api_token: '••••••••',
+        account_id: 'acct-1',
+        list_id: 'list-1',
+      });
+      await testCloudflareConnection();
       await triggerCollection('2026-01-01', '2026-01-31');
-      await triggerCollectionService('secudium');
       await triggerCollectionService('regtech', { force: true });
 
       expect(mocks.apiInstance.post).toHaveBeenNthCalledWith(
@@ -331,18 +344,32 @@ describe('lib/api', () => {
         ip_address: '1.2.3.4',
         reason: 'manual',
       });
+      expect(mocks.apiInstance.post).toHaveBeenNthCalledWith(
+        3,
+        '/proxy/collection/credentials/cloudflare/test'
+      );
 
       expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(1, '/ip-management/blacklist/9', {
         reason: 'updated',
       });
       expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(
         2,
-        '/proxy/collection/credentials/secudium',
+        '/proxy/collection/credentials/regtech',
         { username: 'user' }
       );
       expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(3, '/settings/batch', {
         settings: [{ key: 'a', value: 'b' }],
       });
+      expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(
+        4,
+        '/proxy/collection/credentials/cloudflare',
+        {
+          username: 'cloudflare-api',
+          password: '***masked***',
+          account_id: 'acct-1',
+          list_id: 'list-1',
+        }
+      );
       expect(mocks.apiInstance.delete).toHaveBeenCalledWith('/ip-management/blacklist/11');
 
       expect(mocks.collectionInstance.post).toHaveBeenNthCalledWith(
@@ -355,11 +382,6 @@ describe('lib/api', () => {
       );
       expect(mocks.collectionInstance.post).toHaveBeenNthCalledWith(
         2,
-        '/proxy/collection/trigger/secudium',
-        {}
-      );
-      expect(mocks.collectionInstance.post).toHaveBeenNthCalledWith(
-        3,
         '/proxy/collection/trigger/regtech',
         { force: true }
       );

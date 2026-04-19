@@ -9,20 +9,32 @@ import signal
 import sys
 import threading
 import time
+import importlib
 from datetime import datetime
-from collector.config import CollectorConfig
-from collector.scheduler import scheduler
-from collector.health_server import start_health_server
-from core.database import db_service
+
+try:
+    from .config import CollectorConfig
+    from .scheduler import scheduler
+    from .health_server import start_health_server
+    from .core.database import db_service
+except ImportError:
+    CollectorConfig = importlib.import_module("collector.config").CollectorConfig
+    scheduler = importlib.import_module("collector.scheduler").scheduler
+    start_health_server = importlib.import_module("collector.health_server").start_health_server
+    db_service = importlib.import_module("collector.core.database").db_service
 
 # Monitoring scheduler is optional - import only if needed
+monitoring_scheduler = None
+monitoring_available = False
 try:
-    from monitoring_scheduler import monitoring_scheduler
-
-    MONITORING_AVAILABLE = True
+    monitoring_scheduler = importlib.import_module("collector.monitoring_scheduler").monitoring_scheduler
+    monitoring_available = True
 except ImportError:
-    MONITORING_AVAILABLE = False
-    monitoring_scheduler = None
+    try:
+        monitoring_scheduler = importlib.import_module("monitoring_scheduler").monitoring_scheduler
+        monitoring_available = True
+    except ImportError:
+        monitoring_scheduler = None
 
 
 # 로깅 설정
@@ -123,7 +135,10 @@ class CollectorApplication:
             True if all required credentials are available, False otherwise
         """
         try:
-            from collector.config import CollectorConfig
+            try:
+                from .config import CollectorConfig
+            except ImportError:
+                CollectorConfig = importlib.import_module("collector.config").CollectorConfig
 
             self.logger.info("🔍 Validating credentials")
 
@@ -136,14 +151,6 @@ class CollectorApplication:
             except ValueError:
                 missing.append("REGTECH")
                 self.logger.warning("⚠️  REGTECH credentials not found in database")
-
-            # Check SECUDIUM credentials
-            try:
-                CollectorConfig.get_secudium_credentials()
-                self.logger.info("✅ SECUDIUM credentials loaded from database")
-            except ValueError:
-                missing.append("SECUDIUM")
-                self.logger.warning("⚠️  SECUDIUM credentials not found in database")
 
             if missing:
                 self.logger.error(

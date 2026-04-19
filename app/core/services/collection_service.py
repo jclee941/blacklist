@@ -5,7 +5,7 @@
 
 import time
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List, Optional
 
 from ..config import config
 
@@ -16,27 +16,28 @@ from ..utils.logger_config import collection_logger as logger
 try:
     from .collection.collection_validator import validator
     from .collection.collection_history import history_manager
+    from .collection.collection_persistence import save_collection_data
     from .collection.collection_status import status_manager
     from .collection.regtech_data import REGTECHDataCollector
 
-    regtech_collector = REGTECHDataCollector()
+    regtech_collector: Any = REGTECHDataCollector()
 except ImportError as e:
     logger.warning(f"Some collection modules not available: {e}")
-    validator = None
-    history_manager = None
-    status_manager = None
-    regtech_collector = None
+    validator: Any = None
+    history_manager: Any = None
+    save_collection_data: Any = None
+    status_manager: Any = None
+    regtech_collector: Any = None
 
 
 class CollectionService:
     """데이터 수집 서비스 - 모듈화된 아키텍처"""
 
-    def __init__(self, db_service=None):
+    def __init__(self, db_service: Any = None):
         self.db_service = db_service
         self.active_collections = set()
         self.collection_status = {
             "regtech": {"running": False, "last_run": None},
-            "secudium": {"running": False, "last_run": None},
         }
 
     def trigger_collection(self, source: str) -> Dict[str, Any]:
@@ -134,10 +135,10 @@ class CollectionService:
 
     def trigger_regtech_collection(
         self,
-        start_date: str = None,
-        end_date: str = None,
-        username: str = None,
-        password: str = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> Dict[str, Any]:
         """REGTECH 수집 트리거 - Enhanced with connection validation"""
         start_time = time.time()
@@ -174,7 +175,7 @@ class CollectionService:
             try:
                 # REGTECH 컬렉터를 통한 수집
                 if username and password:
-                    result = regtech_collector.collect_real_regtech_data(username, password)
+                    result: Dict[str, Any] = regtech_collector.collect_real_regtech_data(username, password)
                 else:
                     collected_data = regtech_collector.collect_regtech_ips()
                     result = {
@@ -186,7 +187,7 @@ class CollectionService:
 
                 # 실행 시간 및 메트릭 추가
                 execution_time_ms = round((time.time() - start_time) * 1000, 2)
-                collected_count = result.get("collected_count", 0)
+                collected_count = int(result.get("collected_count", 0) or 0)
 
                 # 이력 기록
                 if history_manager:
@@ -233,12 +234,10 @@ class CollectionService:
         try:
             logger.info("Starting collection for all sources")
 
-            results = {}
+            results: Dict[str, Dict[str, Any]] = {}
             total_collected = 0
             overall_success = True
 
-            # SECUDIUM excluded: requires manual 2-step OTP authentication,
-            # cannot be triggered programmatically without user interaction.
             for source in ["regtech"]:
                 result = self.trigger_collection(source)
                 results[source] = result
@@ -360,7 +359,7 @@ class CollectionService:
         """수집 상태 조회"""
         try:
             # 상태 관리자에서 종합 상태 조회
-            status_data = status_manager.get_collection_status() if status_manager else {}
+            status_data: Dict[str, Any] = status_manager.get_collection_status() if status_manager else {}
 
             # 추가 통계 정보
             stats = history_manager.get_collection_statistics() if history_manager else {}
@@ -430,7 +429,7 @@ class CollectionService:
             }
 
     def test_regtech_collection(
-        self, username: str, password: str, start_date: str = None, end_date: str = None
+        self, username: str, password: str, start_date: Optional[str] = None, end_date: Optional[str] = None
     ) -> Dict[str, Any]:
         """REGTECH 인증정보로 테스트 수집"""
         return regtech_collector.test_regtech_collection(username, password, start_date, end_date)
@@ -447,13 +446,11 @@ class CollectionService:
             # 실제 IP 블랙리스트 데이터 수집
             if source.lower() == "regtech":
                 collected_data = regtech_collector.collect_regtech_ips()
-            elif source.lower() == "secudium":
-                return self._collect_secudium_via_http()
             else:
                 logger.warning(f"Unsupported collection source: {source}")
                 return {
                     "success": False,
-                    "error": f"지원되지 않는 수집 소스: {source}. REGTECH/SECUDIUM만 지원됩니다.",
+                    "error": f"지원되지 않는 수집 소스: {source}. REGTECH만 지원됩니다.",
                     "collected_count": 0,
                 }
 
@@ -487,111 +484,15 @@ class CollectionService:
             logger.error(f"_collect_regtech_ips error: {e}")
             return []
 
-    def _collect_secudium_via_http(self) -> Dict[str, Any]:
-        """Secudium 수집을 collector 서비스에 HTTP 요청으로 위임"""
-        import requests as req
-
-        try:
-            resp = req.post(
-                f"{config.COLLECTOR_URL}/api/force-collection/SECUDIUM",
-                timeout=300,
-            )
-            if resp.status_code == 200:
-                result = resp.json()
-                return {
-                    "success": result.get("success", False),
-                    "collected_count": result.get("collected_count", 0),
-                    "message": result.get("message", "Secudium 수집 완료"),
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Collector 서비스 오류: HTTP {resp.status_code}",
-                    "collected_count": 0,
-                }
-        except Exception as e:
-            logger.error(f"Secudium HTTP collection error: {e}")
-            return {"success": False, "error": str(e), "collected_count": 0}
-
-    def trigger_secudium_collection(self, start_date: str = "", end_date: str = "") -> Dict[str, Any]:
-        """Secudium Black IP 수집 트리거 (웹 UI에서 호출)"""
-        if self.collection_status.get("secudium", {}).get("is_collecting"):
-            return {"success": False, "error": "Secudium 수집이 이미 진행 중입니다."}
-
-        self.collection_status["secudium"]["is_collecting"] = True
-        self.collection_status["secudium"]["last_attempt"] = datetime.now().isoformat()
-
-        try:
-            result = self._collect_secudium_via_http()
-            if result.get("success"):
-                self.collection_status["secudium"]["last_success"] = datetime.now().isoformat()
-                self.collection_status["secudium"]["last_count"] = result.get("collected_count", 0)
-            return result
-        except Exception as e:
-            logger.error(f"trigger_secudium_collection error: {e}")
-            return {"success": False, "error": str(e), "collected_count": 0}
-        finally:
-            self.collection_status["secudium"]["is_collecting"] = False
-
     def _save_collection_data(self, source: str, data: List[Dict[str, Any]]) -> bool:
         """수집된 데이터를 데이터베이스에 저장 (v3.3.5 - detection_date/removal_date 지원)"""
-        try:
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            for item in data:
-                # v3.3.5: detection_date, removal_date, country, raw_data 지원
-                cursor.execute(
-                    """
-                    INSERT INTO blacklist_ips (
-                        ip_address, source, reason, confidence_level,
-                        detection_count, is_active, country, detection_date, removal_date,
-                        last_seen, created_at, raw_data
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (ip_address, source) DO UPDATE SET
-                        detection_count = blacklist_ips.detection_count + 1,
-                        last_seen = EXCLUDED.last_seen,
-                        reason = COALESCE(EXCLUDED.reason, blacklist_ips.reason),
-                        country = COALESCE(EXCLUDED.country, blacklist_ips.country),
-                        detection_date = COALESCE(EXCLUDED.detection_date, blacklist_ips.detection_date),
-                        removal_date = COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date),
-                        is_active = CASE
-                            WHEN COALESCE(EXCLUDED.removal_date, blacklist_ips.removal_date) < CURRENT_DATE
-                            THEN false
-                            ELSE EXCLUDED.is_active
-                        END,
-                        raw_data = EXCLUDED.raw_data,
-                        updated_at = CURRENT_TIMESTAMP
-                """,
-                    (
-                        item["ip_address"],
-                        item["source"],
-                        item.get("reason"),
-                        item.get("confidence_level", 50),
-                        item.get("detection_count", 1),
-                        item.get("is_active", True),
-                        item.get("country"),  # ✅ NEW
-                        item.get("detection_date"),  # ✅ NEW
-                        item.get("removal_date"),  # ✅ NEW
-                        item.get("last_seen", datetime.now()),
-                        datetime.now(),
-                        item.get("raw_data", {}),  # ✅ NEW (JSONB)
-                    ),
-                )
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-            logger.info(f"Saved {len(data)} items from {source}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to save collection data: {e}")
+        if not save_collection_data:
+            logger.error("Collection persistence helper not available")
             return False
 
+        return save_collection_data(self.db_service, source, data)
 
-# Singleton instance replaced with LocalProxy for DI support
-# collection_service = CollectionService()
+
 from flask import current_app
 from werkzeug.local import LocalProxy
 

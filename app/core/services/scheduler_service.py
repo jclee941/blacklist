@@ -1,7 +1,6 @@
 """
 자동 수집 스케줄러 서비스
 실제 REGTECH 데이터를 주기적으로 수집
-(SECUDIUM은 수동 수집만 지원)
 """
 
 import threading

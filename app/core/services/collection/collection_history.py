@@ -35,7 +35,7 @@ class CollectionHistoryManager:
         """수집 이력 기록
 
         Args:
-            collection_type: 수집 타입 (REGTECH, SECUDIUM 등)
+            collection_type: 수집 타입 (REGTECH)
             collected_count: 수집된 아이템 수
             start_date: 수집 시작 날짜 (optional)
             end_date: 수집 종료 날짜 (optional)

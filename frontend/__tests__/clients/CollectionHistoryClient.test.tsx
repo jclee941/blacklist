@@ -42,17 +42,9 @@ describe('CollectionHistoryClient', () => {
           collection_date: '2023-01-01T12:00:00Z',
           duration_seconds: 120,
         },
-        {
-          id: 2,
-          success: false,
-          service_name: 'SECUDIUM',
-          items_collected: 0,
-          collection_date: '2023-01-01T13:00:00Z',
-          error_message: 'Connection failed',
-        },
       ],
-      total: 2,
-      filtered: 2,
+      total: 1,
+      filtered: 1,
     },
   };
 
@@ -98,11 +90,6 @@ describe('CollectionHistoryClient', () => {
     // Check table content
     const regtechElements = screen.getAllByText('REGTECH');
     expect(regtechElements.length).toBeGreaterThan(0);
-
-    const secudiumElements = screen.getAllByText('SECUDIUM');
-    expect(secudiumElements.length).toBeGreaterThan(0);
-
-    expect(screen.getByText('Connection failed')).toBeInTheDocument();
   });
 
   it('handles refresh button click', async () => {

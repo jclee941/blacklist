@@ -47,8 +47,8 @@ class TestCollectionSources:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] is True
-        assert len(data["sources"]) == 2
-        assert data["summary"]["total"] == 2
+        assert len(data["sources"]) == 1
+        assert data["summary"]["total"] == 1
 
     def test_get_source_found(self, client):
         """GET /api/collection/sources/REGTECH returns source details"""

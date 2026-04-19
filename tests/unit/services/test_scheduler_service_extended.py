@@ -98,26 +98,6 @@ class TestSchedulerServiceExtended:
         ):
             svc._run_collection()
 
-    def test_run_collection_secudium_exception(self):
-        svc = self._make_scheduler()
-        svc._deactivate_expired_ips = Mock()
-        svc._update_collection_stats = Mock()
-
-        mock_mod = MagicMock()
-        mock_mod.collection_service._collect_regtech_ips.return_value = []
-
-        mock_requests = MagicMock()
-        mock_requests.post.side_effect = Exception("secudium error")
-
-        with patch.dict(
-            "sys.modules",
-            {
-                "core.services.collection_service": mock_mod,
-                "requests": mock_requests,
-            },
-        ):
-            svc._run_collection()
-
     # ---- _deactivate_expired_ips ----
 
     def test_deactivate_expired_ips_found(self):

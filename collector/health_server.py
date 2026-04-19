@@ -5,12 +5,12 @@ Provides HTTP health endpoint at :8545/health
 
 from datetime import datetime
 from typing import Any
-from flask import Flask, jsonify, request
-from waitress import serve  # type: ignore[import-untyped]
+from flask import Flask, jsonify
 import threading
 import logging
+import importlib
 from collections import deque
-from core.database import DatabaseService
+from .core.database import DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +45,6 @@ class HealthServer:
         self.scheduler = scheduler_ref  # Reference to scheduler instance
         self.port = port
         self.thread = None
-
-        # Thread-safe access to pending auth state
-        self._pending_auth_lock = threading.Lock()
-        self._secudium_pending_auth = None
 
         # Cached DatabaseService instance (avoid re-creating on every request)
         self._db = DatabaseService()
@@ -86,7 +82,7 @@ class HealthServer:
 
         @self.app.route("/trigger", methods=["POST"])
         def trigger_collection():
-            """Trigger manual collection for specified source (REGTECH or SECUDIUM)"""
+            """Trigger manual collection for the REGTECH source."""
             try:
                 from flask import request as flask_request
 
@@ -101,10 +97,10 @@ class HealthServer:
 
                 logger.info(f"Manual collection triggered: {source}, {start_date} ~ {end_date}")
 
-                if source in ("SECUDIUM", "REGTECH"):
-                    result = self.scheduler.force_collection(source)
-                else:
-                    result = self.scheduler.trigger_manual_collection()
+                if source != "REGTECH":
+                    return jsonify({"success": False, "error": f"Invalid source: {source}"}), 400
+
+                result = self.scheduler.force_collection(source)
 
                 return jsonify(
                     {
@@ -130,7 +126,7 @@ class HealthServer:
             try:
                 source_upper = source.upper()
 
-                if source_upper not in ["REGTECH", "SECUDIUM"]:
+                if source_upper != "REGTECH":
                     return jsonify({"success": False, "error": f"Invalid source: {source_upper}"}), 400
 
                 credentials = self._db.get_collection_credentials(source_upper)
@@ -155,41 +151,23 @@ class HealthServer:
                         }
                     ), 403
 
+                if not isinstance(username, str) or not isinstance(password, str):
+                    return jsonify(
+                        {
+                            "success": False,
+                            "error": f"Invalid credentials found for {source_upper}",
+                        }
+                    ), 400
+
                 # Test authentication
                 logger.info(f"Testing authentication for {source_upper} with user: {username}")
 
                 auth_result = False
                 if source_upper == "REGTECH":
-                    from core.regtech_collector import RegtechCollector
+                    from .core.regtech_collector import RegtechCollector
 
                     collector = RegtechCollector()
                     auth_result = collector.authenticate(username, password)
-                elif source_upper == "SECUDIUM":
-                    from core.secudium_collector import SecudiumCollector
-
-                    collector = SecudiumCollector()
-
-                    # Always manual OTP: step 1 only, return otp_required if needed
-                    step1_result = collector.authenticate_step1(username, password)
-                    if step1_result == "otp_required":
-                        with self._pending_auth_lock:
-                            self._secudium_pending_auth = {
-                                "collector": collector,
-                                "username": username,
-                                "timestamp": datetime.now(),
-                            }
-                        return jsonify(
-                            {
-                                "success": True,
-                                "otp_required": True,
-                                "message": "OTP 입력이 필요합니다",
-                                "timestamp": datetime.now().isoformat(),
-                            }
-                        )
-                    elif step1_result == "success":
-                        auth_result = True
-                    else:
-                        auth_result = False
 
                 test_timestamp = datetime.now()
                 test_message = "인증 성공" if auth_result else "인증 실패"
@@ -224,109 +202,6 @@ class HealthServer:
                     }
                 )  # 200 OK - 예외도 테스트 결과로 처리
 
-        @self.app.route("/api/test-auth/secudium/otp", methods=["POST"])
-        def submit_secudium_otp():
-            """Submit OTP code for Secudium manual authentication (step 2)."""
-            try:
-                data = request.get_json() or {}
-                otp_code = data.get("otp_code", "").strip()
-
-                if not otp_code:
-                    return jsonify({"success": False, "error": "OTP 코드가 필요합니다"}), 400
-
-                if len(otp_code) != 6 or not otp_code.isdigit():
-                    return jsonify({"success": False, "error": "OTP는 6자리 숫자여야 합니다"}), 400
-
-                with self._pending_auth_lock:
-                    pending = self._secudium_pending_auth
-                if not pending:
-                    return jsonify(
-                        {
-                            "success": False,
-                            "error": "대기 중인 인증 세션이 없습니다. 먼저 연결 테스트를 실행하세요.",
-                        }
-                    ), 400
-
-                elapsed = (datetime.now() - pending["timestamp"]).total_seconds()
-                if elapsed > 300:
-                    with self._pending_auth_lock:
-                        self._secudium_pending_auth = None
-                    return jsonify(
-                        {
-                            "success": False,
-                            "error": "OTP 세션이 만료되었습니다. 다시 연결 테스트를 실행하세요.",
-                        }
-                    ), 400
-
-                collector = pending["collector"]
-                result = collector.authenticate_step2(otp_code)
-
-                if result != "success":
-                    with self._pending_auth_lock:
-                        self._secudium_pending_auth = None
-                    return jsonify(
-                        {
-                            "success": False,
-                            "error": "OTP 인증 실패",
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                    )
-
-                # Auth succeeded — check if collection was requested
-                trigger_collect = data.get("trigger_collect", False)
-                if trigger_collect:
-                    try:
-                        logger.info("OTP auth success + trigger_collect: starting Secudium collection")
-                        collect_result = collector.collect_data()
-                        with self._pending_auth_lock:
-                            self._secudium_pending_auth = None
-                        return jsonify(
-                            {
-                                "success": True,
-                                "message": "SECUDIUM 인증 및 수집 완료",
-                                "collection": True,
-                                "collected_count": collect_result.get("total_ips", 0)
-                                if isinstance(collect_result, dict)
-                                else 0,
-                                "timestamp": datetime.now().isoformat(),
-                            }
-                        )
-                    except Exception as collect_err:
-                        logger.error(f"Collection after OTP auth failed: {collect_err}")
-                        with self._pending_auth_lock:
-                            self._secudium_pending_auth = None
-                        return jsonify(
-                            {
-                                "success": True,
-                                "message": "SECUDIUM 인증 성공, 수집 실패",
-                                "collection": False,
-                                "error": str(collect_err),
-                                "timestamp": datetime.now().isoformat(),
-                            }
-                        )
-
-                with self._pending_auth_lock:
-                    self._secudium_pending_auth = None
-                return jsonify(
-                    {
-                        "success": True,
-                        "message": "SECUDIUM 인증 성공",
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-
-            except Exception as e:
-                logger.error(f"Error during Secudium OTP submission: {e}")
-                with self._pending_auth_lock:
-                    self._secudium_pending_auth = None
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": str(e),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-
         @self.app.route("/api/force-collection/<source>", methods=["POST"])
         def force_collection(source):
             """Force immediate collection for a specific source"""
@@ -336,7 +211,7 @@ class HealthServer:
                 if not self.scheduler:
                     return jsonify({"success": False, "error": "Scheduler not available"}), 500
 
-                if source_upper not in ["REGTECH", "SECUDIUM"]:
+                if source_upper != "REGTECH":
                     return jsonify({"success": False, "error": f"Invalid source: {source_upper}"}), 400
 
                 credentials = self._db.get_collection_credentials(source_upper)
@@ -384,10 +259,7 @@ class HealthServer:
         status = {}
 
         regtech_creds = self._db.get_collection_credentials("REGTECH")
-        secudium_creds = self._db.get_collection_credentials("SECUDIUM")
-
         regtech_enabled = regtech_creds.get("enabled", False) if regtech_creds else False
-        secudium_enabled = secudium_creds.get("enabled", False) if secudium_creds else False
 
         # Use scheduler collection_stats if available (primary source)
         if self.scheduler:
@@ -400,46 +272,10 @@ class HealthServer:
                 "last_run": stats.get("last_run"),  # Already ISO string or None
                 "next_run": self.scheduler._get_next_run_time(),
             }
-
-            # Query SECUDIUM-specific stats from collection_history (DB is source of truth)
-            secudium_stats = {"run_count": 0, "error_count": 0, "last_run": None}
-            try:
-                with self._db.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        """
-                        SELECT COUNT(*) AS total,
-                               COUNT(*) FILTER (WHERE success = false) AS errors,
-                               MAX(collection_date) AS last_run
-                        FROM collection_history
-                        WHERE service_name = 'SECUDIUM'
-                        """
-                    )
-                    row = cursor.fetchone()
-                    if row:
-                        secudium_stats["run_count"] = row[0] or 0
-                        secudium_stats["error_count"] = row[1] or 0
-                        secudium_stats["last_run"] = row[2].isoformat() if row[2] else None
-                    cursor.close()
-            except Exception as e:
-                logger.warning(f"Failed to query SECUDIUM stats from DB: {e}")
-
-            status["SECUDIUM"] = {
-                "enabled": secudium_enabled,
-                "run_count": secudium_stats["run_count"],
-                "error_count": secudium_stats["error_count"],
-                "interval_seconds": 86400,
-                "last_run": secudium_stats["last_run"],
-                "next_run": None,
-            }
         else:
             # Fallback: collectors_ref is empty or contains {name: method_name} string pairs
             for name in self.collectors:
-                cred_enabled = False
-                if name == "REGTECH":
-                    cred_enabled = regtech_enabled
-                elif name == "SECUDIUM":
-                    cred_enabled = secudium_enabled
+                cred_enabled = regtech_enabled if name == "REGTECH" else False
                 status[name] = {
                     "enabled": cred_enabled,
                     "run_count": 0,
@@ -459,12 +295,13 @@ class HealthServer:
 
     def _run_server(self):
         """Run Flask server with waitress"""
-        serve(self.app, host="0.0.0.0", port=self.port, _quiet=True)
+        waitress = importlib.import_module("waitress")
+        waitress.serve(self.app, host="0.0.0.0", port=self.port, _quiet=True)
 
 
 def start_health_server():
     """Start health server helper"""
-    from collector.scheduler import scheduler
+    from .scheduler import scheduler
 
     # Scheduler has collection_stats, we can use that or just pass empty for now
     # Ideally, we should pass real collector status references

@@ -57,7 +57,7 @@ class TestForwardToBackend:
 
         with self.app.app_context():
             resp = self.client.put(
-                "/api/proxy/collection/credentials/secudium",
+                "/api/proxy/collection/credentials/regtech",
                 json={"username": "admin", "password": "pass"},
             )
 
@@ -189,7 +189,7 @@ class TestTriggerProxy:
         mock_post.side_effect = real_requests.exceptions.ConnectionError("refused")
 
         with self.app.app_context():
-            resp = self.client.post("/api/proxy/collection/trigger/secudium", json={})
+            resp = self.client.post("/api/proxy/collection/trigger/regtech", json={})
 
         assert resp.status_code == 503
         data = resp.get_json()

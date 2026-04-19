@@ -30,9 +30,6 @@ class CollectorConfig:
     # REGTECH 설정 (DB-only, 환경변수는 더 이상 사용하지 않음)
     REGTECH_BASE_URL = os.getenv("REGTECH_BASE_URL", "https://regtech.fsec.or.kr")
 
-    # SECUDIUM 설정 (DB-only, 환경변수는 더 이상 사용하지 않음)
-    SECUDIUM_BASE_URL = os.getenv("SECUDIUM_BASE_URL", "https://secudium.skinfosec.co.kr")
-
     # 수집 원본 아카이빙 설정
     ARCHIVE_DIR = os.getenv("COLLECTOR_ARCHIVE_DIR", "/app/data/archive")
     ARCHIVE_ENABLED = os.getenv("COLLECTOR_ARCHIVE_ENABLED", "true").lower() == "true"
@@ -69,6 +66,9 @@ class CollectorConfig:
 
             for row in cur.fetchall():
                 source = row[0]
+                if source != "REGTECH":
+                    continue
+
                 username = row[1]
                 password = row[2]
                 row_config = row[3] if row[3] else {}
@@ -144,7 +144,7 @@ class CollectorConfig:
             logger.warning(f"DB 인증정보 로드 실패 (환경변수 사용): {e}")
 
     @classmethod
-    def get_regtech_credentials(cls) -> tuple:
+    def get_regtech_credentials(cls) -> tuple[str, str]:
         """
         REGTECH 인증정보 반환 (DB에서만 로드)
 
@@ -164,30 +164,6 @@ class CollectorConfig:
             logger.error("REGTECH credentials not found in database")
             raise ValueError(
                 "REGTECH credentials not configured in database. Please add credentials via API: POST /api/credentials"
-            )
-
-        return (username, password)
-
-    @classmethod
-    def get_secudium_credentials(cls) -> tuple:
-        """
-        SECUDIUM 인증정보 반환 (DB에서만 로드)
-
-        Returns:
-            Tuple[str, str]: (username, password)
-
-        Raises:
-            ValueError: DB에 설정된 SECUDIUM 인증정보가 없을 때
-        """
-        cls._load_credentials_from_db()
-        creds = cls._credentials_cache.get("SECUDIUM", {})
-        username = creds.get("username", "")
-        password = creds.get("password", "")
-
-        if not username or not password:
-            logger.error("SECUDIUM credentials not found in database")
-            raise ValueError(
-                "SECUDIUM credentials not configured in database. Please add credentials via API: POST /api/credentials"
             )
 
         return (username, password)

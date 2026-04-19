@@ -99,11 +99,11 @@ describe('IPManagementFormModal', () => {
       expect(screen.getByPlaceholderText('VIP 고객')).toBeInTheDocument();
     });
 
-    it('renders source dropdown with 4 options', () => {
+    it('renders source dropdown with 3 options', () => {
       render(<IPManagementFormModal {...defaultProps} />);
       const select = screen.getByDisplayValue('수동 입력');
       expect(select).toBeInTheDocument();
-      expect(select.querySelectorAll('option')).toHaveLength(4);
+      expect(select.querySelectorAll('option')).toHaveLength(3);
     });
 
     it('shows country field only in edit mode', () => {

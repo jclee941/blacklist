@@ -6,9 +6,8 @@ Archive Manager — 수집 원본 파일 보관
 
 파일명 규칙:
     {SOURCE}_{YYYYMMDDTHHmmss}_P{start}-{end}_{original_name}
-    예: SECUDIUM_20260211T143022_P20260201-20260211_blacklist.xls
-        REGTECH_20260211T143022_P20260201-20260211_page1.html
-    기간 정보 없을 시: SECUDIUM_20260211T143022_blacklist.xls
+    예: REGTECH_20260211T143022_P20260201-20260211_page1.html
+    기간 정보 없을 시: REGTECH_20260211T143022_page1.html
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ def generate_archive_filename(
     기간 정보가 없으면 P 세그먼트를 생략합니다.
 
     Args:
-        source: 수집 소스 (예: "SECUDIUM", "REGTECH")
+        source: 수집 소스 (예: "REGTECH")
         original_name: 원본 파일명 (예: "blacklist.xls")
         period_start: 수집 대상 시작일 (예: "2026-02-01", "20260201")
         period_end: 수집 대상 종료일 (예: "2026-02-11", "20260211")
@@ -77,7 +76,7 @@ def archive_file(
     """원본 파일을 아카이브 디렉토리에 복사합니다.
 
     Args:
-        source: 수집 소스 이름 (예: "SECUDIUM", "REGTECH")
+        source: 수집 소스 이름 (예: "REGTECH")
         src_path: 원본 파일 경로
         filename: 원본 파일명 (None이면 src_path에서 추출)
         period_start: 수집 대상 시작일

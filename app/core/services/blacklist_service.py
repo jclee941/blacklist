@@ -5,7 +5,7 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 from dataclasses import dataclass
 from ..utils.version import get_app_version
 import structlog
@@ -20,6 +20,7 @@ from ..monitoring.metrics import (
     blacklist_whitelist_hits_total,
 )
 from .blacklist_repository import BlacklistRepository
+from .blacklist_service_sync import BlacklistCollectorMixin
 
 # 구조화된 로깅 설정
 logger = structlog.get_logger(__name__)
@@ -34,15 +35,15 @@ class HealthStatus:
     components: Dict[str, Any]
 
 
-class BlacklistService:
+class BlacklistService(BlacklistCollectorMixin):
     def __init__(self, db_service=None):
-        self.db_service = db_service
-        self.repo = BlacklistRepository(db_service) if db_service else None
-        self._components = {"regtech": True, "database": True, "redis": False}
+        self.db_service: Any = db_service
+        self.repo: Any = BlacklistRepository(db_service) if db_service else None
+        self._components: Dict[str, Any] = {"regtech": True, "database": True, "redis": False}
 
         # Redis 캐시 초기화
         try:
-            self.redis_client = redis.Redis(
+            self.redis_client: Any = redis.Redis(
                 host=config.REDIS_HOST,
                 port=config.REDIS_PORT,
                 db=0,
@@ -78,7 +79,7 @@ class BlacklistService:
         if metadata:
             log_data.update(metadata)
 
-        blacklist_decisions_total.labels(decision=decision, reason=reason).inc()
+        cast(Any, blacklist_decisions_total).labels(decision=decision, reason=reason).inc()
 
         logger.info("blacklist_decision", **log_data)
 
@@ -92,7 +93,7 @@ class BlacklistService:
                     if cached is not None:
                         is_whitelisted = cached == "true"
                         if is_whitelisted:
-                            blacklist_whitelist_hits_total.labels(ip_type="vip").inc()
+                            cast(Any, blacklist_whitelist_hits_total).labels(ip_type="vip").inc()
                             self.log_decision(
                                 ip,
                                 "ALLOWED",
@@ -112,7 +113,7 @@ class BlacklistService:
                     standard_logger.warning(f"Redis cache write failed: {redis_err}")
 
             if is_whitelisted:
-                blacklist_whitelist_hits_total.labels(ip_type="vip").inc()
+                cast(Any, blacklist_whitelist_hits_total).labels(ip_type="vip").inc()
                 self.log_decision(
                     ip,
                     "ALLOWED",
@@ -148,7 +149,7 @@ class BlacklistService:
                 try:
                     cached = self.redis_client.get(cache_key)
                     if cached:
-                        result = json.loads(cached)
+                        result = json.loads(cast(str, cached))
                         result["metadata"]["cache_hit"] = True
 
                         if result["blocked"]:
@@ -270,7 +271,7 @@ class BlacklistService:
         try:
             sources = self.repo.get_source_stats()
 
-            status = {
+            status: Dict[str, Any] = {
                 "collection_enabled": True,
                 "sources": {},
                 "total_ips": sum(s["count"] for s in sources),
@@ -428,107 +429,3 @@ class BlacklistService:
         except Exception as e:
             logger.error(f"REGTECH collection failed: {e}")
             return {"success": False, "error": str(e)}
-
-    # REGTECH 및 SECUDIUM 수집 지원
-
-    def sync_with_collector(self) -> Dict[str, Any]:
-        try:
-            try:
-                health_response = requests.get(f"{config.COLLECTOR_URL}/health", timeout=5)
-                collector_healthy = health_response.status_code == 200
-            except Exception:
-                collector_healthy = False
-
-            stats = self.get_system_stats()
-
-            return {
-                "success": True,
-                "collector_status": "healthy" if collector_healthy else "unreachable",
-                "total_ips": stats.get("total_ips", 0),
-                "active_ips": stats.get("active_ips", 0),
-                "database_shared": True,
-                "message": f"총 {stats.get('total_ips', 0)}개 IP (활성: {stats.get('active_ips', 0)}개)",
-                "note": "메인앱과 컬렉터는 같은 데이터베이스를 공유합니다",
-            }
-
-        except Exception as e:
-            logger.error(f"동기화 상태 확인 실패: {e}")
-            return {"success": False, "error": str(e), "collector_status": "error"}
-
-    def force_schema_fix(self) -> Dict[str, Any]:
-        try:
-            added_is_active = self.repo.add_column_if_not_exists("is_active", "BOOLEAN DEFAULT TRUE")
-            added_country = self.repo.add_column_if_not_exists("country", "VARCHAR(10)")
-            added_detection_date = self.repo.add_column_if_not_exists("detection_date", "DATE")
-            added_removal_date = self.repo.add_column_if_not_exists("removal_date", "DATE")
-
-            return {
-                "success": True,
-                "message": "스키마 강제 수정 완료",
-                "added_columns": {
-                    "is_active": added_is_active,
-                    "country": added_country,
-                    "detection_date": added_detection_date,
-                    "removal_date": added_removal_date,
-                },
-            }
-
-        except Exception as e:
-            logger.error(f"스키마 강제 수정 실패: {e}")
-            return {"success": False, "error": str(e)}
-
-    def force_data_refresh(self) -> Dict[str, Any]:
-        try:
-            try:
-                data_response = requests.get(f"{config.COLLECTOR_URL}/api/data", timeout=30)
-
-                if data_response.status_code == 200:
-                    collector_data = data_response.json()
-                    copied_count = self._copy_data_from_collector(collector_data)
-
-                    return {
-                        "success": True,
-                        "message": f"컬렉터에서 {copied_count}개 IP 데이터를 복사했습니다",
-                        "copied_count": copied_count,
-                        "source": "collector_data_copy",
-                    }
-                else:
-                    logger.warning(f"컬렉터 데이터 API 실패: {data_response.status_code}")
-                    return self._fallback_direct_collection()
-
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"컬렉터 연결 실패: {e}")
-                return self._fallback_direct_collection()
-
-        except Exception as e:
-            logger.error(f"강제 데이터 새로고침 실패: {e}")
-            return {"success": False, "error": str(e)}
-
-    def _copy_data_from_collector(self, collector_data) -> int:
-        copied_count = 0
-
-        try:
-            self.repo.deactivate_by_source("REGTECH")
-
-            for ip_data in collector_data.get("data", []):
-                if self.repo.upsert_blacklist_from_collector(
-                    ip_address=ip_data.get("ip_address"),
-                    reason=ip_data.get("reason", ""),
-                    country=ip_data.get("country"),
-                    detection_date=ip_data.get("detection_date"),
-                ):
-                    copied_count += 1
-
-        except Exception as e:
-            logger.error(f"데이터 복사 실패: {e}")
-
-        return copied_count
-
-    def _fallback_direct_collection(self) -> Dict[str, Any]:
-        logger.info("컬렉터 사용 불가, 메인 앱에서 직접 수집 시도")
-        return {
-            "success": False,
-            "error": "컬렉터 연결 실패 및 직접 수집 미구현",
-            "fallback_attempted": True,
-            "suggestion": "수동으로 REGTECH 포털에서 데이터를 다운로드하세요",
-        }

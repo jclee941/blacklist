@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class BlacklistError(Exception):
     """
-    Secudium 시스템의 기본 예외 클래스
+    블랙리스트 시스템의 기본 예외 클래스
 
     모든 커스텀 예외의 부모 클래스로, 공통적인 에러 처리 로직을 제공합니다.
     """

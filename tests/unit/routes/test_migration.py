@@ -47,72 +47,6 @@ def _mock_db_with_context(cursor_results):
     return mock_db
 
 
-# ─── Cleanup Secudium ──────────────────────────────────────────────
-
-
-class TestCleanupSecudium:
-    """POST /api/migration/cleanup-secudium"""
-
-    def setup_method(self):
-        self.app = _create_app()
-        self.client = self.app.test_client()
-
-    @patch.dict(os.environ, {"MIGRATION_KEY": "test-key"}, clear=False)
-    def test_cleanup_success(self):
-        mock_db = _mock_db_with_context(
-            {
-                "fetchone": [
-                    (100, "REGTECH, SECUDIUM"),  # before
-                    (80, "REGTECH"),  # after
-                ],
-                "rowcount": 20,
-            }
-        )
-        self.app.extensions["db_service"] = mock_db
-
-        resp = self.client.post(
-            "/api/migration/cleanup-secudium",
-            headers={"X-Migration-Key": "test-key"},
-        )
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["success"] is True
-
-    def test_cleanup_wrong_key(self):
-        """Wrong key: UnauthorizedError has bug (details kwarg unsupported) -> TypeError -> 500."""
-        resp = self.client.post(
-            "/api/migration/cleanup-secudium",
-            headers={"X-Migration-Key": "wrong"},
-        )
-        # BUG in source: UnauthorizedError() called with unsupported 'details' kwarg
-        assert resp.status_code == 500
-
-    def test_cleanup_no_key(self):
-        """No key: same UnauthorizedError bug -> 500."""
-        resp = self.client.post("/api/migration/cleanup-secudium")
-        assert resp.status_code == 500
-
-    @patch.dict(os.environ, {"MIGRATION_KEY": "test-key"}, clear=False)
-    def test_cleanup_db_error(self):
-        mock_db = MagicMock()
-        mock_conn = MagicMock()
-        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
-        mock_conn.__exit__ = MagicMock(return_value=False)
-        mock_cursor = MagicMock()
-        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
-        mock_cursor.__exit__ = MagicMock(return_value=False)
-        mock_cursor.execute.side_effect = Exception("DB error")
-        mock_conn.cursor.return_value = mock_cursor
-        mock_db.get_connection.return_value = mock_conn
-        self.app.extensions["db_service"] = mock_db
-
-        resp = self.client.post(
-            "/api/migration/cleanup-secudium",
-            headers={"X-Migration-Key": "test-key"},
-        )
-        assert resp.status_code == 500
-
-
 # ─── Regtech Test Collection ───────────────────────────────────────
 
 
@@ -165,7 +99,7 @@ class TestResetAllData:
         mock_db = _mock_db_with_context(
             {
                 "fetchone": [
-                    (500, "REGTECH, SECUDIUM"),  # before
+                    (500, "REGTECH"),  # before
                 ],
                 "rowcount": 500,
             }
@@ -182,12 +116,12 @@ class TestResetAllData:
         assert data["data"]["after_count"] == 0
 
     def test_reset_all_wrong_key(self):
-        """Wrong key: UnauthorizedError has bug (details kwarg unsupported) -> TypeError -> 500."""
+        """Wrong key returns UnauthorizedError."""
         resp = self.client.post(
             "/api/migration/reset-all-data",
             headers={"X-Migration-Key": "wrong"},
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 401
 
     @patch.dict(os.environ, {"MIGRATION_KEY": "test-key"}, clear=False)
     def test_reset_all_db_error(self):
@@ -224,7 +158,7 @@ class TestMigrationStatus:
         mock_db = _mock_db_with_context(
             {
                 "fetchone": [
-                    (100, 80, 0, "REGTECH"),
+                    (100, 80, "REGTECH"),
                 ],
             }
         )
@@ -234,13 +168,12 @@ class TestMigrationStatus:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["data"]["clean_state"] is True
-        assert data["data"]["stats"]["secudium_count"] == 0
 
     def test_status_dirty(self):
         mock_db = _mock_db_with_context(
             {
                 "fetchone": [
-                    (200, 100, 50, "REGTECH, SECUDIUM"),
+                    (200, 100, "REGTECH"),
                 ],
             }
         )
@@ -249,7 +182,7 @@ class TestMigrationStatus:
         resp = self.client.get("/api/migration/status")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["data"]["clean_state"] is False
+        assert data["data"]["clean_state"] is True
 
     def test_status_db_error(self):
         mock_db = MagicMock()

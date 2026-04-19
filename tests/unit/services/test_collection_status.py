@@ -56,9 +56,7 @@ class TestCollectionStatusManager:
     def test_stop_all_collections(self):
         """Stop all active collections"""
         self.manager.active_collections.add("regtech")
-        self.manager.active_collections.add("secudium")
         self.manager.collection_status["regtech"] = {"running": True}
-        self.manager.collection_status["secudium"] = {"running": True}
 
         result = self.manager.stop_all_collections()
 
@@ -83,16 +81,6 @@ class TestCollectionStatusManager:
         status = self.manager.collection_status["regtech"]
         assert status["running"] is False
         assert status["last_error"] == "Connection timeout"
-
-    def test_update_collection_error_secudium(self):
-        """Error state recorded correctly for secudium type"""
-        self.manager.collection_status["secudium"] = {"running": True}
-
-        self.manager.update_collection_error("secudium", "Auth failed")
-
-        status = self.manager.collection_status["secudium"]
-        assert status["running"] is False
-        assert status["last_error"] == "Auth failed"
 
     # --- get_collection_status (with mocked DB) ---
 

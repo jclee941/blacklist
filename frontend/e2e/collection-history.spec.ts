@@ -26,15 +26,6 @@ test.describe('수집 프로세스 E2E 테스트', () => {
                 },
                 {
                   id: 2,
-                  source: 'secudium',
-                  status: 'success',
-                  items_collected: 200,
-                  started_at: '2026-02-11T09:30:00',
-                  completed_at: '2026-02-11T09:31:30',
-                  duration: 90,
-                },
-                {
-                  id: 3,
                   source: 'regtech',
                   status: 'failed',
                   items_collected: 0,
@@ -44,7 +35,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
                   error: 'Connection timeout',
                 },
               ],
-              total: 3,
+              total: 2,
               page: 1,
               per_page: 20,
             },
@@ -62,7 +53,7 @@ test.describe('수집 프로세스 E2E 테스트', () => {
 
       // Wait for history data to load (async fetch after tab switch)
       await expect(
-        page.getByText(/regtech|REGTECH|secudium|SECUDIUM|성공|실패|수집 이력이 없습니다/).first()
+        page.getByText(/regtech|REGTECH|성공|실패|수집 이력이 없습니다/).first()
       ).toBeVisible({ timeout: 15000 });
     });
 

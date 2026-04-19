@@ -155,8 +155,6 @@ class TestRecordFailure:
 class TestCollectors:
     def test_supported_sources(self, sched):
         assert "REGTECH" in sched.collectors
-        assert "SECUDIUM" in sched.collectors
 
     def test_collector_method_names(self, sched):
         assert sched.collectors["REGTECH"] == "_collect_regtech_data"
-        assert sched.collectors["SECUDIUM"] == "_collect_secudium_data"

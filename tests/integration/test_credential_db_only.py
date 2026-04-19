@@ -31,6 +31,7 @@ class TestDBOnlyCredentials:
 
         # Clear cache to force fresh load
         CollectorConfig._cache_loaded = False
+        CollectorConfig._credentials_cache.clear()
 
         # Collector should fail to get credentials
         with pytest.raises(ValueError) as exc_info:
@@ -99,9 +100,6 @@ class TestCollectorStartupValidation:
         # Should raise when trying to get credentials
         with pytest.raises(ValueError):
             CollectorConfig.get_regtech_credentials()
-
-        with pytest.raises(ValueError):
-            CollectorConfig.get_secudium_credentials()
 
 
 if __name__ == "__main__":

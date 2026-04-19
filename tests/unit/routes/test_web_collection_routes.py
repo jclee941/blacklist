@@ -80,21 +80,6 @@ class TestCollectionTrigger:
         assert data["success"] is True
         mock_svc.trigger_regtech_collection.assert_called_once()
 
-    def test_date_range_secudium(self):
-        app = make_app()
-        mock_svc = MagicMock()
-        mock_svc.trigger_secudium_collection.return_value = {"success": True, "collected_count": 3}
-        app.extensions["collection_service"] = mock_svc
-
-        with app.test_client() as c:
-            resp = c.post(
-                "/api/collection/secudium/trigger",
-                json={"start_date": "2026-01-01", "end_date": "2026-01-07"},
-            )
-
-        assert resp.status_code == 200
-        assert resp.get_json()["success"] is True
-
     def test_collection_failure(self):
         app = make_app()
         mock_svc = MagicMock()
@@ -127,7 +112,7 @@ class TestTriggerAll:
         mock_svc.trigger_all_collections.return_value = {
             "success": True,
             "total_collected": 25,
-            "results": {"regtech": 15, "secudium": 10},
+            "results": {"regtech": 25},
         }
         app.extensions["collection_service"] = mock_svc
 
@@ -198,7 +183,7 @@ class TestExpandCollectionScope:
             "success": True,
             "message": "expanded",
             "total_collected": 30,
-            "sources": ["regtech", "secudium"],
+            "sources": ["regtech"],
         }
         app.extensions["collection_service"] = mock_svc
 

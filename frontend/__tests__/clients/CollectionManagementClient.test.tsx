@@ -19,7 +19,7 @@ vi.mock('@/components/ui/Button', () => ({
     onClick?: () => void;
     disabled?: boolean;
   }) => (
-    <button onClick={onClick} disabled={disabled} data-testid="ui-button">
+    <button type="button" onClick={onClick} disabled={disabled} data-testid="ui-button">
       {children}
     </button>
   ),
@@ -43,8 +43,6 @@ vi.mock('@/app/collection/components', () => ({
   ),
   CredentialEditModal: ({ show }: { show?: boolean }) =>
     show ? <div data-testid="credential-modal" /> : null,
-  OtpInputDialog: ({ show }: { show?: boolean }) =>
-    show ? <div data-testid="otp-dialog" /> : null,
   useCollectionManagement: vi.fn(),
 }));
 
@@ -71,10 +69,6 @@ describe('CollectionManagementClient', () => {
     setCredentialForm: vi.fn(),
     getSourceCount: vi.fn(),
     formatInterval: vi.fn(),
-    showOtpDialog: false,
-    otpServiceName: null,
-    submitOtp: vi.fn(),
-    closeOtpDialog: vi.fn(),
     saving: false,
     clearNotification: vi.fn(),
   };
@@ -96,16 +90,16 @@ describe('CollectionManagementClient', () => {
     vi.mocked(useCollectionManagement).mockReturnValue({
       ...mockUseCollectionManagement,
       loading: false,
-      credentials: [
-        { service_name: 'REGTECH', username: 'user', enabled: true },
-        { service_name: 'SECUDIUM', username: 'user', enabled: true },
-      ] as { service_name: string; username: string; enabled: boolean }[],
+      credentials: [{ service_name: 'REGTECH', username: 'user', enabled: true }] as {
+        service_name: string;
+        username: string;
+        enabled: boolean;
+      }[],
     });
     render(<CollectionManagementClient />);
     expect(screen.getByTestId('page-header')).toHaveTextContent('수집 관리');
     expect(screen.getByTestId('collection-stats')).toBeInTheDocument();
     expect(screen.getByTestId('collector-card-REGTECH')).toBeInTheDocument();
-    expect(screen.getByTestId('collector-card-SECUDIUM')).toBeInTheDocument();
   });
 
   it('shows notification when present', () => {
@@ -141,15 +135,5 @@ describe('CollectionManagementClient', () => {
     });
     render(<CollectionManagementClient />);
     expect(screen.getByTestId('credential-modal')).toBeInTheDocument();
-  });
-
-  it('shows OTP dialog when active', () => {
-    vi.mocked(useCollectionManagement).mockReturnValue({
-      ...mockUseCollectionManagement,
-      loading: false,
-      showOtpDialog: true,
-    });
-    render(<CollectionManagementClient />);
-    expect(screen.getByTestId('otp-dialog')).toBeInTheDocument();
   });
 });

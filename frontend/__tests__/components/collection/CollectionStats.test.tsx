@@ -37,14 +37,6 @@ describe('CollectionStats', () => {
         next_run: '2025-01-15T11:00:00Z',
         run_count: 10,
       },
-      SECUDIUM: {
-        enabled: false,
-        error_count: 2,
-        interval_seconds: 7200,
-        last_run: '2025-01-14T08:00:00Z',
-        next_run: null,
-        run_count: 5,
-      },
     },
   };
 
@@ -98,7 +90,7 @@ describe('CollectionStats', () => {
 
   it('displays active/total collectors count', () => {
     render(<CollectionStats {...defaultProps} />);
-    expect(screen.getByTestId('stat-활성 수집기')).toHaveTextContent('1/2');
+    expect(screen.getByTestId('stat-활성 수집기')).toHaveTextContent('1/1');
   });
 
   it('displays 0/0 when collectionStatus is null', () => {

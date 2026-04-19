@@ -53,7 +53,6 @@ export function IPManagementFilters({
           className="px-4 py-2 border border-gray-300 rounded-lg"
         >
           <option value="">소스 전체</option>
-          <option value="SECUDIUM">SECUDIUM</option>
           <option value="REGTECH">REGTECH</option>
           <option value="MANUAL">수동등록</option>
         </select>
@@ -66,7 +65,6 @@ export function IPManagementFilters({
           className="px-4 py-2 border border-gray-300 rounded-lg"
         >
           <option value="">소스 전체</option>
-          <option value="SECUDIUM">SECUDIUM</option>
           <option value="REGTECH">REGTECH</option>
           <option value="MANUAL">수동등록</option>
         </select>

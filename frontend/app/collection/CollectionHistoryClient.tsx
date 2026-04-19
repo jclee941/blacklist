@@ -120,8 +120,6 @@ export default function CollectionHistoryClient() {
     switch (service) {
       case 'REGTECH':
         return 'bg-pink-100 text-pink-800 border-pink-200';
-      case 'SECUDIUM':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
 
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -267,7 +265,6 @@ export default function CollectionHistoryClient() {
             >
               <option value="">모든 소스</option>
               <option value="REGTECH">REGTECH</option>
-              <option value="SECUDIUM">SECUDIUM</option>
             </select>
           </div>
 

@@ -37,8 +37,8 @@ const mockAnalyticsResponse = {
       {
         detection_day: '2025-01-15',
         ip_count: 150,
-        source_count: 2,
-        sources: 'REGTECH, SECUDIUM',
+        source_count: 1,
+        sources: 'REGTECH',
         first_collected: '2025-01-15T00:00:00Z',
         last_collected: '2025-01-15T23:59:00Z',
         is_suspicious: false,

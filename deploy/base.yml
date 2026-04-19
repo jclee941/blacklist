@@ -68,9 +68,6 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:-blacklist-regtech-salt-2025}
-      SECUDIUM_EMAIL: ${SECUDIUM_EMAIL}
-      SECUDIUM_EMAIL_PASSWORD: ${SECUDIUM_EMAIL_PASSWORD}
-      SECUDIUM_IMAP_SERVER: ${SECUDIUM_IMAP_SERVER:-imap.kakao.com}
       TZ: Asia/Seoul
     volumes:
       - blacklist-collector-data:/app/data

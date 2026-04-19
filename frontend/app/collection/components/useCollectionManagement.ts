@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import api, {
+import {
   getCredential,
   getCollectionStatus,
   getBlacklistStats,
@@ -18,7 +18,7 @@ import type {
   NotificationState,
 } from './types';
 
-const COLLECTORS = ['REGTECH', 'SECUDIUM'];
+const COLLECTORS = ['REGTECH'];
 const REFRESH_INTERVAL = 30000;
 
 const INITIAL_FORM_STATE: CredentialFormState = {
@@ -42,9 +42,6 @@ export function useCollectionManagement() {
   const [credentialForm, setCredentialForm] = useState<CredentialFormState>(INITIAL_FORM_STATE);
 
   const [saving, setSaving] = useState(false);
-
-  const [showOtpDialog, setShowOtpDialog] = useState(false);
-  const [otpServiceName, setOtpServiceName] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -108,35 +105,26 @@ export function useCollectionManagement() {
       const data = await testCredential(serviceName.toLowerCase());
       const innerData = data?.data;
 
-      if (innerData?.status === 'otp_required') {
-        setOtpServiceName(serviceName);
-        setShowOtpDialog(true);
-        setNotification({
-          type: 'success',
-          message: `${serviceName}: OTP 인증이 필요합니다.`,
-        });
-      } else {
-        const isConnected = innerData?.status === 'connected';
-        setCredentials((prev) =>
-          prev.map((cred) =>
-            cred.service_name === serviceName
-              ? {
-                  ...cred,
-                  connection_status: isConnected ? 'connected' : 'failed',
-                  status_message: innerData?.message || innerData?.error_code,
-                }
-              : cred
-          )
-        );
+      const isConnected = innerData?.status === 'connected';
+      setCredentials((prev) =>
+        prev.map((cred) =>
+          cred.service_name === serviceName
+            ? {
+                ...cred,
+                connection_status: isConnected ? 'connected' : 'failed',
+                status_message: innerData?.message || innerData?.error_code,
+              }
+            : cred
+        )
+      );
 
-        if (isConnected) {
-          setNotification({ type: 'success', message: `${serviceName} 연결 테스트 성공!` });
-        } else {
-          setNotification({
-            type: 'error',
-            message: `${serviceName} 연결 실패: ${innerData?.message || innerData?.error_code || '알 수 없는 오류'}`,
-          });
-        }
+      if (isConnected) {
+        setNotification({ type: 'success', message: `${serviceName} 연결 테스트 성공!` });
+      } else {
+        setNotification({
+          type: 'error',
+          message: `${serviceName} 연결 실패: ${innerData?.message || innerData?.error_code || '알 수 없는 오류'}`,
+        });
       }
     } catch {
       setNotification({ type: 'error', message: `${serviceName} 연결 테스트 중 오류 발생` });
@@ -145,93 +133,10 @@ export function useCollectionManagement() {
     }
   }, []);
 
-  const submitOtp = useCallback(
-    async (otpCode: string) => {
-      if (!otpServiceName) return;
-
-      setTestingConnection((prev) => ({ ...prev, [otpServiceName]: true }));
-
-      try {
-        const { data } = await api.post(
-          `/proxy/collection/credentials/${otpServiceName.toLowerCase()}/otp`,
-          {
-            otp_code: otpCode,
-            trigger_collect: true,
-          }
-        );
-
-        setCredentials((prev) =>
-          prev.map((cred) =>
-            cred.service_name === otpServiceName
-              ? {
-                  ...cred,
-                  connection_status: data.success ? 'connected' : 'failed',
-                  status_message: data.message || data.error,
-                }
-              : cred
-          )
-        );
-
-        if (data.success) {
-          if (data.collection) {
-            setNotification({
-              type: 'success',
-              message: `${otpServiceName} OTP 인증 및 수집 완료! (${data.collected_count || 0}건)`,
-            });
-            setTimeout(fetchData, 2000);
-          } else {
-            setNotification({ type: 'success', message: `${otpServiceName} OTP 인증 성공!` });
-          }
-          setShowOtpDialog(false);
-          setOtpServiceName(null);
-        } else {
-          setNotification({
-            type: 'error',
-            message: `${otpServiceName} OTP 인증 실패: ${data.message || data.error}`,
-          });
-        }
-      } catch {
-        setNotification({ type: 'error', message: `${otpServiceName} OTP 인증 중 오류 발생` });
-      } finally {
-        setTestingConnection((prev) => ({ ...prev, [otpServiceName]: false }));
-      }
-    },
-    [otpServiceName, fetchData]
-  );
-
-  const closeOtpDialog = useCallback(() => {
-    setShowOtpDialog(false);
-    setOtpServiceName(null);
-  }, []);
-
   const triggerCollection = useCallback(
     async (serviceName: string) => {
       setTriggeringCollection((prev) => ({ ...prev, [serviceName]: true }));
       try {
-        // SECUDIUM: test auth first — OTP may be required
-        if (serviceName === 'SECUDIUM') {
-          const authData = await testCredential(serviceName.toLowerCase());
-          const authInnerData = authData?.data;
-
-          if (authInnerData?.status === 'otp_required') {
-            setOtpServiceName(serviceName);
-            setShowOtpDialog(true);
-            setNotification({
-              type: 'success',
-              message: `${serviceName}: OTP 인증이 필요합니다. 인증 후 수집이 시작됩니다.`,
-            });
-            return;
-          }
-
-          if (!authData.success || authInnerData?.status === 'failed') {
-            setNotification({
-              type: 'error',
-              message: `${serviceName} 인증 실패: ${authInnerData?.message || authInnerData?.error_code || '알 수 없는 오류'}`,
-            });
-            return;
-          }
-        }
-
         const data = await triggerCollectionService(serviceName.toLowerCase(), { force: true });
 
         if (data.success) {
@@ -252,7 +157,7 @@ export function useCollectionManagement() {
         setTriggeringCollection((prev) => ({ ...prev, [serviceName]: false }));
       }
     },
-    [fetchData, credentials]
+    [fetchData]
   );
 
   const openEditModal = useCallback(
@@ -351,13 +256,8 @@ export function useCollectionManagement() {
     notification,
     credentialForm,
 
-    showOtpDialog,
-    otpServiceName,
-
     fetchData,
     testConnection,
-    submitOtp,
-    closeOtpDialog,
     triggerCollection,
     openEditModal,
     closeEditModal,

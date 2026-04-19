@@ -64,13 +64,6 @@ test.describe('Regression: Issue #002 - Collection IP count shows 0', () => {
                 last_collection: '2026-02-11T10:00:00',
                 avg_duration: 45.2,
               },
-              secudium: {
-                total_collections: 20,
-                success_rate: 90.0,
-                total_items: 4000,
-                last_collection: '2026-02-11T09:30:00',
-                avg_duration: 60.5,
-              },
             },
           },
         }),
@@ -88,7 +81,6 @@ test.describe('Regression: Issue #002 - Collection IP count shows 0', () => {
             collector_status: 'running',
             sources: {
               regtech: { status: 'active', last_run: '2026-02-11T10:00:00' },
-              secudium: { status: 'active', last_run: '2026-02-11T09:30:00' },
             },
           },
         }),
@@ -110,8 +102,6 @@ test.describe('Regression: Issue #002 - Collection IP count shows 0', () => {
     const hasNonZeroCount =
       pageContent?.includes('8,500') ||
       pageContent?.includes('8500') ||
-      pageContent?.includes('4,000') ||
-      pageContent?.includes('4000') ||
       pageContent?.includes('12,500') ||
       pageContent?.includes('12500');
 

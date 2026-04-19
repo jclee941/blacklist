@@ -74,7 +74,7 @@ class TestBlacklistServiceExtended:
         svc, _, _ = self._make_service()
         svc.repo.count_blacklist_ips = Mock(return_value=100)
         svc.repo.count_active_blacklist_ips = Mock(return_value=50)
-        svc.repo.get_source_counts = Mock(return_value={"REGTECH": 30, "SECUDIUM": 20})
+        svc.repo.get_source_counts = Mock(return_value={"REGTECH": 30})
         result = svc.get_system_stats()
         assert result["success"] is True
         assert result["total_ips"] == 100

@@ -247,7 +247,7 @@ class TestCollectionResponse:
     def test_with_errors(self):
         app = _make_app()
         with app.test_request_context("/test"):
-            response, _ = collection_response(source="secudium", items_collected=0, success=False, errors=["timeout"])
+            response, _ = collection_response(source="regtech", items_collected=0, success=False, errors=["timeout"])
             data = json.loads(response.get_data(as_text=True))
             assert data["data"]["success"] is False
             assert "timeout" in data["data"]["errors"]

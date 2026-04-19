@@ -12,7 +12,7 @@ from .validation_exceptions import ValidationError
 
 def handle_exception(exc: Exception, context: Optional[Dict[str, Any]] = None) -> BlacklistError:
     """
-    일반 예외를 Secudium 예외로 변환
+    일반 예외를 Blacklist 예외로 변환
 
     Args:
         exc: 원본 예외

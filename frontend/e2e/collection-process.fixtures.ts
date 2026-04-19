@@ -26,7 +26,6 @@ export function mockCollectionApis(page: Page) {
             collector_status: 'running',
             sources: {
               regtech: { status: 'active', last_run: '2026-02-11T10:00:00' },
-              secudium: { status: 'active', last_run: '2026-02-11T09:30:00' },
             },
           },
         }),
@@ -53,13 +52,6 @@ export function mockCollectionApis(page: Page) {
                 last_collection: '2026-02-11T10:00:00',
                 avg_duration: 45.2,
               },
-              secudium: {
-                total_collections: 20,
-                success_rate: 90.0,
-                total_items: 4000,
-                last_collection: '2026-02-11T09:30:00',
-                avg_duration: 60.5,
-              },
             },
           },
         }),
@@ -79,13 +71,6 @@ export function mockCollectionApis(page: Page) {
                 connection_status: 'connected',
                 status_message: '연결됨',
                 last_test: '2026-02-11T10:00:00',
-              },
-              {
-                service_name: 'SECUDIUM',
-                username: 'secudium_user',
-                connection_status: 'connected',
-                status_message: '연결됨',
-                last_test: '2026-02-11T09:30:00',
               },
             ],
           }),
@@ -115,37 +100,13 @@ export function mockCollectionApis(page: Page) {
         await route.continue();
       }
     }),
-    page.route('**/proxy/collection/credentials/secudium', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            success: true,
-            data: {
-              service_name: 'SECUDIUM',
-              username: 'secudium_user',
-              enabled: true,
-              collection_interval: 'daily',
-              connection_status: 'connected',
-              status_message: '연결됨',
-            },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    }),
     page.route('**/api/collection/sources**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           success: true,
-          data: [
-            { name: 'regtech', display_name: 'REGTECH', status: 'active' },
-            { name: 'secudium', display_name: 'SECUDIUM', status: 'active' },
-          ],
+          data: [{ name: 'regtech', display_name: 'REGTECH', status: 'active' }],
         }),
       });
     }),

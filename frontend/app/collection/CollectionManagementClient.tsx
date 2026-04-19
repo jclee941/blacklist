@@ -8,13 +8,12 @@ import {
   CollectionStats,
   CollectorCard,
   CredentialEditModal,
-  OtpInputDialog,
   useCollectionManagement,
   type Credential,
   type CollectorStatus,
 } from './components';
 
-const COLLECTORS = ['REGTECH', 'SECUDIUM'];
+const COLLECTORS = ['REGTECH'];
 
 export default function CollectionManagementClient() {
   const {
@@ -37,10 +36,6 @@ export default function CollectionManagementClient() {
     setCredentialForm,
     getSourceCount,
     formatInterval,
-    showOtpDialog,
-    otpServiceName,
-    submitOtp,
-    closeOtpDialog,
   } = useCollectionManagement();
 
   if (loading) {
@@ -125,14 +120,6 @@ export default function CollectionManagementClient() {
         onFormChange={setCredentialForm}
         onSave={saveCredentials}
         loading={loading}
-      />
-
-      <OtpInputDialog
-        show={showOtpDialog}
-        onClose={closeOtpDialog}
-        onSubmit={submitOtp}
-        loading={otpServiceName ? testingConnection[otpServiceName] : false}
-        serviceName={otpServiceName || ''}
       />
     </div>
   );

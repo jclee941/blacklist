@@ -34,7 +34,6 @@ class TestCollectionServiceInit:
     def test_init_creates_collection_status_dict(self):
         svc, _ = _make_service()
         assert "regtech" in svc.collection_status
-        assert "secudium" in svc.collection_status
 
 
 class TestTriggerCollection:
@@ -128,7 +127,6 @@ class TestStopAllCollections:
     def test_stop_all_clears_active(self, mock_status):
         svc, _ = _make_service()
         svc.active_collections.add("regtech")
-        svc.active_collections.add("secudium")
         mock_status.stop_all_collections = Mock(return_value={"message": "All collections stopped"})
         result = svc.stop_all_collections()
         assert len(svc.active_collections) == 0
@@ -183,47 +181,10 @@ class TestPerformCollection:
         result = svc._perform_collection("regtech")
         assert isinstance(result, dict)
 
-    def test_perform_secudium_via_http(self):
-        svc, _ = _make_service()
-        with patch.object(svc, "_collect_secudium_via_http", return_value={"success": True}):
-            result = svc._perform_collection("secudium")
-        assert result.get("success") is True
-
     def test_perform_unknown_source(self):
         svc, _ = _make_service()
         result = svc._perform_collection("unknown")
         assert result.get("success") is False
-
-
-class TestCollectSecudiumViaHttp:
-    def test_secudium_http_success(self):
-        svc, _ = _make_service()
-        mock_resp = Mock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"success": True}
-        # _collect_secudium_via_http uses `import requests as req` inside method body
-        # So we patch 'requests' in sys.modules
-        mock_requests_module = MagicMock()
-        mock_requests_module.post.return_value = mock_resp
-        with patch.dict("sys.modules", {"requests": mock_requests_module}):
-            result = svc._collect_secudium_via_http()
-        assert isinstance(result, dict)
-
-    def test_secudium_http_failure(self):
-        svc, _ = _make_service()
-        mock_requests_module = MagicMock()
-        mock_requests_module.post.side_effect = Exception("connection refused")
-        with patch.dict("sys.modules", {"requests": mock_requests_module}):
-            result = svc._collect_secudium_via_http()
-        assert result.get("success") is False
-
-
-class TestTriggerSecudiumCollection:
-    def test_secudium_already_collecting(self):
-        svc, _ = _make_service()
-        svc.collection_status["secudium"]["is_collecting"] = True
-        result = svc.trigger_secudium_collection("2024-01-01", "2024-01-31")
-        assert result.get("success") is False or "already" in str(result).lower()
 
 
 class TestSaveCollectionData:

@@ -20,15 +20,6 @@ AVAILABLE_SOURCES = [
         "schedule": "daily",
         "data_types": ["ip", "domain", "url"],
     },
-    {
-        "id": "SECUDIUM",
-        "name": "SECUDIUM",
-        "description": "SECUDIUM threat intelligence (OTP 인증 기반, 수동 수집 전용)",
-        "enabled": True,
-        "requires_auth": True,
-        "schedule": "manual",
-        "data_types": ["ip"],
-    },
 ]
 
 

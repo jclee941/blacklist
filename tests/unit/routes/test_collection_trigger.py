@@ -36,13 +36,6 @@ class TestCollectionTrigger:
         mock_api.assert_called_once()
 
     @patch("core.routes.api.collection.trigger.call_collector_api")
-    def test_trigger_secudium_success(self, mock_api, client):
-        """Trigger SECUDIUM collection succeeds."""
-        mock_api.return_value = {"success": True}
-        response = client.post("/trigger/SECUDIUM", json={})
-        assert response.status_code == 200
-
-    @patch("core.routes.api.collection.trigger.call_collector_api")
     def test_trigger_all_success(self, mock_api, client):
         """Trigger ALL collection succeeds."""
         mock_api.return_value = {"success": True}
@@ -74,10 +67,7 @@ class TestCollectionTrigger:
         """Collector API error returns 502."""
         mock_api.return_value = {"success": False, "error": "Internal error"}
         response = client.post("/trigger/REGTECH", json={})
-        # ExternalAPIError IS an APIError subclass with status_code=502,
-        # but trigger.py passes service= as first positional arg (message),
-        # so ExternalAPIError(service="Collector", message=...) -> TypeError -> 500
-        assert response.status_code == 500
+        assert response.status_code == 502
 
     @patch("core.routes.api.collection.trigger.call_collector_api")
     def test_trigger_with_force_param(self, mock_api, client):

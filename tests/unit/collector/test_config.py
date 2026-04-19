@@ -1,10 +1,13 @@
 """Tests for collector/config.py — CollectorConfig class."""
 
 import pytest
+from typing import Any, cast
 from unittest.mock import patch
 
 
 class TestCollectorConfigMethods:
+    cfg: Any = cast(Any, None)
+
     def setup_method(self):
         from collector.config import CollectorConfig
 
@@ -63,6 +66,8 @@ class TestCollectorConfigMethods:
 
 
 class TestGetCredentials:
+    cfg: Any = cast(Any, None)
+
     def setup_method(self):
         from collector.config import CollectorConfig
 
@@ -76,13 +81,6 @@ class TestGetCredentials:
         self.cfg._cache_loaded = True
         result = self.cfg.get_regtech_credentials()
         assert result == ("db_user", "db_pass")
-
-    def test_secudium_from_db(self):
-        """SECUDIUM credentials loaded from DB cache."""
-        self.cfg._credentials_cache = {"SECUDIUM": {"username": "sec_user", "password": "sec_pass", "config": {}}}
-        self.cfg._cache_loaded = True
-        result = self.cfg.get_secudium_credentials()
-        assert result == ("sec_user", "sec_pass")
 
     def test_regtech_raises_when_not_configured(self):
         """ValueError raised when no REGTECH credentials in DB."""
