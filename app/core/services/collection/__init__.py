@@ -5,6 +5,7 @@ Collection Service Module
 
 from .collection_validator import validator
 from .collection_history import history_manager
+from .collection_persistence import save_collection_data
 from .collection_status import status_manager
 from .regtech_data import REGTECHDataCollector
 from .regtech_auth import regtech_auth
@@ -17,6 +18,7 @@ __all__ = [
     "regtech_collector",
     "validator",
     "history_manager",
+    "save_collection_data",
     "status_manager",
     "regtech_auth",
     "threat_intel",

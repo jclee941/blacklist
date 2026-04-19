@@ -12,15 +12,26 @@ Version: 1.0.0 (September 2025)
 """
 
 import json
-
-from ..config import config
-
 import base64
 from datetime import datetime
 from typing import Dict, Optional, List, Any
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+from ..config import config
+from .credential.crypto import decrypt_data, encrypt_data, setup_encryption
+from .credential.database import close_connection, get_database_connection
+from .credential.helpers import (
+    delete_regtech_credentials,
+    get_regtech_credentials,
+    migrate_existing_credentials as migrate_existing_credentials_impl,
+    save_regtech_credentials,
+    secure_credential_service,
+    validate_credentials as validate_credentials_impl,
+    validate_regtech_credentials,
+)
 
 import logging
 
@@ -39,34 +50,7 @@ class SecureCredentialService:
 
     def _setup_encryption(self):
         """암호화 키 설정"""
-        try:
-            # 환경변수에서 마스터 키 획득
-            master_key = config.CREDENTIAL_MASTER_KEY
-            if not master_key:
-                raise RuntimeError(
-                    "CREDENTIAL_MASTER_KEY environment variable is required. "
-                    "Generate with: python -c 'import secrets; print(secrets.token_hex(32))'"
-                )
-
-            # Salt 생성 (고정값으로 일관성 유지)
-            salt_env = config.ENCRYPTION_SALT
-            self._salt = salt_env.encode() if salt_env else b"blacklist-regtech-salt-2025"
-
-            # PBKDF2를 사용한 키 파생
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=self._salt,
-                iterations=100000,
-            )
-            key = base64.urlsafe_b64encode(kdf.derive(master_key.encode()))
-            self._cipher_suite = Fernet(key)
-
-            logger.info("🔐 암호화 시스템 초기화 완료")
-
-        except Exception as e:
-            logger.error(f"❌ 암호화 시스템 초기화 실패: {e}")
-            raise
+        setup_encryption(self, config, logger, base64, Fernet, PBKDF2HMAC, hashes)
 
     def _get_database_connection(self):
         """데이터베이스 연결 획득
@@ -77,58 +61,19 @@ class SecureCredentialService:
         Raises:
             RuntimeError: If database connection cannot be established
         """
-        conn = None
-        if self.db_service:
-            conn = self.db_service.get_connection()
-        else:
-            # Fallback for scripts/tests without DI
-            try:
-                from .database_service import DatabaseService
-
-                db_service = DatabaseService()
-                conn = db_service.get_connection()
-            except ImportError:
-                from core.services.database_service import DatabaseService
-
-                db_service = DatabaseService()
-                conn = db_service.get_connection()
-
-        if conn is None:
-            raise RuntimeError("Failed to establish database connection")
-        return conn
+        return get_database_connection(self)
 
     def _close_connection(self, conn):
         """데이터베이스 연결 반환"""
-        if self.db_service:
-            self.db_service.return_connection(conn)
-        else:
-            try:
-                conn.close()
-            except Exception as e:
-                logger.debug("Failed to close connection: %s", e)
+        close_connection(self, conn, logger)
 
     def _encrypt_data(self, data: str) -> str:
         """데이터 암호화"""
-        try:
-            if self._cipher_suite is None:
-                raise RuntimeError("Cipher suite not initialized")
-            encrypted = self._cipher_suite.encrypt(data.encode())
-            return base64.b64encode(encrypted).decode()
-        except Exception as e:
-            logger.error(f"❌ 데이터 암호화 실패: {e}")
-            raise
+        return encrypt_data(self, data, logger, base64)
 
     def _decrypt_data(self, encrypted_data: str) -> str:
         """데이터 복호화"""
-        try:
-            if self._cipher_suite is None:
-                raise RuntimeError("Cipher suite not initialized")
-            decoded = base64.b64decode(encrypted_data.encode())
-            decrypted = self._cipher_suite.decrypt(decoded)
-            return decrypted.decode()
-        except Exception as e:
-            logger.error(f"❌ 데이터 복호화 실패: {e}")
-            raise
+        return decrypt_data(self, encrypted_data, logger, base64)
 
     def save_credentials(
         self,
@@ -484,127 +429,11 @@ class SecureCredentialService:
 
     def validate_credentials(self, service_name: str) -> Dict[str, Any]:
         """인증정보 유효성 검증"""
-        try:
-            credentials = self.get_credentials(service_name)
-
-            if not credentials:
-                return {
-                    "valid": False,
-                    "error": "인증정보가 존재하지 않음",
-                    "service_name": service_name,
-                }
-
-            username = credentials.get("username", "").strip()
-            password = credentials.get("password", "").strip()
-
-            if not username or not password:
-                return {
-                    "valid": False,
-                    "error": "사용자명 또는 비밀번호가 비어있음",
-                    "service_name": service_name,
-                    "username": username,
-                }
-
-            return {
-                "valid": True,
-                "service_name": service_name,
-                "username": username,
-                "encrypted": credentials.get("encrypted", False),
-                "created_at": credentials.get("created_at"),
-                "updated_at": credentials.get("updated_at"),
-            }
-
-        except Exception as e:
-            logger.error(f"❌ {service_name} 인증정보 검증 실패: {e}")
-            return {"valid": False, "error": str(e), "service_name": service_name}
+        return validate_credentials_impl(self, service_name, logger)
 
     def migrate_existing_credentials(self) -> Dict[str, Any]:
         """기존 평문 인증정보를 암호화된 형태로 마이그레이션"""
-        try:
-            conn = self._get_database_connection()
-            cursor = conn.cursor()
-
-            # 평문으로 저장된 인증정보 조회
-            cursor.execute("""
-                SELECT service_name, username, password, config
-                FROM collection_credentials
-                WHERE (encrypted = false OR encrypted IS NULL)
-                AND is_active = true
-                AND password IS NOT NULL
-                AND password != ''
-            """)
-
-            results = cursor.fetchall()
-            migrated_count = 0
-            errors = []
-
-            for row in results:
-                service_name, username, password, config = row
-
-                try:
-                    # 새로운 암호화 방식으로 저장
-                    if self.save_credentials(service_name, username, password, config if config else {}):
-                        migrated_count += 1
-                        logger.info(f"✅ {service_name} 인증정보 마이그레이션 완료")
-                    else:
-                        errors.append(f"{service_name}: 저장 실패")
-
-                except Exception as e:
-                    errors.append(f"{service_name}: {str(e)}")
-                    logger.error(f"❌ {service_name} 마이그레이션 실패: {e}")
-
-            cursor.close()
-            self._close_connection(conn)
-
-            return {
-                "success": True,
-                "migrated_count": migrated_count,
-                "total_found": len(results),
-                "errors": errors,
-            }
-
-        except Exception as e:
-            logger.error(f"❌ 인증정보 마이그레이션 실패: {e}")
-            return {"success": False, "error": str(e), "migrated_count": 0}
-
-
-# 싱글톤 인스턴스 생성 대체
-# secure_credential_service = SecureCredentialService()
-from flask import current_app
-from werkzeug.local import LocalProxy
-
-secure_credential_service = LocalProxy(lambda: current_app.extensions["secure_credential_service"])
-
-
-# REGTECH 전용 헬퍼 함수들
-def save_regtech_credentials(username: str, password: str) -> bool:
-    """REGTECH 인증정보 저장"""
-    config = {
-        "base_url": "https://regtech.fsec.or.kr",
-        "login_url": "/login/loginProcess",
-        "advisory_url": "/advisory/advisory01_search",
-        "timeout_seconds": 30,
-        "max_pages": 100,
-        "items_per_page": 50,
-        "request_delay_seconds": 1,
-    }
-    # Use the proxy instance
-    return secure_credential_service.save_credentials("REGTECH", username, password, config)
-
-
-def get_regtech_credentials() -> Optional[Dict[str, Any]]:
-    """REGTECH 인증정보 조회"""
-    return secure_credential_service.get_credentials("REGTECH")
-
-
-def validate_regtech_credentials() -> Dict[str, Any]:
-    """REGTECH 인증정보 유효성 검증"""
-    return secure_credential_service.validate_credentials("REGTECH")
-
-
-def delete_regtech_credentials() -> bool:
-    """REGTECH 인증정보 삭제"""
-    return secure_credential_service.delete_credentials("REGTECH")
+        return migrate_existing_credentials_impl(self, logger)
 
 
 if __name__ == "__main__":
