@@ -19,7 +19,7 @@ Usage:
 Service Categories:
 - Core Infrastructure: database_service
 - Collection Services: collection_service, scheduler_service
-- Integration Services: fortimanager_service, secudium_service
+- Integration Services: fortimanager_service
 - Configuration Services: credential_service, secure_credential_service, regtech_config_service, settings_service
 - Business Logic: blacklist_service, analytics_service, scoring_service, expiry_service, ab_test_service
 
@@ -135,6 +135,16 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"  ❌ Failed to initialize fortimanager_service: {e}")
 
+    # Cloudflare Service - Cloudflare Lists API push integration
+    try:
+        from .cloudflare_push_service import CloudflarePushService
+
+        cloudflare_service = CloudflarePushService(db_service=services["db_service"])
+        services["cloudflare_service"] = cloudflare_service
+        logger.info("  ✅ cloudflare_service (CloudflarePushService)")
+    except Exception as e:
+        logger.error(f"  ❌ Failed to initialize cloudflare_service: {e}")
+
     # ============================================================
     # 5. CONFIGURATION SERVICES
     # ============================================================
@@ -227,7 +237,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     # ============================================================
 
     initialized_count = len(services)
-    total_services = 14
+    total_services = 15
 
     if initialized_count == total_services:
         logger.info(f"✅ Successfully initialized all {initialized_count} services")
@@ -246,11 +256,11 @@ def get_service_info() -> Dict[str, Any]:
         Dictionary with service metadata
     """
     return {
-        "total_services": 14,
+        "total_services": 15,
         "categories": {
             "core_infrastructure": ["db_service"],
             "collection_services": ["collection_service", "scheduler_service"],
-            "integration_services": ["fortimanager_service"],
+            "integration_services": ["fortimanager_service", "cloudflare_service"],
             "configuration_services": [
                 "credential_service",
                 "secure_credential_service",

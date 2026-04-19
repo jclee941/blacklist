@@ -4,9 +4,10 @@ Handles credential management
 """
 
 import logging
+import requests
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g, current_app
-from core.exceptions import (
+from ....exceptions import (
     ValidationError,
     BadRequestError,
     NotFoundError,
@@ -22,7 +23,7 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 collection_credentials_bp = Blueprint("collection_credentials", __name__)
-ALLOWED_SOURCES = ("REGTECH", "SECUDIUM")
+ALLOWED_SOURCES = ("REGTECH", "CLOUDFLARE")
 
 
 @collection_credentials_bp.route("/credentials", methods=["GET"])
@@ -32,7 +33,7 @@ def list_credentials():
     if not secure_credential_service:
         from core.services.secure_credential_service import secure_credential_service
 
-    sources = ["REGTECH", "SECUDIUM"]
+    sources = ["REGTECH", "CLOUDFLARE"]
     result = []
 
     for source in sources:
@@ -100,6 +101,7 @@ def manage_credentials(source: str):
                             "service_name": source_upper,
                             "username": "",
                             "password": "",
+                            "config": {},
                             "enabled": False,
                             "collection_interval": "daily",
                             "last_collection": None,
@@ -114,6 +116,7 @@ def manage_credentials(source: str):
                 "service_name": credentials["service_name"],
                 "username": credentials["username"],
                 "password": "***masked***",
+                "config": credentials.get("config", {}),
                 "enabled": credentials.get("enabled", True),
                 "collection_interval": interval_seconds_to_string(credentials.get("collection_interval", 86400)),
                 "last_collection": credentials["last_collection"].isoformat()
@@ -130,7 +133,7 @@ def manage_credentials(source: str):
                 }
             )
 
-        elif request.method == "PUT":
+        else:
             # Update credentials
             data = request.get_json()
             if not data:
@@ -145,7 +148,9 @@ def manage_credentials(source: str):
             enabled = data.get("enabled", True)
             collection_interval = data.get("collection_interval", "daily")
 
-            if not username:
+            if source_upper == "CLOUDFLARE":
+                username = username or "cloudflare-api"
+            elif not username:
                 raise BadRequestError(
                     message="Username is required",
                     details={"field": "username"},
@@ -155,6 +160,11 @@ def manage_credentials(source: str):
             interval_seconds = interval_string_to_seconds(collection_interval)
 
             config = {}
+            if source_upper == "CLOUDFLARE":
+                config = {
+                    "account_id": data.get("account_id", ""),
+                    "list_id": data.get("list_id", ""),
+                }
 
             # Determine if we have a new password provided
             has_new_password = password and password != "***masked***"
@@ -185,12 +195,22 @@ def manage_credentials(source: str):
                         details={"source": source_upper},
                     )
 
-                success = secure_credential_service.update_credential_settings(
-                    service_name=source_upper,
-                    username=username,
-                    enabled=enabled,
-                    collection_interval=interval_seconds,
-                )
+                if source_upper == "CLOUDFLARE":
+                    success = secure_credential_service.save_credentials(
+                        service_name=source_upper,
+                        username=username,
+                        password=current_creds.get("password", ""),
+                        config=config,
+                        enabled=enabled,
+                        collection_interval=interval_seconds,
+                    )
+                else:
+                    success = secure_credential_service.update_credential_settings(
+                        service_name=source_upper,
+                        username=username,
+                        enabled=enabled,
+                        collection_interval=interval_seconds,
+                    )
 
                 if not success:
                     raise DatabaseError(
@@ -219,53 +239,6 @@ def manage_credentials(source: str):
         raise
 
 
-@collection_credentials_bp.route("/credentials/secudium/otp", methods=["POST"])
-def submit_secudium_otp():
-    """Submit OTP code for Secudium manual authentication"""
-    data = request.get_json()
-    if not data:
-        raise ValidationError(message="요청 데이터가 없습니다")
-
-    otp_code = data.get("otp_code", "").strip()
-    session_id = data.get("session_id", "").strip()
-
-    if not otp_code or len(otp_code) != 6 or not otp_code.isdigit():
-        raise ValidationError(
-            message="유효하지 않은 OTP 코드입니다",
-            details={"expected": "6자리 숫자"},
-        )
-
-    result = call_collector_api(
-        "/api/test-auth/secudium/otp",
-        method="POST",
-        data={
-            "otp_code": otp_code,
-            "session_id": session_id,
-            "trigger_collect": data.get("trigger_collect", False),
-        },
-    )
-
-    if result.get("success"):
-        return jsonify(
-            {
-                "success": True,
-                "data": {"status": "connected", "message": "OTP 인증 성공"},
-                "timestamp": datetime.now().isoformat(),
-                "request_id": g.request_id,
-            }
-        ), 200
-
-    error_detail = result.get("error", "OTP 인증 실패")
-    return jsonify(
-        {
-            "success": False,
-            "data": {"status": "failed", "message": error_detail},
-            "timestamp": datetime.now().isoformat(),
-            "request_id": g.request_id,
-        }
-    ), 200
-
-
 @collection_credentials_bp.route("/credentials/<source>/test", methods=["POST"])
 def test_credentials(source: str):
     """Test credentials by attempting to authenticate with the collector service"""
@@ -277,27 +250,32 @@ def test_credentials(source: str):
                 details={"allowed_sources": list(ALLOWED_SOURCES)},
             )
 
+        if source_upper == "CLOUDFLARE":
+            secure_credential_service = current_app.extensions.get("secure_credential_service")
+            if not secure_credential_service:
+                from core.services.secure_credential_service import secure_credential_service
+
+            credentials = secure_credential_service.get_credentials(source_upper)
+            result = _test_cloudflare_connection(credentials or {})
+
+            return jsonify(
+                {
+                    "success": result.get("success", False),
+                    "data": {
+                        "status": "connected" if result.get("success") else "failed",
+                        "message": result.get("message", "Unknown error"),
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "request_id": g.request_id,
+                }
+            ), 200
+
         result = call_collector_api(
             f"/api/test-auth/{source_upper}",
             method="POST",
         )
 
         collector_data = result if isinstance(result, dict) else {}
-
-        # Handle Secudium OTP intermediate response
-        if collector_data.get("otp_required"):
-            return jsonify(
-                {
-                    "success": True,
-                    "data": {
-                        "status": "otp_required",
-                        "message": "OTP 입력이 필요합니다",
-                        "session_id": collector_data.get("session_id", ""),
-                    },
-                    "timestamp": datetime.now().isoformat(),
-                    "request_id": g.request_id,
-                }
-            ), 200
 
         if collector_data.get("success"):
             return jsonify(
@@ -314,10 +292,7 @@ def test_credentials(source: str):
         error_code = collector_data.get("error_code", "")
 
         if "잠긴" in str(error_msg) or "locked" in str(error_msg) or error_code == "user.is.locked":
-            raise ForbiddenError(
-                message="계정이 잠겼습니다",
-                details={"source": source_upper, "error_code": error_code},
-            )
+            raise ForbiddenError(message=f"계정이 잠겼습니다 ({source_upper}, {error_code})")
         else:
             error_detail = collector_data.get("error", "알 수 없는 오류")
             return jsonify(
@@ -338,3 +313,35 @@ def test_credentials(source: str):
     except Exception as e:
         logger.error("test_credentials failed: %s", e)
         raise
+
+
+def _test_cloudflare_connection(credentials):
+    """Test Cloudflare Lists API connection"""
+    api_token = credentials.get("password", "")
+    config = credentials.get("config", {})
+    account_id = config.get("account_id", "")
+    list_id = config.get("list_id", "")
+
+    if not all([api_token, account_id, list_id]):
+        return {"success": False, "message": "Missing required fields (api_token, account_id, list_id)"}
+
+    try:
+        response = requests.get(
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/rules/lists/{list_id}",
+            headers={"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"},
+            timeout=10,
+        )
+        data = response.json()
+        if data.get("success"):
+            result = data.get("result", {})
+            return {
+                "success": True,
+                "message": f"Connected. List: {result.get('name', 'unknown')}, Items: {result.get('num_items', 0)}",
+            }
+        errors = data.get("errors", [])
+        return {
+            "success": False,
+            "message": f"API error: {errors[0].get('message', 'Unknown') if errors else 'Unknown'}",
+        }
+    except requests.RequestException as e:
+        return {"success": False, "message": f"Connection failed: {str(e)}"}

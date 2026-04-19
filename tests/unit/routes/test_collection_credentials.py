@@ -36,10 +36,7 @@ class TestListCredentials:
     def test_list_credentials_success(self, client, app):
         """GET /api/collection/credentials returns credential sources"""
         svc = app.extensions["secure_credential_service"]
-        svc.get_credentials.side_effect = [
-            {"enabled": True},  # REGTECH
-            {"enabled": False},  # SECUDIUM
-        ]
+        svc.get_credentials.return_value = {"enabled": True}
 
         response = client.get("/api/collection/credentials")
         assert response.status_code == 200
@@ -49,6 +46,19 @@ class TestListCredentials:
         assert data["data"][0]["source"] == "REGTECH"
         assert data["data"][0]["configured"] is True
         assert data["data"][0]["enabled"] is True
+
+    def test_list_credentials_includes_cloudflare(self, client, app):
+        """GET /api/collection/credentials includes CLOUDFLARE source"""
+        svc = app.extensions["secure_credential_service"]
+        svc.get_credentials.side_effect = lambda source: {"enabled": source == "CLOUDFLARE"}
+
+        response = client.get("/api/collection/credentials")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert [item["source"] for item in data["data"]] == ["REGTECH", "CLOUDFLARE"]
+        assert data["data"][1]["configured"] is True
+        assert data["data"][1]["enabled"] is True
 
     def test_list_credentials_service_error(self, client, app):
         """GET /api/collection/credentials with service error returns graceful result"""
@@ -133,57 +143,38 @@ class TestManageCredentials:
         )
         assert response.status_code == 400
 
+    def test_put_credentials_cloudflare(self, client, app):
+        """PUT /api/collection/credentials/cloudflare saves config fields"""
+        svc = app.extensions["secure_credential_service"]
+        svc.save_credentials.return_value = True
+
+        with patch("core.routes.api.collection.credentials.call_collector_api") as mock_api:
+            mock_api.return_value = {"success": True}
+
+            response = client.put(
+                "/api/collection/credentials/cloudflare",
+                json={
+                    "password": "cf-token",
+                    "account_id": "acc-123",
+                    "list_id": "list-456",
+                    "enabled": True,
+                },
+            )
+
+        assert response.status_code == 200
+        svc.save_credentials.assert_called_once_with(
+            service_name="CLOUDFLARE",
+            username="cloudflare-api",
+            password="cf-token",
+            config={"account_id": "acc-123", "list_id": "list-456"},
+            enabled=True,
+            collection_interval=86400,
+        )
+
     def test_put_credentials_no_body(self, client):
         """PUT /api/collection/credentials/regtech with no body returns 400"""
         response = client.put(
             "/api/collection/credentials/regtech",
-            content_type="application/json",
-        )
-        assert response.status_code == 400
-
-
-class TestSubmitOTP:
-    @pytest.fixture
-    def app(self):
-        return make_app()
-
-    @pytest.fixture
-    def client(self, app):
-        return app.test_client()
-
-    @patch("core.routes.api.collection.credentials.call_collector_api")
-    def test_submit_otp_success(self, mock_api, client):
-        """POST /api/collection/credentials/secudium/otp with valid OTP"""
-        mock_api.return_value = {"success": True}
-
-        response = client.post(
-            "/api/collection/credentials/secudium/otp",
-            json={"otp_code": "123456", "session_id": "sess123"},
-        )
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["status"] == "connected"
-
-    def test_submit_otp_invalid_code(self, client):
-        """POST /api/collection/credentials/secudium/otp with bad OTP returns 400"""
-        response = client.post(
-            "/api/collection/credentials/secudium/otp",
-            json={"otp_code": "12345"},  # 5 digits, not 6
-        )
-        assert response.status_code == 400
-
-    def test_submit_otp_non_numeric(self, client):
-        """POST /api/collection/credentials/secudium/otp with non-numeric OTP returns 400"""
-        response = client.post(
-            "/api/collection/credentials/secudium/otp",
-            json={"otp_code": "abcdef"},
-        )
-        assert response.status_code == 400
-
-    def test_submit_otp_no_body(self, client):
-        """POST /api/collection/credentials/secudium/otp with no body returns 400"""
-        response = client.post(
-            "/api/collection/credentials/secudium/otp",
             content_type="application/json",
         )
         assert response.status_code == 400
@@ -209,16 +200,6 @@ class TestTestCredentials:
         assert data["data"]["status"] == "connected"
 
     @patch("core.routes.api.collection.credentials.call_collector_api")
-    def test_test_credentials_otp_required(self, mock_api, client):
-        """POST /api/collection/credentials/secudium/test returns OTP required"""
-        mock_api.return_value = {"otp_required": True, "session_id": "sess123"}
-
-        response = client.post("/api/collection/credentials/secudium/test")
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["status"] == "otp_required"
-
-    @patch("core.routes.api.collection.credentials.call_collector_api")
     def test_test_credentials_failed(self, mock_api, client):
         """POST /api/collection/credentials/regtech/test with auth failure"""
         mock_api.return_value = {"success": False, "error": "Invalid password"}
@@ -231,8 +212,7 @@ class TestTestCredentials:
     @patch("core.routes.api.collection.credentials.call_collector_api")
     def test_test_credentials_locked(self, mock_api, client):
         """POST /api/collection/credentials/regtech/test with locked account.
-        NOTE: Source has a bug — ForbiddenError() is called with unsupported
-        'details' kwarg, causing TypeError → 500 instead of 403.
+        Locked account errors are returned as ForbiddenError.
         """
         mock_api.return_value = {
             "success": False,
@@ -241,10 +221,57 @@ class TestTestCredentials:
         }
 
         response = client.post("/api/collection/credentials/regtech/test")
-        # Bug: credentials.py:311 passes details= to ForbiddenError which doesn't accept it
-        assert response.status_code == 500
+        assert response.status_code == 403
 
     def test_test_credentials_invalid_source(self, client):
         """POST /api/collection/credentials/invalid/test returns 400"""
         response = client.post("/api/collection/credentials/invalid/test")
         assert response.status_code == 400
+
+    @patch("core.routes.api.collection.credentials.requests.get")
+    def test_test_cloudflare_success(self, mock_get, client, app):
+        """POST /api/collection/credentials/cloudflare/test returns connected on valid API response"""
+        svc = app.extensions["secure_credential_service"]
+        svc.get_credentials.return_value = {
+            "service_name": "CLOUDFLARE",
+            "username": "cloudflare-api",
+            "password": "cf-token",
+            "config": {"account_id": "acc-123", "list_id": "list-456"},
+            "enabled": True,
+        }
+        mock_get.return_value.json.return_value = {
+            "success": True,
+            "result": {"name": "Blacklist", "num_items": 42},
+        }
+
+        response = client.post("/api/collection/credentials/cloudflare/test")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["status"] == "connected"
+        assert data["data"]["message"] == "Connected. List: Blacklist, Items: 42"
+
+    @patch("core.routes.api.collection.credentials.requests.get")
+    def test_test_cloudflare_invalid_token(self, mock_get, client, app):
+        """POST /api/collection/credentials/cloudflare/test returns failure on API error"""
+        svc = app.extensions["secure_credential_service"]
+        svc.get_credentials.return_value = {
+            "service_name": "CLOUDFLARE",
+            "username": "cloudflare-api",
+            "password": "bad-token",
+            "config": {"account_id": "acc-123", "list_id": "list-456"},
+            "enabled": True,
+        }
+        mock_get.return_value.json.return_value = {
+            "success": False,
+            "errors": [{"message": "Authentication error"}],
+        }
+
+        response = client.post("/api/collection/credentials/cloudflare/test")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is False
+        assert data["data"]["status"] == "failed"
+        assert data["data"]["message"] == "API error: Authentication error"
