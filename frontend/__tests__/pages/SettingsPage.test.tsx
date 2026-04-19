@@ -8,8 +8,13 @@ vi.mock('lucide-react', () => ({
   Database: (props: Record<string, unknown>) => <svg data-testid="icon-database" {...props} />,
   Shield: (props: Record<string, unknown>) => <svg data-testid="icon-shield" {...props} />,
   Bell: (props: Record<string, unknown>) => <svg data-testid="icon-bell" {...props} />,
+  Cloud: (props: Record<string, unknown>) => <svg data-testid="icon-cloud" {...props} />,
   Save: (props: Record<string, unknown>) => <svg data-testid="icon-save" {...props} />,
   RefreshCw: (props: Record<string, unknown>) => <svg data-testid="icon-refresh" {...props} />,
+}));
+
+vi.mock('@/app/settings/CloudflareSettings', () => ({
+  default: () => <div data-testid="cloudflare-settings">CF</div>,
 }));
 
 vi.mock('@/components/ui/PageHeader', () => ({
@@ -135,6 +140,14 @@ describe('SettingsPage', () => {
       expect(screen.getByText('\uc54c\ub9bc \uc124\uc815')).toBeInTheDocument();
       expect(screen.getByText('\uc774\uba54\uc77c \uc54c\ub9bc')).toBeInTheDocument();
       expect(screen.getByText('Slack \uc54c\ub9bc')).toBeInTheDocument();
+    });
+  });
+
+  it('renders cloudflare tab', async () => {
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByText('Cloudflare'));
+    await waitFor(() => {
+      expect(screen.getByTestId('cloudflare-settings')).toBeInTheDocument();
     });
   });
 

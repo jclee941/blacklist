@@ -274,4 +274,30 @@ export const updateSettingsBatch = async (settings: { key: string; value: string
   return data;
 };
 
+// Cloudflare credential management
+export const getCloudflareCredentials = async () => {
+  const { data } = await api.get('/proxy/collection/credentials/cloudflare');
+  return data;
+};
+
+export const saveCloudflareCredentials = async (payload: {
+  api_token: string;
+  account_id: string;
+  list_id: string;
+}) => {
+  const password = payload.api_token === '••••••••' ? '***masked***' : payload.api_token;
+  const { data } = await api.put('/proxy/collection/credentials/cloudflare', {
+    username: 'cloudflare-api',
+    password,
+    account_id: payload.account_id,
+    list_id: payload.list_id,
+  });
+  return data;
+};
+
+export const testCloudflareConnection = async () => {
+  const { data } = await api.post('/proxy/collection/credentials/cloudflare/test');
+  return data;
+};
+
 export default api;

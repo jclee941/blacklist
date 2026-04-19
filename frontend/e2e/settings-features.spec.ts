@@ -28,8 +28,8 @@ test.describe('설정 페이지', () => {
     await expect(page.getByText('시스템 설정 및 환경 구성')).toBeVisible();
   });
 
-  test('4개 탭이 모두 표시된다', async ({ page }) => {
-    const tabs = ['시스템 설정', '데이터베이스', '보안', '알림'];
+  test('5개 탭이 모두 표시된다', async ({ page }) => {
+    const tabs = ['시스템 설정', '데이터베이스', '보안', '알림', 'Cloudflare'];
     for (const tabName of tabs) {
       await expect(page.getByRole('tab', { name: tabName })).toBeVisible();
     }
@@ -77,6 +77,16 @@ test.describe('설정 페이지', () => {
     const toggles = page.locator('button.rounded-full');
     const count = await toggles.count();
     expect(count).toBeGreaterThan(0);
+  });
+
+  test('탭 전환이 동작한다 - Cloudflare', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Cloudflare' }).click();
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('tab', { name: 'Cloudflare' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(page.getByRole('heading', { name: 'Cloudflare WAF 연동' })).toBeVisible();
   });
 
   test('저장 버튼이 동작한다', async ({ page }) => {

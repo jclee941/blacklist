@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Settings, Database, Shield, Bell, Save, RefreshCw } from 'lucide-react';
+import { Settings, Database, Shield, Bell, Save, RefreshCw, Cloud } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Tabs from '@/components/ui/Tabs';
 import api, { getSettingsGrouped, updateSettingsBatch } from '@/lib/api';
+import CloudflareSettings from './CloudflareSettings';
 
 interface SystemSettings {
   auto_deactivate_expired: boolean;
@@ -40,6 +41,7 @@ export default function SettingsPage() {
     { id: 'database', label: '데이터베이스', icon: Database },
     { id: 'security', label: '보안', icon: Shield },
     { id: 'notifications', label: '알림', icon: Bell },
+    { id: 'cloudflare', label: 'Cloudflare', icon: Cloud },
   ];
 
   const loadSettings = useCallback(async () => {
@@ -155,14 +157,15 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     해제일 경과 IP 자동 비활성화
-                  </label>
+                  </span>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     removal_date가 지난 IP를 자동으로 비활성화합니다
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() =>
                     setSystemSettings((s) => ({
                       ...s,
@@ -184,10 +187,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="collection-interval-hours"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   수집 주기 (시간)
                 </label>
                 <input
+                  id="collection-interval-hours"
                   type="number"
                   value={systemSettings.collection_interval_hours}
                   onChange={(e) =>
@@ -203,10 +210,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="cache-ttl-seconds"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   캐시 TTL (초)
                 </label>
                 <input
+                  id="cache-ttl-seconds"
                   type="number"
                   value={systemSettings.cache_ttl_seconds}
                   onChange={(e) =>
@@ -222,10 +233,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="max-batch-size"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   배치 처리 크기
                 </label>
                 <input
+                  id="max-batch-size"
                   type="number"
                   value={systemSettings.max_batch_size}
                   onChange={(e) =>
@@ -333,14 +348,15 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     이메일 알림
-                  </label>
+                  </span>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     중요 이벤트 발생 시 이메일로 알림
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() =>
                     setNotificationSettings((s) => ({ ...s, email_alerts: !s.email_alerts }))
                   }
@@ -360,12 +376,13 @@ export default function SettingsPage() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Slack 알림
-                  </label>
+                  </span>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Slack 채널로 알림 전송</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() =>
                     setNotificationSettings((s) => ({ ...s, slack_alerts: !s.slack_alerts }))
                   }
@@ -384,10 +401,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="alert-threshold"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   알림 임계값 (신규 IP 수)
                 </label>
                 <input
+                  id="alert-threshold"
                   type="number"
                   value={notificationSettings.alert_threshold}
                   onChange={(e) =>
@@ -405,8 +426,11 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {activeTab === 'cloudflare' && <CloudflareSettings />}
+
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
           <button
+            type="button"
             onClick={handleSaveSettings}
             disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
