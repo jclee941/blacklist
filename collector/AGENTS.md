@@ -2,7 +2,7 @@
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
 **Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.8
+**Branch:** master | **Version:** 3.6.9
 
 ## OVERVIEW
 
@@ -22,11 +22,9 @@ collector/
 │   ├── regtech/             # REGTECH auth + collection
 │   ├── multi_source/        # async feed aggregation
 │   ├── fortigate_collector.py  # FortiGate device collection (680L)
-│   ├── secudium_collector.py   # Secudium platform + OTP auth (781L)
 │   └── database.py          # collector DB layer (664L)
 ├── api/                     # collector API endpoints
 └── utils/
-    └── otp_email_reader.py  # IMAP OTP reader for Secudium auth
 ```
 
 ## HEALTH SERVER ENDPOINTS
@@ -64,4 +62,3 @@ collector/
 | `CollectorApplication` | class | `run_collector.py:50` | high | entry point, lifecycle orchestration |
 | `HealthServer` | class | `health_server.py:40` | high | Flask+Waitress on :8545 (500L) |
 | `FortiManagerUploader` | class | `fortimanager_uploader.py:25` | med | push blacklist to FortiManager |
-| `OTPEmailReader` | class | `utils/otp_email_reader.py:19` | med | IMAP OTP reader for Secudium auth |

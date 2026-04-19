@@ -1,7 +1,7 @@
 # API 명세서 (API Specification)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.6.7
+**버전:** 3.6.9
 **작성일:** 2026-02-27
 **문서번호:** API-REGTECH-2026-001
 
@@ -377,18 +377,6 @@ GET /api/scheduler/status
 POST /api/scheduler/restart
 ```
 
-### 4.8 Secudium 수동 수집 트리거
-```
-POST /api/collection/trigger/secudium
-```
-
-**요청 본문:**
-```json
-{
-  "force": true
-}
-```
-
 ---
 
 ## 5. Fortinet 연동 API
@@ -517,7 +505,7 @@ GET /health
 ```json
 {
   "status": "healthy",
-  "version": "3.6.7",
+  "version": "3.6.9",
   "timestamp": "2026-01-15T06:40:00Z"
 }
 ```
@@ -588,7 +576,7 @@ GET /api/enhanced/sources
 
 ## 10. API 요약
 
-| 도메인 | 엔드포인트 수 | 주요 파일 ||--------|--------------|----------|| 대시보드 | ~15 | dashboard_api.py || IP 관리 | ~40 | ip_management_api.py || 수집 | ~35 | collection/ || Fortinet | ~25 | fortinet/ || 인증정보 | ~15 | credentials_api.py || DB | ~10 | database_api.py || 시스템 | ~10 | 루트 레벨 || Collector | ~65 | collector/ || **합계** | **~215** | 55개 라우트 파일, 37개 Blueprint |
+| 도메인 | 엔드포인트 수 | 주요 파일 ||--------|--------------|----------|| 대시보드 | ~15 | dashboard_api.py || IP 관리 | ~40 | ip_management_api.py || 수집 | ~34 | collection/ || Fortinet | ~25 | fortinet/ || 인증정보 | ~15 | credentials_api.py || DB | ~10 | database_api.py || 시스템 | ~10 | 루트 레벨 || Collector | ~64 | collector/ || **합계** | **~214** | 55개 라우트 파일, 37개 Blueprint |
 
 ---
 
@@ -597,5 +585,4 @@ GET /api/enhanced/sources
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2026-01-15 | Sisyphus | 초기 작성 |
-| 2.0 | 2026-02-27 | Sisyphus | v3.6.7 현행화, 엔드포인트 수 갱신 (~215개), Secudium 수집 트리거 및 Settings CRUD 엔드포인트 추가 |
-
+| 2.0 | 2026-02-27 | Sisyphus | v3.6.9 현행화, 엔드포인트 수 갱신 (~214개), Settings CRUD 엔드포인트 추가 |

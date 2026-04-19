@@ -103,7 +103,7 @@ cp deploy/.env.example .env
 | `ADMIN_USERNAME`      | **SET_ADMIN_USERNAME**          | 관리자 계정 (배포 시 변경 필수)     |
 | `ADMIN_PASSWORD`      | **SET_ADMIN_PASSWORD**          | 관리자 비밀번호 (배포 시 변경 필수) |
 | `FMG_HOST`            | —                               | FortiManager 호스트                 |
-| `SECUDIUM_EMAIL`      | —                               | Secudium 이메일                     |
+
 | `COLLECTOR_URL`       | http://blacklist-collector:8545 | Collector URL                       |
 | `LOG_LEVEL`           | INFO                            | 로그 레벨                           |
 | `COLLECTION_INTERVAL` | 3600                            | 수집 간격 (초)                      |
@@ -146,8 +146,8 @@ blacklist-{VERSION}/
 
 ```bash
 # 1. 번들 압축 해제
-tar xzf blacklist-3.6.3.tar.gz
-cd blacklist-3.6.3
+tar xzf blacklist-3.6.9.tar.gz
+cd blacklist-3.6.9
 
 # 2. 설치 스크립트 실행
 chmod +x install.sh

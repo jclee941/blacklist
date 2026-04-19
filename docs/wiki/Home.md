@@ -4,17 +4,17 @@
 
 | 항목            | 값                                                                        |
 | --------------- | ------------------------------------------------------------------------- |
-| **버전**        | 3.6.3                                                                     |
+| **버전**        | 3.6.9                                                                     |
 | **기술 스택**   | Flask 3.x (Python 3.11) + Next.js 15 (React 19) + PostgreSQL 15 + Redis 7 |
 | **라이선스**    | Private                                                                   |
-| **데이터 소스** | REGTECH (한국금융보안원), Secudium/ISAP (SK쉴더스)                        |
+| **데이터 소스** | REGTECH (한국금융보안원)                                             |
 
 ---
 
 ## 주요 기능
 
 - **IP 블랙리스트 관리** — 위협 IP 등록, 조회, 만료 처리, 화이트리스트 관리
-- **자동 수집 (ETL)** — REGTECH/Secudium 소스에서 주기적 데이터 수집
+- **자동 수집 (ETL)** — REGTECH 소스에서 주기적 데이터 수집
 - **FortiGate 연동** — FortiManager 정책 Push, Threat Feed 제공
 - **분석 대시보드** — 탐지 타임라인, 국가별/소스별 통계, 트렌드 분석
 - **모니터링** — Prometheus 메트릭, 서비스 헬스체크, 시스템 로그
@@ -69,7 +69,7 @@ blacklist/
 │   ├── core/routes/api/    #   REST API 엔드포인트
 │   └── core/routes/web/    #   Web Admin (Jinja2, 한국어 UI)
 ├── collector/              # ETL 수집 서비스 (독립 프로세스)    :8545
-│   └── core/               #   REGTECH + Secudium 수집기
+│   └── core/               #   REGTECH 수집기
 ├── frontend/               # Next.js 15 대시보드               :443
 │   ├── app/                #   App Router 페이지
 │   └── lib/api.ts          #   API 클라이언트 (Axios)

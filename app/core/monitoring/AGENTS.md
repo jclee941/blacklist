@@ -2,7 +2,7 @@
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
 **Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.8
+**Branch:** master | **Version:** 3.6.9
 
 ## OVERVIEW
 

@@ -4,12 +4,11 @@
 
 ## 개요
 
-`blacklist-collector`는 REGTECH 및 Secudium/ISAP 소스에서 블랙리스트 IP를 자동으로 수집하는 독립 서비스입니다. 메인 애플리케이션(`app/`)과 분리되어 있어 수집 작업이 웹 서비스에 영향을 주지 않습니다.
+`blacklist-collector`는 REGTECH 소스에서 블랙리스트 IP를 자동으로 수집하는 독립 서비스입니다. 메인 애플리케이션(`app/`)과 분리되어 있어 수집 작업이 웹 서비스에 영향을 주지 않습니다.
 
 ## 주요 기능
 
 - **REGTECH 통합**: 한국금융보안원(REGTECH) 포털 연동
-- **Secudium/ISAP 통합**: SK쉰더스 Secudium 위협 정보 수집
 - **자동 스케줄링**: APScheduler 기반 자동 수집
 - **데이터베이스 통합**: PostgreSQL에 직접 저장
 - **헬스체크**: 모니터링을 위한 REST API 제공
@@ -26,7 +25,6 @@ collector/
 ├── monitoring_scheduler.py  # 모니터링 스케줄
 ├── core/                    # 핵심 로직
 │   ├── regtech/             # REGTECH 수집 패키지
-│   ├── secudium/            # Secudium/ISAP 수집 패키지
 │   ├── multi_source/        # 멀티소스 수집
 │   └── database.py          # 수집기 데이터베이스 서비스
 ├── api/                     # 수집 상태 API
@@ -47,7 +45,7 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_password
 ```
 
-> **참고**: REGTECH/Secudium 인증정보는 환경변수가 아닌 웹 UI 또는 API(`POST /api/credentials`)를 통해 DB에 등록합니다.
+> **참고**: REGTECH 인증정보는 환경변수가 아닌 웹 UI 또는 API(`POST /api/credentials`)를 통해 DB에 등록합니다.
 > 자세한 내용은 `docs/OPERATOR_MIGRATION_GUIDE.md`를 참고하세요.
 
 ### 선택적 설정
@@ -67,7 +65,6 @@ LOG_LEVEL=INFO              # 로그 레벨
 | `GET /status` | 상세 서비스 정보 및 통계 |
 | `POST /trigger` | 수동 수집 작업 시작 |
 | `POST /api/force-collection/REGTECH` | REGTECH 수집 강제 실행 |
-| `POST /api/force-collection/SECUDIUM` | Secudium 수집 강제 실행 |
 | `GET /metrics` | Prometheus 형식 메트릭 |
 | `GET /config` | 현재 설정 정보 |
 
@@ -85,7 +82,7 @@ blacklist-collector:
   environment:
     POSTGRES_HOST: localhost
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # REGTECH/Secudium 인증정보는 DB에서 관리 (환경변수 불필요)
+# REGTECH 인증정보는 DB에서 관리 (환경변수 불필요)
   depends_on:
     - blacklist-postgres
     - blacklist-redis
@@ -108,7 +105,7 @@ docker logs blacklist-collector --tail 100
 ## 데이터 흐름
 
 1. **스케줄러**: 설정된 간격으로 수집 작업 시작
-2. **인증**: REGTECH/Secudium 포털에 로그인
+2. **인증**: REGTECH 포털에 로그인
 3. **데이터 수집**: API를 통해 블랙리스트 IP 데이터 조회
 4. **데이터 처리**: 중복 제거 및 형식 변환
 5. **데이터베이스 저장**: PostgreSQL에 배치 저장

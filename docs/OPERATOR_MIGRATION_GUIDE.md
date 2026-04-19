@@ -25,7 +25,6 @@ Starting with version 3.6.0, the Blacklist Intelligence Platform **no longer sup
 Before deploying version 3.6.0, ensure:
 
 - [ ] Current REGTECH credentials are documented
-- [ ] Current SECUDIUM credentials are documented
 - [ ] `CREDENTIAL_MASTER_KEY` environment variable is set in production
 - [ ] Production database is backed up
 - [ ] Test environment has been upgraded to 3.6.0
@@ -43,8 +42,6 @@ Retrieve your current credentials from the `.env` file or your deployment config
 # On your deployment machine
 echo "REGTECH_ID=$REGTECH_ID"
 echo "REGTECH_PW=$REGTECH_PW"
-echo "SECUDIUM_ID=$SECUDIUM_ID"
-echo "SECUDIUM_PW=$SECUDIUM_PW"
 
 # Store safely for Step 3
 ```
@@ -102,14 +99,11 @@ Use the provided migration script:
 docker compose exec -T blacklist-app python3 scripts/migrate_env_credentials_to_db.py \
     --regtech-id "$REGTECH_ID" \
     --regtech-pw "$REGTECH_PW" \
-    --secudium-id "$SECUDIUM_ID" \
-    --secudium-pw "$SECUDIUM_PW"
 
 # Expected output:
 # ====== MIGRATION SUMMARY ======
 # ✓ Successfully migrated (2):
 #   - REGTECH: your_username
-#   - SECUDIUM: your_username
 # ==================================
 ```
 
@@ -127,19 +121,17 @@ SQL
 #  source  | username | enabled
 # ---------+----------+---------
 #  regtech | xxxxx    | t
-#  secudium| xxxxx    | t
 ```
 
 ### Step 6: Verify Collector Can Read Credentials
 
 ```bash
 # Check collector logs
-docker compose logs collector | grep -E "REGTECH|SECUDIUM|credentials"
+docker compose logs collector | grep -E "REGTECH|credentials"
 
 # Expected logs:
 # 🔍 Validating credentials
 # ✅ REGTECH credentials loaded from database
-# ✅ SECUDIUM credentials loaded from database
 # ✅ All required credentials are configured
 ```
 
@@ -165,8 +157,6 @@ Once verified in Step 7, remove credentials from `.env`:
 # Edit .env and remove:
 # REGTECH_ID=...      ← DELETE
 # REGTECH_PW=...      ← DELETE
-# SECUDIUM_ID=...     ← DELETE
-# SECUDIUM_PW=...     ← DELETE
 
 # KEEP these:
 # CREDENTIAL_MASTER_KEY=...
@@ -195,7 +185,6 @@ docker compose logs -f collector | tail -30
 1. **Open the web dashboard**: https://your-server/
 2. **Navigate to**: Settings → Credentials
 3. **Update REGTECH**: Enter username and password, click Save
-4. **Update SECUDIUM**: Enter username and password, click Save
 5. **Changes take effect**: Within next collection cycle (no restart needed)
 
 ### API Method
@@ -208,17 +197,6 @@ curl -X POST http://localhost:2542/api/credentials \
     "source": "regtech",
     "username": "your_regtech_username",
     "password": "your_regtech_password"
-  }'
-```
-
-#### Add/Update SECUDIUM Credentials
-```bash
-curl -X POST http://localhost:2542/api/credentials \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "secudium",
-    "username": "your_secudium_username",
-    "password": "your_secudium_password"
   }'
 ```
 
@@ -242,7 +220,7 @@ curl -X DELETE http://localhost:2542/api/credentials/regtech \
 
 **Error**: 
 ```
-❌ Missing credentials: REGTECH, SECUDIUM. Collections will fail.
+❌ Missing credentials: REGTECH. Collections will fail.
 ```
 
 **Solution**: Run the migration script from Step 4:
@@ -250,8 +228,6 @@ curl -X DELETE http://localhost:2542/api/credentials/regtech \
 docker compose exec -T blacklist-app python3 scripts/migrate_env_credentials_to_db.py \
     --regtech-id "YOUR_ID" \
     --regtech-pw "YOUR_PASSWORD" \
-    --secudium-id "YOUR_ID" \
-    --secudium-pw "YOUR_PASSWORD"
 ```
 
 ### Collections Fail: "Credentials Not Found"
@@ -318,7 +294,7 @@ curl http://localhost:2542/api/collection/status | jq '.history[0]'
 ## FAQ
 
 **Q: Can I keep environment variables for other purposes?**
-A: Yes! Only REGTECH_ID, REGTECH_PW, SECUDIUM_ID, SECUDIUM_PW are removed. Other env vars (database, Redis, etc.) are unchanged.
+A: Yes! Only REGTECH_ID and REGTECH_PW are removed. Other env vars (database, Redis, etc.) are unchanged.
 
 **Q: How often do credential changes take effect?**
 A: Immediately for new collection jobs. Current collection in progress will finish with old credentials.
@@ -327,7 +303,7 @@ A: Immediately for new collection jobs. Current collection in progress will fini
 A: The API returns source name and username only. Passwords are encrypted and never returned in plaintext.
 
 **Q: What if I forget my credentials?**
-A: Contact your IT team or REGTECH/Secudium support. Credentials cannot be recovered from the encrypted database. You must update them via web UI or API.
+A: Contact your IT team or REGTECH support. Credentials cannot be recovered from the encrypted database. You must update them via web UI or API.
 
 **Q: Do I need to restart the collector after changing credentials?**
 A: No! Collector reloads credentials before each collection job. Changes take effect within the next scheduled collection.

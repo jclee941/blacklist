@@ -1,6 +1,6 @@
 # Runbook - 운영 플레이북
 
-**버전:** 3.6.7
+**버전:** 3.6.9
 **최종수정:** 2026-02-27
 
 ---
@@ -204,5 +204,5 @@ docker logs blacklist-collector 2>&1 | grep -i "failed\|error"
 
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
-| 3.6.7 | 2026-02-27 | Sisyphus | Traefik 제거, 컨테이너 이름 변경 (blacklist-api→blacklist-app, blacklist-db→blacklist-postgres), Docker Compose 경로 변경 (deploy/docker-compose.yml) |
+| 3.6.9 | 2026-02-27 | Sisyphus | Traefik 제거, 컨테이너 이름 변경 (blacklist-api→blacklist-app, blacklist-db→blacklist-postgres), Docker Compose 경로 변경 (deploy/docker-compose.yml) |
 | 1.0 | 2026-01-10 | Sisyphus | 초기 작성 |

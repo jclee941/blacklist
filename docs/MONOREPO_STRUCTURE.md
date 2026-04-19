@@ -1,6 +1,6 @@
 # Blacklist Intelligence Platform - Monorepo Structure
 
-**Version**: 3.6.3
+**Version**: 3.6.9
 
 ## Overview
 

@@ -1,7 +1,7 @@
 # GitHub Configuration
 
 **Project**: Blacklist Intelligence Platform  
-**Version**: 3.6.4  
+**Version**: 3.6.9  
 **Repository**: [qws941/blacklist](https://github.com/qws941/blacklist)
 
 ## Directory Structure

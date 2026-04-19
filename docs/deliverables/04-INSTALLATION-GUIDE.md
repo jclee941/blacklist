@@ -1,7 +1,7 @@
 # 설치 가이드 (Installation Guide)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.6.7
+**버전:** 3.6.9
 **작성일:** 2026-02-27
 **문서번호:** INS-REGTECH-2026-001
 
@@ -260,7 +260,7 @@ docker compose exec blacklist-postgres psql -U blacklist -f /docker-entrypoint-i
 
 1. `https://localhost/settings` 접속
 2. **인증정보 설정** 메뉴 선택
-3. REGTECH/Secudium 계정 정보 입력
+3. REGTECH 계정 정보 입력
 4. **연결 테스트** 클릭
 
 **참고:** 마스터 키는 환경 변수로도 설정 가능합니다. `CREDENTIAL_MASTER_KEY` 환경 변수를 설정하면 파일 경로 대신 해당 키 값이 사용됩니다.
@@ -333,6 +333,5 @@ docker compose up -d
 
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
-| 3.6.7 | 2026-02-27 | Sisyphus | Traefik 제거, Frontend 직접 SSL 지원, 컨테이너 이름 변경 (blacklist-api→blacklist-app, blacklist-db→blacklist-postgres), Docker Compose 경로 변경 (deploy/docker-compose.yml) |
+| 3.6.9 | 2026-02-27 | Sisyphus | Traefik 제거, Frontend 직접 SSL 지원, 컨테이너 이름 변경 (blacklist-api→blacklist-app, blacklist-db→blacklist-postgres), Docker Compose 경로 변경 (deploy/docker-compose.yml) |
 | 1.0 | 2026-01-15 | Sisyphus | 초기 작성 |
-

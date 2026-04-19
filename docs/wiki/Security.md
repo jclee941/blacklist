@@ -68,7 +68,7 @@ def health():
 
 ### AES-256-GCM
 
-수집 소스 (REGTECH, Secudium)의 인증정보는 AES-256-GCM으로 암호화되어 DB에 저장됩니다.
+수집 소스 (REGTECH)의 인증정보는 AES-256-GCM으로 암호화되어 DB에 저장됩니다.
 
 | 항목           | 환경변수                    |
 | -------------- | --------------------------- |
@@ -248,9 +248,6 @@ curl -X POST http://localhost:2542/api/reset-database \
 | `REGTECH_BASE_URL`        | https://regtech.fsec.or.kr      |
 | `REGTECH_ID`              | — (Deprecated, DB 우선)         |
 | `REGTECH_PW`              | — (Deprecated, DB 우선)         |
-| `SECUDIUM_EMAIL`          | —                               |
-| `SECUDIUM_EMAIL_PASSWORD` | —                               |
-| `SECUDIUM_IMAP_SERVER`    | —                               |
 
 ### FortiGate
 

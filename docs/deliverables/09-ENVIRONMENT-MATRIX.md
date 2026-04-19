@@ -1,6 +1,6 @@
 # Environment Matrix - 환경별 설정 매트릭스
 
-**버전:** 3.6.7  
+**버전:** 3.6.9  
 **최종수정:** 2026-02-27
 
 ---
@@ -181,4 +181,4 @@ make db-init
 | 버전 | 일자 | 변경 내용 |
 |------|------|-----------|
 | 3.5.11 | 2026-01-10 | 초안 작성 |
-| 3.6.7 | 2026-02-27 | 버전 현행화: Frontend URL 업데이트 (2543→3000/443), Docker Compose 파일 경로 갱신, 환경변수 추가 (CREDENTIAL_MASTER_KEY, DISABLE_JWT_AUTH), FortiGate 동기화 간격 5분 단축 |
+| 3.6.9 | 2026-02-27 | 버전 현행화: Frontend URL 업데이트 (2543→3000/443), Docker Compose 파일 경로 갱신, 환경변수 추가 (CREDENTIAL_MASTER_KEY, DISABLE_JWT_AUTH), FortiGate 동기화 간격 5분 단축 |

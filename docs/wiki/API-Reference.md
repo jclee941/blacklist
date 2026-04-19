@@ -134,7 +134,7 @@
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
-| POST | `/api/collection/trigger/<source>` | 수집 트리거 (regtech, secudium 등) — Collector :8545로 HTTP POST |
+| POST | `/api/collection/trigger/<source>` | 수집 트리거 (REGTECH 등) — Collector :8545로 HTTP POST |
 | POST | `/api/collection/data/refresh` | 데이터 강제 새로고침 |
 | POST | `/api/collection/config/update` | 수집 설정 업데이트 |
 
@@ -152,13 +152,12 @@
 | GET | `/api/collection/credentials/<source>` | 소스별 인증정보 |
 | PUT | `/api/collection/credentials/<source>` | 인증정보 업데이트 |
 | POST | `/api/collection/credentials/<source>/test` | 인증정보 연결 테스트 |
-| POST | `/api/collection/credentials/secudium/otp` | Secudium OTP 제출 |
 
 ### 소스
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
-| GET | `/api/collection/sources` | 소스 목록 (REGTECH, Secudium 등) |
+| GET | `/api/collection/sources` | 소스 목록 (REGTECH 등) |
 | GET | `/api/collection/sources/<source_id>` | 소스 상세 |
 | GET | `/api/collection/sources/<source_id>/status` | 소스 상태 |
 

@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-**Version**: 3.6.4
+**Version**: 3.6.9
 
 ## Workflow Files
 
@@ -86,7 +86,7 @@ gh workflow run ci.yml --ref master
 gh workflow run release.yml -f dry_run=true
 
 # Trigger release by tag
-git tag v3.6.4 && git push origin v3.6.4
+git tag v3.6.9 && git push origin v3.6.9
 ```
 
 **Last Updated**: 2026-02-26

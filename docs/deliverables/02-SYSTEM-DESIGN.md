@@ -1,7 +1,7 @@
 # 시스템 설계서 (System Design)
 
 **프로젝트명:** REGTECH 블랙리스트 인텔리전스 플랫폼  
-**버전:** 3.6.7
+**버전:** 3.6.9
 **작성일:** 2026-02-27
 **문서번호:** DES-REGTECH-2026-001
 
@@ -15,7 +15,6 @@
 graph TD
     subgraph "External Sources"
         REGTECH["REGTECH<br/>한국금융보안원"]
-        SECUDIUM["Secudium/ISAP<br/>SK쉴더스"]
         FORTIGATE["FortiGate<br/>방화벽"]
     end
 
@@ -33,7 +32,6 @@ graph TD
     end
 
     REGTECH -->|HTTPS| COLLECTOR
-    SECUDIUM -->|HTTPS + OTP| COLLECTOR
     COLLECTOR -->|Raw SQL| PG
     COLLECTOR -->|캐시| REDIS
     APP -->|Raw SQL| PG
@@ -147,10 +145,8 @@ collector/
     │   ├── regtech_parser.py
     │   └── regtech_data_processor.py
     ├── multi_source/       # 멀티소스 수집 패키지
-    │   ├── secudium_collector.py
-    │   ├── secudium_parser.py
-    │   ├── fortigate_collector.py
-    │   └── generic_parser.py
+│   ├── fortigate_collector.py
+│   └── generic_parser.py
     ├── data_quality.py     # DataQualityManager
     ├── ip_validator.py     # IPValidator
     └── rate_limiter.py     # Token Bucket Rate Limiter
@@ -391,7 +387,6 @@ graph TD
 | App → Redis | TCP (6379) | 없음 (캐시 전용) |
 | App → FortiManager | HTTPS | API 키 (JSON-RPC) |
 | Collector → REGTECH | HTTPS | 다단계 인증 (세션 기반) |
-| Collector → Secudium | HTTPS | OTP (이메일, 4시간 TTL) |
 
 ---
 
@@ -432,4 +427,4 @@ graph LR
 |------|------|----------|
 | 1.0 | 2026-01-15 | 초기 작성 (v3.5.11) |
 | 2.0 | 2026-02-23 | v3.6.3 전면 갱신: Traefik 제거, 포트 수정(Frontend=443), JWT 인증 체계, AES-256-GCM 암호화, 15 테이블/4 뷰 DB 스키마, 14 서비스 DI, Collector 아키텍처 갱신, Mermaid 다이어그램 |
-| 3.0 | 2026-02-27 | v3.6.7 현행화, 테스트 수 갱신: Frontend 테스트 39개 파일 448개로 증가, 총 164개 테스트 파일 2,368개 테스트
+| 3.0 | 2026-02-27 | v3.6.9 현행화, 테스트 수 갱신: Frontend 테스트 39개 파일 448개로 증가, 총 164개 테스트 파일 2,368개 테스트

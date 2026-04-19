@@ -13,7 +13,6 @@ Blacklist Intelligence Platform은 5개의 Docker 컨테이너로 구성된 마�
 graph TD
     subgraph "External Sources"
         REGTECH["REGTECH<br/>한국금융보안원"]
-        SECUDIUM["Secudium/ISAP<br/>SK쉴더스"]
         FORTIGATE["FortiGate<br/>방화벽"]
     end
 
@@ -31,7 +30,6 @@ graph TD
     end
 
     REGTECH -->|HTTPS| COLLECTOR
-    SECUDIUM -->|HTTPS + OTP| COLLECTOR
     COLLECTOR -->|Raw SQL| PG
     COLLECTOR -->|캐시| REDIS
     APP -->|Raw SQL| PG
@@ -74,7 +72,6 @@ sequenceDiagram
     participant A as App (:2542)
     participant C as Collector (:8545)
     participant R as REGTECH
-    participant S as Secudium
     participant DB as PostgreSQL
     participant RD as Redis
 
@@ -148,7 +145,6 @@ sequenceDiagram
 | App → Redis | TCP (6379) | 없음 | 캐시 전용 |
 | App → FortiManager | HTTPS | API 키 | JSON-RPC |
 | Collector → REGTECH | HTTPS | 다단계 인증 | 세션 기반 |
-| Collector → Secudium | HTTPS | OTP (이메일) | 토큰 기반 (4시간 TTL) |
 
 ---
 

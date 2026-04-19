@@ -1,9 +1,9 @@
 # Blacklist Intelligence Platform — 문서 허브
 
-**버전**: 3.6.7  
+**버전**: 3.6.9  
 **최종 업데이트**: 2026-02
 
-위협 인텔리전스 플랫폼(REGTECH/Secudium/ISAP)의 중앙 문서 인덱스입니다.
+위협 인텔리전스 플랫폼(REGTECH)의 중앙 문서 인덱스입니다.
 
 ---
 
@@ -138,7 +138,7 @@ make release TYPE=patch      # 릴리스 자동화
 포함 다이어그램:
 
 - **시스템 토폴로지** — 5개 서비스 구성도 및 외부 연동
-- **ETL 수집 흐름** — REGTECH/Secudium 데이터 수집 시퀀스
+- **ETL 수집 흐름** — REGTECH 데이터 수집 시퀀스
 - **IP 조회 흐름** — 캐시 포함 조회 시퀀스
 - **FortiGate 연동** — Push/Pull 방식 시퀀스
 - **Flask 초기화** — Application Factory 순서도
@@ -161,7 +161,7 @@ XWiki 이식 기준과 예시는 전용 문서로 정리했습니다.
 ## 프로젝트 정보
 
 - **저장소**: [github.com/qws941/blacklist](https://github.com/qws941/blacklist)
-- **버전**: 3.6.7
+- **버전**: 3.6.9
 - **라이선스**: MIT
 - **릴리스**: [GitHub Releases](https://github.com/qws941/blacklist/releases)
 - **변경 이력**: [CHANGELOG.md](../CHANGELOG.md)

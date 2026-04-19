@@ -282,7 +282,7 @@ Collector는 Flask App과 **별도의 독립 프로세스**로 동작합니다.
 | 수집기 | 파일 | 크기 | 소스 |
 |--------|------|------|------|
 | **REGTECH** | `collector/core/regtech/` | auth 138줄 + collector 414줄 + data_processor 331줄 | 한국금융보안원 |
-| **Secudium** | `collector/core/secudium_collector.py` | 779줄 | SK쉴더스 (OTP 인증) |
+
 | **Multi-Source** | `collector/core/multi_source/` | collector 408줄 + parsers 200줄 | 다중 피드 |
 
 ### REGTECH 수집 흐름
@@ -292,14 +292,6 @@ Collector는 Flask App과 **별도의 독립 프로세스**로 동작합니다.
 3. 데이터 파싱 및 정규화 (data_processor.py)
 4. `INSERT ... ON CONFLICT DO UPDATE` (DB)
 
-### Secudium 수집 흐름 (v3.5.64 보안 강화)
-
-1. 로그인 → OTP 요청 (이메일 발송)
-2. IMAP으로 OTP 코드 수신
-3. 토큰 획득: `X-Auth-Token={userId}:{timestamp}:{sha256hash}`
-4. 토큰 라이프사이클: TTL 4시간, 안전 마진 30분, `_token_lock` 스레드 세이프
-5. XLS 데이터 다운로드 및 파싱
-
 ### Collector 엔드포인트
 
 | 메서드 | 경로 | 설명 |
@@ -307,5 +299,5 @@ Collector는 Flask App과 **별도의 독립 프로세스**로 동작합니다.
 | GET | `/health` | 서비스 상태 |
 | GET | `/status` | 상세 상태 + 통계 |
 | POST | `/api/force-collection/REGTECH` | REGTECH 강제 수집 |
-| POST | `/api/force-collection/SECUDIUM` | Secudium 강제 수집 |
+
 | GET | `/metrics` | Prometheus 메트릭 |
