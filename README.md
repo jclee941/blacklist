@@ -1,13 +1,15 @@
 # Blacklist Intelligence Platform
 
-[![CI](https://github.com/qws941/blacklist/actions/workflows/ci.yml/badge.svg)](https://github.com/qws941/blacklist/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/qws941/blacklist)](https://github.com/qws941/blacklist/releases/latest)
-[![Tests](https://img.shields.io/badge/Tests-2201%20passing-brightgreen)](#테스트)
+[![CI](https://github.com/jclee941/blacklist/actions/workflows/ci.yml/badge.svg)](https://github.com/jclee941/blacklist/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/jclee941/blacklist)](https://github.com/jclee941/blacklist/releases/latest)
+[![Tests](https://img.shields.io/badge/Tests-2175%20passing-brightgreen)](#테스트)
 [![Docker](https://img.shields.io/badge/Docker-5%20Services-blue)](#아키텍처)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 REGTECH (한국금융보안원) 위협 인텔리전스 데이터를 수집, 관리, 배포하는 IP 블랙리스트 플랫폼.
 FortiGate 외부 커넥터 및 Cloudflare WAF와 연동하여 네트워크/엣지 레벨 차단을 자동화합니다.
+
+> **v3.6.9 BREAKING**: FortiManager 통합이 완전히 제거되었습니다. FortiGate Threat Feed (pull) 또는 Cloudflare WAF (push)를 사용하세요.
 
 ## 데이터 흐름
 
@@ -49,7 +51,7 @@ FortiGate 외부 커넥터 및 Cloudflare WAF와 연동하여 네트워크/엣�
 | **Cloudflare WAF** | Lists API를 통한 IP 자동 push (Enterprise, 500K 한도) |
 | **오프라인 배포** | 에어갭 환경을 위한 Docker 번들 배포 지원 |
 | **자격증명 암호화** | AES-256-GCM 기반 DB 암호화 저장 (Settings UI 관리) |
-| **2,201 자동화 테스트** | Backend (pytest 1,776), Frontend (vitest 425), E2E (Playwright) |
+| **2,175 자동화 테스트** | Backend (pytest 1,754), Frontend (vitest 421), E2E (Playwright) |
 
 ## 아키텍처
 
@@ -101,7 +103,7 @@ make down         # 서비스 종료
 ### 오프라인 설치
 
 ```bash
-gh release download --repo qws941/blacklist
+gh release download --repo jclee941/blacklist
 tar -xzf blacklist-*.tar.gz && ./install.sh
 ```
 
@@ -130,11 +132,12 @@ blacklist/
 
 | 유형 | 프레임워크 | 테스트 수 |
 |------|-----------|----------|
-| 백엔드 Unit (App) | pytest | 1,486 |
+| 백엔드 Unit (App) | pytest | 1,460 |
 | 백엔드 Unit (Collector) | pytest | 290 |
-| 프론트엔드 Unit | Vitest | 425 |
+| 백엔드 Integration | pytest | 4 |
+| 프론트엔드 Unit | Vitest | 421 |
 | E2E | Playwright | Chromium + WebKit |
-| **합계** | | **2,201** |
+| **합계** | | **2,175** |
 
 ```bash
 make test                   # 전체 테스트
@@ -253,4 +256,13 @@ make test-e2e               # E2E (Playwright)
 
 **v3.6.9** (2026년 4월) — Production Stable
 
-[릴리즈](https://github.com/qws941/blacklist/releases) · [변경 이력](CHANGELOG.md)
+### 최근 주요 변경 (v3.6.9)
+
+- **BREAKING**: FortiManager 통합 완전 제거 — FortiGate Threat Feed 또는 Cloudflare WAF 사용
+- 500+ LOC 파일을 모듈로 분할 (app/, collector/)
+- Dead 패키지 정리: Flask-Login, marshmallow, jsonschema, xlrd 제거
+- 중복 라우트 정리: `/blacklist/list` alias, BACKEND_API_URL legacy 제거
+- 모든 Dockerfile 보안 업그레이드 적용
+- Redis 네임스페이스 충돌 및 테스트 인프라 안정화
+
+[릴리즈](https://github.com/jclee941/blacklist/releases) · [변경 이력](CHANGELOG.md)
