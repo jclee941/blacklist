@@ -266,3 +266,5 @@ make test-e2e               # E2E (Playwright)
 - Redis 네임스페이스 충돌 및 테스트 인프라 안정화
 
 [릴리즈](https://github.com/jclee941/blacklist/releases) · [변경 이력](CHANGELOG.md)
+
+<!-- LLM final probe 1777812018 -->
