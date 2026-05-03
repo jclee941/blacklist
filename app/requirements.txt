@@ -20,7 +20,7 @@ selenium==4.41.0
 beautifulsoup4==4.14.3
 
 # Security & Authentication
-cryptography==46.0.5
+cryptography==47.0.0
 bcrypt==5.0.0
 PyJWT>=2.8.0                # JWT token encoding/decoding
 Flask-WTF==1.2.2            # CSRF protection
