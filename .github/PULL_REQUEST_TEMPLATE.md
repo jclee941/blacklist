@@ -1,57 +1,50 @@
-## What This PR Does
+<!--
+PR 제목 형식 (Conventional Commits):
+  feat(scope): 새 기능
+  fix(scope): 버그 수정
+  docs(scope): 문서
+  refactor(scope): 리팩토링
+  test(scope): 테스트
+  chore(scope): 잡무
+  ci(scope): CI/CD
+  perf(scope): 성능
+  security(scope): 보안
 
-<!-- Describe WHAT this PR changes. Be specific. -->
+브랜치 이름: feat/* | fix/* | hotfix/* | docs/* | refactor/* | chore/* | ci/* | perf/* | security/* | test/*
+-->
 
-## Why
+## Changes / 변경 사항
 
-<!-- Explain WHY this change is needed. Link to the problem or motivation. -->
-
-## Kind
-
-<!-- Select the type of change. Use the /kind label convention. -->
-
-- [ ] `/kind feat` — New feature or capability
-- [ ] `/kind fix` — Bug fix (non-breaking)
-- [ ] `/kind refactor` — Code restructuring (no behavior change)
-- [ ] `/kind infra` — Infrastructure, Terraform, CI/CD, deployment
-- [ ] `/kind docs` — Documentation only
-- [ ] `/kind chore` — Maintenance, dependencies, tooling
-- [ ] `/kind breaking` — Breaking change (requires migration or coordination)
-
-## Changes
-
-<!-- List the key changes. Be concise. -->
+<!-- 무엇을 / 왜 바꿨는지 한눈에 -->
 
 -
 -
+-
 
-## Testing
+## Why / 동기
 
-<!-- How did you verify this change? -->
+<!-- 이 변경이 필요한 이유. 이슈가 있다면 `Closes #N` 으로 연결 -->
 
-- [ ] Tested locally
-- [ ] CI checks pass
-- [ ] Infrastructure changes verified (`terraform plan`, deploy preview, etc.) — if applicable
-- [ ] Manual verification on staging/prod
+## How to verify / 검증 방법
 
-## Breaking Changes
+<!-- 리뷰어가 따라할 수 있는 구체적인 단계 -->
 
-<!-- If this is a breaking change, describe the impact and migration path. -->
-<!-- Remove this section if not applicable. -->
+```bash
+# 예) 로컬 검증 명령
+```
 
-N/A
+## Risk / 영향 범위
+
+- [ ] 후방 호환성 영향 없음
+- [ ] 보안 영향 없음 (있다면 `security-review` 라벨 부착)
+- [ ] 다운스트림 11개 리포에 자동 동기화됨 (`scripts/deploy-to-repos.go` 변경 시)
 
 ## Checklist
 
-- [ ] PR title follows `type(scope): description` format
-- [ ] Code follows the project's existing style and conventions
-- [ ] Self-review completed
-- [ ] Documentation updated (if applicable)
-- [ ] No new warnings, errors, or type suppressions
-- [ ] Change is **< 200 LOC** (excluding generated/lock files), or justification provided
+- [ ] PR 제목이 Conventional Commits 규약 준수
+- [ ] 브랜치 이름이 표준 prefix 사용
+- [ ] 관련 문서 (README/AGENTS.md/docs/) 업데이트
+- [ ] 새 기능/설정 변경 시 예시 추가
+- [ ] 테스트 추가/갱신 (해당하는 경우)
 
-## Related Issues
-
-<!-- Use "Closes #123" to auto-close, or "Refs #123" for reference. -->
-
-Closes #
+> 이 PR은 `jclee-bot`이 자동 리뷰합니다 (cli_proxy + Kimi-k2.6, 한국어 응답).
