@@ -3,7 +3,7 @@ requests==2.33.1
 PySocks==1.7.1
 psycopg2-binary==2.9.12
 redis==7.4.0
-aiohttp>=3.9.0
+aiohttp>=3.13.5
 
 # Data Processing
 pandas>=3.0.2  # Python 3.13 compatible
