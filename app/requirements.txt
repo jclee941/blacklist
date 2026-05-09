@@ -31,7 +31,7 @@ Flask-Limiter==4.1.1        # Rate limiting / DOS protection
 # Utilities
 python-dotenv==1.2.2
 click==8.3.3
-pytz==2026.1.post1
+pytz==2026.2
 schedule==1.2.2
 
 # Production Server
