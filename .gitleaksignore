@@ -1,0 +1,27 @@
+# detect-secrets baseline file (hashed placeholders, not real secrets)
+dc7016115ce8a40871c3d4784792947facde0584:.secrets.baseline:generic-api-key:130
+dc7016115ce8a40871c3d4784792947facde0584:.secrets.baseline:generic-api-key:139
+dc7016115ce8a40871c3d4784792947facde0584:.secrets.baseline:generic-api-key:148
+dc7016115ce8a40871c3d4784792947facde0584:.secrets.baseline:generic-api-key:157
+dc7016115ce8a40871c3d4784792947facde0584:.secrets.baseline:generic-api-key:166
+
+# Test file with mock security tokens
+7e2cb42cd49a9fc34673a683c7184f1e39256919:tests/unit/collector/test_session_management_security.py:generic-api-key:369
+
+# Build artifacts and cache files (compiled/bundled JS, Next.js cache)
+90d7a86d8f0f5a4a22bc7f19cd80b076f2993de4:frontend/.open-next/server-functions/default/index.mjs:generic-api-key:218
+90d7a86d8f0f5a4a22bc7f19cd80b076f2993de4:frontend/.open-next/middleware/handler.mjs:generic-api-key:884
+90d7a86d8f0f5a4a22bc7f19cd80b076f2993de4:frontend/.open-next/server-functions/default/handler.mjs:generic-api-key:36
+90d7a86d8f0f5a4a22bc7f19cd80b076f2993de4:frontend/.open-next/server-functions/default/handler.mjs:generic-api-key:234
+90d7a86d8f0f5a4a22bc7f19cd80b076f2993de4:frontend/.open-next/server-functions/default/handler.mjs:generic-api-key:325
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/cache/.previewinfo:generic-api-key:1
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/cache/.rscinfo:generic-api-key:1
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/prerender-manifest.json:generic-api-key:226
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/prerender-manifest.json:generic-api-key:227
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/server/server-reference-manifest.json:generic-api-key:1
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/standalone/dev/blacklist/frontend-source/.next/prerender-manifest.json:generic-api-key:226
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/standalone/dev/blacklist/frontend-source/.next/prerender-manifest.json:generic-api-key:227
+912219f6d02e907aaa0e5dfa588aad98d3406a94:frontend-source/.next/standalone/dev/blacklist/frontend-source/.next/server/server-reference-manifest.json:generic-api-key:1
+
+# Self-signed SSL key for airgap deployment (development only)
+c80f0e2684416dc7d472aa5d64f4f9a28179ffcc:deploy/airgap/ssl/server.key:private-key:8
