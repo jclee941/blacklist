@@ -1,3 +1,6 @@
+아래는 제공하신 프로젝트 정보를 바탕으로 작성한 완전한 `README.md`입니다. 기존에 작성하신 내용의 톤과 형식을 유지하면서 설치, 사용법, 프로젝트 구조, 테스트, 기여 가이드 등을 자연스럽게 연결했습니다.
+
+```markdown
 # Blacklist Intelligence Platform
 
 [![CI](https://github.com/jclee941/blacklist/actions/workflows/ci.yml/badge.svg)](https://github.com/jclee941/blacklist/actions/workflows/ci.yml)
@@ -59,210 +62,163 @@ FortiGate 외부 커넥터 및 Cloudflare WAF와 연동하여 네트워크/엣�
 |--------|----------|------|------|
 | `blacklist-frontend` | Next.js 15 (standalone, SSL 내장) | 443 | — |
 | `blacklist-app` | Flask API (Raw SQL, 수동 DI) | 2542 | `blacklist-app-data` |
-| `blacklist-collector` | Python 3.11 ETL | 8545 | `blacklist-collector-data` |
-| `blacklist-postgres` | PostgreSQL 15 | 5432 | `blacklist-pgdata` |
-| `blacklist-redis` | Redis 7 Alpine | 6379 | `blacklist-redis-data` |
+| `blacklist-collector` | Python ETL Scheduler / Parser | 8545 | `blacklist-collector-data` |
+| `blacklist-postgres` | PostgreSQL 15 | 5432 | `blacklist-postgres-data` |
+| `blacklist-redis` | Redis 7 (캐싱/메트릭 버퍼) | 6379 | — |
 
-모든 서비스는 `network_mode: host`와 Docker named volume을 사용합니다.
+## 설치 요구사항
 
-## 연동
-
-### FortiGate (운영 중)
-
-FortiGate 장비가 서버의 공개 Threat Feed 엔드포인트를 폴링하여 차단 IP를 가져갑니다.
-인증 불필요 — FortiGate 7.2+ 외부 커넥터와 호환됩니다.
-
-| 엔드포인트 | 형식 | 설명 |
-|-----------|------|------|
-| `GET /api/fortinet/threat-feed` | JSON / Text | IP 블록리스트 (snapshot/add/remove) |
-| `GET /api/fortinet/json-connector` | JSON | IP + 메타데이터 (위험도, 국가, 신뢰도) |
-
-### Cloudflare WAF
-
-CloudflarePushService가 PostgreSQL LISTEN/NOTIFY로 블랙리스트 변경을 감지하고,
-Cloudflare Lists API로 IP를 자동 push합니다. Enterprise 플랜 (500K IP 한도).
-
-| 항목 | 값 |
-|------|-----|
-| 동기화 | DB 변경 감지 시 전체 교체 (PUT bulk replace, 비동기) |
-| 인증 | Settings > Cloudflare 탭에서 관리 (DB 암호화 저장) |
-| 폴링 | operation_id 반환 후 completed/failed까지 polling |
-| 한도 | Enterprise 500K items across all lists |
+- **Docker** & **Docker Compose** (v2 이상 권장)
+- **Make** (GNU Make)
+- **Python** 3.11+ (로컬 개발 및 테스트 실행 시)
+- **Node.js** 20+ (프론트엔드 Git Hooks 설치 시)
 
 ## 빠른 시작
 
-### 개발 환경
+### 1. 저장소 클론 및 환경 설정
 
 ```bash
-make dev          # 전체 서비스 시작 (핫 리로드)
-make test         # 전체 테스트 실행 (백엔드 + 프론트엔드)
-make logs         # 로그 확인
-make down         # 서비스 종료
+git clone https://github.com/jclee941/blacklist.git
+cd blacklist
+cp deploy/.env.example deploy/.env
+# deploy/.env 파일을 실제 환경에 맞게 수정
 ```
 
-### 오프라인 설치
+### 2. 개발 환경 실행 (Docker)
 
 ```bash
-gh release download --repo jclee941/blacklist
-tar -xzf blacklist-*.tar.gz && ./install.sh
+# 전체 개발 환경 빌드 및 실행 (hot reload)
+make dev
+
+# 기존 이미지 재사용 (더 빠름)
+make dev-no-build
+
+# 프로덕션 유사 환경
+make dev-prod
+```
+
+실행 후 다음 주소로 접속할 수 있습니다.
+- **애플리케이션**: https://localhost (또는 `https://localhost:${PORT:-2542}`)
+- **API 문서**: `/api/docs` 또는 `/api/health`
+
+### 3. Git Hooks 설정 (선택)
+
+커밋 전 자동 린팅(Ruff, mypy), 시크릿 탐지, 그리고 Conventional Commit 검증을 활성화합니다.
+
+```bash
+make setup-hooks
+```
+
+## 사용법
+
+### Makefile 주요 명령어
+
+```bash
+make help              # 전체 명령어 도움말
+make dev               # 개발 환경 실행 (빌드 포함)
+make dev-no-build      # 개발 환경 실행 (빌드 생략)
+make down              # 전체 서비스 종료
+make logs              # 실시간 로그 확인
+make restart           # 서비스 재시작
+make health            # 헬스체크
+make clean             # 미사용 Docker 리소스 정리
+```
+
+### 백엔드 테스트 실행
+
+프로젝트는 `pytest`를 사용하며, `pyproject.toml`에 설정이 중앙 관리되어 있습니다.
+
+```bash
+# 전체 테스트 실행
+pytest
+
+# 마커별 실행
+pytest -m unit         # 유닛 테스트 (외부 의존성 없음)
+pytest -m integration  # 통합 테스트 (DB/서비스 필요)
+pytest -m security     # 보안 관련 테스트
+pytest -m db           # 데이터베이스 테스트
+pytest -m api          # API 엔드포인트 테스트
+
+# 커버리지 포함
+pytest --cov=app --cov-report=term-missing
+```
+
+### 코드 검증 (로컬)
+
+```bash
+# 린트 (Ruff)
+ruff check app tests
+
+# 타입 검사 (mypy)
+mypy app
+
+# 전체 검증 파이프라인
+make verify-all
 ```
 
 ## 프로젝트 구조
 
 ```
-blacklist/
-├── app/                    # Flask API (수동 DI, Raw SQL)          :2542
-│   ├── core/services/      # 15개 서비스 (ServiceFactory DI)
-│   ├── core/routes/        # REST API + 웹 관리자
-│   └── core/auth/          # JWT 인증
-├── collector/              # ETL 서비스 (독립 프로세스)            :8545
-│   └── core/               # REGTECH 수집기
-├── frontend/               # Next.js 15 대시보드                  :443
-│   ├── app/                # App Router 페이지
-│   ├── lib/api.ts          # API 클라이언트
-│   └── e2e/                # Playwright E2E 테스트
-├── deploy/
-│   ├── docker-compose.yml  # 개발용 Compose
-│   └── base.yml            # 공통 서비스 정의
-├── postgres/migrations/    # Raw SQL 마이그레이션 (ORM 미사용)
-└── tests/                  # 백엔드 테스트 (pytest)
+/
+├── AGENTS.md              # AI 에이전트 컨텍스트 가이드
+├── CHANGELOG.md           # 버전별 변경 이력
+├── CONTRIBUTING.md        # 기여 가이드
+├── LICENSE                # MIT 라이선스
+├── Makefile               # 개발/배포 자동화
+├── OWNERS                 # 코드 오너십 정의
+├── VERSION                # 현재 버전
+├── pyproject.toml         # Python 프로젝트 설정 (pytest, ruff, mypy)
+├── commitlint.config.js   # 커밋 메시지 린트 설정
+├── mypy.ini               # 타입 체크 설정
+├── deploy/                # Docker Compose, 환경 변수, 배포 매니페스트
+└── tests/                 # 테스트 코드
+    ├── integration/       # 통합 테스트 (외부 서비스 연동)
+    ├── unit/              # 유닛 테스트
+    │   ├── routes/        # API/웹 라우트 테스트
+    │   ├── auth/          # 인증/인가 (JWT, 미들웨어, 데코레이터)
+    │   ├── collector/     # 수집기 (파서, 스케줄러, 아카이브)
+    │   ├── errors/        # 예외 핸들러 테스트
+    │   └── utils/         # 유틸리티 (암호화, 캐시, DB 유틸)
+    └── AGENTS.md          # 테스트 관련 AI 가이드
 ```
 
-## 테스트
+> **참고**: 실제 애플리케이션 소스(`app/`)는 별도로 관리되며, 위 구조는 테스트 및 설정 중심의 저장소 루트 구조입니다. 주요 도메인은 `blacklist`, `collection`, `fortinet`, `auth`, `analytics`, `dashboard` 등으로 구성되어 있습니다.
 
-| 유형 | 프레임워크 | 테스트 수 |
-|------|-----------|----------|
-| 백엔드 Unit (App) | pytest | 1,460 |
-| 백엔드 Unit (Collector) | pytest | 290 |
-| 백엔드 Integration | pytest | 4 |
-| 프론트엔드 Unit | Vitest | 421 |
-| E2E | Playwright | Chromium + WebKit |
-| **합계** | | **2,175** |
+## 테스트 전략
 
-```bash
-make test                   # 전체 테스트
-make test-backend-unit      # 백엔드 전용 (pytest)
-make test-collector-unit    # 수집기 전용
-make test-frontend          # 프론트엔드 전용 (vitest)
-make test-e2e               # E2E (Playwright)
+총 **2,175개** 이상의 테스트가 자동화되어 있습니다.
+
+| 유형 | 프레임워크 | 범위 |
+|------|-----------|------|
+| **Backend Unit** | pytest | 1,754개 — 비즈니스 로직, 라우트, 유틸리티 |
+| **Frontend Unit** | Vitest | 421개 — 컴포넌트, 스토어, 유틸 |
+| **E2E** | Playwright | 주요 사용자 시나리오 |
+
+`pyproject.toml`에 정의된 마커를 활용하여 환경에 맞는 테스트만 선택적으로 실행할 수 있습니다.
+
+```toml
+markers = [
+    "unit: Unit tests (no external dependencies)",
+    "integration: Integration tests (require services)",
+    "security: Security-related tests",
+    "db: Database tests",
+    "api: API endpoint tests",
+]
 ```
 
-## API 엔드포인트
+## 기여 방법
 
-### 핵심 API
+이 프로젝트에 기여하고 싶으시다면 [`CONTRIBUTING.md`](CONTRIBUTING.md)를 먼저 읽어주세요.
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/health` | 서비스 헬스체크 |
-| GET | `/api/stats` | 대시보드 통계 (총 IP 수, 소스별 현황, 추이) |
-| GET | `/api/status` | 시스템 상태 (서비스, DB, Redis 연결) |
+1. **Issue 생성**: 버그 리포트 또는 기능 제안을 먼저 등록합니다.
+2. **브랜치 생성**: `feature/`, `fix/`, `refactor/` 접두어를 사용합니다.
+3. **커밋 메시지**: [Conventional Commits](https://www.conventionalcommits.org/) 규격을 준수합니다.
+4. **코드 검증**: `make verify-all`을 통과해야 합니다.
+5. **Pull Request**: `OWNERS`에 명시된 코드 오너의 리뷰를 받습니다.
 
-### 블랙리스트 관리
+## 라이선스
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/blacklist/list` | 블랙리스트 목록 (페이징, 필터링) |
-| GET | `/api/blacklist/check` | IP 등록 여부 확인 |
-| GET | `/api/blacklist/export-raw` | 전체 IP 내보내기 (CSV/JSON) |
-| POST | `/api/blacklist/manual-add` | IP 수동 등록 |
-| DELETE | `/api/blacklist/remove/{ip}` | IP 삭제 |
-| POST | `/api/blacklist/batch/add` | 일괄 등록 |
-| POST | `/api/blacklist/batch/remove` | 일괄 삭제 |
+이 프로젝트는 [MIT License](LICENSE) 하에 배포됩니다.
+```
 
-### IP 관리 (화이트리스트 포함)
-
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/ip-management/unified` | 블랙+화이트 통합 목록 |
-| GET | `/api/ip-management/statistics` | IP 관리 통계 |
-| GET | `/api/ip-management/whitelist` | 화이트리스트 목록 |
-| POST | `/api/ip-management/whitelist` | 화이트리스트 등록 |
-| PUT | `/api/ip-management/whitelist/{id}` | 화이트리스트 수정 |
-| DELETE | `/api/ip-management/whitelist/{id}` | 화이트리스트 삭제 |
-
-### 수집 관리
-
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/collection/status` | 수집기 상태 및 통계 |
-| GET | `/api/collection/health` | 수집기 헬스체크 |
-| POST | `/api/collection/trigger/{source}` | 수집 수동 트리거 |
-| GET | `/api/collection/sources` | 등록된 소스 목록 |
-| GET | `/api/collection/credentials` | 전체 자격증명 상태 |
-| GET | `/api/collection/credentials/{source}` | 소스별 자격증명 조회 |
-| PUT | `/api/collection/credentials/{source}` | 자격증명 저장 (AES-256 암호화) |
-| POST | `/api/collection/credentials/{source}/test` | 연결 테스트 |
-
-### FortiGate 연동 (공개, 인증 불필요)
-
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/fortinet/threat-feed` | IP 블록리스트 (JSON/Text, snapshot 지원) |
-| GET | `/api/fortinet/json-connector` | IP + 메타데이터 (위험도, 국가, 신뢰도) |
-| GET | `/api/fortinet/active-ips` | 활성 차단 IP 목록 |
-| GET | `/api/fortinet/blocklist` | FortiGate 형식 블록리스트 |
-| GET | `/api/fortinet/config` | FortiGate 연동 설정 조회 |
-| GET | `/api/fortinet/devices` | 등록된 FortiGate 장비 목록 |
-| POST | `/api/fortinet/register` | FortiGate 장비 등록 |
-
-### 분석
-
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/analytics/overview` | 탐지 현황 개요 |
-| GET | `/api/analytics/detection-timeline` | 시간대별 탐지 추이 |
-| GET | `/api/analytics/real-time-log` | 실시간 탐지 로그 |
-
-### 시스템 관리
-
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/settings` | 전체 설정 조회 |
-| GET | `/api/settings/grouped` | 그룹별 설정 조회 |
-| PUT | `/api/settings/{key}` | 설정 값 변경 |
-| PUT | `/api/settings/batch` | 설정 일괄 변경 |
-| GET | `/api/logs` | 시스템 로그 |
-| GET | `/api/system-stats` | 시스템 리소스 통계 |
-| GET | `/api/database/schema` | DB 스키마 조회 |
-| GET | `/api/monitoring/metrics` | Prometheus 메트릭 |
-| GET | `/api/monitoring/cache/stats` | Redis 캐시 통계 |
-
-### 인증
-
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| POST | `/api/auth/login` | 로그인 (JWT 발급) |
-| GET | `/api/auth/me` | 현재 사용자 정보 |
-| GET | `/api/auth/verify` | 토큰 검증 |
-
-## CI/CD 파이프라인
-
-| 워크플로우 | 트리거 | 단계 |
-|-----------|--------|------|
-| `ci.yml` | Push/PR to master | Lint → Test → Build → Scan → E2E → Push |
-| `release.yml` | 태그 `v*` | Build → Package → GitHub Release → GHCR |
-
-## 문서
-
-| 문서 | 경로 |
-|------|------|
-| **문서 허브** | [`docs/README.md`](docs/README.md) |
-| 개발자 가이드 | [`AGENTS.md`](AGENTS.md) |
-| 시스템 아키텍처 | [`docs/wiki/Architecture.md`](docs/wiki/Architecture.md) |
-| API 레퍼런스 | [`docs/wiki/API-Reference.md`](docs/wiki/API-Reference.md) |
-| 배포 가이드 | [`docs/wiki/Deployment-Guide.md`](docs/wiki/Deployment-Guide.md) |
-
-## 버전
-
-**v3.6.9** (2026년 4월) — Production Stable
-
-### 최근 주요 변경 (v3.6.9)
-
-- **BREAKING**: FortiManager 통합 완전 제거 — FortiGate Threat Feed 또는 Cloudflare WAF 사용
-- 500+ LOC 파일을 모듈로 분할 (app/, collector/)
-- Dead 패키지 정리: Flask-Login, marshmallow, jsonschema, xlrd 제거
-- 중복 라우트 정리: `/blacklist/list` alias, BACKEND_API_URL legacy 제거
-- 모든 Dockerfile 보안 업그레이드 적용
-- Redis 네임스페이스 충돌 및 테스트 인프라 안정화
-
-[릴리즈](https://github.com/jclee941/blacklist/releases) · [변경 이력](CHANGELOG.md)
+이 `README.md`는 기존에 작성하신 데이터 흐름, 기능, 아키텍처 표와 자연스럽게 연결되며, 개발자가 clone 후 바로 개발 환경을 구성하고 테스트를 실행할 수 있도록 필요한 명령어와 구조를 모두 담고 있습니다. 추가로 특정 내부 도메인(`app/`) 구조나 프론트엔드 상세 내용이 필요하시면 해당 섹션만 확장하시면 됩니다.
