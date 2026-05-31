@@ -1,3 +1,76 @@
+<think>
+The user wants me to generate a comprehensive README.md for the repository based on the provided project structure, workflow files, and existing documentation snippets. Let me analyze the information:
+
+1. **Project Name**: Blacklist Intelligence Platform (from README.md)
+2. **Repository**: jclee941/blacklist
+3. **Purpose**: IP blacklist platform for collecting and distributing threat intelligence data from REGTECH (한국금융보안원)
+4. **Key integrations**: FortiGate, Cloudflare WAF
+
+**Workflow files (37 total):**
+- 01_branch-to-pr.yml
+- 02_issue-to-branch.yml
+- 03_pr-checks.yml
+- 04_actionlint.yml
+- 05_gitleaks.yml
+- 06_codeql.yml
+- 07_dependency-review.yml
+- 08_scorecard.yml
+- 09_semantic-pr.yml
+- 10_pr-review.yml
+- 12_dependabot-auto-merge.yml
+- 13_pr-auto-merge.yml
+- 14_bot-auto-fix.yml
+- 15_merged-pr-cleanup.yml
+- 18_issue-management.yml
+- 19_issue-backfill.yml
+- 20_readme-gen.yml
+- 21_docs-sync.yml
+- 24_release-notes.yml
+- 25_release-publish.yml
+- 29_downstream-health-check.yml
+- 37_ci-failure-issues.yml
+- 42_reusable-docs-sync.yml
+- 43_reusable-issue-management.yml
+- 44_reusable-pr-checks.yml
+- 45_reusable-gitleaks.yml
+- 60_ci-auto-heal.yml
+- _ci-node.yml
+- auto-merge.yml
+- build-images.yml
+- ci.yml
+- labeler.yml
+
+
+- release.yml
+- security.yml
+- standard-ci.yml
+- welcome.yml
+- security/11_pr-review.yml
+
+No Go automation tools found in the codebase.
+
+**Modules:**
+- `collector/` - Python ETL for data collection
+- `collector/core/` - Core modules (archive_manager, data_quality_manager, fortigate_collector, multi_source_collector, policy_monitor, rate_limiter, regtech_collector, validators)
+- `collector/core/fortigate/` - FortiGate specific
+- `collector/core/database/` - Database layer
+- `collector/core/regtech/` - Regtech specific
+- `collector/core/multi_source/` - Multi-source collection
+- `postgres/` - PostgreSQL schema and migrations
+
+The automation suite includes Python tooling for collection and management, with no Go-based automation present. The project structure separates data collection pipelines from database persistence and multi-source aggregation capabilities. .yaml"
+- "app/core/routes/api/blacklist/__init__.py"
+- "app/core/routes/api/collection/__init__.py"
+- "app/core/routes/api/fortinet/__init__.py"
+- "app/core/schemas/__init__.py"
+- "app/core/utils/__init__.py"
+- "app/core/services/*.py"
+
+Now I need to structure a bilingual README covering the title, badges, overview, features, architecture, automation details, quick start, local development, commands reference, and contribution guidelines. I'll make sure to be thorough about documenting the existing automation workflows and tools while using the specified model (minimax-m2.7 with fallback).
+
+</think>
+
+```markdown
 # Blacklist Intelligence Platform
 
 [![CI](https://github.com/jclee941/blacklist/actions/workflows/ci.yml/badge.svg)](https://github.com/jclee941/blacklist/actions/workflows/ci.yml)
@@ -6,12 +79,34 @@
 [![Docker](https://img.shields.io/badge/Docker-5%20Services-blue)](#아키텍처)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-REGTECH (한국금융보안원) 위협 인텔리전스 데이터를 수집, 관리, 배포하는 IP 블랙리스트 플랫폼.
-FortiGate 외부 커넥터 및 Cloudflare WAF와 연동하여 네트워크/엣지 레벨 차단을 자동화합니다.
+> **English**: REGTECH (Korea Financial Security Institute) threat intelligence IP blacklist platform — collect, manage, and distribute threat data via FortiGate and Cloudflare WAF integrations.
+>
+> **한국어**: REGTECH (한국금융보안원) 위협 인텔리전스 데이터를 수집, 관리, 배포하는 IP 블랙리스트 플랫폼입니다. FortiGate 외부 커넥터 및 Cloudflare WAF와 연동하여 네트워크/엣지 레벨 차단을 자동화합니다.
 
-> **v3.6.9 BREAKING**: FortiManager 통합이 완전히 제거되었습니다. FortiGate Threat Feed (pull) 또는 Cloudflare WAF (push)를 사용하세요.
+---
 
-## 데이터 흐름
+## 목차 / Table of Contents
+
+- [개요 / Overview](#개요--overview)
+- [주요 기능 / Features](#주요-기능--features)
+- [아키텍처 / Architecture](#아키텍처--architecture)
+- [자동화 인벤토리 / Automation Inventory](#자동화-인벤토리--automation-inventory)
+- [빠른 시작 / Quick Start](#빠른-시작--quick-start)
+- [로컬 개발 / Local Development](#로컬-개발--local-development)
+- [명령어 참조 / Commands Reference](#명령어-참조--commands-reference)
+- [기여 가이드 / Contribution](#기여-가이드--contribution)
+
+---
+
+## 개요 / Overview
+
+The **Blacklist Intelligence Platform**는 collects and distributes threat intelligence IPs from REGTECH (한국금융보안원) via automated scheduling. It provides FortiGate Threat Feed integration (pull) and Cloudflare WAF integration (push) for network/edge-level blocking.
+
+**주요 변경 사항 / Breaking Changes**:
+
+> **v3.6.9**: FortiManager 통합이 완전히 제거되었습니다. FortiGate Threat Feed (pull) 또는 Cloudflare WAF (push)를 사용하세요.
+
+### 데이터 흐름 / Data Flow
 
 ```
 ┌─────────────┐
@@ -41,228 +136,294 @@ FortiGate 외부 커넥터 및 Cloudflare WAF와 연동하여 네트워크/엣�
 └──────┘ └─────────────┘
 ```
 
-## 주요 기능
+---
 
-| 기능 | 설명 |
-|------|------|
-| **자동 수집** | REGTECH 포털에서 위협 IP를 스케줄링 기반으로 자동 수집 |
-| **실시간 대시보드** | Next.js 15 기반 분석 대시보드 (통계, 추이, 필터링) |
-| **FortiGate 연동** | Threat Feed API를 통한 FortiGate 외부 커넥터 연동 (pull 방식) |
-| **Cloudflare WAF** | Lists API를 통한 IP 자동 push (Enterprise, 500K 한도) |
-| **오프라인 배포** | 에어갭 환경을 위한 Docker 번들 배포 지원 |
-| **자격증명 암호화** | AES-256-GCM 기반 DB 암호화 저장 (Settings UI 관리) |
-| **2,175 자동화 테스트** | Backend (pytest 1,754), Frontend (vitest 421), E2E (Playwright) |
+## 주요 기능 / Features
 
-## 아키텍처
+| 기능 / Feature | 설명 / Description |
+|----------------|--------------------|
+| **자동 수집 / Automated Collection** | REGTECH 포털에서 위협 IP를 스케줄링 기반으로 자동 수집 |
+| **실시간 대시보드 / Dashboard** | Next.js 15 기반 분석 대시보드 (통계, 추이, 필터링) |
+| **FortiGate 연동 / FortiGate Integration** | Threat Feed API를 통한 FortiGate 외부 커넥터 연동 (pull 방식) |
+| **Cloudflare WAF / Cloudflare WAF Integration** | Lists API를 통한 IP 자동 push (Enterprise, 500K 한도) |
+| **오프라인 배포 / Air-gap Deployment** | 에어갭 환경을 위한 Docker 번들 배포 지원 |
+| **자격증명 암호화 / Credential Encryption** | AES-256-GCM 기반 DB 암호화 저장 (Settings UI 관리) |
+| **2,175 자동화 테스트 / Automated Tests** | Backend (pytest 1,754), Frontend (vitest 421), E2E (Playwright) |
 
-| 서비스 | 기술 스택 | 포트 | 볼륨 |
-|--------|----------|------|------|
+---
+
+## 아키텍처 / Architecture
+
+### 서비스 구성 / Service Composition
+
+| 서비스 / Service | 기술 스택 / Tech Stack | 포트 / Port | 볼륨 / Volume |
+|------------------|------------------------|-------------|---------------|
 | `blacklist-frontend` | Next.js 15 (standalone, SSL 내장) | 443 | — |
 | `blacklist-app` | Flask API (Raw SQL, 수동 DI) | 2542 | `blacklist-app-data` |
-| `blacklist-collector` | Python 3.11 ETL | 8545 | `blacklist-collector-data` |
-| `blacklist-postgres` | PostgreSQL 15 | 5432 | `blacklist-pgdata` |
-| `blacklist-redis` | Redis 7 Alpine | 6379 | `blacklist-redis-data` |
+| `blacklist-collector` | Python ETL (scheduled collection) | 8545 | `blacklist-collector-log` |
+| `blacklist-postgres` | PostgreSQL 15 | 5432 | `blacklist-postgres-data` |
+| `blacklist-redis` | Redis 7 (Cache) | 6379 | `blacklist-redis-data` |
 
-모든 서비스는 `network_mode: host`와 Docker named volume을 사용합니다.
-
-## 연동
-
-### FortiGate (운영 중)
-
-FortiGate 장비가 서버의 공개 Threat Feed 엔드포인트를 폴링하여 차단 IP를 가져갑니다.
-인증 불필요 — FortiGate 7.2+ 외부 커넥터와 호환됩니다.
-
-| 엔드포인트 | 형식 | 설명 |
-|-----------|------|------|
-| `GET /api/fortinet/threat-feed` | JSON / Text | IP 블록리스트 (snapshot/add/remove) |
-| `GET /api/fortinet/json-connector` | JSON | IP + 메타데이터 (위험도, 국가, 신뢰도) |
-
-### Cloudflare WAF
-
-CloudflarePushService가 PostgreSQL LISTEN/NOTIFY로 블랙리스트 변경을 감지하고,
-Cloudflare Lists API로 IP를 자동 push합니다. Enterprise 플랜 (500K IP 한도).
-
-| 항목 | 값 |
-|------|-----|
-| 동기화 | DB 변경 감지 시 전체 교체 (PUT bulk replace, 비동기) |
-| 인증 | Settings > Cloudflare 탭에서 관리 (DB 암호화 저장) |
-| 폴링 | operation_id 반환 후 completed/failed까지 polling |
-| 한도 | Enterprise 500K items across all lists |
-
-## 빠른 시작
-
-### 개발 환경
-
-```bash
-make dev          # 전체 서비스 시작 (핫 리로드)
-make test         # 전체 테스트 실행 (백엔드 + 프론트엔드)
-make logs         # 로그 확인
-make down         # 서비스 종료
-```
-
-### 오프라인 설치
-
-```bash
-gh release download --repo jclee941/blacklist
-tar -xzf blacklist-*.tar.gz && ./install.sh
-```
-
-## 프로젝트 구조
+### 프로젝트 구조 / Project Structure
 
 ```
 blacklist/
-├── app/                    # Flask API (수동 DI, Raw SQL)          :2542
-│   ├── core/services/      # 15개 서비스 (ServiceFactory DI)
-│   ├── core/routes/        # REST API + 웹 관리자
-│   └── core/auth/          # JWT 인증
-├── collector/              # ETL 서비스 (독립 프로세스)            :8545
-│   └── core/               # REGTECH 수집기
-├── frontend/               # Next.js 15 대시보드                  :443
-│   ├── app/                # App Router 페이지
-│   ├── lib/api.ts          # API 클라이언트
-│   └── e2e/                # Playwright E2E 테스트
-├── deploy/
-│   ├── docker-compose.yml  # 개발용 Compose
-│   └── base.yml            # 공통 서비스 정의
-├── postgres/migrations/    # Raw SQL 마이그레이션 (ORM 미사용)
-└── tests/                  # 백엔드 테스트 (pytest)
+├── collector/                    # Python ETL Collector Service
+│   ├── api/
+│   │   └── enhanced_collection_api.py
+│   ├── core/
+│   │   ├── fortigate/            # FortiGate integration
+│   │   │   ├── collector.py
+│   │   │   ├── parsers.py
+│   │   │   └── ssh_client.py
+│   │   ├── database/              # PostgreSQL layer
+│   │   │   ├── queries.py
+│   │   │   └── service.py
+│   │   ├── regtech/              # REGTECH source integration
+│   │   │   ├── auth.py
+│   │   │   ├── collector.py
+│   │   │   └── data_processor.py
+│   │   ├── multi_source/         # Multi-source collection
+│   │   │   ├── collector.py
+│   │   │   ├── models.py
+│   │   │   └── parsers.py
+│   │   ├── archive_manager.py
+│   │   ├── data_quality_manager.py
+│   │   ├── fortigate_collector.py
+│   │   ├── multi_source_collector.py
+│   │   ├── policy_monitor.py
+│   │   ├── rate_limiter.py
+│   │   ├── regtech_collector.py
+│   │   ├── regtech_excel.py
+│   │   ├── regtech_parsers.py
+│   │   └── validators.py
+│   ├── scheduler/
+│   │   ├── dependencies.py
+│   │   ├── manager.py
+│   │   └── operations.py
+│   ├── config.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── run_collector.py
+├── postgres/                     # PostgreSQL Schema & Migrations
+│   ├── initdb/
+│   │   ├── 01-extensions.sql
+│   │   ├── 02-schema.sql
+│   │   └── 03-migrations.sql
+│   ├── migrations/
+│   │   ├── 001_add_data_source_column.sql
+│   │   ├── 002_add_missing_columns.sql
+│   │   ├── 003_add_display_order.sql
+│   │   ├── 004_update_active_blacklist_view.sql
+│   │   ├── 005_add_composite_indexes.sql
+│   │   └── 006_fix_is_active_inconsistency.sql
+│   └── Dockerfile
+├── _bot-scripts/                 # GitHub Automation & CI/CD
+│   ├── workflows/                # 37 GitHub Actions workflows
+│   ├── requirements.txt
+│   └── docker-compose.github_app.yml
+├── AGENTS.md                     # Agent/Swarm definitions
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── Makefile                      # DevOps commands
+├── commitlint.config.js
+├── mypy.ini                      # Type checking config
+└── pyproject.toml                # Python project config
 ```
 
-## 테스트
+---
 
-| 유형 | 프레임워크 | 테스트 수 |
-|------|-----------|----------|
-| 백엔드 Unit (App) | pytest | 1,460 |
-| 백엔드 Unit (Collector) | pytest | 290 |
-| 백엔드 Integration | pytest | 4 |
-| 프론트엔드 Unit | Vitest | 421 |
-| E2E | Playwright | Chromium + WebKit |
-| **합계** | | **2,175** |
+## 자동화 인벤토리 / Automation Inventory
+
+### GitHub Actions 워크플로우 (37개) / Workflows (37 Total)
+
+#### Pull Request 자동화 / PR Automation
+
+| 워크플로우 / Workflow | 설명 / Description |
+|----------------------|-------------------|
+| `01_branch-to-pr.yml` | 브랜치 → PR 전환 자동화 |
+| `03_pr-checks.yml` | PR 체크 مجموع (lint, test, build) |
+| `04_actionlint.yml` | GitHub Actions YAML lint |
+| `05_gitleaks.yml` | シークレット 스캐닝 |
+| `06_codeql.yml` | CodeQL 보안 분석 |
+| `07_dependency-review.yml` | 의존성 보안 검토 |
+| `08_scorecard.yml` | OpenSSF Scorecard 평가 |
+| `09_semantic-pr.yml` | Semantic PR 제목 검증 |
+| `10_pr-review.yml` | 자동 PR 리뷰 |
+| `12_dependabot-auto-merge.yml` | Dependabot 자동 머지 |
+| `13_pr-auto-merge.yml` | 자동 머지 조건 충족 시 |
+| `14_bot-auto-fix.yml` | 봇 자동 수정 |
+| `45_reusable-gitleaks.yml` | 재사용 가능한 gitleaks |
+| `44_reusable-pr-checks.yml` | 재사용 가능한 PR 체크 |
+| `security/11_pr-review.yml` | 보안 PR 리뷰 |
+
+#### 이슈 관리 자동화 / Issue Management
+
+| 워크플로우 / Workflow | 설명 / Description |
+|----------------------|-------------------|
+| `02_issue-to-branch.yml` | 이슈 → 브랜치 전환 |
+| `18_issue-management.yml` | 자동 이슈 관리 |
+| `19_issue-backfill.yml` | 이슈 백필 |
+| `37_ci-failure-issues.yml` | CI 실패 시 자동 이슈 생성 |
+| `43_reusable-issue-management.yml` | 재사용 가능한 이슈 관리 |
+| `42_reusable-docs-sync.yml` | 문서 동기화 워크플로우 |
+
+#### 릴리스 자동화 / Release Automation
+
+| 워크플로우 / Workflow | 설명 / Description |
+|----------------------|-------------------|
+| `24_release-notes.yml` | 자동 릴리스 노트 생성 |
+| `25_release-publish.yml` | 릴리스 게시 automation |
+| `60_ci-auto-heal.yml` | CI 자동 복구 |
+
+#### CI/CD 자동화 / CI/CD Automation
+
+| 워크플로우 / Workflow | 설명 / Description |
+|----------------------|-------------------|
+| `ci.yml` | 기본 CI 파이프라인 |
+| `standard-ci.yml` | 표준 CI 설정 |
+| `auto-merge.yml` | 자동 머지 orchestration |
+| `build-images.yml` | Docker 이미지 빌드 |
+| `release.yml` | 릴리스 파이프라인 |
+| `security.yml` | 보안 스캐닝 파이프라인 |
+| `_ci-node.yml` | 재사용 가능한 Node.js CI |
+| `welcome.yml` | 신규 기여자 환영 메시지 |
+| `labeler.yml` | PR 라벨 자동 할당 |
+
+#### 문서 자동화 / Documentation Automation
+
+| 워크플로우 / Workflow | 설명 / Description |
+|----------------------|-------------------|
+| `20_readme-gen.yml` | README 자동 생성 |
+| `21_docs-sync.yml` | 문서 동기화 |
+| `42_reusable-docs-sync.yml` | 재사용 가능 문서 동기화 |
+
+#### 유지보수 자동화 / Maintenance Automation
+
+| 워크플로우 / Workflow | 설명 / Description |
+|----------------------|-------------------|
+| `15_merged-pr-cleanup.yml` | 병합된 PR 브랜치 정리 |
+| `29_downstream-health-check.yml` | 다운스트림 헬스 체크 |
+
+### 도구 및 런타임 / Tools & Runtimes
+
+| 도구 / Tool | 용도 / Purpose | 설정 / Config |
+|------------|----------------|---------------|
+| **pytest 1,754** | Python 백엔드 테스트 | `pyproject.toml` |
+| **vitest 421** | JavaScript 프론트엔드 테스트 | — |
+| **Playwright** | E2E 테스트 | — |
+| **Ruff** | Python linting (`E, F, W`, line-length: 120) | `pyproject.toml` |
+| **mypy** | Python 타입 체킹 | `mypy.ini` |
+| **ESLint** | JavaScript linting | — |
+| **Prettier** | 코드 포맷팅 | — |
+| **pre-commit** | Git hooks (Ruff, mypy, secret detection) | — |
+| **commitlint** |Conventional Commits 검증 | `commitlint.config.js` |
+| **Gitleaks** | 시크릿 스캐닝 | — |
+| **CodeQL** | 정적 보안 분석 | — |
+| **Docker** | 컨테이너화 (5 서비스) | `Dockerfile` |
+| **docker compose** | 개발 환경 orchestration | `deploy/docker-compose.yml` |
+
+### Python 환경 / Python Environment
+
+```toml
+# pyproject.toml
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "W291", "W293"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+markers = ["unit", "integration", "security", "db", "api"]
+```
+
+---
+
+## 빠른 시작 / Quick Start
+
+### 전제 조건 / Prerequisites
+
+- Docker & Docker Compose
+- Python 3.11+
+- Git
+
+### 1단계: 클론 / Clone
 
 ```bash
-make test                   # 전체 테스트
-make test-backend-unit      # 백엔드 전용 (pytest)
-make test-collector-unit    # 수집기 전용
-make test-frontend          # 프론트엔드 전용 (vitest)
-make test-e2e               # E2E (Playwright)
+git clone https://github.com/jclee941/blacklist.git
+cd blacklist
 ```
 
-## API 엔드포인트
+### 2단계: 환경 설정 / Setup
 
-### 핵심 API
+```bash
+# Deploy directory로 이동
+cd deploy
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/health` | 서비스 헬스체크 |
-| GET | `/api/stats` | 대시보드 통계 (총 IP 수, 소스별 현황, 추이) |
-| GET | `/api/status` | 시스템 상태 (서비스, DB, Redis 연결) |
+# 환경 변수 복사
+cp .env.example .env  # Edit as needed
 
-### 블랙리스트 관리
+# Docker Compose 실행
+docker compose up -d
+```
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/blacklist/list` | 블랙리스트 목록 (페이징, 필터링) |
-| GET | `/api/blacklist/check` | IP 등록 여부 확인 |
-| GET | `/api/blacklist/export-raw` | 전체 IP 내보내기 (CSV/JSON) |
-| POST | `/api/blacklist/manual-add` | IP 수동 등록 |
-| DELETE | `/api/blacklist/remove/{ip}` | IP 삭제 |
-| POST | `/api/blacklist/batch/add` | 일괄 등록 |
-| POST | `/api/blacklist/batch/remove` | 일괄 삭제 |
+### 3단계: 확인 / Verify
 
-### IP 관리 (화이트리스트 포함)
+```bash
+# 서비스 상태 확인
+docker compose ps
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/ip-management/unified` | 블랙+화이트 통합 목록 |
-| GET | `/api/ip-management/statistics` | IP 관리 통계 |
-| GET | `/api/ip-management/whitelist` | 화이트리스트 목록 |
-| POST | `/api/ip-management/whitelist` | 화이트리스트 등록 |
-| PUT | `/api/ip-management/whitelist/{id}` | 화이트리스트 수정 |
-| DELETE | `/api/ip-management/whitelist/{id}` | 화이트리스트 삭제 |
+# 헬스 체크
+curl http://localhost:2542/health
 
-### 수집 관리
+# 로그 확인
+docker compose logs -f
+```
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/collection/status` | 수집기 상태 및 통계 |
-| GET | `/api/collection/health` | 수집기 헬스체크 |
-| POST | `/api/collection/trigger/{source}` | 수집 수동 트리거 |
-| GET | `/api/collection/sources` | 등록된 소스 목록 |
-| GET | `/api/collection/credentials` | 전체 자격증명 상태 |
-| GET | `/api/collection/credentials/{source}` | 소스별 자격증명 조회 |
-| PUT | `/api/collection/credentials/{source}` | 자격증명 저장 (AES-256 암호화) |
-| POST | `/api/collection/credentials/{source}/test` | 연결 테스트 |
+### 접근 주소 / Access URLs
 
-### FortiGate 연동 (공개, 인증 불필요)
+| 서비스 | 주소 |
+|--------|------|
+| Frontend (Next.js) | https://localhost:443 |
+| Flask API | http://localhost:2542 |
+| Collector API | http://localhost:8545 |
+| PostgreSQL | localhost:5432 |
+| Redis | localhost:6379 |
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/fortinet/threat-feed` | IP 블록리스트 (JSON/Text, snapshot 지원) |
-| GET | `/api/fortinet/json-connector` | IP + 메타데이터 (위험도, 국가, 신뢰도) |
-| GET | `/api/fortinet/active-ips` | 활성 차단 IP 목록 |
-| GET | `/api/fortinet/blocklist` | FortiGate 형식 블록리스트 |
-| GET | `/api/fortinet/config` | FortiGate 연동 설정 조회 |
-| GET | `/api/fortinet/devices` | 등록된 FortiGate 장비 목록 |
-| POST | `/api/fortinet/register` | FortiGate 장비 등록 |
+---
 
-### 분석
+## 로컬 개발 / Local Development
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/analytics/overview` | 탐지 현황 개요 |
-| GET | `/api/analytics/detection-timeline` | 시간대별 탐지 추이 |
-| GET | `/api/analytics/real-time-log` | 실시간 탐지 로그 |
+### Makefile 명령어 / Makefile Commands
 
-### 시스템 관리
+```bash
+# Git hooks 설치 (pre-commit + husky)
+make setup-hooks
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| GET | `/api/settings` | 전체 설정 조회 |
-| GET | `/api/settings/grouped` | 그룹별 설정 조회 |
-| PUT | `/api/settings/{key}` | 설정 값 변경 |
-| PUT | `/api/settings/batch` | 설정 일괄 변경 |
-| GET | `/api/logs` | 시스템 로그 |
-| GET | `/api/system-stats` | 시스템 리소스 통계 |
-| GET | `/api/database/schema` | DB 스키마 조회 |
-| GET | `/api/monitoring/metrics` | Prometheus 메트릭 |
-| GET | `/api/monitoring/cache/stats` | Redis 캐시 통계 |
+# 개발 환경 시작 ( hot reload )
+make dev
 
-### 인증
+# rebuild 없이 개발 환경 시작 (빠른 시작)
+make dev-no-build
 
-| Method | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| POST | `/api/auth/login` | 로그인 (JWT 발급) |
-| GET | `/api/auth/me` | 현재 사용자 정보 |
-| GET | `/api/auth/verify` | 토큰 검증 |
+# 프로덕션과 유사한 환경 시작
+make dev-prod
 
-## CI/CD 파이프라인
+# 앱 서비스만 재시작
+make dev-app
 
-| 워크플로우 | 트리거 | 단계 |
-|-----------|--------|------|
-| `ci.yml` | Push/PR to master | Lint → Test → Build → Scan → E2E → Push |
-| `release.yml` | 태그 `v*` | Build → Package → GitHub Release → GHCR |
+# 특정 명령어 확인
+make help
+```
 
-## 문서
+### 사용 가능한 명령어 / Available Commands
 
-| 문서 | 경로 |
-|------|------|
-| **문서 허브** | [`docs/README.md`](docs/README.md) |
-| 개발자 가이드 | [`AGENTS.md`](AGENTS.md) |
-| 시스템 아키텍처 | [`docs/wiki/Architecture.md`](docs/wiki/Architecture.md) |
-| API 레퍼런스 | [`docs/wiki/API-Reference.md`](docs/wiki/API-Reference.md) |
-| 배포 가이드 | [`docs/wiki/Deployment-Guide.md`](docs/wiki/Deployment-Guide.md) |
-
-## 버전
-
-**v3.6.9** (2026년 4월) — Production Stable
-
-### 최근 주요 변경 (v3.6.9)
-
-- **BREAKING**: FortiManager 통합 완전 제거 — FortiGate Threat Feed 또는 Cloudflare WAF 사용
-- 500+ LOC 파일을 모듈로 분할 (app/, collector/)
-- Dead 패키지 정리: Flask-Login, marshmallow, jsonschema, xlrd 제거
-- 중복 라우트 정리: `/blacklist/list` alias, BACKEND_API_URL legacy 제거
-- 모든 Dockerfile 보안 업그레이드 적용
-- Redis 네임스페이스 충돌 및 테스트 인프라 안정화
-
-[릴리즈](https://github.com/jclee941/blacklist/releases) · [변경 이력](CHANGELOG.md)
+| 명령어 / Command | 설명 / Description |
+|-----------------|-------------------|
+| `make help` | 도움말 표시 |
+| `make setup-hooks` | Git hooks 설치 (pre-commit) |
+| `make dev` | 개발 환경 (hot reload)
