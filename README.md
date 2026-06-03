@@ -59,7 +59,7 @@ flowchart TB
     DataSources --> Collector
     Collector --> Database
     Collector --> GitHubAutomation
-    GitHubAutomation -->|Workflow 트리거| Collector
+    GitHubAutomation -->|"Workflow 트리거"| Collector
     Collector --> ELK
     Collector --> PROXY
 ```
@@ -74,253 +74,158 @@ flowchart TB
 │   │   ├── regtech/       # REGTECH 수집기
 │   │   ├── multi_source/  # 멀티소스 수집기
 │   │   └── database/      # 데이터베이스 레이어
-│   ├── scheduler/         # 작업 스케줄러
+│   ├── scheduler/         # 스케줄러
 │   ├── api/               # API 서버
-│   ├── health_server.py   # 헬스 체크 서버
-│   ├── run_collector.py   # 수집기 진입점
-│   ├── config.py          # 설정 관리
-│   └── requirements.txt   # Python 의존성
-├── postgres/              # PostgreSQL 데이터베이스
+│   └── health_server.py   # 헬스 체크 서버
+├── postgres/              # PostgreSQL 설정
 │   ├── initdb/            # 초기화 스크립트
-│   │   ├── 01-extensions.sql
-│   │   ├── 02-schema.sql
-│   │   └── 03-migrations.sql
-│   ├── migrations/        # 스키마 마이그레이션
-│   │   ├── 001_add_data_source_column.sql
-│   │   ├── 002_add_missing_columns.sql
-│   │   ├── 003_add_display_order.sql
-│   │   ├── 004_update_active_blacklist_view.sql
-│   │   ├── 005_add_composite_indexes.sql
-│   │   └── 006_fix_is_active_inconsistency.sql
-│   └── Dockerfile
-├── _bot-scripts/          # GitHub 자동화 봇 스크립트
-│   ├── pyproject.toml
-│   ├── requirements.txt
-│   ├── requirements-dev.txt
-│   ├── docker-compose.github_app.yml
-│   ├── Dockerfile.github_action
-│   └── Dockerfile.github_app
-├── Makefile               # 개발 명령어 집합
-├── pyproject.toml         # Python 프로젝트 설정
-├── mypy.ini               # mypy 타입 체크 설정
-├── commitlint.config.js   # 커밋 메시지lint 설정
-├── AGENTS.md              # 프로젝트 지식 베이스
-├── CHANGELOG.md           # 변경 로그
-├── CONTRIBUTING.md        # 기여 가이드
-├── VERSION                # 버전 파일
-├── LICENSE                # 라이선스
-└── OWNERS                 # 소유자 설정
+│   └── migrations/        # 데이터베이스 마이그레이션
+├── .github/workflows/     # GitHub Actions 워크플로우 (38개)
+├── _bot-scripts/          # GitHub Bot 자동화 스크립트
+├── Makefile               # 개발 명령어
+└── pyproject.toml         # Python 프로젝트 설정
 ```
 
-### 자동화 인벤토리
+### GitHub 자동화 인벤토리
 
-#### GitHub Actions 워크플로우 (38개)
+#### 워크플로우 파일 (38개)
 
 | 파일명 | 설명 |
 |--------|------|
 | `01_branch-to-pr.yml` | 브랜치에서 PR로 자동 전환 |
-| `02_issue-to-branch.yml` | 이슈 기반 브랜치 생성 |
-| `03_pr-checks.yml` | PR 체크 실행 (lint, test, build) |
-| `04_actionlint.yml` | 워크플로우 YAMLLint |
-| `05_gitleaks.yml` | 시크릿/민감정보 스캔 |
-| `06_codeql.yml` | CodeQL 보안 분석 |
+| `02_issue-to-branch.yml` | 이슈에서 작업 브랜치 생성 |
+| `03_pr-checks.yml` | PR 필수 체크実行 |
+| `04_actionlint.yml` | 워크플로우 lint 검사 |
+| `05_gitleaks.yml` | 시크릿 스캐닝 |
+| `06_codeql.yml` | CodeQL 정적 분석 |
 | `07_dependency-review.yml` | 의존성 보안 검토 |
-| `08_scorecard.yml` | OpenSSF Scorecard 분석 |
+| `08_scorecard.yml` | OpenSSF Scorecard 평가 |
 | `09_semantic-pr.yml` | 시맨틱 PR 검증 |
-| `10_pr-review.yml` | 자동 PR 리뷰 (PR Agent) |
-| `12_dependabot-auto-merge.yml` | Dependabot 자동 머지 |
-| `13_pr-auto-merge.yml` | PR 자동 머지 |
-| `14_bot-auto-fix.yml` | 봇 자동 수정 |
-| `15_merged-pr-cleanup.yml` | 머지 후 브랜치 정리 |
-| `18_issue-management.yml` | 이슈 관리 자동화 |
-| `19_issue-backfill.yml` | 이슈 백필 자동화 |
+| `10_pr-review.yml` | 자동 PR 리뷰 (qodo-ai/pr-agent) |
+| `12_dependabot-auto-merge.yml` | Dependabot 자동 병합 |
+| `13_pr-auto-merge.yml` | PR 자동 병합 |
+| `14_bot-auto-fix.yml` | Bot 자동 수정 |
+| `15_merged-pr-cleanup.yml` | 병합 후 브랜치 정리 |
+| `18_issue-management.yml` | 이슈 수명 주기 관리 |
+| `19_issue-backfill.yml` | 이슈 백필 |
 | `20_readme-gen.yml` | README 자동 생성 |
 | `21_docs-sync.yml` | 문서 동기화 |
 | `24_release-notes.yml` | Release Notes 생성 |
 | `25_release-publish.yml` | Release 게시 |
 | `29_downstream-health-check.yml` | 다운스트림 헬스 체크 |
 | `37_ci-failure-issues.yml` | CI 실패 시 이슈 생성 |
-| `42_reusable-docs-sync.yml` | 재사용 가능한 문서 동기화 |
-| `43_reusable-issue-management.yml` | 재사용 가능한 이슈 관리 |
-| `44_reusable-pr-checks.yml` | 재사용 가능한 PR 체크 |
-| `45_reusable-gitleaks.yml` | 재사용 가능한 Gitleaks |
+| `42_reusable-docs-sync.yml` | 재사용 가능 문서 동기화 |
+| `43_reusable-issue-management.yml` | 재사용 가능 이슈 관리 |
+| `44_reusable-pr-checks.yml` | 재사용 가능 PR 체크 |
+| `45_reusable-gitleaks.yml` | 재사용 가능 gitleaks |
 | `60_ci-auto-heal.yml` | CI 자동 복구 |
-| `91_issue-classification.yml` | 이슈 분류 |
+| `91_issue-classification.yml` | 이슈 자동 분류 |
 | `_ci-node.yml` | Node.js CI 템플릿 |
-| `auto-merge.yml` | 자동 머지 |
+| `auto-merge.yml` | 자동 병합 워크플로우 |
 | `build-images.yml` | Docker 이미지 빌드 |
-| `ci.yml` | 기본 CI |
+| `ci.yml` | 기본 CI 워크플로우 |
 | `labeler.yml` | PR 라벨러 |
-| `release.yml` | 릴리스 워크플로우 |
-| `security.yml` | 보안 스캔 |
+| `release.yml` | Release 워크플로우 |
+| `security.yml` | 보안 스캐닝 |
 | `standard-ci.yml` | 표준 CI |
 | `welcome.yml` | 신규 기여자 환영 |
 | `security/11_pr-review.yml` | 보안 PR 리뷰 |
 
-#### 재사용 가능한 워크플로우 템플릿
+#### Bot 스크립트 (_bot-scripts/)
 
-| 템플릿 | 설명 |
-|--------|------|
-| `_auto-approve-runs.yml` | 실행 자동 승인 |
-| `_auto-merge.yml` | 자동 머지 |
-| `_branch-cleanup.yml` | 브랜치 정리 |
-| `_ci-python.yml` | Python CI |
-| `_commitlint.yml` | 커밋lint |
-| `_dependabot-auto-fix.yml` | Dependabot 자동 수정 |
-| `_elk-ingest.yml` | ELK 인제스트 |
-| `_issue-label.yml` | 이슈 자동 라벨링 |
-| `_issue-lifecycle.yml` | 이슈 수명 주기 |
-| `_labeler.yml` | PR 라벨러 |
-| `_lock-threads.yml` | 스레드 잠금 |
-| `_pr-size.yml` | PR 크기 라벨러 |
-| `_release-drafter.yml` | Release 드래프터 |
-| `_stale.yml` |陳舊 이슈 정리 |
-| `_welcome.yml` | 신규 기여자 환영 |
-
-### 외부 서비스 연동
-
-| 서비스 | 엔드포인트 | 용도 |
-|--------|-----------|------|
-| CLIProxy API | `https://cliproxy.jclee.me/v1` | AI 모델 라우팅 (README-gen) |
-| ELK Stack | `<homelab-elk>` | 로그 수집 및 모니터링 |
+GitHub Bot 자동화를 위한 Python 스크립트 컬렉션입니다.
 
 ### 빠른 시작
 
-#### 전제 조건
+#### prerequisites
 
-- Docker 및 Docker Compose
+- Docker & Docker Compose
 - Python 3.11+
-- Git
+- PostgreSQL 클라이언트 (선택)
 
-#### 환경 설정
+#### 개발 환경 시작
 
 ```bash
-# 저장소 클론
+# 저장소 복제
 git clone <repository-url>
 cd <repository-name>
 
-# Docker Compose로 실행
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
-
-# 또는 Makefile 사용
+# 개발 환경 시작 (최초 빌드 포함)
 make dev
+
+# 또는 빌드 없이 기존 이미지 사용
+make dev-no-build
 ```
 
-#### 개발 환경 실행
+#### 컨테이너 관리
 
 ```bash
-# git hooks 설정
-make setup-hooks
-
-# 개발 환경 시작 (핫 리로드)
-make dev
-
-# 빠른 시작 (재빌드 없음)
-make dev-no-build
+make up          # 전체 서비스 시작
+make down        # 전체 서비스 중지
+make logs        # 로그 확인
+make restart     # 서비스 재시작
 ```
 
 ### 로컬 개발
 
-#### Python 환경 설정
+#### Git Hooks 설정
 
 ```bash
-# 가상환경 생성
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# or
-.\venv\Scripts\activate   # Windows
-
-# 의존성 설치
-pip install -r collector/requirements.txt
-
-# 타입 체크
-mypy collector/
-
-# 린트 체크
-ruff check collector/
-
-# 테스트 실행
-pytest tests/ -m "unit"
+make setup-hooks
 ```
 
-#### 데이터베이스 마이그레이션
+Pre-commit 훅은 다음을 수행합니다:
+
+- Python linting (Ruff, mypy)
+- 시크릿 감지 (gitleaks)
+- 커밋 메시지 검증 (Conventional Commits)
+- Frontend linting (ESLint, Prettier)
+
+#### 검증 명령어
 
 ```bash
-# 마이그레이션 실행
-docker compose -f deploy/docker-compose.yml exec postgres psql -U postgres -d blacklist -f /docker-entrypoint-initdb.d/01-extensions.sql
-
-# 또는 직접 실행
-psql -h localhost -U postgres -d blacklist -f postgres/initdb/01-extensions.sql
-psql -h localhost -U postgres -d blacklist -f postgres/initdb/02-schema.sql
-psql -h localhost -U postgres -d blacklist -f postgres/initdb/03-migrations.sql
+make verify           # 전체 검증
+make verify-quick     # 빠른 검증
+make verify-lint      # Ruff linting
+make verify-types     # mypy 타입 체크
+make verify-secrets   # 시크릿 스캐닝
+make verify-pre-commit # pre-commit 검증
 ```
 
-### 명령어 참조
+### 명령어 레퍼런스
 
 | 명령어 | 설명 |
 |--------|------|
-| `make help` | 사용 가능한 명령어 목록 |
+| `make help` | 도움말 표시 |
 | `make setup-hooks` | Git hooks 설치 |
-| `make dev` | 개발 환경 시작 (핫 리로드) |
-| `make dev-no-build` | 기존 이미지로 개발 환경 시작 |
+| `make dev` | 개발 환경 시작 (빌드 포함) |
+| `make dev-no-build` | 빌드 없이 개발 환경 시작 |
 | `make dev-prod` | 프로덕션 유사 환경 시작 |
 | `make dev-app` | 앱 서비스만 재시작 |
-| `make up` | Docker 서비스 시작 |
-| `make down` | Docker 서비스 중지 |
-| `make logs` | Docker 로그 보기 |
+| `make up` | Docker Compose 서비스 시작 |
+| `make down` | Docker Compose 서비스 중지 |
+| `make logs` | 서비스 로그 확인 |
 | `make clean` | Docker 리소스 정리 |
 | `make test` | 테스트 실행 |
-| `make verify` | 전체 검증 (lint, types, secrets) |
-| `make verify-lint` | Ruff 린트 체크 |
-| `make verify-types` | mypy 타입 체크 |
-| `make verify-secrets` | Gitleaks 시크릿 스캔 |
-| `make verify-pre-commit` | Pre-commit 체크 |
-| `make verify-quick` | 빠른 검증 |
-| `make verify-all` | 전체 검증 실행 |
+| `make deploy` | 배포 실행 |
+| `make restart` | 서비스 재시작 |
 | `make health` | 헬스 체크 |
-| `make release` | 릴리스 실행 |
-| `make release-dry` | 릴리스 드라이런 |
-| `make restart` | 모든 서비스 재시작 |
+| `make release` | Release 실행 |
+| `make verify` | 전체 검증 실행 |
+| `make verify-all` | 전체 검증 실행 |
 
 ### 기여 가이드
 
 기여를 환영합니다! 자세한 내용은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 
-#### 커밋 메시지 규칙
-
-이 프로젝트는 **Conventional Commits** 규칙을 사용합니다:
-
-```
-<type>(<scope>): <subject>
-
-[optional body]
-
-[optional footer]
-```
-
-**유형:**
-
-- `feat`: 새 기능
-- `fix`: 버그 수정
-- `docs`: 문서 변경
-- `style`: 코드 스타일 변경 (기능에 영향 없음)
-- `refactor`: 코드 리팩토링
-- `perf`: 성능 개선
-- `test`: 테스트 추가/수정
-- `chore`: 빌드 프로세스 또는 보조 도구 변경
-
-#### 개발 워크플로우
-
-1. **이슈 생성**: 작업 전에 이슈를 생성하세요
-2. **브랜치 생성**: `02_issue-to-branch.yml`이 자동 생성하거나 수동으로作成
-3. **변경 작성**: 코드를 작성하고 테스트를 추가하세요
-4. **PR 제출**: `03_pr-checks.yml`이 자동으로 체크를 실행합니다
-5. **리뷰**: `10_pr-review.yml`이 자동 PR 리뷰를 수행합니다
-6. **머지**: 요구사항 충족 시 자동 또는 수동 머지
+1. Fork 후 브랜치 생성: `git checkout -b feature/your-feature`
+2. 변경 사항 커밋: `git commit -m 'feat: add new feature'`
+3. PR 제출 (conventional commits 형식 필수)
+4. 자동화 체크가 모두 통과해야 합니다
 
 ### 라이선스
 
-이 프로젝트는 해당 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참고하세요.
+LICENSE 파일을 참고하세요.
 
 ---
 
@@ -328,13 +233,13 @@ psql -h localhost -U postgres -d blacklist -f postgres/initdb/03-migrations.sql
 
 ### Overview
 
-**Blacklist Service Management** is a threat intelligence platform that collects, processes, and distributes IP blacklist data based on Korea Financial Security Institute (REGTECH). It integrates with FortiGate firewalls and Cloudflare WAF to automatically collect malicious IP lists.
+**Blacklist Service Management** is a threat intelligence platform that collects, processes, and distributes IP blacklist data from Korea's Financial Security Institute (REGTECH). It integrates with FortiGate firewalls and Cloudflare WAF to automatically gather malicious IP lists.
 
 ### Key Features
 
 - **Multi-Source Collection**: Automatic IP blacklist collection from REGTECH, FortiGate, and multiple external sources
-- **Data Quality Management**: Data integrity validation and deduplication
-- **Automatic Archiving**: Daily/monthly backups and incremental archive support
+- **Data Quality Management**: Integrity validation and deduplication of collected data
+- **Automatic Archiving**: Daily/monthly backups with incremental archive support
 - **Policy Monitoring**: Real-time tracking of blacklist policy changes
 - **Rate Limiting**: API call limiting for service stability
 - **Database Management**: PostgreSQL-based storage and migrations
@@ -345,7 +250,7 @@ psql -h localhost -U postgres -d blacklist -f postgres/initdb/03-migrations.sql
 ```mermaid
 flowchart TB
     subgraph DataSources["Data Sources"]
-        REGTECH["REGTECH API<br/>Korea Financial Security Institute"]
+        REGTECH["REGTECH API<br/>Financial Security Institute"]
         FORTIGATE["FortiGate Firewall"]
         MULTI["Multi-Source Collector"]
         CLOUDFLARE["Cloudflare WAF"]
@@ -379,7 +284,7 @@ flowchart TB
     DataSources --> Collector
     Collector --> Database
     Collector --> GitHubAutomation
-    GitHubAutomation -->|Workflow Trigger| Collector
+    GitHubAutomation -->|"Workflow Trigger"| Collector
     Collector --> ELK
     Collector --> PROXY
 ```
@@ -394,254 +299,159 @@ flowchart TB
 │   │   ├── regtech/       # REGTECH collector
 │   │   ├── multi_source/  # Multi-source collector
 │   │   └── database/      # Database layer
-│   ├── scheduler/         # Job scheduler
+│   ├── scheduler/         # Scheduler
 │   ├── api/               # API server
-│   ├── health_server.py   # Health check server
-│   ├── run_collector.py   # Collector entrypoint
-│   ├── config.py          # Configuration management
-│   └── requirements.txt   # Python dependencies
-├── postgres/              # PostgreSQL database
+│   └── health_server.py   # Health check server
+├── postgres/              # PostgreSQL configuration
 │   ├── initdb/            # Initialization scripts
-│   │   ├── 01-extensions.sql
-│   │   ├── 02-schema.sql
-│   │   └── 03-migrations.sql
-│   ├── migrations/        # Schema migrations
-│   │   ├── 001_add_data_source_column.sql
-│   │   ├── 002_add_missing_columns.sql
-│   │   ├── 003_add_display_order.sql
-│   │   ├── 004_update_active_blacklist_view.sql
-│   │   ├── 005_add_composite_indexes.sql
-│   │   └── 006_fix_is_active_inconsistency.sql
-│   └── Dockerfile
-├── _bot-scripts/          # GitHub automation bot scripts
-│   ├── pyproject.toml
-│   ├── requirements.txt
-│   ├── requirements-dev.txt
-│   ├── docker-compose.github_app.yml
-│   ├── Dockerfile.github_action
-│   └── Dockerfile.github_app
+│   └── migrations/        # Database migrations
+├── .github/workflows/     # GitHub Actions workflows (38 total)
+├── _bot-scripts/          # GitHub Bot automation scripts
 ├── Makefile               # Development commands
-├── pyproject.toml         # Python project configuration
-├── mypy.ini               # mypy type checking configuration
-├── commitlint.config.js   # Commit message lint configuration
-├── AGENTS.md              # Project knowledge base
-├── CHANGELOG.md           # Change log
-├── CONTRIBUTING.md        # Contribution guide
-├── VERSION                # Version file
-├── LICENSE                # License
-└── OWNERS                 # Owners configuration
+└── pyproject.toml         # Python project configuration
 ```
 
-### Automation Inventory
+### GitHub Automation Inventory
 
-#### GitHub Actions Workflows (38 total)
+#### Workflow Files (38 total)
 
 | Filename | Description |
 |----------|-------------|
-| `01_branch-to-pr.yml` | Auto-convert branch to PR |
-| `02_issue-to-branch.yml` | Create branch from issue |
-| `03_pr-checks.yml` | PR checks (lint, test, build) |
-| `04_actionlint.yml` | Workflow YAML lint |
-| `05_gitleaks.yml` | Secret/sensitive data scan |
-| `06_codeql.yml` | CodeQL security analysis |
+| `01_branch-to-pr.yml` | Automatic branch to PR conversion |
+| `02_issue-to-branch.yml` | Create working branch from issue |
+| `03_pr-checks.yml` | PR required checks execution |
+| `04_actionlint.yml` | Workflow lint validation |
+| `05_gitleaks.yml` | Secret scanning |
+| `06_codeql.yml` | CodeQL static analysis |
 | `07_dependency-review.yml` | Dependency security review |
-| `08_scorecard.yml` | OpenSSF Scorecard analysis |
+| `08_scorecard.yml` | OpenSSF Scorecard assessment |
 | `09_semantic-pr.yml` | Semantic PR validation |
-| `10_pr-review.yml` | Auto PR review (PR Agent) |
+| `10_pr-review.yml` | Automated PR review (qodo-ai/pr-agent) |
 | `12_dependabot-auto-merge.yml` | Dependabot auto-merge |
 | `13_pr-auto-merge.yml` | PR auto-merge |
 | `14_bot-auto-fix.yml` | Bot auto-fix |
 | `15_merged-pr-cleanup.yml` | Post-merge branch cleanup |
-| `18_issue-management.yml` | Issue management automation |
-| `19_issue-backfill.yml` | Issue backfill automation |
-| `20_readme-gen.yml` | Auto README generation |
+| `18_issue-management.yml` | Issue lifecycle management |
+| `19_issue-backfill.yml` | Issue backfill |
+| `20_readme-gen.yml` | Automated README generation |
 | `21_docs-sync.yml` | Documentation sync |
 | `24_release-notes.yml` | Release notes generation |
 | `25_release-publish.yml` | Release publishing |
 | `29_downstream-health-check.yml` | Downstream health check |
-| `37_ci-failure-issues.yml` | Create issue on CI failure |
+| `37_ci-failure-issues.yml` | CI failure issue creation |
 | `42_reusable-docs-sync.yml` | Reusable docs sync |
 | `43_reusable-issue-management.yml` | Reusable issue management |
 | `44_reusable-pr-checks.yml` | Reusable PR checks |
-| `45_reusable-gitleaks.yml` | Reusable Gitleaks |
+| `45_reusable-gitleaks.yml` | Reusable gitleaks |
 | `60_ci-auto-heal.yml` | CI auto-heal |
-| `91_issue-classification.yml` | Issue classification |
+| `91_issue-classification.yml` | Issue auto-classification |
 | `_ci-node.yml` | Node.js CI template |
-| `auto-merge.yml` | Auto merge |
+| `auto-merge.yml` | Auto-merge workflow |
 | `build-images.yml` | Docker image build |
-| `ci.yml` | Base CI |
+| `ci.yml` | Base CI workflow |
 | `labeler.yml` | PR labeler |
 | `release.yml` | Release workflow |
-| `security.yml` | Security scan |
+| `security.yml` | Security scanning |
 | `standard-ci.yml` | Standard CI |
 | `welcome.yml` | New contributor welcome |
 | `security/11_pr-review.yml` | Security PR review |
 
-#### Reusable Workflow Templates
+#### Bot Scripts (_bot-scripts/)
 
-| Template | Description |
-|----------|-------------|
-| `_auto-approve-runs.yml` | Auto approve runs |
-| `_auto-merge.yml` | Auto merge |
-| `_branch-cleanup.yml` | Branch cleanup |
-| `_ci-python.yml` | Python CI |
-| `_commitlint.yml` | Commit lint |
-| `_dependabot-auto-fix.yml` | Dependabot auto-fix |
-| `_elk-ingest.yml` | ELK ingest |
-| `_issue-label.yml` | Issue auto-label |
-| `_issue-lifecycle.yml` | Issue lifecycle |
-| `_labeler.yml` | PR labeler |
-| `_lock-threads.yml` | Thread lock |
-| `_pr-size.yml` | PR size labeler |
-| `_release-drafter.yml` | Release drafter |
-| `_stale.yml` | Stale issue cleanup |
-| `_welcome.yml` | New contributor welcome |
-
-### External Service Integrations
-
-| Service | Endpoint | Purpose |
-|---------|----------|---------|
-| CLIProxy API | `https://cliproxy.jclee.me/v1` | AI model routing (README-gen) |
-| ELK Stack | `<homelab-elk>` | Log collection and monitoring |
+Python script collection for GitHub Bot automation.
 
 ### Quick Start
 
 #### Prerequisites
 
-- Docker and Docker Compose
+- Docker & Docker Compose
 - Python 3.11+
-- Git
+- PostgreSQL client (optional)
 
-#### Setup
+#### Start Development Environment
 
 ```bash
 # Clone repository
 git clone <repository-url>
 cd <repository-name>
 
-# Run with Docker Compose
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
-
-# Or use Makefile
+# Start development environment (first build)
 make dev
+
+# Or use existing images without rebuilding
+make dev-no-build
 ```
 
-#### Development Environment
+#### Container Management
 
 ```bash
-# Setup git hooks
-make setup-hooks
-
-# Start development (hot reload)
-make dev
-
-# Quick start (no rebuild)
-make dev-no-build
+make up          # Start all services
+make down        # Stop all services
+make logs        # View logs
+make restart     # Restart services
 ```
 
 ### Local Development
 
-#### Python Environment Setup
+#### Git Hooks Setup
 
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# or
-.\venv\Scripts\activate   # Windows
-
-# Install dependencies
-pip install -r collector/requirements.txt
-
-# Type checking
-mypy collector/
-
-# Lint checking
-ruff check collector/
-
-# Run tests
-pytest tests/ -m "unit"
+make setup-hooks
 ```
 
-#### Database Migration
+Pre-commit hooks perform:
+
+- Python linting (Ruff, mypy)
+- Secret detection (gitleaks)
+- Commit message validation (Conventional Commits)
+- Frontend linting (ESLint, Prettier)
+
+#### Verification Commands
 
 ```bash
-# Run migrations
-docker compose -f deploy/docker-compose.yml exec postgres psql -U postgres -d blacklist -f /docker-entrypoint-initdb.d/01-extensions.sql
-
-# Or run directly
-psql -h localhost -U postgres -d blacklist -f postgres/initdb/01-extensions.sql
-psql -h localhost -U postgres -d blacklist -f postgres/initdb/02-schema.sql
-psql -h localhost -U postgres -d blacklist -f postgres/initdb/03-migrations.sql
+make verify           # Run all verifications
+make verify-quick     # Quick verification
+make verify-lint      # Ruff linting
+make verify-types     # mypy type checking
+make verify-secrets   # Secret scanning
+make verify-pre-commit # pre-commit verification
 ```
 
-### Commands Reference
+### Command Reference
 
 | Command | Description |
 |---------|-------------|
-| `make help` | List available commands |
+| `make help` | Show help message |
 | `make setup-hooks` | Install Git hooks |
-| `make dev` | Start development (hot reload) |
-| `make dev-no-build` | Start with existing images |
+| `make dev` | Start development environment (with build) |
+| `make dev-no-build` | Start without rebuild |
 | `make dev-prod` | Start production-like environment |
-| `make dev-app` | Restart app service only |
-| `make up` | Start Docker services |
-| `make down` | Stop Docker services |
-| `make logs` | View Docker logs |
+| `make dev-app` | Restart only app service |
+| `make up` | Start Docker Compose services |
+| `make down` | Stop Docker Compose services |
+| `make logs` | View service logs |
 | `make clean` | Clean Docker resources |
 | `make test` | Run tests |
-| `make verify` | Full verification (lint, types, secrets) |
-| `make verify-lint` | Ruff lint check |
-| `make verify-types` | mypy type check |
-| `make verify-secrets` | Gitleaks secret scan |
-| `make verify-pre-commit` | Pre-commit checks |
-| `make verify-quick` | Quick verification |
-| `make verify-all` | Run all verifications |
+| `make deploy` | Run deployment |
+| `make restart` | Restart services |
 | `make health` | Health check |
 | `make release` | Run release |
-| `make release-dry` | Dry run release |
-| `make restart` | Restart all services |
+| `make verify` | Run all verifications |
+| `make verify-all` | Run all verifications |
 
 ### Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-#### Commit Message Convention
-
-This project uses **Conventional Commits**:
-
-```
-<type>(<scope>): <subject>
-
-[optional body]
-
-[optional footer]
-```
-
-**Types:**
-
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (no functional change)
-- `refactor`: Code refactoring
-- `perf`: Performance improvement
-- `test`: Test addition/modification
-- `chore`: Build process or auxiliary tool changes
-
-#### Development Workflow
-
-1. **Create Issue**: Create an issue before starting work
-2. **Create Branch**: `02_issue-to-branch.yml` auto-creates or manually create
-3. **Write Changes**: Write code and add tests
-4. **Submit PR**: `03_pr-checks.yml` automatically runs checks
-5. **Review**: `10_pr-review.yml` performs automatic PR review
-6. **Merge**: Auto or manual merge when requirements are met
+1. Fork and create a branch: `git checkout -b feature/your-feature`
+2. Commit changes: `git commit -m 'feat: add new feature'`
+3. Submit a PR (conventional commits format required)
+4. All automated checks must pass
 
 ### License
 
-This project is distributed under its respective license. See [LICENSE](LICENSE) file for details.
+See LICENSE file.
 
 ---
 
-Korean | [English](#english)
+*Documentation auto-generated by README-gen model: minimax-m2.7 (CLIProxyAPI)*
