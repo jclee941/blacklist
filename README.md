@@ -75,209 +75,169 @@ flowchart TB
 │   │   ├── multi_source/  # 멀티소스 수집기
 │   │   └── database/       # 데이터베이스 레이어
 │   ├── scheduler/          # 작업 스케줄러
-│   ├── api/                # REST API 서버
-│   └── postgres/           # PostgreSQL 관련 파일
-├── postgres/               # 데이터베이스
-│   ├── initdb/             # 초기화 스크립트
-│   └── migrations/         # 마이그레이션 파일
-├── _bot-scripts/           # GitHub 자동화 봇 스크립트
-├── Makefile                # 개발 명령어
-├── pyproject.toml          # Python 프로젝트 설정
-├── AGENTS.md               # 자동화 인벤토리
-└── VERSION                 # 버전 정보
+│   └── api/                # REST API 서버
+├── postgres/               # PostgreSQL 데이터베이스
+│   ├── initdb/             # 초기화 SQL
+│   └── migrations/         # 스키마 마이그레이션
+├── _bot-scripts/           # GitHub Bot 자동화 스크립트
+├── security/               # 보안 워크플로우
+└── .github/workflows/      # GitHub Actions 워크플로우 (38개)
 ```
 
 ### 자동화 인벤토리
 
-#### 워크플로우 (38개)
+#### GitHub Actions 워크플로우 (38개)
 
-| 파일명 | 설명 |
-|--------|------|
-| `01_branch-to-pr.yml` | 브랜치에서 PR로 자동 변환 |
-| `02_issue-to-branch.yml` | 이슈에서 브랜치 자동 생성 |
-| `03_pr-checks.yml` | PR CI 검사 (재사용 가능) |
-| `04_actionlint.yml` | GitHub Actions 워크플로우 검증 |
-| `05_gitleaks.yml` | 시크릿 스캔 (재사용 가능) |
-| `06_codeql.yml` | 정적 코드 분석 |
-| `07_dependency-review.yml` | 취약점 의존성 검토 |
-| `08_scorecard.yml` | 보안 점수 카드 |
+| 워크플로우 파일 | 설명 |
+|----------------|------|
+| `01_branch-to-pr.yml` | 브랜치에서 PR로 자동 전환 |
+| `02_issue-to-branch.yml` | 이슈 기반 브랜치 자동 생성 |
+| `03_pr-checks.yml` | PR 필수 검사 (lint, test, build) |
+| `04_actionlint.yml` | GitHub Actions YAML lint |
+| `05_gitleaks.yml` | 시크릿 스캐닝 |
+| `06_codeql.yml` | CodeQL 정적 분석 |
+| `07_dependency-review.yml` | 의존성 보안 검토 |
+| `08_scorecard.yml` | OpenSSF Scorecard |
 | `09_semantic-pr.yml` | 시맨틱 PR 검증 |
-| `10_pr-review.yml` | AI PR 리뷰 (qodo-ai/pr-agent) |
+| `10_pr-review.yml` | AI 기반 PR 리뷰 (qodo-ai/pr-agent) |
 | `12_dependabot-auto-merge.yml` | Dependabot 자동 병합 |
-| `13_pr-auto-merge.yml` | PR 자동 병합 |
-| `14_bot-auto-fix.yml` | 봇 자동 수정 |
-| `15_merged-pr-cleanup.yml` | 병합 후 정리 |
-| `18_issue-management.yml` | 이슈 관리 (재사용 가능) |
-| `19_issue-backfill.yml` | 이슈 메타데이터 백필 |
+| `13_pr-auto-merge.yml` | 자동 병합 규칙 |
+| `14_bot-auto-fix.yml` | Bot 자동 수정 |
+| `15_merged-pr-cleanup.yml` | 병합 후 브랜치 정리 |
+| `18_issue-management.yml` | 이슈 수명 주기 관리 |
+| `19_issue-backfill.yml` | 이슈 백필自动化 |
 | `20_readme-gen.yml` | README 자동 생성 |
 | `21_docs-sync.yml` | 문서 동기화 |
-| `24_release-notes.yml` | 릴리스 노트 자동 생성 |
-| `25_release-publish.yml` | 릴리스 게시 |
-| `29_downstream-health-check.yml` | 하위 프로젝트 건강 상태 검사 |
-| `37_ci-failure-issues.yml` | CI 실패 시 이슈 생성 |
-| `42_reusable-docs-sync.yml` | 문서 동기화 재사용 워크플로우 |
-| `43_reusable-issue-management.yml` | 이슈 관리 재사용 워크플로우 |
-| `44_reusable-pr-checks.yml` | PR 검사 재사용 워크플로우 |
-| `45_reusable-gitleaks.yml` | Gitleaks 재사용 워크플로우 |
+| `24_release-notes.yml` |Release Notes 초안 작성 |
+| `25_release-publish.yml` | Release 게시 |
+| `29_downstream-health-check.yml` |_downstream 저장소 상태 확인 |
+| `37_ci-failure-issues.yml` | CI 실패 시 이슈 자동 생성 |
+| `42_reusable-docs-sync.yml` | 재사용 가능 문서 동기화 |
+| `43_reusable-issue-management.yml` | 재사용 가능 이슈 관리 |
+| `44_reusable-pr-checks.yml` | 재사용 가능 PR 검사 |
+| `45_reusable-gitleaks.yml` | 재사용 가능 시크릿 스캔 |
 | `60_ci-auto-heal.yml` | CI 자동 복구 |
-| `91_issue-classification.yml` | 이슈 자동 분류 |
-| `_ci-node.yml` | 공통 CI 노드 설정 |
+| `91_issue-classification.yml` | 이슈 분류 |
+| `_ci-node.yml` | Node.js CI 템플릿 |
 | `auto-merge.yml` | 자동 병합 |
 | `build-images.yml` | Docker 이미지 빌드 |
-| `ci.yml` | 일반 CI 워크플로우 |
+| `ci.yml` | 기본 CI |
 | `labeler.yml` | PR 라벨러 |
-| `release.yml` | 릴리스 워크플로우 |
+| `release.yml` | Release 워크플로우 |
 | `security.yml` | 보안 검사 |
-| `standard-ci.yml` | 표준 CI 템플릿 |
-| `welcome.yml` | 신규 기여자 환영 |
+| `standard-ci.yml` | 표준 CI |
+| `welcome.yml` | 신규 기여자 환영 메시지 |
 | `security/11_pr-review.yml` | 보안 PR 리뷰 |
 
-#### 도구
+#### Python Bot 스크립트 (`_bot-scripts/`)
 
-| 도구 | 용도 |
+| 도구 | 설명 |
 |------|------|
-| **qodo-ai/pr-agent** | AI 기반 PR 리뷰 및 자동 수정 |
-| **gitleaks** | 시크릿/민감정보 스캔 |
-| **actionlint** | GitHub Actions 워크플로우 검증 |
-| **Ruff** | Python 린팅 |
-| **mypy** | Python 타입 검사 |
+| `Dockerfile.github_action` | GitHub Actions용 Bot Docker 이미지 |
+| `Dockerfile.github_app` | GitHub App용 Bot Docker 이미지 |
+| `docker-compose.github_app.yml` | GitHub App Docker Compose |
+| `requirements.txt` | Python dependencies |
+| `requirements-dev.txt` | 개발용 dependencies |
 
 ### 빠른 시작
 
-#### 필수 조건
+#### prerequisites
 
-- Docker 및 Docker Compose
-- Git
+- Docker & Docker Compose
+- Python 3.11+
+- PostgreSQL 15+
 
-#### 설치 및 실행
+#### 설치
 
 ```bash
-# 저장소 복제
-git clone <repository-url>
-cd <repository-name>
+# 리포지토리 클론
+git clone https://github.com/qws941/CLIProxyAPI.git
+cd CLIProxyAPI
 
-# 개발 환경 시작 (핫 리로드 포함)
+# Git hooks 설치
+make setup-hooks
+
+# 개발 환경 시작
 make dev
-
-# 서비스 상태 확인
-make health
 ```
 
-#### 개발 환경 옵션
+#### Docker Compose로 실행
 
 ```bash
-make dev          # 핫 리로드 포함 개발 환경
-make dev-no-build # 빌드 없이 기존 이미지 사용
-make dev-prod     # 프로덕션 유사 환경 (핫 리로드 없음)
+# 환경 변수 설정
+cp deploy/.env.example deploy/.env
+# 编辑 deploy/.env 设置 필요한 환경 변수
+
+# 전체 스택 시작
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
+
+# 로그 확인
+docker compose -f deploy/docker-compose.yml logs -f
 ```
-
-#### 명령어 레퍼런스
-
-| 명령어 | 설명 |
-|--------|------|
-| `make help` | 사용 가능한 명령어 표시 |
-| `make build` | Docker 이미지 빌드 |
-| `make up` | 컨테이너 시작 |
-| `make down` | 컨테이너 중지 |
-| `make logs` | 컨테이너 로그 확인 |
-| `make clean` | 리소스 정리 |
-| `make test` | 테스트 실행 |
-| `make deploy` | 배포 |
-| `make health` | 상태 검사 |
-| `make release` | 릴리스 실행 |
-| `make release-dry` | 릴리스 드라이런 |
-| `make verify` | 전체 검증 |
-| `make verify-lint` | Ruff 린팅 |
-| `make verify-types` | mypy 타입 검사 |
-| `make verify-secrets` | Gitleaks 스캔 |
-| `make verify-pre-commit` | Pre-commit hooks |
-| `make verify-quick` | 빠른 검증 (린트 + 시크릿) |
-| `make verify-all` | 전체 검증 실행 |
-| `make setup-hooks` | Git hooks 설치 (pre-commit + husky) |
-| `make restart` | 컨테이너 재시작 |
 
 ### 로컬 개발
 
-#### Docker Compose 직접 사용
-
 ```bash
-# 환경 설정 파일 편집
-cp deploy/.env.example deploy/.env
-# deploy/.env 파일의 환경 변수를 편집하세요
+# Python 의존성 설치
+pip install -r collector/requirements.txt
 
-# 서비스 시작
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . up -d
+# 타입 검사
+make verify-types
 
-# 로그 확인
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . logs -f
+# Lint 검사
+make verify-lint
 
-# 컨테이너 접속
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . exec collector bash
+# 단위 테스트
+make verify-quick
 
-# Python REPL 접근
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . exec collector python
-
-# 데이터베이스 접속
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . exec postgres psql -U postgres -d blacklist
-```
-
-#### 테스트 실행
-
-```bash
-# 전체 테스트
-make test
-
-# 특정 마커 테스트
-pytest -m unit
-pytest -m integration
-pytest -m security
-pytest -m db
-pytest -m api
-
-# 상세 출력
-pytest -v --tb=short
-```
-
-#### 코드 품질 검증
-
-```bash
 # 전체 검증
 make verify-all
-
-# 개별 검증
-make verify-lint      # Ruff 린팅
-make verify-types    # mypy 타입 검사
-make verify-secrets  # Gitleaks 시크릿 스캔
 ```
 
-### 기여 가이드
+### 명령어 레퍼런스
 
-기여를 환영합니다! 자세한 내용은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참조하세요.
+| 명령어 | 설명 |
+|--------|------|
+| `make help` | 사용 가능한 명령어 목록 |
+| `make setup-hooks` | Git hooks 및 pre-commit 설치 |
+| `make dev` | 개발 환경 시작 (hot reload) |
+| `make dev-no-build` | 기존 이미지로 시작 |
+| `make dev-prod` | 프로덕션 환경 시작 |
+| `make dev-app` | 앱 서비스만 재시작 |
+| `make up` | 전체 스택 시작 |
+| `make down` | 전체 스택 중지 |
+| `make logs` | 로그 확인 |
+| `make clean` | 리소스 정리 |
+| `make test` | 테스트 실행 |
+| `make verify` | 전체 검증 |
+| `make verify-lint` | Ruff lint 검사 |
+| `make verify-types` | mypy 타입 검사 |
+| `make verify-secrets` | 시크릿 검사 |
+| `make verify-pre-commit` | pre-commit 검사 |
+| `make verify-quick` | 빠른 검증 (lint + types) |
+| `make verify-all` | 전체 검증 |
+| `make health` | 헬스 체크 |
+| `make release` | Release 실행 |
+| `make release-dry` | Release dry-run |
 
-#### 기여 방법
+### 기여하기
 
-1. 이슈를 생성하여 변경 사항을 논의하세요
-2.(feature) 브랜치를 생성하세요
-3. 변경 사항을 구현하세요
-4. 테스트 및 검증을 실행하세요 (`make verify-all`)
-5.conventional commits 규격으로 커밋하세요
-6. PR을 제출하세요
+CONTRIBUTING.md를 참조하세요. 주요 가이드라인:
 
-#### 커밋 메시지 규격
+1. **커밋 메시지**: Conventional Commits 규칙 준수 (`feat:`, `fix:`, `docs:`, etc.)
+2. **브랜치 전략**: `main` → feature branches → PR
+3. **PR 리뷰**: 모든 PR은 최소 1개의 리뷰 필요
+4. **테스트**: 새로운 기능에는 테스트 포함
+5. **Lint**: `make verify-quick` 통과 필수
 
-```
-<type>(<scope>): <description>
+### 외부 연동
 
-[optional body]
-
-[optional footer]
-```
-
-**유효한 타입**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-### 라이선스
-
-이 프로젝트는 LICENSE 파일을 참조하세요.
+| 서비스 | 엔드포인트 | 용도 |
+|--------|-----------|------|
+| CLIProxy API | <https://cliproxy.jclee.me/v1> | CLI 프록시 서비스 |
+| Bot Service | <https://bot.jclee.me> | GitHub Bot 서비스 |
+| ELK Stack | `<homelab-elk>` | 로깅 및 모니터링 |
+| PR Agent | qodo-ai/pr-agent | AI PR 리뷰 |
 
 ---
 
@@ -285,15 +245,15 @@ make verify-secrets  # Gitleaks 시크릿 스캔
 
 ### Overview
 
-**Blacklist Service Management** is a threat intelligence platform that collects, processes, and distributes IP blacklist data based on Korea's Financial Security Institute (REGTECH). It integrates with FortiGate firewalls and Cloudflare WAF to automatically gather malicious IP lists.
+**Blacklist Service Management** is a threat intelligence platform that collects, processes, and distributes IP blacklist data based on Korea Financial Security Institute (REGTECH). It integrates with FortiGate firewalls and Cloudflare WAF to automatically collect malicious IP lists.
 
 ### Key Features
 
 - **Multi-Source Collection**: Automatic IP blacklist collection from REGTECH, FortiGate, and multiple external sources
-- **Data Quality Management**: Integrity validation and deduplication of collected data
+- **Data Quality Management**: Data integrity validation and deduplication
 - **Automatic Archiving**: Daily/monthly backups and incremental archive support
 - **Policy Monitoring**: Real-time tracking of blacklist policy changes
-- **Rate Limiting**: API call limiting to ensure service stability
+- **Rate Limiting**: API call limiting for service stability
 - **Database Management**: PostgreSQL-based storage and migrations
 - **Docker Deployment**: Containerized application and database
 
@@ -302,14 +262,14 @@ make verify-secrets  # Gitleaks 시크릿 스캔
 ```mermaid
 flowchart TB
     subgraph DataSources["Data Sources"]
-        REGTECH["REGTECH API<br/>Korea Financial Security Institute"]
+        REGTECH["REGTECH API<br/>Financial Security Institute"]
         FORTIGATE["FortiGate Firewall"]
         MULTI["Multi-Source Collector"]
         CLOUDFLARE["Cloudflare WAF"]
     end
 
     subgraph Collector["collector/ Collector"]
-        CORE["core/ Core Module"]
+        CORE["core/ Core Modules"]
         SCHEDULER["scheduler/ Scheduler"]
         API["api/ API Server"]
 
@@ -352,206 +312,172 @@ flowchart TB
 │   │   ├── multi_source/  # Multi-source collector
 │   │   └── database/       # Database layer
 │   ├── scheduler/          # Job scheduler
-│   ├── api/                # REST API server
-│   └── postgres/           # PostgreSQL related files
-├── postgres/               # Database
-│   ├── initdb/             # Initialization scripts
-│   └── migrations/         # Migration files
-├── _bot-scripts/           # GitHub automation bot scripts
-├── Makefile                # Development commands
-├── pyproject.toml          # Python project configuration
-├── AGENTS.md               # Automation inventory
-└── VERSION                 # Version information
+│   └── api/                # REST API server
+├── postgres/               # PostgreSQL database
+│   ├── initdb/             # Initialization SQL
+│   └── migrations/         # Schema migrations
+├── _bot-scripts/           # GitHub Bot automation scripts
+├── security/               # Security workflows
+└── .github/workflows/      # GitHub Actions workflows (38)
 ```
 
 ### Automation Inventory
 
-#### Workflows (38 total)
+#### GitHub Actions Workflows (38 total)
 
-| File | Description |
-|------|-------------|
+| Workflow File | Description |
+|---------------|-------------|
 | `01_branch-to-pr.yml` | Auto-convert branch to PR |
 | `02_issue-to-branch.yml` | Auto-create branch from issue |
-| `03_pr-checks.yml` | PR CI checks (reusable) |
-| `04_actionlint.yml` | GitHub Actions workflow validation |
-| `05_gitleaks.yml` | Secret scanning (reusable) |
-| `06_codeql.yml` | Static code analysis |
-| `07_dependency-review.yml` | Vulnerable dependency review |
-| `08_scorecard.yml` | Security scorecard |
+| `03_pr-checks.yml` | PR required checks (lint, test, build) |
+| `04_actionlint.yml` | GitHub Actions YAML lint |
+| `05_gitleaks.yml` | Secret scanning |
+| `06_codeql.yml` | CodeQL static analysis |
+| `07_dependency-review.yml` | Dependency security review |
+| `08_scorecard.yml` | OpenSSF Scorecard |
 | `09_semantic-pr.yml` | Semantic PR validation |
-| `10_pr-review.yml` | AI PR review (qodo-ai/pr-agent) |
+| `10_pr-review.yml` | AI-powered PR review (qodo-ai/pr-agent) |
 | `12_dependabot-auto-merge.yml` | Dependabot auto-merge |
-| `13_pr-auto-merge.yml` | PR auto-merge |
+| `13_pr-auto-merge.yml` | Auto-merge rules |
 | `14_bot-auto-fix.yml` | Bot auto-fix |
-| `15_merged-pr-cleanup.yml` | Post-merge cleanup |
-| `18_issue-management.yml` | Issue management (reusable) |
-| `19_issue-backfill.yml` | Issue metadata backfill |
+| `15_merged-pr-cleanup.yml` | Post-merge branch cleanup |
+| `18_issue-management.yml` | Issue lifecycle management |
+| `19_issue-backfill.yml` | Issue backfill automation |
 | `20_readme-gen.yml` | Auto-generate README |
-| `21_docs-sync.yml` | Documentation sync |
-| `24_release-notes.yml` | Auto-generate release notes |
+| `21_docs-sync.yml` | Document synchronization |
+| `24_release-notes.yml` | Release notes drafting |
 | `25_release-publish.yml` | Release publishing |
-| `29_downstream-health-check.yml` | Downstream project health check |
-| `37_ci-failure-issues.yml` | Create issue on CI failure |
-| `42_reusable-docs-sync.yml` | Reusable docs sync workflow |
-| `43_reusable-issue-management.yml` | Reusable issue management workflow |
-| `44_reusable-pr-checks.yml` | Reusable PR checks workflow |
-| `45_reusable-gitleaks.yml` | Reusable gitleaks workflow |
+| `29_downstream-health-check.yml` | Downstream repository health check |
+| `37_ci-failure-issues.yml` | Auto-create issue on CI failure |
+| `42_reusable-docs-sync.yml` | Reusable document sync |
+| `43_reusable-issue-management.yml` | Reusable issue management |
+| `44_reusable-pr-checks.yml` | Reusable PR checks |
+| `45_reusable-gitleaks.yml` | Reusable secret scan |
 | `60_ci-auto-heal.yml` | CI auto-heal |
-| `91_issue-classification.yml` | Auto-classify issues |
-| `_ci-node.yml` | Common CI node configuration |
+| `91_issue-classification.yml` | Issue classification |
+| `_ci-node.yml` | Node.js CI template |
 | `auto-merge.yml` | Auto-merge |
 | `build-images.yml` | Docker image build |
-| `ci.yml` | General CI workflow |
+| `ci.yml` | Base CI |
 | `labeler.yml` | PR labeler |
 | `release.yml` | Release workflow |
-| `security.yml` | Security scanning |
-| `standard-ci.yml` | Standard CI template |
-| `welcome.yml` | New contributor welcome |
+| `security.yml` | Security checks |
+| `standard-ci.yml` | Standard CI |
+| `welcome.yml` | New contributor welcome message |
 | `security/11_pr-review.yml` | Security PR review |
 
-#### Tools
+#### Python Bot Scripts (`_bot-scripts/`)
 
-| Tool | Purpose |
-|------|---------|
-| **qodo-ai/pr-agent** | AI-powered PR review and auto-fix |
-| **gitleaks** | Secret/sensitive information scanning |
-| **actionlint** | GitHub Actions workflow validation |
-| **Ruff** | Python linting |
-| **mypy** | Python type checking |
+| Tool | Description |
+|------|-------------|
+| `Dockerfile.github_action` | GitHub Actions Bot Docker image |
+| `Dockerfile.github_app` | GitHub App Bot Docker image |
+| `docker-compose.github_app.yml` | GitHub App Docker Compose |
+| `requirements.txt` | Python dependencies |
+| `requirements-dev.txt` | Development dependencies |
 
 ### Quick Start
 
 #### Prerequisites
 
-- Docker and Docker Compose
-- Git
+- Docker & Docker Compose
+- Python 3.11+
+- PostgreSQL 15+
 
-#### Installation and Running
+#### Installation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd <repository-name>
+# Clone repository
+git clone https://github.com/qws941/CLIProxyAPI.git
+cd CLIProxyAPI
 
-# Start development environment (with hot reload)
+# Install Git hooks
+make setup-hooks
+
+# Start development environment
 make dev
-
-# Check service status
-make health
 ```
 
-#### Development Environment Options
+#### Run with Docker Compose
 
 ```bash
-make dev          # Development environment with hot reload
-make dev-no-build # Use existing images without rebuilding
-make dev-prod     # Production-like environment (no hot reload)
+# Setup environment variables
+cp deploy/.env.example deploy/.env
+# Edit deploy/.env with required environment variables
+
+# Start full stack
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
+
+# View logs
+docker compose -f deploy/docker-compose.yml logs -f
 ```
 
-#### Commands Reference
+### Local Development
+
+```bash
+# Install Python dependencies
+pip install -r collector/requirements.txt
+
+# Type checking
+make verify-types
+
+# Lint checking
+make verify-lint
+
+# Unit tests
+make verify-quick
+
+# Full verification
+make verify-all
+```
+
+### Commands Reference
 
 | Command | Description |
 |---------|-------------|
 | `make help` | Show available commands |
-| `make build` | Build Docker images |
-| `make up` | Start containers |
-| `make down` | Stop containers |
-| `make logs` | View container logs |
+| `make setup-hooks` | Install Git hooks and pre-commit |
+| `make dev` | Start development environment (hot reload) |
+| `make dev-no-build` | Start with existing images |
+| `make dev-prod` | Start production environment |
+| `make dev-app` | Restart only app service |
+| `make up` | Start full stack |
+| `make down` | Stop full stack |
+| `make logs` | View logs |
 | `make clean` | Clean up resources |
 | `make test` | Run tests |
-| `make deploy` | Deploy |
+| `make verify` | Full verification |
+| `make verify-lint` | Ruff lint check |
+| `make verify-types` | mypy type check |
+| `make verify-secrets` | Secret check |
+| `make verify-pre-commit` | Pre-commit check |
+| `make verify-quick` | Quick verification (lint + types) |
+| `make verify-all` | Full verification |
 | `make health` | Health check |
 | `make release` | Execute release |
-| `make release-dry` | Dry run release |
-| `make verify` | Full verification |
-| `make verify-lint` | Ruff linting |
-| `make verify-types` | mypy type checking |
-| `make verify-secrets` | Gitleaks scanning |
-| `make verify-pre-commit` | Pre-commit hooks |
-| `make verify-quick` | Quick verification (lint + secrets) |
-| `make verify-all` | Run all verifications |
-| `make setup-hooks` | Install Git hooks (pre-commit + husky) |
-| `make restart` | Restart containers |
+| `make release-dry` | Release dry-run |
 
-### Local Development
+### Contributing
 
-#### Using Docker Compose Directly
+See CONTRIBUTING.md for guidelines. Key points:
 
-```bash
-# Edit environment configuration
-cp deploy/.env.example deploy/.env
-# Edit environment variables in deploy/.env
+1. **Commit Messages**: Follow Conventional Commits (`feat:`, `fix:`, `docs:`, etc.)
+2. **Branch Strategy**: `main` → feature branches → PR
+3. **PR Review**: At least 1 reviewer required
+4. **Tests**: Include tests for new features
+5. **Lint**: Must pass `make verify-quick`
 
-# Start services
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . up -d
+### External Integrations
 
-# View logs
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . logs -f
+| Service | Endpoint | Purpose |
+|---------|----------|---------|
+| CLIProxy API | <https://cliproxy.jclee.me/v1> | CLI proxy service |
+| Bot Service | <https://bot.jclee.me> | GitHub Bot service |
+| ELK Stack | `<homelab-elk>` | Logging and monitoring |
+| PR Agent | qodo-ai/pr-agent | AI PR review |
 
-# Access container
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . exec collector bash
+---
 
-# Access Python REPL
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . exec collector python
-
-# Access database
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --project-directory . exec postgres psql -U postgres -d blacklist
-```
-
-#### Running Tests
-
-```bash
-# Run all tests
-make test
-
-# Run specific marker tests
-pytest -m unit
-pytest -m integration
-pytest -m security
-pytest -m db
-pytest -m api
-
-# Verbose output
-pytest -v --tb=short
-```
-
-#### Code Quality Verification
-
-```bash
-# Full verification
-make verify-all
-
-# Individual checks
-make verify-lint      # Ruff linting
-make verify-types    # mypy type checking
-make verify-secrets  # Gitleaks secret scanning
-```
-
-### Contribution Guide
-
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-#### How to Contribute
-
-1. Create an issue to discuss the change
-2. Create a feature branch
-3. Implement your changes
-4. Run tests and verifications (`make verify-all`)
-5. Commit using conventional commits format
-6. Submit a pull request
-
-#### Commit Message Format
-
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
-```
-
-**Valid types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-### License
+## License
 
 See LICENSE file for details.
