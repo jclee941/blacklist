@@ -151,7 +151,7 @@ This repository uses the following GitHub Actions workflows for automation:
 | `13_pr-auto-merge.yml` | Automated PR merging |
 | `14_bot-auto-fix.yml` | Bot-assisted auto-fixing |
 | `15_merged-pr-cleanup.yml` | Cleanup after PR merge |
-| `18_issue-management.yml` | Issue management automation |
+| `jclee-bot App issue-management` | Issue management automation |
 | `19_issue-backfill.yml` | Issue backfill operations |
 | `20_readme-gen.yml` | README generation |
 | `21_docs-sync.yml` | Documentation synchronization |
@@ -160,7 +160,7 @@ This repository uses the following GitHub Actions workflows for automation:
 | `29_downstream-health-check.yml` | Downstream service health checks |
 | `37_ci-failure-issues.yml` | CI failure issue creation |
 | `42_reusable-docs-sync.yml` | Reusable docs sync workflow |
-| `43_reusable-issue-management.yml` | Reusable issue management |
+| `jclee-bot App issue-management` | Reusable issue management |
 | `44_reusable-pr-checks.yml` | Reusable PR checks |
 | `45_reusable-gitleaks.yml` | Reusable gitleaks workflow |
 | `60_ci-auto-heal.yml` | CI auto-healing |
@@ -513,7 +513,7 @@ flowchart TB
 | `13_pr-auto-merge.yml` | 자동 PR 병합 |
 | `14_bot-auto-fix.yml` | 봇-assisted 자동 수정 |
 | `15_merged-pr-cleanup.yml` | PR 병합 후 정리 |
-| `18_issue-management.yml` | 이슈 관리 자동화 |
+| `jclee-bot App issue-management` | 이슈 관리 자동화 |
 | `19_issue-backfill.yml` | 이슈 백필 작업 |
 | `20_readme-gen.yml` | README 생성 |
 | `21_docs-sync.yml` | 문서 동기화 |
@@ -522,7 +522,7 @@ flowchart TB
 | `29_downstream-health-check.yml` | 다운스트림 서비스 상태 확인 |
 | `37_ci-failure-issues.yml` | CI 실패 이슈 생성 |
 | `42_reusable-docs-sync.yml` | 재사용 가능 문서 동기화 |
-| `43_reusable-issue-management.yml` | 재사용 가능 이슈 관리 |
+| `jclee-bot App issue-management` | 재사용 가능 이슈 관리 |
 | `44_reusable-pr-checks.yml` | 재사용 가능 PR 체크 |
 | `45_reusable-gitleaks.yml` | 재사용 가능 Gitleaks 워크플로 |
 | `60_ci-auto-heal.yml` | CI 자동 복구 |
