@@ -194,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Dependencies (Backend)**: pytz 2023.3→2025.2, requests 2.31.0→2.32.5, markupsafe 2.1.3→3.0.3, psycopg2-binary 2.9.7→2.9.11, flask-limiter 3.5.0→4.1.1, coverage 7.3.2→7.13.4, python-dateutil 2.8.2→2.9.0.post0, schedule 1.2.0→1.2.2
 - **Dependencies (Frontend)**: lucide-react 0.545.0→0.574.0, @testing-library/react 16.3.1→16.3.2, @vitejs/plugin-react 5.1.2→5.1.4, @tailwindcss/postcss 4.1.17→4.2.0, prettier 3.8.0→3.8.1, @types/node 24.10.0→25.2.3
-- **CI/CD**: actions/checkout v4→v6, actions/labeler 5.0.0→6.0.1, actions/stale 9.0.0→10.2.0
+- **CI/CD**: actions/checkout v4→v6, actions/labeler 5.0.0→6.0.1, stale automation removed from downstream GitHub Actions
 
 ### Fixed
 - **CI/CD**: PYTHONPATH 설정 수정 (backend 테스트와 collector 테스트 분리)
