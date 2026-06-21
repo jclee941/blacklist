@@ -1,5 +1,5 @@
 # Core Dependencies
-requests==2.33.1
+requests==2.34.2
 PySocks==1.7.1
 psycopg2-binary==2.9.12
 redis==7.4.0
@@ -11,8 +11,8 @@ numpy>=2.4.4  # Python 3.13 compatible
 openpyxl>=3.1.5
 
 # Web Automation for REGTECH
-selenium==4.43.0
-beautifulsoup4==4.14.3
+selenium==4.45.0
+beautifulsoup4==4.15.0
 
 
 # Utilities
