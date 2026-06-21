@@ -6,7 +6,7 @@ redis==7.4.0
 aiohttp>=3.13.5
 
 # Data Processing
-pandas>=3.0.2  # Python 3.13 compatible
+pandas>=3.0.3  # Python 3.13 compatible
 numpy>=2.4.4  # Python 3.13 compatible
 openpyxl>=3.1.5
 
