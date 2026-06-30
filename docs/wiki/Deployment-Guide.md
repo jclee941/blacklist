@@ -155,16 +155,17 @@ chmod +x install.sh
 
 ### install.sh 동작 순서
 
-```mermaid
-graph TD
-    A["1. Preflight 체크<br/>(Docker, 이미지 파일)"] --> B["2. Docker 오프라인 설치<br/>(필요 시, prereqs/)"]
-    B --> C["3. 이미지 로드<br/>(docker load *.tar.gz)"]
-    C --> D["4. 암호화 키 자동 생성"]
-    D --> E["5. .env 파일 생성"]
-    E --> F["6. docker-compose up"]
-    F --> G["7. 헬스체크 대기<br/>(PostgreSQL → Redis → App → Frontend)"]
-    G --> H["8. 전체 서비스 검증"]
-```
+#### Diagram summary 1
+
+- Type: flowchart
+- 1. Preflight 체크 / (Docker, 이미지 파일) (A) -> 2. Docker 오프라인 설치 / (필요 시, prereqs/) (B)
+- 2. Docker 오프라인 설치 / (필요 시, prereqs/) (B) -> 3. 이미지 로드 / (docker load .tar.gz) (C)
+- 3. 이미지 로드 / (docker load .tar.gz) (C) -> 4. 암호화 키 자동 생성 (D)
+- 4. 암호화 키 자동 생성 (D) -> 5. .env 파일 생성 (E)
+- 5. .env 파일 생성 (E) -> 6. docker-compose up (F)
+- 6. docker-compose up (F) -> 7. 헬스체크 대기 / (PostgreSQL → Redis → App → Frontend) (G)
+- 7. 헬스체크 대기 / (PostgreSQL → Redis → App → Frontend) (G) -> 8. 전체 서비스 검증 (H)
+
 
 ### Rollback
 
@@ -176,19 +177,20 @@ graph TD
 
 ### CI (`ci.yml` — Push/PR to master)
 
-```mermaid
-graph LR
-    A[detect-changes] --> B[lint-backend]
-    A --> C[lint-frontend]
-    B --> D[test-backend]
-    C --> E[test-frontend]
-    A --> F[test-collector]
-    D --> G[build]
-    E --> G
-    F --> G
-    G --> H[e2e]
-    H --> I[push-images]
-```
+#### Diagram summary 2
+
+- Type: flowchart
+- detect-changes (A) -> lint-backend (B)
+- detect-changes (A) -> lint-frontend (C)
+- lint-backend (B) -> test-backend (D)
+- lint-frontend (C) -> test-frontend (E)
+- detect-changes (A) -> test-collector (F)
+- test-backend (D) -> build (G)
+- test-frontend (E) -> build (G)
+- test-collector (F) -> build (G)
+- build (G) -> e2e (H)
+- e2e (H) -> push-images (I)
+
 
 | Job                | 도구         | 상세                                          |
 | ------------------ | ------------ | --------------------------------------------- |
@@ -204,15 +206,16 @@ graph LR
 
 ### Release (`release.yml` — Tag v\*)
 
-```mermaid
-graph LR
-    A[validate] --> B[build-images]
-    B --> C[package]
-    C --> D[create-release]
-    C --> E[push-to-registry]
-    D --> F[notify]
-    E --> F
-```
+#### Diagram summary 3
+
+- Type: flowchart
+- validate (A) -> build-images (B)
+- build-images (B) -> package (C)
+- package (C) -> create-release (D)
+- package (C) -> push-to-registry (E)
+- create-release (D) -> notify (F)
+- push-to-registry (E) -> notify (F)
+
 
 | Job                  | 상세                                        |
 | -------------------- | ------------------------------------------- |

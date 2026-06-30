@@ -11,35 +11,27 @@
 
 ### 1.1 시스템 구성도
 
-```mermaid
-graph TD
-    subgraph "External Sources"
-        REGTECH["REGTECH<br/>한국금융보안원"]
-        FORTIGATE["FortiGate<br/>방화벽"]
-    end
+#### Diagram summary 1
 
-    subgraph "Blacklist Platform (Docker Host Network)"
-        PG[("PostgreSQL 15<br/>:5432")]
-        REDIS[("Redis 7<br/>:6379")]
-        COLLECTOR["Collector<br/>ETL Service<br/>:8545"]
-        APP["App<br/>Flask API<br/>:2542"]
-        FRONTEND["Frontend<br/>Next.js 15<br/>:443"]
-    end
+- Type: flowchart
+- Component: REGTECH / 한국금융보안원 (REGTECH)
+- Component: FortiGate / 방화벽 (FORTIGATE)
+- Component: PostgreSQL 15 / :5432 (PG)
+- Component: Redis 7 / :6379 (REDIS)
+- Component: Collector / ETL Service / :8545 (COLLECTOR)
+- Component: App / Flask API / :2542 (APP)
+- Component: Frontend / Next.js 15 / :443 (FRONTEND)
+- Component: 웹 브라우저 (BROWSER)
+- REGTECH / 한국금융보안원 (REGTECH) -> Collector / ETL Service / :8545 (COLLECTOR)
+- Collector / ETL Service / :8545 (COLLECTOR) -> PostgreSQL 15 / :5432 (PG)
+- Collector / ETL Service / :8545 (COLLECTOR) -> Redis 7 / :6379 (REDIS)
+- App / Flask API / :2542 (APP) -> PostgreSQL 15 / :5432 (PG)
+- App / Flask API / :2542 (APP) -> Redis 7 / :6379 (REDIS)
+- App / Flask API / :2542 (APP) -> Collector / ETL Service / :8545 (COLLECTOR)
+- Frontend / Next.js 15 / :443 (FRONTEND) -> App / Flask API / :2542 (APP)
+- 웹 브라우저 (BROWSER) -> Frontend / Next.js 15 / :443 (FRONTEND)
+- FortiGate / 방화벽 (FORTIGATE) -> App / Flask API / :2542 (APP)
 
-    subgraph "Clients"
-        BROWSER["웹 브라우저"]
-    end
-
-    REGTECH -->|HTTPS| COLLECTOR
-    COLLECTOR -->|Raw SQL| PG
-    COLLECTOR -->|캐시| REDIS
-    APP -->|Raw SQL| PG
-    APP -->|캐시/메트릭| REDIS
-    APP -->|HTTP POST| COLLECTOR
-    FRONTEND -->|Proxy /api/*| APP
-    BROWSER -->|HTTPS :443| FRONTEND
-    FORTIGATE -->|Pull| APP
-```
 
 ### 1.2 설계 원칙
 
@@ -171,105 +163,12 @@ collector/
 
 ### 3.1 ER 다이어그램
 
-```mermaid
-erDiagram
-    blacklist_ips {
-        serial id PK
-        varchar45 ip_address UK
-        text reason
-        varchar100 source
-        varchar50 category
-        int confidence_level
-        int detection_count
-        boolean is_active
-        varchar10 country
-        jsonb raw_data
-    }
+#### Diagram summary 2
 
-    whitelist_ips {
-        serial id PK
-        varchar45 ip_address UK
-        text reason
-        varchar50 source
-        varchar10 country
-    }
+- Type: entity relationship
+- collectioncredentials relates to collectionhistory: servicename
+- fortigatedevices relates to fortigatepulllogs: deviceip
 
-    unified_ip_list {
-        serial id PK
-        varchar45 ip_address
-        varchar20 list_type
-        varchar100 source
-        int confidence_level
-        boolean is_active
-    }
-
-    collection_credentials {
-        serial id PK
-        varchar100 service_name UK
-        text username
-        text password
-        jsonb config
-        boolean encrypted
-        boolean is_active
-    }
-
-    collection_history {
-        serial id PK
-        varchar100 service_name
-        timestamp collection_date
-        int items_collected
-        boolean success
-        text error_message
-        int execution_time_ms
-    }
-
-    collection_status {
-        serial id PK
-        varchar100 service_name UK
-        boolean enabled
-        timestamp last_run
-        varchar20 status
-        int error_count
-        int success_count
-    }
-
-    fortigate_devices {
-        serial id PK
-        varchar45 device_ip UK
-        varchar device_name
-        varchar firmware_version
-        boolean is_active
-        jsonb config
-    }
-
-    fortigate_pull_logs {
-        serial id PK
-        varchar ip_address
-        varchar device_ip
-        text user_agent
-        int request_count
-    }
-
-    system_settings {
-        serial id PK
-        varchar100 setting_key UK
-        text setting_value
-        varchar setting_type
-        boolean is_encrypted
-    }
-
-    credentials {
-        serial id PK
-        varchar50 service_name UK
-        text encrypted_data
-    }
-
-    collection_credentials ||--o{ collection_history : "service_name"
-    collection_credentials ||--o| collection_status : "service_name"
-    fortigate_devices ||--o{ fortigate_pull_logs : "device_ip"
-    blacklist_ips }o--o{ unified_ip_list : "ip_address"
-    whitelist_ips }o--o{ unified_ip_list : "ip_address"
-```
 
 ### 3.2 주요 테이블 (15개)
 
@@ -313,22 +212,23 @@ erDiagram
 
 ### 4.1 Service Factory (DI Container)
 
-```mermaid
-graph TD
-    DB["DatabaseService<br/>(기반)"]
-    DB --> BL["BlacklistService"]
-    DB --> AN["AnalyticsService"]
-    DB --> COL["CollectionService"]
-    DB --> CRED["CredentialService"]
-    DB --> SCRED["SecureCredentialService"]
-    DB --> RTC["RegtechConfigService"]
-    DB --> SET["SettingsService"]
-    DB --> SCO["ScoringService"]
-    DB --> EXP["IPExpiryService"]
-    DB --> AB["ABTestService"]
-    DB --> OPT["OptimizedBlacklistService"]
-    COL --> SCHED["CollectionScheduler"]
-```
+#### Diagram summary 3
+
+- Type: flowchart
+- Component: DatabaseService / (기반) (DB)
+- DatabaseService / (기반) (DB) -> BlacklistService (BL)
+- DatabaseService / (기반) (DB) -> AnalyticsService (AN)
+- DatabaseService / (기반) (DB) -> CollectionService (COL)
+- DatabaseService / (기반) (DB) -> CredentialService (CRED)
+- DatabaseService / (기반) (DB) -> SecureCredentialService (SCRED)
+- DatabaseService / (기반) (DB) -> RegtechConfigService (RTC)
+- DatabaseService / (기반) (DB) -> SettingsService (SET)
+- DatabaseService / (기반) (DB) -> ScoringService (SCO)
+- DatabaseService / (기반) (DB) -> IPExpiryService (EXP)
+- DatabaseService / (기반) (DB) -> ABTestService (AB)
+- DatabaseService / (기반) (DB) -> OptimizedBlacklistService (OPT)
+- CollectionService (COL) -> CollectionScheduler (SCHED)
+
 
 ### 4.2 초기화 순서 (14개 서비스)
 
@@ -354,23 +254,18 @@ graph TD
 
 ### 5.1 보안 계층
 
-```mermaid
-graph TD
-    subgraph "Security Layer"
-        JWT["JWT 인증<br/>(현재 비활성, app.py:155)"]
-        CSRF["CSRF Protection<br/>(Flask-WTF, API exempt)"]
-        RL["Rate Limiting<br/>(Flask-Limiter, Redis-backed)"]
-        SH["Security Headers<br/>(HSTS, X-Content-Type, X-Frame)"]
-    end
-    
-    subgraph "Encryption"
-        AES["AES-256-GCM<br/>인증정보 암호화"]
-        PBKDF["PBKDF2<br/>키 파생"]
-        MASTER["CREDENTIAL_MASTER_KEY<br/>(환경 외부 파일)"]
-    end
-    
-    MASTER --> PBKDF --> AES
-```
+#### Diagram summary 4
+
+- Type: flowchart
+- Component: JWT 인증 / (현재 비활성, app.py:155) (JWT)
+- Component: CSRF Protection / (Flask-WTF, API exempt) (CSRF)
+- Component: Rate Limiting / (Flask-Limiter, Redis-backed) (RL)
+- Component: Security Headers / (HSTS, X-Content-Type, X-Frame) (SH)
+- Component: AES-256-GCM / 인증정보 암호화 (AES)
+- Component: PBKDF2 / 키 파생 (PBKDF)
+- Component: CREDENTIALMASTERKEY / (환경 외부 파일) (MASTER)
+- CREDENTIALMASTERKEY / (환경 외부 파일) (MASTER) -> PBKDF2 / 키 파생 (PBKDF)
+
 
 ### 5.2 네트워크 보안
 
@@ -389,20 +284,15 @@ graph TD
 
 ### 6.1 오프라인 배포 흐름
 
-```mermaid
-graph LR
-    subgraph "Build Phase (인터넷 환경)"
-        B1["Docker Build<br/>(5 서비스)"] --> B2["docker save<br/>+ tar.gz"]
-        B2 --> B3["GitHub Release<br/>번들 업로드"]
-    end
-    
-    subgraph "Deploy Phase (폐쇄망)"
-        D1["번들 다운로드<br/>(USB/물리 매체)"] --> D2["install.sh<br/>(docker load)"]
-        D2 --> D3["docker compose up"]
-    end
-    
-    B3 -.->|"물리 이동"| D1
-```
+#### Diagram summary 5
+
+- Type: flowchart
+- Docker Build / (5 서비스) (B1) -> docker save / + tar.gz (B2)
+- docker save / + tar.gz (B2) -> GitHub Release / 번들 업로드 (B3)
+- 번들 다운로드 / (USB/물리 매체) (D1) -> install.sh / (docker load) (D2)
+- install.sh / (docker load) (D2) -> docker compose up (D3)
+- GitHub Release / 번들 업로드 (B3) -> 번들 다운로드 / (USB/물리 매체) (D1)
+
 
 ### 6.2 배포 모드
 

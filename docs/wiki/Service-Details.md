@@ -36,46 +36,32 @@ result = service.get_all_active()
 
 ## 초기화 순서 (변경 금지)
 
-```mermaid
-graph TD
-    subgraph "1단계: Core Infrastructure"
-        DB["db_service<br/>DatabaseService<br/>460줄"]
-    end
+#### Diagram summary 1
 
-    subgraph "2단계: DB 의존 서비스"
-        BL["blacklist_service<br/>BlacklistService<br/>534줄"]
-        AN["analytics_service<br/>AnalyticsService<br/>310줄"]
-    end
+- Type: flowchart
+- Component: dbservice / DatabaseService / 460줄 (DB)
+- Component: blacklistservice / BlacklistService / 534줄 (BL)
+- Component: analyticsservice / AnalyticsService / 310줄 (AN)
+- Component: collectionservice / CollectionService / 624줄 (CO)
+- Component: schedulerservice / CollectionScheduler / 220줄 (SC)
+- Component: credentialservice / CredentialService / 395줄 (CR)
+- Component: securecredentialservice / SecureCredentialService / 560줄 (SE)
+- Component: regtechconfigservice / RegtechConfigService / 374줄 (RC)
+- Component: settingsservice / SettingsService / 374줄 (ST)
+- Component: scoringservice / ScoringService / 137줄 (SS)
+- Component: expiryservice / IPExpiryService / 191줄 (EX)
+- Component: abtestservice / ABTestService / 97줄 (AB)
+- Component: optimizedblacklistservice / OptimizedBlacklistService / 291줄 (OB)
+- dbservice / DatabaseService / 460줄 (DB) -> blacklistservice / BlacklistService / 534줄 (BL)
+- dbservice / DatabaseService / 460줄 (DB) -> analyticsservice / AnalyticsService / 310줄 (AN)
+- dbservice / DatabaseService / 460줄 (DB) -> collectionservice / CollectionService / 624줄 (CO)
+- dbservice / DatabaseService / 460줄 (DB) -> schedulerservice / CollectionScheduler / 220줄 (SC)
+- dbservice / DatabaseService / 460줄 (DB) -> credentialservice / CredentialService / 395줄 (CR)
+- dbservice / DatabaseService / 460줄 (DB) -> securecredentialservice / SecureCredentialService / 560줄 (SE)
+- dbservice / DatabaseService / 460줄 (DB) -> settingsservice / SettingsService / 374줄 (ST)
+- dbservice / DatabaseService / 460줄 (DB) -> expiryservice / IPExpiryService / 191줄 (EX)
+- dbservice / DatabaseService / 460줄 (DB) -> optimizedblacklistservice / OptimizedBlacklistService / 291줄 (OB)
 
-    subgraph "3단계: Collection"
-        CO["collection_service<br/>CollectionService<br/>624줄"]
-        SC["scheduler_service<br/>CollectionScheduler<br/>220줄"]
-    end
-
-    subgraph "5단계: Configuration"
-        CR["credential_service<br/>CredentialService<br/>395줄"]
-        SE["secure_credential_service<br/>SecureCredentialService<br/>560줄"]
-        RC["regtech_config_service<br/>RegtechConfigService<br/>374줄"]
-        ST["settings_service<br/>SettingsService<br/>374줄"]
-    end
-
-    subgraph "6단계: Business Logic"
-        SS["scoring_service<br/>ScoringService<br/>137줄"]
-        EX["expiry_service<br/>IPExpiryService<br/>191줄"]
-        AB["ab_test_service<br/>ABTestService<br/>97줄"]
-        OB["optimized_blacklist_service<br/>OptimizedBlacklistService<br/>291줄"]
-    end
-
-    DB --> BL
-    DB --> AN
-    DB --> CO
-    DB --> SC
-    DB --> CR
-    DB --> SE
-    DB --> ST
-    DB --> EX
-    DB --> OB
-```
 
 ---
 

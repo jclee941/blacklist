@@ -137,26 +137,21 @@ postgres/
 
 ## Service Boundaries
 
-```mermaid
-graph TD
-    subgraph "Monorepo Boundary"
-        APP["app/<br/>Flask API"]
-        COLL["collector/<br/>ETL Service"]
-        FE["frontend/<br/>Next.js UI"]
-    end
+#### Diagram summary 1
 
-    subgraph "Communication Layer"
-        PG[("PostgreSQL<br/>:5432")]
-        RD[("Redis<br/>:6379")]
-    end
+- Type: flowchart
+- Component: app/ / Flask API (APP)
+- Component: collector/ / ETL Service (COLL)
+- Component: frontend/ / Next.js UI (FE)
+- Component: PostgreSQL / :5432 (PG)
+- Component: Redis / :6379 (RD)
+- app/ / Flask API (APP) -> PostgreSQL / :5432 (PG)
+- app/ / Flask API (APP) -> Redis / :6379 (RD)
+- collector/ / ETL Service (COLL) -> PostgreSQL / :5432 (PG)
+- collector/ / ETL Service (COLL) -> Redis / :6379 (RD)
+- frontend/ / Next.js UI (FE) -> app/ / Flask API (APP)
+- app/ / Flask API (APP) -> collector/ / ETL Service (COLL)
 
-    APP --> PG
-    APP --> RD
-    COLL --> PG
-    COLL --> RD
-    FE -->|"Proxy /api/*"| APP
-    APP -->|"HTTP POST"| COLL
-```
 
 **Rules**:
 1. **No cross-imports** between `app/`, `collector/`, `frontend/`
