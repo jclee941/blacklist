@@ -64,261 +64,243 @@
 
 - **중앙 집중식 블랙리스트 관리** — IP/도메인 항목의 CRUD, 일괄 처리(`batch.py`), 외부 컬렉션과의 양방향 동기화, 변경 이력 추적 (`app/core/routes/api/blacklist/`)
 - **컬렉션 동기화** — 여러 TI 소스에서 주기·수동 데이터 수집(`sources.py`), 자격 증명 관리(`credentials.py`), 동기화 트리거(`sync.py`, `trigger.py`), 실행 이력(`history.py`), 상태 모니터링(`status.py`)
-- **Fortinet 자동 배포** — Fortinet 장비 등록(`fortinet_register.py`), 정책/주소 객체 자동 배포(`fortinet/core.py`)
-- **인증/인가** — JWT 기반 세션 발급, 데코레이터/미들웨어 기반 라우트 보호, 역할 기반 접근 제어 (`auth/jwt_service.py`, `auth/middleware.py`, `auth/decorators.py`)
-- **실시간 모니터링** — 메트릭 수집·집계(`metrics.py`, `cache_metrics.py`), 오류 지표(`error_metrics.py`), Prometheus/WebSocket 기반 대시보드 (`monitoring/dashboard.html`)
-- **웹 콘솔** — Jinja2 템플릿 기반 페이지(인덱스, 컬렉션, 통합, 세션, 설정, 모니터링) 제공
-- **프록시 라우트** — 외부 시스템 연동을 위한 프록시 엔드포인트(`proxy_routes.py`)
-- **시스템 운영 API** — 시스템 정보, 헬스체크, 데이터베이스 관리, 설정, 분석, 마이그레이션 API
-- **구조화 로깅 & 로그 로테이션** — `app/utils/structured_logging.py`, `app/utils/log_rotation_manager.py`
-- **코드 품질 자동화** — Ruff(린팅), mypy(타입 체크), pytest(마커 기반 테스트), pre-commit, commitlint, Husky
+- **Fortinet 자동 배포** — Fortinet 디바이스 등록(`fortinet_register.py`), 코어 동기화 로직(`fortinet/core.py`), 정책/주소 객체 배포 API
+- **인증·인가** — JWT 기반 토큰 서비스(`jwt_service.py`), 데코레이터 기반 권한 검사(`decorators.py`), 인증 미들웨어(`middleware.py`), 세션 관리
+- **모니터링·관측성** — 메트릭 수집(`metrics.py`), 캐시 메트릭(`cache_metrics.py`), 에러 메트릭(`error_metrics.py`), 대시보드(`dashboard.py`), 구조화 로깅(`structured_logging.py`), 로그 로테이션(`log_rotation_manager.py`)
+- **웹 UI** — Jinja2 템플릿 기반 대시보드(`dashboard.html`), 컬렉션/로그/세션/통합/설정 화면 제공
+- **REST API & WebSocket** — 컬렉션·블랙리스트·Fortinet·분석·설정·시스템·DB 엔드포인트, 실시간 푸시 알림(`websocket_routes.py`)
+- **프록시·시스템 라우트** — 외부 시스템 연동 프록시(`proxy_routes.py`), 시스템 메타 라우트(`system_routes.py`)
 
 ### 아키텍처
 
-애플리케이션은 `app/core/app.py`에서 부트스트랩되며, 라우터는 기능 도메인별로 분리되어 있습니다. 인증은 `app/core/auth/`의 JWT 서비스·미들웨어·데코레이터 체인으로 처리되고, 도메인 로직은 `app/core/routes/api/{blacklist,collection,fortinet}/` 하위 모듈에 캡슐화되어 있습니다. 모니터링은 `app/core/monitoring/`에서 메트릭과 캐시·오류 지표를 수집합니다.
+**디렉터리 구성 요약**
 
-```mermaid
-flowchart TB
-    subgraph Client["Client / Browser"]
-        UI["Web UI<br/>Jinja2 Templates"]
-    end
+| 경로 | 책임 |
+| --- | --- |
+| `app/run_app.py` | 로컬 개발용 앱 부트스트랩 |
+| `app/entrypoint.sh` | 컨테이너 시작 스크립트 |
+| `app/deployment_validation.py` | 배포 전 환경/설정 검증 |
+| `app/core/app.py` | Flask 앱 팩토리 및 글로벌 초기화 |
+| `app/core/config.py` | 환경 변수 기반 설정 로더 |
+| `app/core/auth_manager.py` | 인증 매니저 (JWT/세션 조율) |
+| `app/core/dashboard.py` | 대시보드 백엔드 로직 |
+| `app/core/testing_app.py` | 테스트 모드 앱 팩토리 |
+| `app/core/auth/` | JWT 서비스, 데코레이터, 미들웨어 |
+| `app/core/monitoring/` | 메트릭, 캐시·에러 메트릭 |
+| `app/core/routes/web_routes.py` | Jinja2 페이지 라우트 |
+| `app/core/routes/api_routes.py` | REST API 라우트 등록 |
+| `app/core/routes/websocket_routes.py` | WebSocket 라우트 |
+| `app/core/routes/proxy_routes.py` | 외부 시스템 프록시 라우트 |
+| `app/core/routes/system_routes.py` | 시스템 헬스/메타 라우트 |
+| `app/core/routes/collection_routes_simple.py` | 컬렉션 심플 라우트 |
+| `app/core/routes/api/collection/` | 컬렉션 API (`sources`, `sync`, `trigger`, `history`, `status`, `credentials`, `config`, `utils`) |
+| `app/core/routes/api/blacklist/` | 블랙리스트 API (`core`, `collection`, `management`, `batch`, `system`) |
+| `app/core/routes/api/fortinet/` | Fortinet 연동 API (`core`, 등록) |
+| `app/core/routes/api/monitoring/metrics.py` | 모니터링 메트릭 API |
+| `app/core/routes/api/auth_routes.py` | 인증 API |
+| `app/core/routes/api/analytics.py` | 분석 API |
+| `app/core/routes/api/core_api.py` | 코어 API |
+| `app/core/routes/api/dashboard_api.py` | 대시보드 API |
+| `app/core/routes/api/database_api.py` | DB API |
+| `app/core/routes/api/error_metrics_api.py` | 에러 메트릭 API |
+| `app/core/routes/api/ip_management_helpers.py` | IP 관리 헬퍼 |
+| `app/core/routes/api/migration.py` | 스키마/데이터 마이그레이션 API |
+| `app/core/routes/api/settings_api.py` | 설정 API |
+| `app/core/routes/api/system_api.py` | 시스템 API |
+| `app/templates/` | Jinja2 페이지 템플릿 (`index`, `collection`, `collection_logs`, `sessions`, `integrations`, `settings`, `monitoring/dashboard`) |
+| `app/utils/` | 구조화 로깅, 로그 로테이션 매니저 |
+| `deploy/docker-compose.yml` | 컨테이너 오케스트레이션 |
+| `deploy/.env` | 환경 변수 정의 |
 
-    subgraph App["Blacklist Service Application (app/)"]
-        Entrypoint["entrypoint.sh / run_app.py"]
-        Core["core/app.py"]
+**요청 흐름 (웹 페이지)**
 
-        subgraph Routes["core/routes/"]
-            Web["web_routes.py"]
-            API["api_routes.py"]
-            WS["websocket_routes.py"]
-            Proxy["proxy_routes.py"]
-            System["system_routes.py"]
-            CollSimple["collection_routes_simple.py"]
-        end
+1. 브라우저 → `web_routes.py`의 페이지 라우트 호출
+2. 라우트 핸들러가 필요한 경우 `api/` 하위 모듈(컬렉션/블랙리스트/Fortinet/분석)을 호출
+3. `auth/` 계층이 JWT/세션을 검증하고 권한 데코레이터 적용
+4. `monitoring/` 계층이 메트릭을 수집하고 캐시/에러 카운터를 갱신
+5. `dashboard.py` 또는 페이지 전용 로직이 데이터를 가공
+6. Jinja2 템플릿(`app/templates/`)이 응답을 렌더링
 
-        subgraph Auth["core/auth/"]
-            JWT["jwt_service.py"]
-            MW["middleware.py"]
-            Dec["decorators.py"]
-            AuthMgr["auth_manager.py"]
-        end
+**요청 흐름 (REST API)**
 
-        subgraph Domains["core/routes/api/"]
-            BL["blacklist/"]
-            Coll["collection/"]
-            Forti["fortinet/"]
-            Sys["system_api.py / settings_api.py"]
-            DBA["database_api.py / migration.py"]
-            DAsh["dashboard_api.py / analytics.py"]
-        end
+1. 클라이언트 → `api_routes.py`에 마운트된 엔드포인트 호출
+2. `auth/middleware.py`가 인증 컨텍스트를 주입
+3. 해당 도메인 모듈(`blacklist/`, `collection/`, `fortinet/`)이 비즈니스 로직 수행
+4. 결과는 JSON으로 반환되며, `monitoring/metrics.py`에 카운터/히스토그램 기록
 
-        subgraph Mon["core/monitoring/"]
-            Metrics["metrics.py"]
-            CacheM["cache_metrics.py"]
-            ErrM["error_metrics.py"]
-            Dash["dashboard.py"]
-        end
+**요청 흐름 (WebSocket)**
 
-        subgraph Utils["app/utils/"]
-            Log["structured_logging.py"]
-            Rot["log_rotation_manager.py"]
-            Cfg["core/config.py"]
-        end
-    end
-
-    subgraph External["External Systems"]
-        TI["Threat Intelligence Sources"]
-        FWF["Fortinet Firewall"]
-        DB["Database"]
-        Metrics["Monitoring Backend"]
-    end
-
-    UI -- "HTTP / WebSocket" --> Web
-    UI -- "WebSocket" --> WS
-    Web --> Core
-    API --> Core
-    WS --> Core
-    Proxy --> Core
-    System --> Core
-
-    Core --> Auth
-    Core --> Utils
-    Core --> Domains
-    Core --> Mon
-
-    Auth --> AuthMgr
-
-    BL --> DB
-    Coll --> TI
-    Coll --> DB
-    Forti --> FWF
-    Sys --> DB
-    DBA --> DB
-    Mon --> Metrics
-    Dash --> Mon
-    Log --> Rot
-```
-
-핵심 데이터 흐름:
-
-1. TI 소스에서 `collection/sources.py`가 데이터를 가져와 정규화·저장합니다.
-2. `blacklist/core.py`가 중앙 블랙리스트를 단일 진실 공급원(Source of Truth)으로 유지합니다.
-3. `fortinet/core.py`가 변경분을 Fortinet 장비 정책/주소 객체로 배포합니다.
-4. `monitoring/metrics.py`가 캐시/오류/요청 메트릭을 수집하고 `monitoring/dashboard.html`로 시각화합니다.
+1. 클라이언트 → `websocket_routes.py` 핸드셰이크
+2. 인증 후 구독 채널(컬렉션 상태, 로그, 배포 진행률 등) 등록
+3. 백그라운드 워커가 변경 이벤트를 푸시
 
 ### 빠른 시작
 
-요구 사항: Docker, Docker Compose, GNU Make, (선택) Python 3.11+
+**사전 요구사항**
+
+| 항목 | 버전/비고 |
+| --- | --- |
+| Docker / Docker Compose | v2 이상 권장 |
+| Python (로컬 실행 시) | 3.11+ |
+| Node.js (프론트엔드 훅) | 프론트엔드 디렉터리 사용 시 |
+
+**1) 환경 변수 파일 준비**
+
+`deploy/.env.example`이 있다면 다음 명령으로 복사 후 값을 채웁니다.
 
 ```bash
-# 1) 저장소 클론
-git clone <repository-url> blacklist-service
-cd blacklist-service
+cp deploy/.env.example deploy/.env
+# 그 후 deploy/.env 수정 (PORT, ENV, DB, JWT SECRET 등)
+```
 
-# 2) 환경 변수 파일 준비 (deploy/.env)
-cp deploy/.env.example deploy/.env  # 파일이 제공된 경우
-# 필요 시 PORT, ENV, 자격 증명 등을 편집
+**2) 개발 환경 기동 (핫 리로드)**
 
-# 3) Git 훅 설치 (선택이지만 권장)
-make setup-hooks
-
-# 4) 개발 환경 기동 (핫 리로드 활성화, 변경 이미지 재빌드)
+```bash
 make dev
-# 또는 재빌드 없이 빠르게 시작
+```
+
+- 기본 URL: `http://localhost:2542`
+- 코드 변경 시 볼륨 마운트로 자동 리로드
+
+**3) 기존 이미지로 빠르게 기동**
+
+```bash
 make dev-no-build
 ```
 
-기동 후 브라우저에서 다음 주소로 접속합니다.
+**4) 프로덕션-유사 모드 (핫 리로드 없음)**
 
-- 웹 UI: `http://localhost:2542/` (`PORT` 환경 변수로 변경 가능)
-- API: `http://localhost:2542/api/...`
-- WebSocket: `ws://localhost:2542/ws/...`
-
-운영 환경에 가까운 형태로 띄우려면 핫 리로드 없이 `make dev-prod`를 사용합니다.
+```bash
+make dev-prod
+```
 
 ### 설정
 
-설정은 다음 두 경로로 주입됩니다.
+주요 환경 변수 (예시, 실제 키는 `deploy/.env` 참조)
 
-1. **환경 변수 (`deploy/.env`)** — Docker Compose가 자동으로 로드
-2. **`app/core/config.py`** — 애플리케이션 내부 설정 모듈
-
-주요 환경 변수:
-
-| 변수 | 기본값 | 설명 |
+| 변수 | 설명 | 기본값 |
 | --- | --- | --- |
-| `ENV` | `development` | 실행 환경 (`development` / `production`) |
-| `PORT` | `2542` | 웹 서버 리스닝 포트 |
-| DB 관련 변수 | — | 데이터베이스 연결 정보 (호스트·포트·자격 증명) |
-| Fortinet 자격 증명 | — | Fortinet 장비 API 토큰/키 |
-| TI 소스 자격 증명 | — | 외부 위협 인텔리전스 소스 인증 정보 (`collection/credentials.py`) |
+| `PORT` | 앱 리슨 포트 | `2542` |
+| `ENV` | 실행 환경 (`development` / `production` / `testing`) | `development` |
+| `JWT_SECRET` | JWT 서명 비밀키 | (필수, 변경 권장) |
+| `JWT_EXPIRES_IN` | 토큰 만료 시간 | (설정 파일 참조) |
+| `LOG_LEVEL` | 로그 레벨 (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |
+| `LOG_DIR` | 로그 파일 경로 | (설정 파일 참조) |
+| DB 관련 키 | 데이터베이스 접속 정보 | (설정 파일 참조) |
+| Fortinet 관련 키 | Fortinet API 토큰/엔드포인트 | (설정 파일 참조) |
+| 컬렉션 소스 키 | 각 TI 소스 API 키/자격 증명 | (설정 파일 참조) |
+
+설정 로더는 `app/core/config.py`에 있으며, 환경 변수 미설정 시 안전한 기본값 또는 명시적 오류로 동작합니다.
 
 ### 명령어 레퍼런스
 
-`Makefile`은 Docker Compose 기반의 통합 명령을 제공합니다. 모든 명령은 `ENV` 및 `deploy/.env`를 사용합니다.
+`Makefile`은 다음 타겟을 제공합니다 (발췌). 전체 목록은 `make help`로 확인하세요.
 
-```bash
-make help                # 사용 가능한 명령과 설명 출력
-make setup-hooks         # Git 훅 설치 (pre-commit, commitlint, Husky)
-make dev                 # 개발 환경 (볼륨 마운트, 핫 리로드)
-make dev-no-build        # 기존 이미지로 빠르게 시작
-make dev-prod            # 운영 유사 환경 (핫 리로드 없음)
-make dev-app             # 앱 서비스만 재시작 (빠른 반복)
-make build               # 이미지 빌드
-make up                  # 컨테이너 기동
-make down                # 컨테이너 정지
-make logs                # 로그 스트림
-make restart             # 재시작
-make health              # 헬스체크
-make clean               # 정리
-make test                # 테스트 실행
-make deploy              # 배포
-make prod                # 운영 환경 명령
-make verify              # 전체 검증
-make verify-lint         # Ruff 린트
-make verify-types        # mypy 타입 체크
-make verify-secrets      # 시크릿 검출
-make verify-pre-commit   # pre-commit 훅 실행
-make verify-quick        # 빠른 검증 (lint + types)
-make verify-all          # 전체 검증 모음
-make release             # 릴리스
-make release-dry         # 릴리스 드라이런
-```
+| 타겟 | 용도 |
+| --- | --- |
+| `make help` | 사용 가능한 타겟과 설명 출력 |
+| `make setup-hooks` | pre-commit/Commitlint/Husky 훅 설치 |
+| `make dev` | 핫 리로드 포함 개발 환경 기동 (이미지 리빌드) |
+| `make dev-no-build` | 기존 이미지로 개발 환경 기동 |
+| `make dev-prod` | 핫 리로드 없이 프로덕션-유사 환경 기동 |
+| `make dev-app` | 앱 서비스만 재시작 |
+| `make build` | 컨테이너 이미지 빌드 |
+| `make up` | 컨테이너 기동 |
+| `make down` | 컨테이너 종료 |
+| `make restart` | 컨테이너 재시작 |
+| `make logs` | 컨테이너 로그 스트림 |
+| `make health` | 헬스 체크 |
+| `make test` | 테스트 실행 |
+| `make clean` | 로컬 산출물/캐시 정리 |
+| `make deploy` | 배포 절차 실행 |
+| `make release` | 릴리스 절차 |
+| `make release-dry` | 릴리스 드라이런 |
+| `make verify` | 일반 검증 |
+| `make verify-lint` | 린트(Ruff) 검증 |
+| `make verify-types` | 타입 검사(mypy) |
+| `make verify-secrets` | 시크릿 누출 검사 |
+| `make verify-pre-commit` | pre-commit 훅 전체 실행 |
+| `make verify-quick` | 빠른 검증 스위트 |
+| `make verify-all` | 전체 검증 스위트 |
 
 ### 로컬 개발
 
-1. **컨테이너 기반 개발** — `make dev`로 기동하면 코드 변경이 볼륨 마운트를 통해 컨테이너에 즉시 반영됩니다.
-2. **호스트에서 직접 실행** — Python 3.11+ 환경에서 다음 명령으로 부트스트랩합니다.
+**Python 의존성 설치**
 
-   ```bash
-   pip install -r app/requirements.txt
-   python app/run_app.py
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r app/requirements.txt
+pip install pre-commit
+```
 
-3. **코드 구조**
+**앱 로컬 실행**
 
-   - 진입점: `app/run_app.py` (로컬), `app/entrypoint.sh` (컨테이너)
-   - 핵심 앱: `app/core/app.py`
-   - 라우터: `app/core/routes/` (웹, API, WebSocket, 프록시, 시스템)
-   - 도메인 API: `app/core/routes/api/{blacklist,collection,fortinet}/`
-   - 인증: `app/core/auth/`
-   - 모니터링: `app/core/monitoring/`
-   - 유틸리티: `app/utils/`
-   - 템플릿: `app/templates/`
+```bash
+# 환경 변수 주입 후
+python app/run_app.py
+```
 
-4. **린팅 & 타입 체크**
+**배포 전 검증**
 
-   ```bash
-   make verify-lint   # Ruff (pyproject.toml의 [tool.ruff] 설정)
-   make verify-types  # mypy (mypy.ini)
-   ```
+```bash
+python app/deployment_validation.py
+# 또는
+make verify-all
+```
 
-5. **커밋 메시지 규칙** — `commitlint.config.js` 기반 Conventional Commits 규칙이 commit-msg 훅에서 강제됩니다.
+**린트 / 타입 검사**
+
+```bash
+ruff check .
+mypy .
+```
+
+**Git 훅 설치**
+
+```bash
+make setup-hooks
+```
 
 ### 테스트
 
-테스트는 pytest 기반으로 실행되며, 마커를 통해 종류를 구분합니다.
+`pyproject.toml`의 pytest 설정에 따라 다음 마커를 사용합니다.
+
+| 마커 | 의미 |
+| --- | --- |
+| `unit` | 외부 의존성 없는 단위 테스트 |
+| `integration` | 외부 서비스가 필요한 통합 테스트 |
+| `security` | 보안 관련 테스트 |
+| `db` | 데이터베이스 테스트 |
+| `api` | API 엔드포인트 테스트 |
+
+**전체 테스트 실행**
 
 ```bash
-# 전체 테스트
 make test
-# 또는 직접 실행
+# 또는
 pytest
 ```
 
-마커 정의 (`pyproject.toml`):
-
-- `unit` — 외부 의존성 없는 단위 테스트
-- `integration` — 외부 서비스가 필요한 통합 테스트
-- `security` — 보안 관련 테스트
-- `db` — 데이터베이스 테스트
-- `api` — API 엔드포인트 테스트
+**특정 마커만 실행**
 
 ```bash
-# 예시: 단위 테스트만 실행
 pytest -m unit
-
-# 예시: API 테스트만 실행
+pytest -m integration
 pytest -m api
 ```
 
-테스트 경로, 파일 패턴, 클래/함수 명명 규칙, 기본 옵션(`-v --tb=short`)은 모두 `pyproject.toml`의 `[tool.pytest.ini_options]`에 정의되어 있습니다.
-
 ### 기여 가이드
 
-기여 절차는 [`CONTRIBUTING.md`](CONTRIBUTING.md)를 따릅니다. 일반적인 흐름:
-
-1. 이슈를 먼저 등록하거나 기존 이슈를 참조합니다.
-2. 기능 브랜치를 생성합니다.
-3. 코드 변경 후 `make verify-all`을 통과시킵니다.
-4. Conventional Commits 규칙(`commitlint.config.js`)에 따라 커밋합니다.
-5. Pull Request를 생성하고 리뷰를 요청합니다.
-
-코드 스타일은 `pyproject.toml`의 `[tool.ruff]` 설정을 따르며, 라인 길이 120, Python 3.11 타겟입니다. 모듈별 무시 규칙(예: `app/core/routes/api/__init__.py`의 `E402`, `F401`)은 동일 파일에 정의되어 있습니다.
+- 커밋 메시지는 [Conventional Commits](https://www.conventionalcommits.org/)를 따르며, `commitlint.config.js`로 강제됩니다.
+- 코드 스타일은 `ruff` (line-length 120, py311)를 기준으로 합니다.
+- 타입은 `mypy`로 검증합니다.
+- PR 전 `make verify-all` 통과를 권장합니다.
+- 이슈/PR 템플릿, 라벨 정책 등 거버넌스 파일은 저장소 최상위(예: `CONTRIBUTING.md`)를 따릅니다.
 
 ### 라이선스
 
-본 저장소는 [`LICENSE`](LICENSE) 파일에 명시된 라이선스를 따릅니다.
+본 저장소는 `LICENSE` 파일에 명시된 라이선스를 따릅니다.
 
 ---
 
@@ -326,292 +308,275 @@ pytest -m api
 
 ### Overview
 
-**Blacklist Service Management** is a Python-based platform that aggregates threat-intelligence (malicious IP / domain / URL) feeds from multiple external sources, normalizes them into a central blacklist, and **automatically deploys the curated entries to Fortinet firewalls (and other security appliances)**. It ships with a Jinja2 web console, REST API, and WebSocket channels for real-time monitoring and operations automation.
+**Blacklist Service Management** is a Python-based unified platform that aggregates threat-intelligence data (malicious IPs, domains, URLs) from multiple external sources, manages them as a centralized blacklist, and **automatically deploys them to external security devices such as Fortinet firewalls**. It provides a Jinja2-based web UI, REST API, and WebSocket for real-time monitoring and operational automation.
 
 **Primary users**
 
-- **SOC operators** — unified query of threat intelligence and validation of automated blocking.
-- **Network engineers** — automated deployment of policies / address objects to external appliances such as Fortinet.
-- **Platform operators** — manage collections, sessions, integrations, settings, and monitoring from a single console.
+- **Security Operations (SOC)** — unified TI lookup and automated blocking-policy validation
+- **Network Engineers** — automated deployment of policies/address objects to Fortinet and similar devices
+- **Platform Operators** — single console for collections, sessions, integrations, settings, and monitoring
 
-**At a glance**
+**Basic information**
 
 | Item | Value |
 | --- | --- |
-| Default port | `2542` (override via `PORT`) |
+| Default port | `2542` (overridable via `PORT`) |
 | Default environment | `development` (`ENV`) |
-| Python version | 3.11+ (`target-version = "py311"`) |
-| Local entry point | `app/run_app.py` |
-| Container entry point | `app/entrypoint.sh` |
+| Python | 3.11+ (`target-version = "py311"`) |
+| Local entrypoint | `app/run_app.py` |
+| Container entrypoint | `app/entrypoint.sh` |
 | Pre-deploy validation | `app/deployment_validation.py` |
-| Container build | `app/Dockerfile` |
+| Container definition | `app/Dockerfile` |
 | Dependencies | `app/requirements.txt` |
 | Docker Compose | `deploy/docker-compose.yml` |
 | Env file | `deploy/.env` |
 
 ### Features
 
-- **Centralized blacklist management** — CRUD, batch operations (`batch.py`), two-way sync with external collections, change history (`app/core/routes/api/blacklist/`).
-- **Collection synchronization** — periodic / on-demand ingest from TI sources (`sources.py`), credential management (`credentials.py`), sync triggers (`sync.py`, `trigger.py`), run history (`history.py`), status (`status.py`).
-- **Fortinet auto-deployment** — Fortinet device registration (`fortinet_register.py`) and automated deployment of policies / address objects (`fortinet/core.py`).
-- **Authentication / authorization** — JWT sessions, decorator- and middleware-based route protection, role-based access control (`auth/jwt_service.py`, `auth/middleware.py`, `auth/decorators.py`).
-- **Real-time monitoring** — metrics aggregation (`metrics.py`, `cache_metrics.py`), error metrics (`error_metrics.py`), dashboard (`monitoring/dashboard.html`).
-- **Web console** — Jinja2 templates for index, collection, integrations, sessions, settings, and monitoring.
-- **Proxy routes** — endpoints for upstream integration (`proxy_routes.py`).
-- **Operations API** — system, health, database, settings, analytics, and migration APIs.
-- **Structured logging & rotation** — `app/utils/structured_logging.py`, `app/utils/log_rotation_manager.py`.
-- **Quality automation** — Ruff (lint), mypy (types), pytest (marker-based tests), pre-commit, commitlint, Husky.
+- **Centralized blacklist management** — CRUD for IP/domain entries, batch processing (`batch.py`), bidirectional sync with external collections, change-history tracking (`app/core/routes/api/blacklist/`)
+- **Collection sync** — scheduled/on-demand ingestion from multiple TI sources (`sources.py`), credential management (`credentials.py`), sync triggers (`sync.py`, `trigger.py`), run history (`history.py`), status monitoring (`status.py`)
+- **Fortinet auto-deployment** — device registration (`fortinet_register.py`), core sync logic (`fortinet/core.py`), policy/address-object deployment endpoints
+- **AuthN / AuthZ** — JWT service (`jwt_service.py`), decorator-based authorization (`decorators.py`), auth middleware (`middleware.py`), session management
+- **Observability** — metrics collection (`metrics.py`), cache metrics (`cache_metrics.py`), error metrics (`error_metrics.py`), dashboard backend (`dashboard.py`), structured logging (`structured_logging.py`), log rotation (`log_rotation_manager.py`)
+- **Web UI** — Jinja2 templates for dashboard, collection, collection logs, sessions, integrations, and settings
+- **REST API & WebSocket** — endpoints for collection, blacklist, Fortinet, analytics, settings, system, and database; realtime push via `websocket_routes.py`
+- **Proxy & system routes** — external integration proxy (`proxy_routes.py`), system meta routes (`system_routes.py`)
 
 ### Architecture
 
-The app is bootstrapped by `app/core/app.py`. Routers are split by functional domain, authentication is enforced by the JWT/middleware/decorator chain in `app/core/auth/`, and domain logic is encapsulated under `app/core/routes/api/{blacklist,collection,fortinet}/`. Monitoring is collected by `app/core/monitoring/`.
+**Module map**
 
-```mermaid
-flowchart TB
-    subgraph Client["Client / Browser"]
-        UI["Web UI<br/>Jinja2 Templates"]
-    end
+| Path | Responsibility |
+| --- | --- |
+| `app/run_app.py` | Local development bootstrap |
+| `app/entrypoint.sh` | Container startup script |
+| `app/deployment_validation.py` | Pre-deploy env/config validation |
+| `app/core/app.py` | Flask app factory and global init |
+| `app/core/config.py` | Env-driven config loader |
+| `app/core/auth_manager.py` | Auth manager (JWT/session orchestration) |
+| `app/core/dashboard.py` | Dashboard backend logic |
+| `app/core/testing_app.py` | Test-mode app factory |
+| `app/core/auth/` | JWT service, decorators, middleware |
+| `app/core/monitoring/` | Metrics, cache & error counters |
+| `app/core/routes/web_routes.py` | Jinja2 page routes |
+| `app/core/routes/api_routes.py` | REST API mounting |
+| `app/core/routes/websocket_routes.py` | WebSocket routes |
+| `app/core/routes/proxy_routes.py` | External-system proxy routes |
+| `app/core/routes/system_routes.py` | System health/meta routes |
+| `app/core/routes/collection_routes_simple.py` | Simple collection routes |
+| `app/core/routes/api/collection/` | Collection API (`sources`, `sync`, `trigger`, `history`, `status`, `credentials`, `config`, `utils`) |
+| `app/core/routes/api/blacklist/` | Blacklist API (`core`, `collection`, `management`, `batch`, `system`) |
+| `app/core/routes/api/fortinet/` | Fortinet integration API (`core`, registration) |
+| `app/core/routes/api/monitoring/metrics.py` | Monitoring metrics API |
+| `app/core/routes/api/auth_routes.py` | Auth API |
+| `app/core/routes/api/analytics.py` | Analytics API |
+| `app/core/routes/api/core_api.py` | Core API |
+| `app/core/routes/api/dashboard_api.py` | Dashboard API |
+| `app/core/routes/api/database_api.py` | Database API |
+| `app/core/routes/api/error_metrics_api.py` | Error metrics API |
+| `app/core/routes/api/ip_management_helpers.py` | IP management helpers |
+| `app/core/routes/api/migration.py` | Schema/data migration API |
+| `app/core/routes/api/settings_api.py` | Settings API |
+| `app/core/routes/api/system_api.py` | System API |
+| `app/templates/` | Jinja2 page templates (`index`, `collection`, `collection_logs`, `sessions`, `integrations`, `settings`, `monitoring/dashboard`) |
+| `app/utils/` | Structured logging, log rotation manager |
+| `deploy/docker-compose.yml` | Container orchestration |
+| `deploy/.env` | Environment variables |
 
-    subgraph App["Blacklist Service Application (app/)"]
-        Entrypoint["entrypoint.sh / run_app.py"]
-        Core["core/app.py"]
+**Request flow — web page**
 
-        subgraph Routes["core/routes/"]
-            Web["web_routes.py"]
-            API["api_routes.py"]
-            WS["websocket_routes.py"]
-            Proxy["proxy_routes.py"]
-            System["system_routes.py"]
-            CollSimple["collection_routes_simple.py"]
-        end
+1. Browser hits a page route in `web_routes.py`
+2. The handler calls `api/` submodules (collection / blacklist / Fortinet / analytics) as needed
+3. `auth/` layer validates JWT/session and applies authorization decorators
+4. `monitoring/` layer records metrics and updates cache/error counters
+5. `dashboard.py` or page-specific logic shapes the data
+6. Jinja2 templates (`app/templates/`) render the response
 
-        subgraph Auth["core/auth/"]
-            JWT["jwt_service.py"]
-            MW["middleware.py"]
-            Dec["decorators.py"]
-            AuthMgr["auth_manager.py"]
-        end
+**Request flow — REST API**
 
-        subgraph Domains["core/routes/api/"]
-            BL["blacklist/"]
-            Coll["collection/"]
-            Forti["fortinet/"]
-            Sys["system_api.py / settings_api.py"]
-            DBA["database_api.py / migration.py"]
-            DAsh["dashboard_api.py / analytics.py"]
-        end
+1. Client invokes an endpoint mounted by `api_routes.py`
+2. `auth/middleware.py` injects the auth context
+3. The domain module (`blacklist/`, `collection/`, `fortinet/`) executes business logic
+4. Result is returned as JSON, and counters/histograms are recorded in `monitoring/metrics.py`
 
-        subgraph Mon["core/monitoring/"]
-            Metrics["metrics.py"]
-            CacheM["cache_metrics.py"]
-            ErrM["error_metrics.py"]
-            Dash["dashboard.py"]
-        end
+**Request flow — WebSocket**
 
-        subgraph Utils["app/utils/"]
-            Log["structured_logging.py"]
-            Rot["log_rotation_manager.py"]
-            Cfg["core/config.py"]
-        end
-    end
-
-    subgraph External["External Systems"]
-        TI["Threat Intelligence Sources"]
-        FWF["Fortinet Firewall"]
-        DB["Database"]
-        Metrics["Monitoring Backend"]
-    end
-
-    UI -- "HTTP / WebSocket" --> Web
-    UI -- "WebSocket" --> WS
-    Web --> Core
-    API --> Core
-    WS --> Core
-    Proxy --> Core
-    System --> Core
-
-    Core --> Auth
-    Core --> Utils
-    Core --> Domains
-    Core --> Mon
-
-    Auth --> AuthMgr
-
-    BL --> DB
-    Coll --> TI
-    Coll --> DB
-    Forti --> FWF
-    Sys --> DB
-    DBA --> DB
-    Mon --> Metrics
-    Dash --> Mon
-    Log --> Rot
-```
-
-Data flow:
-
-1. `collection/sources.py` pulls, normalizes, and persists data from TI sources.
-2. `blacklist/core.py` keeps the central blacklist as the single source of truth.
-3. `fortinet/core.py` deploys diffs to Fortinet policies / address objects.
-4. `monitoring/metrics.py` aggregates request, cache, and error metrics and feeds `monitoring/dashboard.html`.
+1. Client completes handshake via `websocket_routes.py`
+2. After auth, the client subscribes to channels (collection status, logs, deploy progress, …)
+3. Background workers push change events to subscribers
 
 ### Quick Start
 
-Requirements: Docker, Docker Compose, GNU Make, and optionally Python 3.11+ for host runs.
+**Prerequisites**
+
+| Item | Version / Note |
+| --- | --- |
+| Docker / Docker Compose | v2 or newer recommended |
+| Python (for local run) | 3.11+ |
+| Node.js (for frontend hooks) | Required only when using the frontend directory |
+
+**1) Prepare env file**
 
 ```bash
-# 1) Clone
-git clone <repository-url> blacklist-service
-cd blacklist-service
+cp deploy/.env.example deploy/.env
+# Then edit deploy/.env (PORT, ENV, DB, JWT secret, etc.)
+```
 
-# 2) Prepare env file
-cp deploy/.env.example deploy/.env  # if provided
-# edit PORT, ENV, credentials as needed
+**2) Start development (hot reload)**
 
-# 3) Install git hooks (recommended)
-make setup-hooks
-
-# 4) Start development (hot reload, rebuilds changed images)
+```bash
 make dev
-# or faster start without rebuild
+```
+
+- Default URL: `http://localhost:2542`
+- Code changes are auto-reloaded via volume mounts
+
+**3) Start without rebuild (fast)**
+
+```bash
 make dev-no-build
 ```
 
-After startup:
+**4) Production-like mode (no hot reload)**
 
-- Web UI: `http://localhost:2542/` (override via `PORT`)
-- API: `http://localhost:2542/api/...`
-- WebSocket: `ws://localhost:2542/ws/...`
-
-For a production-like run without hot reload use `make dev-prod`.
+```bash
+make dev-prod
+```
 
 ### Configuration
 
-Configuration is injected through two channels:
+Key environment variables (examples — refer to `deploy/.env` for the actual set).
 
-1. **Environment variables (`deploy/.env`)** — loaded automatically by Docker Compose.
-2. **`app/core/config.py`** — internal application configuration.
-
-Key environment variables:
-
-| Variable | Default | Description |
+| Variable | Description | Default |
 | --- | --- | --- |
-| `ENV` | `development` | Runtime environment (`development` / `production`) |
-| `PORT` | `2542` | Web server listening port |
-| DB variables | — | Database host, port, credentials |
-| Fortinet credentials | — | API token / key for Fortinet devices |
-| TI source credentials | — | Auth info for external TI sources (`collection/credentials.py`) |
+| `PORT` | Listen port | `2542` |
+| `ENV` | Runtime environment (`development` / `production` / `testing`) | `development` |
+| `JWT_SECRET` | JWT signing secret | (required, change in production) |
+| `JWT_EXPIRES_IN` | Token expiration | (see config) |
+| `LOG_LEVEL` | Log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |
+| `LOG_DIR` | Log file directory | (see config) |
+| DB variables | Database connection | (see config) |
+| Fortinet variables | Fortinet API token / endpoint | (see config) |
+| Collection source variables | Per-source TI API keys / credentials | (see config) |
+
+The config loader lives in `app/core/config.py`. Missing required values fall back to safe defaults or fail loudly.
 
 ### Commands Reference
 
-The `Makefile` provides Docker Compose-driven convenience targets. All targets consume `ENV` and `deploy/.env`.
+`Makefile` provides the following targets (excerpt). Run `make help` for the full list.
 
-```bash
-make help                # Print available commands
-make setup-hooks         # Install git hooks (pre-commit, commitlint, Husky)
-make dev                 # Development (volume mount, hot reload)
-make dev-no-build        # Fast start using existing images
-make dev-prod            # Production-like (no hot reload)
-make dev-app             # Restart only the app service
-make build               # Build images
-make up                  # Start containers
-make down                # Stop containers
-make logs                # Stream logs
-make restart             # Restart
-make health              # Health check
-make clean               # Cleanup
-make test                # Run tests
-make deploy              # Deploy
-make prod                # Production command
-make verify              # Full verification
-make verify-lint         # Ruff lint
-make verify-types        # mypy type check
-make verify-secrets      # Secret detection
-make verify-pre-commit   # Run pre-commit hooks
-make verify-quick        # Quick verification (lint + types)
-make verify-all          # Aggregate verification
-make release             # Release
-make release-dry         # Release dry run
-```
+| Target | Purpose |
+| --- | --- |
+| `make help` | List available targets with descriptions |
+| `make setup-hooks` | Install pre-commit / Commitlint / Husky hooks |
+| `make dev` | Start dev environment with hot reload (rebuild) |
+| `make dev-no-build` | Start dev environment using existing images |
+| `make dev-prod` | Production-like start (no hot reload) |
+| `make dev-app` | Restart only the app service |
+| `make build` | Build container images |
+| `make up` | Start containers |
+| `make down` | Stop containers |
+| `make restart` | Restart containers |
+| `make logs` | Stream container logs |
+| `make health` | Run health checks |
+| `make test` | Run tests |
+| `make clean` | Clean local artifacts/cache |
+| `make deploy` | Run deployment procedure |
+| `make release` | Release procedure |
+| `make release-dry` | Release dry-run |
+| `make verify` | Generic verification |
+| `make verify-lint` | Lint (Ruff) |
+| `make verify-types` | Type check (mypy) |
+| `make verify-secrets` | Secret-leak check |
+| `make verify-pre-commit` | Run all pre-commit hooks |
+| `make verify-quick` | Quick verification suite |
+| `make verify-all` | Full verification suite |
 
 ### Local Development
 
-1. **Container-based development** — `make dev` mounts source code into the container for instant reload.
-2. **Host execution** — install dependencies and run the entry point directly:
+**Install Python dependencies**
 
-   ```bash
-   pip install -r app/requirements.txt
-   python app/run_app.py
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r app/requirements.txt
+pip install pre-commit
+```
 
-3. **Code layout**
+**Run app locally**
 
-   - Entry points: `app/run_app.py` (local), `app/entrypoint.sh` (container)
-   - Core app: `app/core/app.py`
-   - Routers: `app/core/routes/` (web, API, WebSocket, proxy, system)
-   - Domain APIs: `app/core/routes/api/{blacklist,collection,fortinet}/`
-   - Auth: `app/core/auth/`
-   - Monitoring: `app/core/monitoring/`
-   - Utilities: `app/utils/`
-   - Templates: `app/templates/`
+```bash
+# After exporting required env vars
+python app/run_app.py
+```
 
-4. **Lint & type check**
+**Pre-deploy validation**
 
-   ```bash
-   make verify-lint   # Ruff, configured in pyproject.toml [tool.ruff]
-   make verify-types  # mypy, configured in mypy.ini
-   ```
+```bash
+python app/deployment_validation.py
+# or
+make verify-all
+```
 
-5. **Commit conventions** — Conventional Commits are enforced via `commitlint.config.js` on the commit-msg hook.
+**Lint / type-check**
+
+```bash
+ruff check .
+mypy .
+```
+
+**Install git hooks**
+
+```bash
+make setup-hooks
+```
 
 ### Testing
 
-Tests are pytest-based and organized by markers.
+Per `pyproject.toml` pytest configuration, the following markers are available.
+
+| Marker | Meaning |
+| --- | --- |
+| `unit` | Unit tests with no external dependencies |
+| `integration` | Integration tests requiring external services |
+| `security` | Security-related tests |
+| `db` | Database tests |
+| `api` | API endpoint tests |
+
+**Run all tests**
 
 ```bash
 make test
-# or directly
+# or
 pytest
 ```
 
-Marker catalog (`pyproject.toml`):
-
-- `unit` — unit tests without external dependencies
-- `integration` — tests requiring external services
-- `security` — security-related tests
-- `db` — database tests
-- `api` — API endpoint tests
+**Run by marker**
 
 ```bash
-# Examples
 pytest -m unit
+pytest -m integration
 pytest -m api
 ```
 
-Test paths, file/class/function naming conventions, and default options (`-v --tb=short`) are defined in `[tool.pytest.ini_options]` of `pyproject.toml`.
-
 ### Contributing
 
-The contribution workflow is documented in [`CONTRIBUTING.md`](CONTRIBUTING.md). General flow:
-
-1. Open or reference an issue.
-2. Create a feature branch.
-3. Make changes and ensure `make verify-all` passes.
-4. Commit using Conventional Commits (enforced by `commitlint.config.js`).
-5. Open a Pull Request and request review.
-
-Code style follows `[tool.ruff]` in `pyproject.toml` (line length 120, Python 3.11 target). Per-file ignores (e.g. `E402`, `F401` for `app/core/routes/api/__init__.py`) are defined in the same file.
+- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), enforced by `commitlint.config.js`.
+- Code style follows `ruff` (line-length 120, py311).
+- Types are checked with `mypy`.
+- Run `make verify-all` before opening a PR.
+- Follow the governance files at the repository root (e.g. `CONTRIBUTING.md`) for issue/PR templates and label policy.
 
 ### License
 
-This repository is licensed under the terms specified in [`LICENSE`](LICENSE).
+This repository is distributed under the license described in the `LICENSE` file.
 
 ---
 
 ## Repository Structure
 
 ```text
-/
+.
 ├── AGENTS.md
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
@@ -631,9 +596,73 @@ This repository is licensed under the terms specified in [`LICENSE`](LICENSE).
     ├── entrypoint.sh
     ├── requirements.txt
     ├── run_app.py
-    ├── utils/
-    │   ├── log_rotation_manager.py
-    │   └── structured_logging.py
+    ├── core/
+    │   ├── AGENTS.md
+    │   ├── __init__.py
+    │   ├── app.py
+    │   ├── auth_manager.py
+    │   ├── config.py
+    │   ├── dashboard.py
+    │   ├── testing_app.py
+    │   ├── auth/
+    │   │   ├── AGENTS.md
+    │   │   ├── __init__.py
+    │   │   ├── decorators.py
+    │   │   ├── jwt_service.py
+    │   │   └── middleware.py
+    │   ├── monitoring/
+    │   │   ├── AGENTS.md
+    │   │   ├── __init__.py
+    │   │   ├── cache_metrics.py
+    │   │   ├── error_metrics.py
+    │   │   └── metrics.py
+    │   └── routes/
+    │       ├── AGENTS.md
+    │       ├── api_routes.py
+    │       ├── collection_routes_simple.py
+    │       ├── proxy_routes.py
+    │       ├── system_routes.py
+    │       ├── web_routes.py
+    │       ├── websocket_routes.py
+    │       └── api/
+    │           ├── AGENTS.md
+    │           ├── __init__.py
+    │           ├── analytics.py
+    │           ├── auth_routes.py
+    │           ├── core_api.py
+    │           ├── dashboard_api.py
+    │           ├── database_api.py
+    │           ├── error_metrics_api.py
+    │           ├── fortinet_register.py
+    │           ├── ip_management_helpers.py
+    │           ├── migration.py
+    │           ├── settings_api.py
+    │           ├── system_api.py
+    │           ├── blacklist/
+    │           │   ├── AGENTS.md
+    │           │   ├── __init__.py
+    │           │   ├── batch.py
+    │           │   ├── collection.py
+    │           │   ├── core.py
+    │           │   ├── management.py
+    │           │   └── system.py
+    │           ├── collection/
+    │           │   ├── AGENTS.md
+    │           │   ├── __init__.py
+    │           │   ├── config.py
+    │           │   ├── credentials.py
+    │           │   ├── history.py
+    │           │   ├── sources.py
+    │           │   ├── status.py
+    │           │   ├── sync.py
+    │           │   ├── trigger.py
+    │           │   └── utils.py
+    │           ├── fortinet/
+    │           │   ├── AGENTS.md
+    │           │   ├── __init__.py
+    │           │   └── core.py
+    │           └── monitoring/
+    │               └── __init__.py
     ├── templates/
     │   ├── collection.html
     │   ├── collection_logs.html
@@ -643,70 +672,7 @@ This repository is licensed under the terms specified in [`LICENSE`](LICENSE).
     │   ├── settings.html
     │   └── monitoring/
     │       └── dashboard.html
-    └── core/
-        ├── AGENTS.md
-        ├── __init__.py
-        ├── app.py
-        ├── auth_manager.py
-        ├── config.py
-        ├── dashboard.py
-        ├── testing_app.py
-        ├── auth/
-        │   ├── AGENTS.md
-        │   ├── __init__.py
-        │   ├── decorators.py
-        │   ├── jwt_service.py
-        │   └── middleware.py
-        ├── monitoring/
-        │   ├── AGENTS.md
-        │   ├── __init__.py
-        │   ├── cache_metrics.py
-        │   ├── error_metrics.py
-        │   └── metrics.py
-        └── routes/
-            ├── AGENTS.md
-            ├── api_routes.py
-            ├── collection_routes_simple.py
-            ├── proxy_routes.py
-            ├── system_routes.py
-            ├── web_routes.py
-            ├── websocket_routes.py
-            ├── api/
-            │   ├── AGENTS.md
-            │   ├── __init__.py
-            │   ├── analytics.py
-            │   ├── auth_routes.py
-            │   ├── core_api.py
-            │   ├── dashboard_api.py
-            │   ├── database_api.py
-            │   ├── error_metrics_api.py
-            │   ├── fortinet_register.py
-            │   ├── ip_management_helpers.py
-            │   ├── migration.py
-            │   ├── settings_api.py
-            │   ├── system_api.py
-            │   ├── monitoring/
-            │   │   └── __init__.py
-            │   ├── collection/
-            │   │   ├── AGENTS.md
-            │   │   ├── __init__.py
-            │   │   ├── config.py
-            │   │   ├── credentials.py
-            │   │   ├── history.py
-            │   │   ├── sources.py
-            │   │   ├── status.py
-            │   │   ├── sync.py
-            │   │   ├── trigger.py
-            │   │   └── utils.py
-            │   ├── blacklist/
-            │   │   ├── AGENTS.md
-            │   │   ├── __init__.py
-            │   │   ├── batch.py
-            │   │   ├── collection.py
-            │   │   ├── core.py
-            │   │   ├── management.py
-            │   │   └── system.py
-            │   └── fortinet/
-            │       ├── AGENTS.md
-            │       ├── __init__.py
-            │       └── core.py
+    └── utils/
+        ├── log_rotation_manager.py
+        └── structured_logging.py
+```
