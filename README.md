@@ -1,302 +1,265 @@
-# Blacklist Management Service
+# Blacklist Collection & Fortinet Integration Service
 
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
-[![Docker](https://img.shields.io/badge/docker-compose-2496ED.svg)](https://docs.docker.com/compose/)
-[![Ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](https://docs.astral.sh/ruff/)
-[![Status](https://img.shields.io/badge/status-production--ready-brightgreen.svg)](#status)
+[![Status](https://img.shields.io/badge/status-active-success)]()
+[![Python](https://img.shields.io/badge/python-3.11+-blue)]()
+[![Framework](https://img.shields.io/badge/framework-Flask-green)]()
+[![Docker](https://img.shields.io/badge/docker-compose-2496ED)]()
+[![License](https://img.shields.io/badge/license-see%20LICENSE-lightgrey)]()
 
-## 개요 / Overview
+## 개요 (Overview)
 
-**블랙리스트 수집·동기화·배포를 한 곳에서 관리하는 웹 서비스입니다.**
-외부 위협 인텔리전스 소스에서 IP 블랙리스트를 주기적으로 수집하고, 정규화 후 Fortinet 방화벽으로 배포하며, JWT 기반 인증과 Prometheus 호환 메트릭을 함께 제공합니다.
+여러 위협 인텔리전스 소스에서 IP·도메인 블랙리스트를 수집·정규화하고, Fortinet 방화벽 등록, 웹 대시보드, 모니터링, 감사 로그를 한곳에서 제공하는 Flask 기반 백엔드 서비스입니다. 운영자는 단일 엔드포인트에서 위협 차단 목록을 통합 관리할 수 있습니다.
 
-A web-based service that **collects, normalizes, and deploys IP blacklists**.
-It periodically pulls threat-intel feeds, normalizes entries, syncs them to Fortinet
-firewalls, and exposes JWT-authenticated APIs with Prometheus-style metrics.
+A Flask-based backend that collects, normalizes, and consolidates IP/domain blacklists from multiple threat-intelligence sources, syncs them to Fortinet firewalls, and exposes them through a web dashboard, REST APIs, and monitoring surfaces.
 
----
+## 빠른 상태 (Quick Status)
 
-## 빠른 상태 / Quick Status
-
-| 항목 / Item | 값 / Value |
+| 항목 (Item) | 값 (Value) |
 | --- | --- |
-| Status | Production-ready |
-| Runtime | Python 3.11 |
-| Web stack | Flask + Jinja2 templates |
-| Auth | JWT (HS256) + decorator-based |
-| Storage | SQLAlchemy (Postgres/MySQL) |
-| Packaging | Docker + docker compose |
-| Default port | `2542` |
-| Entry point | `app/run_app.py` |
-| Health endpoint | `GET /health` |
-| Metrics endpoint | `GET /metrics` |
-| Config | env-driven via `app/core/config.py` |
+| Product | Blacklist Collection & Management Service |
+| Language / Runtime | Python 3.11+ |
+| Web Framework | Flask (Jinja2 templates) |
+| Auth | JWT (`app/core/auth/`) |
+| Default Port | `2542` |
+| Container | Docker / docker compose (`deploy/docker-compose.yml`) |
+| Lint / Type | Ruff, mypy |
+| Tests | pytest (`tests/`, markers: unit, integration, security, db, api) |
+| Deployment | `make up` / `make deploy` / `make release` |
 
----
+## 흐름 요약 (Flow Summary)
 
-## 운영 흐름 / Operator Flow
+1. **소스 수집** — `app/core/routes/api/collection/sources.py` 가 외부 위협 인텔리전스 피드를 가져옵니다.
+2. **정규화 및 저장** — `collection/credentials.py`, `collection/history.py` 가 항목을 정규화하고 이력을 남깁니다.
+3. **관리** — `app/core/routes/api/blacklist/` 가 추가/삭제/배치 작업을 처리합니다.
+4. **방화벽 동기화** — `app/core/routes/api/fortinet/core.py` 가 Fortinet 디바이스에 블랙리스트를 반영합니다.
+5. **노출** — `web_routes.py` (HTML 대시보드), `api_routes.py` (JSON API), `websocket_routes.py` (실시간 로그) 로 운영자에게 전달합니다.
+6. **관측** — `app/core/monitoring/` 이 메트릭·캐시·에러 카운터를 노출하고 `templates/monitoring/dashboard.html` 에 시각화합니다.
 
-1. 운영자가 `make dev`로 컨테이너 스택을 기동한다.
-2. 앱이 `PORT`(기본 2542)에서 웹 UI와 REST API를 동시에 노출한다.
-3. `/login`에서 자격증명을 입력하고 JWT를 발급받는다.
-4. 이후 모든 `/api/*` 호출은 `Authorization: Bearer <token>` 헤더를 사용한다.
-5. `Collection` 모듈이 외부 소스에서 블랙리스트를 주기적으로 수집한다.
-6. `Blacklist` 모듈이 정규화된 엔트리를 저장·조회·배치 처리한다.
-7. `Fortinet` 어댑터가 변경분을 대상 방화벽으로 푸시한다.
-8. `Monitoring` 모듈이 메트릭·에러율·캐시 상태를 대시보드와 `/metrics`로 노출한다.
+## 목차 (Table of Contents)
 
----
+- [Purpose / Package Contents](#purpose--package-contents)
+- [Status](#status)
+- [First Files to Read](#first-files-to-read)
+- [Architecture](#architecture)
+- [Quickstart](#quickstart)
+- [Configuration](#configuration)
+- [Commands Reference](#commands-reference)
+- [Local Development](#local-development)
+- [Testing](#testing)
+- [Maintainers / Points of Contact](#maintainers--points-of-contact)
+- [Contributing](#contributing)
+- [License](#license)
+- [Further Documentation](#further-documentation)
 
-## 목차 / Contents
+## Purpose / Package Contents
 
-- [패키지 구성 / Package Contents](#패키지-구성--package-contents)
-- [먼저 읽을 파일 / First Files to Read](#먼저-읽을-파일--first-files-to-read)
-- [API 및 진입점 / API & Entry Points](#api-및-진입점--api--entry-points)
-- [빠른 시작 / Quickstart](#빠른-시작--quickstart)
-- [명령 레퍼런스 / Command Reference](#명령-레퍼런스--command-reference)
-- [로컬 개발 / Local Development](#로컬-개발--local-development)
-- [테스트 / Testing](#테스트--testing)
-- [운영·관측 / Operations & Observability](#운영관측--operations--observability)
-- [기여 / Contributing](#기여--contributing)
-- [메인테이너 / Maintainers](#메인테이너--maintainers)
-- [라이선스 / License](#라이선스--license)
+| 디렉터리 (Directory) | 역할 (Role) |
+| --- | --- |
+| `app/` | Flask 애플리케이션 진입점 및 컨테이너 이미지 빌드 컨텍스트 |
+| `app/core/app.py` | 앱 팩토리, 블루프린트 등록 |
+| `app/core/config.py` | 환경 변수 기반 설정 로더 |
+| `app/core/auth/` | JWT 발급·검증, 인증 데코레이터, 미들웨어 |
+| `app/core/monitoring/` | 캐시·에러·메트릭 수집기 |
+| `app/core/routes/web_routes.py` | HTML 페이지 라우팅 (대시보드, 세션, 설정 등) |
+| `app/core/routes/api/` | JSON API (auth, analytics, settings, system 등) |
+| `app/core/routes/api/collection/` | 소스, 자격증명, 이력, 동기화, 트리거 |
+| `app/core/routes/api/blacklist/` | 블랙리스트 CRUD·배치·관리 |
+| `app/core/routes/api/fortinet/` | Fortinet 디바이스 등록·동기화 |
+| `app/templates/` | Jinja2 HTML 템플릿 |
+| `app/utils/` | 구조화 로깅, 로그 로테이션 |
+| `deploy/` | docker-compose, 환경 파일 |
+| `tests/` | pytest 기반 테스트 스위트 |
+| `Makefile` | 개발·배포·릴리즈·검증 작업 |
 
----
+## Status
 
-## 패키지 구성 / Package Contents
+- 본 서비스는 **운영 가능(production-ready)** 상태를 목표로 합니다.
+- 활성 기능: 수집, 블랙리스트 관리, Fortinet 동기화, 인증, 모니터링, 대시보드.
+- 현재 마스터 브랜치는 `master` 입니다 (저장소 메타데이터 기준).
 
-부트스트랩 / Bootstrap
+## First Files to Read
 
-- `app/run_app.py` — 엔트리포인트. `create_app()` 팩토리와 헬스체크 라우트 제공.
-- `app/entrypoint.sh` — 컨테이너 부트스트랩 스크립트.
-- `app/deployment_validation.py` — 배포 전 환경 검증.
-- `app/Dockerfile` — 컨테이너 이미지 빌드 정의.
+운영자가 가장 먼저 살펴봐야 할 파일은 다음 순서를 권장합니다.
 
-코어 / Core
+| 순서 (Order) | 파일 (File) | 이유 (Why read it) |
+| --- | --- | --- |
+| 1 | `app/run_app.py` | 서비스 진입점 |
+| 2 | `app/core/app.py` | 앱 팩토리와 블루프린트 등록 흐름 |
+| 3 | `app/core/config.py` | 환경 변수 키와 기본값 |
+| 4 | `app/core/routes/web_routes.py` | 페이지 라우팅 맵 |
+| 5 | `app/core/routes/api_routes.py` | REST API 진입점 |
+| 6 | `app/core/routes/api/collection/sources.py` | 수집 파이프라인 |
+| 7 | `app/core/routes/api/fortinet/core.py` | Fortinet 동기화 로직 |
+| 8 | `app/core/auth/jwt_service.py` | 인증 토큰 처리 |
+| 9 | `Makefile` | 작업·배포 명령 |
+| 10 | `deploy/docker-compose.yml` | 컨테이너 토폴로지 |
 
-- `app/core/app.py` — Flask 앱 팩토리, 블루프린트 등록, 미들웨어 와이어링.
-- `app/core/config.py` — 환경 변수 기반 설정 객체.
-- `app/core/auth_manager.py` — 로그인·세션·토큰 헬퍼.
-- `app/core/dashboard.py` — 대시보드 집계 로직.
-- `app/core/testing_app.py` — 테스트 전용 앱 팩토리.
+## Architecture
 
-인증 / Auth
+### 모듈 구조 (Module Layout)
 
-- `app/core/auth/jwt_service.py` — JWT 발급·검증·갱신.
-- `app/core/auth/decorators.py` — `@require_auth`, `@require_role` 등.
-- `app/core/auth/middleware.py` — 요청별 인증 미들웨어.
+| 계층 (Layer) | 위치 (Location) | 책임 (Responsibility) |
+| --- | --- | --- |
+| Entry | `app/run_app.py`, `app/entrypoint.sh` | 컨테이너/로컬 부트스트랩 |
+| App Factory | `app/core/app.py` | Flask 앱 생성, 확장 등록 |
+| Config | `app/core/config.py` | 환경 기반 설정 |
+| Web UI | `app/core/routes/web_routes.py`, `app/templates/` | 서버 렌더링 페이지 |
+| REST API | `app/core/routes/api/`, `api_routes.py` | JSON API |
+| Realtime | `app/core/routes/websocket_routes.py` | WebSocket 푸시 |
+| Domain: Collection | `app/core/routes/api/collection/` | 소스·자격·이력·동기화 |
+| Domain: Blacklist | `app/core/routes/api/blacklist/` | 항목 관리 |
+| Domain: Fortinet | `app/core/routes/api/fortinet/`, `fortinet_register.py` | 방화벽 등록 |
+| Auth | `app/core/auth/` | JWT, 데코레이터, 미들웨어 |
+| Observability | `app/core/monitoring/`, `app/utils/` | 메트릭, 로깅 |
+| Validation | `app/deployment_validation.py` | 배포 사전 검증 |
 
-모니터링 / Monitoring
+### 요청 흐름 (Request Flow)
 
-- `app/core/monitoring/metrics.py` — 카운터·히스토그램 등록.
-- `app/core/monitoring/cache_metrics.py` — 캐시 적중률/지연.
-- `app/core/monitoring/error_metrics.py` — 에러율·예외 분류.
+1. 운영자가 브라우저 또는 API 클라이언트로 요청을 보냅니다.
+2. `app/core/auth/middleware.py` 가 인증 헤더와 세션을 검증합니다.
+3. 라우터(`web_routes.py` 또는 `api/`)가 도메인 모듈로 위임합니다.
+4. 도메인 모듈은 설정(`config.py`)과 자격증명(`collection/credentials.py`)을 사용해 외부 시스템(소스, Fortinet)과 상호작용합니다.
+5. 결과는 템플릿 렌더링 또는 JSON 응답으로 반환되며, `app/core/monitoring/` 이 메트릭을 기록합니다.
+6. WebSocket 채널은 장기 작업(동기화, 수집)의 진행 상황을 구독자에게 푸시합니다.
 
-라우트 / Routes
+## Quickstart
 
-- `app/core/routes/web_routes.py` — HTML 페이지 라우트.
-- `app/core/routes/api_routes.py` — API 블루프린트 등록기.
-- `app/core/routes/proxy_routes.py` — 패스스루 프록시.
-- `app/core/routes/system_routes.py` — 헬스·시스템 엔드포인트.
-- `app/core/routes/websocket_routes.py` — 실시간 채널.
+### 사전 요구사항 (Prerequisites)
 
-API 모듈 / API Modules
+| 항목 (Item) | 버전 (Version) |
+| --- | --- |
+| Python | 3.11 이상 |
+| Docker / docker compose | 최신 안정 버전 |
+| GNU Make | 임의의 최신 버전 |
 
-- `auth_routes.py` — 로그인·갱신·로그아웃.
-- `blacklist/` — CRUD, 배치, 관리, 시스템 액션.
-- `collection/` — 소스, 자격증명, 이력, 동기화 트리거.
-- `fortinet/` — Fortinet 어댑터 코어.
-- `database_api.py` — DB 마이그레이션·관리.
-- `settings_api.py` — 런타임 설정 변경.
-- `system_api.py` — 시스템 운영 액션.
-- `analytics.py` — 분석 집계.
-- `migration.py` — 스키마 마이그레이션 헬퍼.
-
-프런트엔드 / Frontend
-
-- `app/templates/*.html` — Jinja2 페이지 템플릿 (`index`, `sessions`, `collection`, `integrations`, `settings`, `dashboard`).
-
-유틸리티 / Utilities
-
-- `app/utils/structured_logging.py` — JSON 구조화 로깅.
-- `app/utils/log_rotation_manager.py` — 로그 로테이션.
-
-기타 / Misc
-
-- `Makefile` — 모든 운영 명령의 진실 공급원.
-- `pyproject.toml` — Ruff·pytest·마커 설정.
-- `commitlint.config.js` — Conventional Commits 규약.
-- `mypy.ini` — 타입 검사 설정.
-- `VERSION`, `CHANGELOG.md` — 버전·변경 이력.
-
----
-
-## 먼저 읽을 파일 / First Files to Read
-
-1. `Makefile` — 운영 명령과 환경 변수 키 모음.
-2. `app/run_app.py` — 앱 부트스트랩과 헬스체크 진입점.
-3. `app/core/app.py` — 라우트·미들웨어 등록 흐름.
-4. `app/core/config.py` — 환경 변수 키 전체 목록.
-5. `app/core/auth/jwt_service.py` — 토큰 발급·검증 규약.
-
----
-
-## API 및 진입점 / API & Entry Points
-
-페이지 라우트 / Web Pages
-
-- `/` — 랜딩 페이지
-- `/login`, `/logout` — 인증 페이지
-- `/dashboard` — 모니터링 대시보드
-- `/sessions` — 세션·활동 목록
-- `/integrations` — 외부 연동 상태
-- `/settings` — 런타임 설정
-- `/collection`, `/collection/logs` — 수집 작업 페이지
-
-시스템 라우트 / System
-
-- `GET /health` — 헬스체크
-- `GET /metrics` — Prometheus 호환 메트릭
-
-API 라우트 / API (모두 JWT 필요)
-
-- `POST /api/auth/login`, `POST /api/auth/refresh`
-- `/api/blacklist/*` — 블랙리스트 CRUD·배치·관리·시스템 액션
-- `/api/collection/*` — 소스·자격·이력·동기화 트리거·상태
-- `/api/fortinet/*` — Fortinet 동기화·상태
-- `/api/database/*` — DB 마이그레이션·관리
-- `/api/settings/*` — 런타임 설정 변경
-- `/api/system/*` — 시스템 운영 액션
-- `/api/analytics/*` — 분석 집계
-- `/api/monitoring/*` — 메트릭 조회·리셋
-
-WebSocket
-
-- `/ws/*` — `websocket_routes.py`가 제공하는 실시간 채널.
-
----
-
-## 빠른 시작 / Quickstart
-
-### 사전 요구사항 / Prerequisites
-
-- Docker 24+ 및 docker compose v2
-- Python 3.11 (소스 직접 실행 시)
-- 호스트에서 `PORT`(기본 2542) 사용 가능
-
-### 환경 변수 / Environment
-
-`deploy/.env`에 최소한 다음 키를 정의한다.
-
-- `PORT` — 선택, 기본 `2542`
-- `ENV` — 선택, `development` / `production`
-- `JWT_SECRET` — 필수, HS256 서명 비밀
-- `DB_URL` — 필수, SQLAlchemy 데이터베이스 URL
-- `FORTINET_HOST`, `FORTINET_TOKEN` — Fortinet 연동 사용 시 필수
-- 추가 키는 `app/core/config.py` 참조.
-
-### 컨테이너 실행 / Run via Docker
+### 로컬 설치 (Local Install)
 
 ```bash
-make setup-hooks   # 1회만: pre-commit + husky
-make dev           # hot reload 개발 스택 (build + up)
-make dev-no-build  # 기존 이미지로 up
-make dev-prod      # 운영 모드 (no override)
+# 1. 의존성 설치
+pip install -r app/requirements.txt
+
+# 2. 환경 변수 준비
+cp deploy/.env.example deploy/.env  # 필요 시
+
+# 3. 앱 실행
+python app/run_app.py
+# 또는
+make dev
 ```
 
-### 소스 직접 실행 / Run from Source
+### 컨테이너 실행 (Container Run)
 
 ```bash
-cd app
-pip install -r requirements.txt
-python run_app.py
+make up           # docker compose up -d --build
+make logs         # 로그 스트림
+make health       # 헬스 체크
 ```
 
-### 첫 로그인 / First Login
+기본 진입점은 `http://<host>:2542` 입니다.
 
-1. `http://<host>:2542/login` 접속.
-2. 관리자 계정으로 로그인해 JWT를 발급받는다.
-3. 이후 API 호출 시 `Authorization: Bearer <token>` 헤더를 사용한다.
+## Configuration
 
----
+모든 설정은 환경 변수로 주입하며, `app/core/config.py` 에서 키를 해석합니다.
 
-## 명령 레퍼런스 / Command Reference
+| 카테고리 (Category) | 예시 키 (Example Keys) | 설명 (Description) |
+| --- | --- | --- |
+| Flask | `FLASK_ENV`, `SECRET_KEY` | 앱 모드·시크릿 |
+| Auth | `JWT_SECRET`, `JWT_TTL` | 토큰 발급·만료 |
+| Server | `HOST`, `PORT` | 바인딩 (기본 `PORT=2542`) |
+| Collection | `COLLECTION_INTERVAL`, `SOURCE_TIMEOUT` | 수집 주기·제한 |
+| Blacklist | `BLACKLIST_DB_URL` | 블랙리스트 저장소 |
+| Fortinet | `FORTINET_HOST`, `FORTINET_TOKEN` | 디바이스 인증 |
+| Logging | `LOG_LEVEL`, `LOG_PATH` | 구조화 로깅 레벨·경로 |
 
-- `make help` — 사용 가능한 타깃 목록 출력.
-- `make setup-hooks` — pre-commit + husky 1회 설치.
-- `make dev` — 개발 스택 (build + up, hot reload).
-- `make dev-no-build` — 캐시된 이미지로 빠르게 up.
-- `make dev-prod` — 운영 모드 컨테이너 (no override).
-- `make dev-app` — app 서비스만 재기동.
-- `make up` / `make down` — 스택 up / down.
-- `make logs` — 컨테이너 로그 스트림.
-- `make restart` — 전체 재기동.
-- `make health` — 헬스체크 호출.
-- `make test` — 테스트 스위트 실행.
-- `make verify` / `verify-quick` — 린트·타입·시크릿 검증.
-- `make verify-lint`, `verify-types`, `verify-secrets`, `verify-pre-commit` — 개별 검증.
-- `make verify-all` — 전체 검증.
-- `make release` / `release-dry` — 릴리스 생성 (dry-run 가능).
-- `make clean` — 빌드 산출물 정리.
+값은 `deploy/.env` 또는 컨테이너 오버라이드로 전달합니다.
 
----
+## Commands Reference
 
-## 로컬 개발 / Local Development
+`Makefile` 은 다음 타겟을 제공합니다.
 
-- 린트: `ruff` (line-length 120, target py311). 무시 규칙은 `pyproject.toml` 참조.
-- 타입: `mypy` (설정은 `mypy.ini`).
-- 커밋 메시지: Conventional Commits, `commitlint` + husky로 강제.
-- 시크릿 검사: pre-commit 훅에서 자동 수행.
-- 핫 리로드: `make dev` 사용 시 볼륨 마운트로 코드 변경 자동 반영.
-- 도메인별 노트는 각 디렉터리의 `AGENTS.md` 참조 (`app/`, `app/core/`, `app/core/auth/`, `app/core/monitoring/`, `app/core/routes/`, `app/core/routes/api/`, `app/core/routes/api/blacklist/`, `app/core/routes/api/collection/`, `app/core/routes/api/fortinet/`).
+| 명령 (Command) | 목적 (Purpose) |
+| --- | --- |
+| `make help` | 사용 가능한 타겟 목록 출력 |
+| `make setup-hooks` | pre-commit·husky 훅 설치 |
+| `make dev` | 개발 환경(볼륨 마운트, 핫 리로드) 기동 |
+| `make dev-no-build` | 기존 이미지로 빠르게 기동 |
+| `make dev-prod` | 운영 모드에 가까운 환경 기동 |
+| `make dev-app` | 앱 서비스만 재시작 |
+| `make up` | docker compose 기동 |
+| `make down` | docker compose 종료 |
+| `make restart` | 서비스 재시작 |
+| `make logs` | 컨테이너 로그 스트림 |
+| `make health` | 헬스 체크 |
+| `make build` | 이미지 빌드 |
+| `make clean` | 정리 |
+| `make test` | 테스트 실행 |
+| `make verify` / `verify-lint` / `verify-types` / `verify-secrets` / `verify-pre-commit` / `verify-quick` / `verify-all` | 정적 검증 묶음 |
+| `make deploy` | 배포 실행 |
+| `make prod` | 운영 모드 작업 |
+| `make release` / `release-dry` | 릴리즈 절차 (드라이런 포함) |
 
----
+## Local Development
 
-## 테스트 / Testing
+- 코드 스타일: Ruff (`pyproject.toml`, `line-length = 120`).
+- 타입 검사: `mypy` (설정 파일 `mypy.ini`).
+- 커밋 메시지: Conventional Commits (`commitlint.config.js`).
+- 프런트엔드가 있다면 `frontend/` 에서 `npm install` 후 husky 훅이 활성화됩니다 (`make setup-hooks`).
+- 로깅은 `app/utils/structured_logging.py` 의 JSON 로거를 사용하며, `app/utils/log_rotation_manager.py` 로 로테이션합니다.
+- 배포 전 `app/deployment_validation.py` 로 사전 검증을 권장합니다.
 
-```bash
-make test
-# 또는 마커 기반 실행
-pytest -m unit
-pytest -m integration
-pytest -m security
-pytest -m db
-pytest -m api
-```
+## Testing
 
-마커 정의는 `pyproject.toml`의 `tool.pytest.ini_options.markers` 참조.
+테스트 러너는 pytest 입니다 (`pyproject.toml` 의 `[tool.pytest.ini_options]` 참조).
 
----
+| 마커 (Marker) | 의미 (Meaning) |
+| --- | --- |
+| `unit` | 외부 의존성 없는 단위 테스트 |
+| `integration` | 실행 중인 서비스가 필요한 통합 테스트 |
+| `security` | 보안 관련 테스트 |
+| `db` | 데이터베이스 테스트 |
+| `api` | API 엔드포인트 테스트 |
 
-## 운영·관측 / Operations & Observability
+| 작업 (Task) | 명령 (Command) |
+| --- | --- |
+| 전체 실행 | `make test` 또는 `pytest` |
+| 단위 테스트만 | `pytest -m unit` |
+| 통합 테스트만 | `pytest -m integration` |
+| API 테스트만 | `pytest -m api` |
 
-- 로그: `app/utils/structured_logging.py`로 JSON 출력. `log_rotation_manager.py`가 로테이션 담당.
-- 메트릭: `/metrics` Prometheus 호환. 카운터·히스토그램은 `app/core/monitoring/metrics.py`, 캐시 메트릭은 `cache_metrics.py`, 에러 메트릭은 `error_metrics.py`.
-- 헬스체크: `make health` 또는 `GET /health`.
-- 런타임 설정 변경: `/api/settings/*` 엔드포인트.
+`pythonpath = ["app"]` 으로 `app/` 패키지가 자동으로 임포트 경로에 추가됩니다.
 
----
+## Maintainers / Points of Contact
 
-## 기여 / Contributing
+- 저장소 소유자 정보는 `OWNERS` 파일을 참조하세요.
+- 거버넌스 절차는 `CONTRIBUTING.md` 를 따릅니다.
+- 변경 이력은 `CHANGELOG.md`, 현재 버전은 `VERSION` 파일을 참조하세요.
+- 자동화 정책은 저장소 내 workflow 파일과 `AGENTS.md` 의 지침을 따릅니다 (운영자 참고용).
 
-기여 절차는 `CONTRIBUTING.md`를 따른다. PR 규칙과 이슈 템플릿은 저장소 표준을 따른다. 커밋 메시지는 Conventional Commits 규약을 준수한다.
+## Contributing
 
----
+1. 이슈를 먼저 등록하거나 기존 이슈에 연결합니다.
+2. 브랜치를 생성하고 변경 사항을 커밋합니다 (커밋 메시지는 Conventional Commits 준수).
+3. 로컬에서 `make verify-all && make test` 를 통과시킵니다.
+4. PR 을 열고 리뷰어를 지정합니다 (리뷰어 지정 가이드라인은 `OWNERS` 참조).
+5. CI 가 통과하면 자동 머지 또는 수동 머지를 진행합니다.
 
-## 메인테이너 / Maintainers
+상세 절차는 `CONTRIBUTING.md` 를 참고하세요.
 
-책임자 목록은 저장소 루트의 `OWNERS` 파일을 참조한다. 보안 이슈는 공개 채널 대신 비공개로 메인테이너에게 먼저 보고한다.
+## License
 
----
+이 저장소는 `LICENSE` 파일에 명시된 라이선스를 따릅니다. 사용 전 라이선스 전문을 확인하세요.
 
-## 라이선스 / License
+## Further Documentation
 
-이 저장소는 저장소 내 `LICENSE` 파일의 조항에 따라 배포된다. 외부 배포 시 해당 라이선스 전문을 함께 제공해야 한다.
-
----
-
-## 추가 문서 / Further Documentation
-
-- `CHANGELOG.md` — 변경 이력.
-- `VERSION` — 현재 시맨틱 버전.
-- 도메인별 `AGENTS.md` — 컬렉션·블랙리스트·Fortinet·모니터링 모듈 노트.
+| 문서 (Document) | 경로 (Path) |
+| --- | --- |
+| 변경 이력 | `CHANGELOG.md` |
+| 기여 절차 | `CONTRIBUTING.md` |
+| 거버넌스 / 자동화 가이드 | `AGENTS.md`, `app/AGENTS.md`, `app/core/AGENTS.md` |
+| 도메인 모듈 가이드 | `app/core/routes/api/collection/AGENTS.md`, `app/core/routes/api/blacklist/AGENTS.md`, `app/core/routes/api/fortinet/AGENTS.md` |
+| 인증 모듈 가이드 | `app/core/auth/AGENTS.md` |
+| 모니터링 모듈 가이드 | `app/core/monitoring/AGENTS.md` |
+| 빌드·배포 작업 | `Makefile` |
+| 컨테이너 정의 | `app/Dockerfile`, `deploy/docker-compose.yml` |
+| 린트·테스트 설정 | `pyproject.toml`, `mypy.ini`, `commitlint.config.js` |
+| 버전 | `VERSION` |
