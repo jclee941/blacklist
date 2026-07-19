@@ -30,7 +30,7 @@ waitress==3.0.2
 prometheus-client==0.25.0
 
 # Logging
-colorlog==6.10.1
+colorlog==6.11.0
 structlog==25.5.0
 
 # SSH for FortiGate
