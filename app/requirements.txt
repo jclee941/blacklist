@@ -31,7 +31,7 @@ Flask-Limiter==4.1.1        # Rate limiting / DOS protection
 # Utilities
 python-dotenv==1.2.2
 click==8.4.2
-pytz==2026.2
+pytz==2026.3.post1
 schedule==1.2.2
 
 # Production Server
@@ -40,7 +40,7 @@ gevent==25.9.1
 
 # System Monitoring & Metrics
 psutil==7.2.2                    # CRITICAL: Required for metrics routes
-prometheus-client==0.25.0        # Metrics collection
+prometheus-client==0.26.0        # Metrics collection
 
 # Structured Logging (Phase 1.2)
 structlog==25.5.0                # Structured logging for decision tracking

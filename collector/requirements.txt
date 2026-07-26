@@ -17,7 +17,7 @@ beautifulsoup4==4.15.0
 
 # Utilities
 python-dateutil==2.9.0.post0
-pytz==2026.2
+pytz==2026.3.post1
 schedule==1.2.2
 
 # Security & Encryption
@@ -27,10 +27,10 @@ bcrypt==5.0.0
 # Monitoring & Health Check
 flask==3.1.3
 waitress==3.0.2
-prometheus-client==0.25.0
+prometheus-client==0.26.0
 
 # Logging
-colorlog==6.11.0
+colorlog==6.12.0
 structlog==25.5.0
 
 # SSH for FortiGate
