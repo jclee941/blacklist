@@ -32,21 +32,14 @@ updates:
           - "minor"
           - "patch"
 
-  # NOTE: no npm ecosystem here. This source repo (jclee941/.github) is Python-
-  # only and has no package.json, so an npm ecosystem would fail every weekly
-  # Dependabot run. Downstream JS repos receive an npm ecosystem injected by
-  # scripts/cmd/deploy-to-repos (see downstreamNpmEcosystem).
   # Go scripts (go.mod) - none yet, but ready when scripts/ gets a go.mod
   # - package-ecosystem: "gomod"
   #   directory: "/scripts"
   #   schedule:
   #     interval: "weekly"
 
-  # JavaScript/TypeScript dependencies (package.json + package-lock.json).
-  # Injected downstream by deploy-to-repos; Dependabot skips repos without a
-  # package.json, so this is safe everywhere it lands.
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/frontend"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
