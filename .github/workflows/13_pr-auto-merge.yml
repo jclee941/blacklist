@@ -64,7 +64,7 @@ jobs:
         run: |
           set -eu
           DATA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --json number,state,isDraft,mergeStateStatus,author,url,reviews,reviewDecision,statusCheckRollup)
+            --json state,isDraft,author,url,reviewDecision)
           STATE=$(echo "$DATA" | jq -r '.state')
           IS_DRAFT=$(echo "$DATA" | jq -r '.isDraft')
           AUTHOR=$(echo "$DATA" | jq -r '.author.login')
