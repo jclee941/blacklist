@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { createElement } from 'react';
 import NavBar from '../../components/NavBar';
 
 // Mock Next.js modules
@@ -13,26 +14,19 @@ vi.mock('next/image', () => ({
   default: ({
     src,
     alt,
-    priority: _priority,
+    priority,
     ...props
   }: {
     src: string;
     alt: string;
     priority?: boolean;
-  } & React.ImgHTMLAttributes<HTMLImageElement>) => <img src={src} alt={alt} {...props} />,
-}));
-
-vi.mock('next/image', () => ({
-  default: ({
-    src,
-    alt,
-    priority: _priority,
-    ...props
-  }: {
-    src: string;
-    alt: string;
-    priority?: boolean;
-  } & React.ImgHTMLAttributes<HTMLImageElement>) => <img src={src} alt={alt} {...props} />,
+  } & React.ImgHTMLAttributes<HTMLImageElement>) =>
+    createElement('img', {
+      src,
+      alt,
+      'data-priority': priority ? 'true' : undefined,
+      ...props,
+    }),
 }));
 
 describe('NavBar Component', () => {

@@ -102,7 +102,7 @@ test.describe('Error Handling', () => {
       await navigationPromise;
     });
 
-    test('API 타임아웃 처리', async ({ page, request }) => {
+    test('API 타임아웃 처리', async ({ page }) => {
       // Test that timeouts are handled gracefully
       await page.route('**/api/blacklist', async (route) => {
         // Simulate timeout by never responding

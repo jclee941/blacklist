@@ -196,7 +196,15 @@ class TestDatabaseServiceExtended:
     def test_get_collection_credentials_from_db(self):
         svc = self._make_service()
         mock_conn, mock_cursor = self._mock_conn(svc)
-        mock_cursor.fetchone.return_value = ("regtech", "user1", "pass1", "{}", datetime.now(), datetime.now())
+        mock_cursor.fetchone.return_value = (
+            "regtech",
+            "user1",
+            "pass1",
+            "{}",
+            False,
+            datetime.now(),
+            datetime.now(),
+        )
         mock_secure = MagicMock()
         mock_secure.get_credentials.return_value = None
         from flask import Flask
@@ -206,6 +214,29 @@ class TestDatabaseServiceExtended:
         with app.app_context():
             result = svc.get_collection_credentials("regtech")
         assert result["username"] == "user1"
+
+    def test_get_collection_credentials_never_returns_encrypted_fallback(self):
+        svc = self._make_service()
+        mock_conn, mock_cursor = self._mock_conn(svc)
+        mock_cursor.fetchone.return_value = (
+            "regtech",
+            "user1",
+            "ciphertext",
+            "{}",
+            True,
+            datetime.now(),
+            datetime.now(),
+        )
+        mock_secure = MagicMock()
+        mock_secure.get_credentials.return_value = None
+        from flask import Flask
+
+        app = Flask(__name__)
+        app.extensions["secure_credential_service"] = mock_secure
+        with app.app_context():
+            result = svc.get_collection_credentials("regtech")
+
+        assert result == {"error": "Encrypted credentials could not be decrypted"}
 
     def test_get_collection_credentials_not_found(self):
         svc = self._make_service()

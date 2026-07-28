@@ -35,7 +35,7 @@ export function IPManagementFormModal({
   const handleIPChange = (value: string) => {
     const formatted = value.replace(
       /(\d{1,3})\.?(\d{1,3})?\.?(\d{1,3})?\.?(\d{1,3})?/,
-      (match, p1, p2, p3, p4) => {
+      (_match, p1, p2, p3, p4) => {
         const parts = [p1, p2, p3, p4].filter(Boolean);
         return parts.join('.');
       }
@@ -69,8 +69,11 @@ export function IPManagementFormModal({
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">IP 주소 *</label>
+            <label htmlFor="ip-address" className="block text-sm font-medium text-gray-700 mb-1">
+              IP 주소 *
+            </label>
             <input
+              id="ip-address"
               type="text"
               value={formData.ip_address}
               onChange={(e) => handleIPChange(e.target.value)}
@@ -81,10 +84,11 @@ export function IPManagementFormModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
               사유 <span className="text-red-500">*</span>
             </label>
             <input
+              id="reason"
               type="text"
               value={formData.reason}
               onChange={(e) => onFormChange({ ...formData, reason: e.target.value })}
@@ -95,8 +99,11 @@ export function IPManagementFormModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">소스</label>
+            <label htmlFor="source" className="block text-sm font-medium text-gray-700 mb-1">
+              소스
+            </label>
             <select
+              id="source"
               value={formData.source}
               onChange={(e) => onFormChange({ ...formData, source: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -109,8 +116,11 @@ export function IPManagementFormModal({
 
           {isEdit && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">국가 코드</label>
+              <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                국가 코드
+              </label>
               <input
+                id="country"
                 type="text"
                 value={formData.country}
                 onChange={(e) => onFormChange({ ...formData, country: e.target.value })}

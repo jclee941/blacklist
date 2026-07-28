@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 
@@ -28,6 +28,11 @@ export default function Modal({
   size = 'md',
   showCloseButton = true,
 }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const previousOverflowRef = useRef('');
+  const titleId = useId();
+
   const handleEscape = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -37,16 +42,47 @@ export default function Modal({
     [onClose]
   );
 
+  const handleTab = useCallback((event: KeyboardEvent) => {
+    if (event.key !== 'Tab' || !dialogRef.current) return;
+
+    const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (!firstElement || !lastElement) {
+      event.preventDefault();
+      dialogRef.current.focus();
+      return;
+    }
+
+    if (event.shiftKey && document.activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+    } else if (!event.shiftKey && document.activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
+      previousActiveElementRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      previousOverflowRef.current = document.body.style.overflow;
       document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleTab);
       document.body.style.overflow = 'hidden';
+      dialogRef.current?.focus();
     }
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener('keydown', handleTab);
+      document.body.style.overflow = previousOverflowRef.current;
+      previousActiveElementRef.current?.focus();
     };
-  }, [isOpen, handleEscape]);
+  }, [isOpen, handleEscape, handleTab]);
 
   if (!isOpen) return null;
 
@@ -60,11 +96,21 @@ export default function Modal({
           aria-label="Close modal backdrop"
         />
         <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          aria-label={title ? undefined : 'Dialog'}
+          tabIndex={-1}
           className={`relative bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full transform transition-all`}
         >
           {(title || showCloseButton) && (
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
+              {title && (
+                <h3 id={titleId} className="text-lg font-semibold text-gray-900">
+                  {title}
+                </h3>
+              )}
               {showCloseButton && (
                 <button
                   type="button"

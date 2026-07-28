@@ -78,6 +78,15 @@ describe('IPManagementFormModal', () => {
       expect(screen.getByPlaceholderText('192.168.1.1')).toBeInTheDocument();
     });
 
+    it('associates labels with the IP form controls', () => {
+      render(<IPManagementFormModal {...defaultProps} isEdit />);
+
+      expect(screen.getByLabelText(/IP 주소/)).toHaveAttribute('placeholder', '192.168.1.1');
+      expect(screen.getByLabelText(/사유/)).toHaveAttribute('placeholder', '악성 활동');
+      expect(screen.getByLabelText('소스')).toHaveDisplayValue('수동 입력');
+      expect(screen.getByLabelText('국가 코드')).toBeInTheDocument();
+    });
+
     it('calls onFormChange on IP input', () => {
       const onFormChange = vi.fn();
       render(<IPManagementFormModal {...defaultProps} onFormChange={onFormChange} />);

@@ -26,9 +26,15 @@ export default function CollectionPage() {
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      <Suspense fallback={<LoadingSpinner message="데이터 로딩 중..." />}>
-        {activeTab === 'management' ? <CollectionManagementClient /> : <CollectionHistoryClient />}
-      </Suspense>
+      <section id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+        <Suspense fallback={<LoadingSpinner message="데이터 로딩 중..." />}>
+          {activeTab === 'management' ? (
+            <CollectionManagementClient />
+          ) : (
+            <CollectionHistoryClient />
+          )}
+        </Suspense>
+      </section>
     </main>
   );
 }

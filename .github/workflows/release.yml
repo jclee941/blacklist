@@ -22,6 +22,8 @@ jobs:
   validate:
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -45,19 +47,35 @@ jobs:
             echo "::error::No CHANGELOG.md entry found for version ${VERSION}"
             exit 1
           fi
+      - name: Check release notes
+        run: |
+          VERSION=$(cat VERSION)
+          RELEASE_NOTES_FILE="docs/manual/blacklist-${VERSION}-release-notes.md"
+          if [[ ! -f "$RELEASE_NOTES_FILE" ]]; then
+            echo "::error::Release notes file not found: ${RELEASE_NOTES_FILE}"
+            exit 1
+          fi
+          if [[ ! -s "$RELEASE_NOTES_FILE" ]]; then
+            echo "::error::Release notes file is empty: ${RELEASE_NOTES_FILE}"
+            exit 1
+          fi
 
   build-images:
     needs: validate
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/build-images.yml
     with:
       version: ${{ needs.validate.outputs.version }}
       push: false
-    secrets: inherit
 
   package:
     needs: [validate, build-images]
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -166,6 +184,7 @@ jobs:
     if: always() && !cancelled()
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
+    permissions: {}
     steps:
       - name: Slack notification
         if: vars.SLACK_WEBHOOK_URL != ''

@@ -63,29 +63,22 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     # 1. CORE INFRASTRUCTURE (No Dependencies)
     # ============================================================
 
-    try:
-        from .database_service import DatabaseService
+    from .database_service import DatabaseService
 
-        # Initialize DatabaseService instance
-        db_service = DatabaseService()
-        services["db_service"] = db_service
-        logger.info("  ✅ db_service (DatabaseService)")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize db_service: {e}")
+    db_service = DatabaseService()
+    services["db_service"] = db_service
+    logger.info("  ✅ db_service (DatabaseService)")
 
     # ============================================================
     # 2. SERVICES DEPENDING ON DB_SERVICE
     # ============================================================
 
     # Blacklist Service - Core IP filtering logic
-    try:
-        from .blacklist_service import BlacklistService
+    from .blacklist_service import BlacklistService
 
-        blacklist_service = BlacklistService(db_service=services["db_service"])
-        services["blacklist_service"] = blacklist_service
-        logger.info("  ✅ blacklist_service (BlacklistService) - using DatabaseService pool")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize blacklist_service: {e}")
+    blacklist_service = BlacklistService(db_service=services["db_service"])
+    services["blacklist_service"] = blacklist_service
+    logger.info("  ✅ blacklist_service (BlacklistService) - using DatabaseService pool")
 
     # Analytics Service - Analytics and reporting
     try:
@@ -102,14 +95,11 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     # ============================================================
 
     # Collection Service - Collection orchestration
-    try:
-        from .collection_service import CollectionService
+    from .collection_service import CollectionService
 
-        collection_service = CollectionService(db_service=services["db_service"])
-        services["collection_service"] = collection_service
-        logger.info("  ✅ collection_service (CollectionService)")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize collection_service: {e}")
+    collection_service = CollectionService(db_service=services["db_service"])
+    services["collection_service"] = collection_service
+    logger.info("  ✅ collection_service (CollectionService)")
 
     # Scheduler Service - Collection scheduling
     try:
@@ -150,34 +140,25 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
         logger.error(f"  ❌ Failed to initialize credential_service: {e}")
 
     # Secure Credential Service - AES-256-GCM encryption
-    try:
-        from .secure_credential_service import SecureCredentialService
+    from .secure_credential_service import SecureCredentialService
 
-        secure_credential_service = SecureCredentialService(db_service=services["db_service"])
-        services["secure_credential_service"] = secure_credential_service
-        logger.info("  ✅ secure_credential_service (SecureCredentialService)")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize secure_credential_service: {e}")
+    secure_credential_service = SecureCredentialService(db_service=services["db_service"])
+    services["secure_credential_service"] = secure_credential_service
+    logger.info("  ✅ secure_credential_service (SecureCredentialService)")
 
     # REGTECH Config Service - REGTECH configuration management
-    try:
-        from .regtech_config_service import RegtechConfigService
+    from .regtech_config_service import RegtechConfigService
 
-        regtech_config_service = RegtechConfigService()
-        services["regtech_config_service"] = regtech_config_service
-        logger.info("  ✅ regtech_config_service (RegtechConfigService)")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize regtech_config_service: {e}")
+    regtech_config_service = RegtechConfigService()
+    services["regtech_config_service"] = regtech_config_service
+    logger.info("  ✅ regtech_config_service (RegtechConfigService)")
 
     # Settings Service - System settings persistence
-    try:
-        from .settings_service import SettingsService
+    from .settings_service import SettingsService
 
-        settings_service = SettingsService(db_service=services["db_service"])
-        services["settings_service"] = settings_service
-        logger.info("  ✅ settings_service (SettingsService)")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize settings_service: {e}")
+    settings_service = SettingsService(db_service=services["db_service"])
+    services["settings_service"] = settings_service
+    logger.info("  ✅ settings_service (SettingsService)")
 
     # ============================================================
     # 6. BUSINESS LOGIC SERVICES

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { IPManagementTabs } from '@/app/ip-management/components/IPManagementTabs';
-import type { TabType } from '@/app/ip-management/components/types';
 
 vi.mock('lucide-react', () => ({
   Layers: (props: Record<string, unknown>) => <svg data-testid="icon-layers" {...props} />,

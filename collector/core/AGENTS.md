@@ -1,8 +1,6 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Version:** `4.1.0`
 
 ## OVERVIEW
 
@@ -10,17 +8,21 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 
 ## FILES
 
-| File                     | LOC  | Role                                   |
-| ------------------------ | ---- | -------------------------------------- |
-| `fortigate_collector.py` | 680  | FortiGate device collection (hotspot)  |
-| `database.py`            | 664  | maxconn=20, IP cache eviction          |
-| `authentication.py`      | ~100 | Fernet credential decryption           |
-| `data_normalizer.py`     | ~80  | IP/domain normalization                |
+| Path | Role |
+| --- | --- |
+| `fortigate_collector.py` | FortiGate device collection facade |
+| `database/` | Collector database service, queries, and credential access |
+| `fortigate/` | FortiGate SSH collection helpers |
+| `validators.py` | IP and CIDR validation |
+| `archive_manager.py` | Collection archive retention |
+| `data_quality_manager.py` | Collection quality checks |
 
 ## SUBPACKAGES
 
-- `regtech/` — REGTECH auth + collection pipeline (3 files).
-- `multi_source/` — async multi-source feed aggregation (3 files).
+- `regtech/` — REGTECH authentication and collection pipeline.
+- `multi_source/` — asynchronous multi-source feed aggregation.
+- `database/` — persistence and credential boundaries.
+- `fortigate/` — FortiGate connection and collection helpers.
 
 ## CONVENTIONS
 
@@ -38,7 +40,7 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `FortiGateCollector` | class | `fortigate_collector.py` | high | FortiGate device collection (680L hotspot) |
-| `MultiSourceCollector` | class | `multi_source/collector.py:15` | high | async feed aggregation + dedup |
-| `RegtechCollector` | class | `regtech/collector.py:36` | high | REGTECH ETL pipeline |
-| `validate_ip` | function | `validators.py:17` | med | IP/CIDR validation + normalization |
+| `FortiGateCollector` | class | `fortigate_collector.py` | high | FortiGate device collection |
+| `MultiSourceCollector` | class | `multi_source/collector.py` | high | Async feed aggregation and deduplication |
+| `RegtechCollector` | class | `regtech/collector.py` | high | REGTECH ETL pipeline |
+| `validate_ip` | function | `validators.py` | med | IP and CIDR validation |

@@ -1,6 +1,5 @@
 """Unit tests for service_factory module"""
 
-import sys
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -8,6 +7,11 @@ from unittest.mock import Mock, patch, MagicMock
 @pytest.mark.unit
 class TestServiceFactory:
     """Tests for service_factory module-level functions"""
+
+    @pytest.fixture(autouse=True)
+    def credential_master_key(self, monkeypatch):
+        monkeypatch.setenv("CREDENTIAL_MASTER_KEY", "test-credential-master-key")
+        monkeypatch.setenv("ENCRYPTION_SALT", "test-encryption-salt")
 
     # --- get_service_info ---
 
@@ -47,7 +51,7 @@ class TestServiceFactory:
         mock_app = Mock()
         mock_app.extensions = {}
 
-        from app.core.services.service_factory import initialize_services
+        from core.services.service_factory import initialize_services
 
         services = initialize_services(mock_app)
         assert "db_service" in services
@@ -59,7 +63,7 @@ class TestServiceFactory:
         mock_app = Mock()
         mock_app.extensions = {}
 
-        from app.core.services.service_factory import initialize_services
+        from core.services.service_factory import initialize_services
 
         services = initialize_services(mock_app)
         assert isinstance(services, dict)
@@ -77,21 +81,30 @@ class TestServiceFactory:
         assert isinstance(services, dict)
 
     @patch("psycopg2.connect")
-    def test_initialize_services_db_failure_is_handled(self, mock_connect):
-        """DatabaseService failure is handled gracefully"""
+    def test_initialize_services_fails_when_database_service_is_unavailable(self, mock_connect):
         mock_connect.return_value = MagicMock()
         mock_app = Mock()
         mock_app.extensions = {}
 
-        from app.core.services.service_factory import initialize_services
+        from core.services.service_factory import initialize_services
 
         with patch(
-            "app.core.services.service_factory.DatabaseService",
-            create=True,
-            side_effect=Exception("Cannot connect to DB"),
+            "core.services.database_service.DatabaseService", side_effect=RuntimeError("Cannot connect to DB")
         ):
-            try:
-                services = initialize_services(mock_app)
-                assert services.get("db_service") is None or "db_service" not in services
-            except Exception:
-                assert True
+            with pytest.raises(RuntimeError, match="Cannot connect to DB"):
+                initialize_services(mock_app)
+
+    @patch("psycopg2.connect")
+    def test_initialize_services_fails_when_secure_credential_service_is_unavailable(self, mock_connect):
+        mock_connect.return_value = MagicMock()
+        mock_app = Mock()
+        mock_app.extensions = {}
+
+        from core.services.service_factory import initialize_services
+
+        with patch(
+            "core.services.secure_credential_service.SecureCredentialService",
+            side_effect=RuntimeError("Credential master key is required"),
+        ):
+            with pytest.raises(RuntimeError, match="Credential master key is required"):
+                initialize_services(mock_app)

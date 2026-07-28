@@ -35,6 +35,12 @@ describe('IPManagementFilters', () => {
       expect(screen.getByDisplayValue('전체')).toBeInTheDocument();
     });
 
+    it('renders each unified filter only once', () => {
+      render(<IPManagementFilters {...defaultProps} activeTab="unified" />);
+
+      expect(screen.getAllByRole('combobox')).toHaveLength(2);
+    });
+
     it('hides filter dropdowns on non-unified tab', () => {
       render(<IPManagementFilters {...defaultProps} activeTab="blacklist" />);
       expect(screen.queryByDisplayValue('전체')).not.toBeInTheDocument();
@@ -73,7 +79,7 @@ describe('IPManagementFilters', () => {
     it('calls onSearch on Enter key', () => {
       const onSearch = vi.fn();
       render(<IPManagementFilters {...defaultProps} onSearch={onSearch} />);
-      fireEvent.keyPress(screen.getByPlaceholderText('IP 주소 검색...'), {
+      fireEvent.keyDown(screen.getByPlaceholderText('IP 주소 검색...'), {
         key: 'Enter',
         charCode: 13,
       });

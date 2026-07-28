@@ -18,9 +18,6 @@ from .response_utils import (
     collection_response,
 )
 
-# Database utilities
-from .db_utils import execute_query, execute_write
-
 # Cache utilities
 from .cache_utils import CacheManager, cached
 
@@ -47,9 +44,6 @@ __all__ = [
     "batch_operation_response",
     "statistics_response",
     "collection_response",
-    # Database utilities
-    "execute_query",
-    "execute_write",
     # Cache utilities
     "CacheManager",
     "cached",

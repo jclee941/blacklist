@@ -23,19 +23,6 @@ except ImportError:
     start_health_server = importlib.import_module("collector.health_server").start_health_server
     db_service = importlib.import_module("collector.core.database").db_service
 
-# Monitoring scheduler is optional - import only if needed
-monitoring_scheduler = None
-monitoring_available = False
-try:
-    monitoring_scheduler = importlib.import_module("collector.monitoring_scheduler").monitoring_scheduler
-    monitoring_available = True
-except ImportError:
-    try:
-        monitoring_scheduler = importlib.import_module("monitoring_scheduler").monitoring_scheduler
-        monitoring_available = True
-    except ImportError:
-        monitoring_scheduler = None
-
 
 # 로깅 설정
 def setup_logging():
@@ -67,7 +54,6 @@ class CollectorApplication:
         self.running = False
         self.health_server_thread = None
         self.startup_time = datetime.now()
-        self.monitoring_enabled = True  # 모니터링 활성화 플래그
 
     def start(self):
         """애플리케이션 시작"""

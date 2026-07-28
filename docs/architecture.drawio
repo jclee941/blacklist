@@ -639,10 +639,10 @@
         <mxCell id="cd-rel-build" value="&lt;b&gt;Multi-arch Build&lt;/b&gt;&#xa;linux/amd64&#xa;Docker Buildx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2e7d32;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="990" y="65" width="140" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-rel-push" value="&lt;b&gt;GHCR Push&lt;/b&gt;&#xa;ghcr.io/qws941/&#xa;blacklist-{service}:tag" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2e7d32;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-rel-push" value="&lt;b&gt;GHCR Push&lt;/b&gt;&#xa;ghcr.io/jclee941/&#xa;blacklist-{service}:tag" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2e7d32;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="1150" y="65" width="150" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-rel-notes" value="&lt;b&gt;Release Notes&lt;/b&gt;&#xa;release-drafter&#xa;Auto-changelog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2e7d32;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-rel-notes" value="&lt;b&gt;Release Notes&lt;/b&gt;&#xa;CHANGELOG.md&#xa;release.yml extraction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2e7d32;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="990" y="140" width="140" height="60" as="geometry" />
         </mxCell>
         <mxCell id="cd-rel-bundle" value="&lt;b&gt;Offline Bundle&lt;/b&gt;&#xa;docker save → tar.gz&#xa;For air-gapped deploy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;fontSize=11;align=center;" vertex="1" parent="1">
@@ -736,32 +736,32 @@
         <mxCell id="cd-auto-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#7b1fa2;strokeWidth=2;arcSize=8;" vertex="1" parent="1">
           <mxGeometry x="50" y="640" width="1270" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-label" value="&lt;b&gt;Automation &amp; Quality Gates&lt;/b&gt;  (from qws941/.github SSoT)" style="text;html=1;align=left;verticalAlign=top;fontSize=14;fontColor=#4a148c;" vertex="1" parent="1">
+        <mxCell id="cd-auto-label" value="&lt;b&gt;Automation &amp; Quality Gates&lt;/b&gt;  (repository-local GitHub Actions)" style="text;html=1;align=left;verticalAlign=top;fontSize=14;fontColor=#4a148c;" vertex="1" parent="1">
           <mxGeometry x="70" y="650" width="500" height="25" as="geometry" />
         </mxCell>
 
-        <mxCell id="cd-auto-commit" value="&lt;b&gt;commitlint&lt;/b&gt;&#xa;Conventional Commits&#xa;PR title check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-commit" value="&lt;b&gt;Branch to PR&lt;/b&gt;&#xa;Feature branch intake&#xa;Ready PR creation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="70" y="685" width="150" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-prsize" value="&lt;b&gt;pr-size&lt;/b&gt;&#xa;Diff labeling&#xa;xs → xl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-prsize" value="&lt;b&gt;PR Review&lt;/b&gt;&#xa;MiniMax review&#xa;Korean findings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="240" y="685" width="130" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-labeler" value="&lt;b&gt;labeler&lt;/b&gt;&#xa;Path-based labels&#xa;8 label rules" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-labeler" value="&lt;b&gt;Security&lt;/b&gt;&#xa;Trivy scan&#xa;Labeled audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="390" y="685" width="130" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-stale" value="&lt;b&gt;stale&lt;/b&gt;&#xa;14d + 5d&#xa;Auto-close" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-stale" value="&lt;b&gt;Dependabot&lt;/b&gt;&#xa;Safe update policy&#xa;Review major bumps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="540" y="685" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-merge" value="&lt;b&gt;auto-merge&lt;/b&gt;&#xa;Dependabot + Owner&#xa;Admin bypass" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-merge" value="&lt;b&gt;Auto-Merge&lt;/b&gt;&#xa;Dependabot + Human&#xa;No admin bypass" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="680" y="685" width="150" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-release" value="&lt;b&gt;release-drafter&lt;/b&gt;&#xa;Auto release notes&#xa;Category mapping" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-release" value="&lt;b&gt;CI Gate&lt;/b&gt;&#xa;Lint + Tests + E2E&#xa;Image scanning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="850" y="685" width="150" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-codex" value="&lt;b&gt;Codex&lt;/b&gt;&#xa;Auto-triage&#xa;@codex review" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-codex" value="&lt;b&gt;Release&lt;/b&gt;&#xa;Tag validation&#xa;Bundle + GHCR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7b1fa2;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="1020" y="685" width="130" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="cd-auto-sync" value="&lt;b&gt;sync-files&lt;/b&gt;&#xa;SSoT propagation&#xa;from .github repo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#f9a825;fontSize=11;align=center;" vertex="1" parent="1">
+        <mxCell id="cd-auto-sync" value="&lt;b&gt;Build Images&lt;/b&gt;&#xa;Five services&#xa;Reusable workflow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#f9a825;fontSize=11;align=center;" vertex="1" parent="1">
           <mxGeometry x="1170" y="685" width="130" height="60" as="geometry" />
         </mxCell>
 

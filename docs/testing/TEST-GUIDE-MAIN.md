@@ -2,21 +2,23 @@
 
 | 항목 | 내용 |
 |------|------|
-| **버전** | 3.5.68 |
-| **최종수정** | 2026-02-15 |
-| **테스트 합계** | 992+ tests (151+ files) |
+| **버전** | 4.1.0 |
+| **최종수정** | 2026-07-29 |
+| **범위** | Backend/collector Pytest, frontend Vitest, and Playwright scenarios |
 
 ---
 
 ## Quick Reference
 
-| Test Type | Framework | Files | Tests | Command | Time |
-|-----------|-----------|-------|-------|---------|------|
-| Backend Unit | Pytest | 107 | 785+ | `make test-backend-unit` | 1-2m |
-| Frontend Unit | Vitest | 44 | 207+ | `make test-frontend-unit` | 30s |
-| E2E | Playwright | 3+ | varies | `make test-e2e` | 5-10m |
-| Backend Coverage | Pytest+cov | 107 | 785+ | `make test-backend-coverage` | 2-3m |
-| **Total** | **Multiple** | **151+** | **992+** | **`make test`** | **10-15m** |
+| Test Type | Framework | Location | Command | Notes |
+|-----------|-----------|----------|---------|-------|
+| Backend Unit | Pytest | `tests/unit/` except `tests/unit/collector/` | `make test-backend-unit` | Enforces 80% app coverage |
+| Collector Unit | Pytest | `tests/unit/collector/` | `make test-collector-unit` | Uses the isolated collector import path |
+| Backend Integration | Pytest | `tests/integration/` | `make test-backend-integration` | Credential persistence scenarios |
+| Frontend Unit | Vitest | `frontend/__tests__/` | `make test-frontend-unit` | Runs Vitest once |
+| E2E | Playwright | `frontend/e2e/` | `make test-frontend-e2e` | Separate from `make test`; CI budget is 60 minutes |
+| Backend Coverage | Pytest+cov | application unit suite | `make test-backend-coverage` | Writes terminal, HTML, and XML reports |
+| **Unit + integration** | **Multiple** | **repository** | **`make test`** | **Backend, collector, integration, and Vitest; excludes Playwright** |
 
 ---
 
@@ -24,11 +26,11 @@
 
 - **Docker**: All services run in containers
 - **Make**: Build system (`make --version`)
-- **Node.js**: 20+ (for frontend tests)
+- **Node.js**: 24 (for frontend tests)
 - **Python**: 3.11 (in container)
 
 ```bash
-# Start all services (required for tests)
+# Start all services when running browser E2E scenarios
 make dev
 ```
 
@@ -39,7 +41,8 @@ make dev
 ### All Tests
 
 ```bash
-# Run entire test suite (backend + frontend)
+# Run backend, collector, integration, and frontend unit suites
+# Playwright E2E runs separately.
 make test
 ```
 
@@ -66,13 +69,15 @@ docker compose exec -T blacklist-app python -m pytest tests/unit -v --tb=short
 ```
 tests/
 ├── unit/
-│   ├── auth/           # JWT, middleware tests (8 files)
-│   ├── services/       # Service layer tests (14 files)
-│   ├── routes/         # API endpoint tests (25+ files)
-│   ├── database/       # Database layer tests
+│   ├── auth/           # JWT and middleware tests
+│   ├── services/       # Service layer tests
+│   ├── routes/         # API endpoint tests
+│   ├── common/         # Configuration tests
+│   ├── errors/         # Error-handler tests
+│   ├── monitoring/     # Metrics tests
 │   ├── utils/          # Utility tests
 │   ├── collector/      # Collector unit tests
-│   └── ...             # 107 files total
+│   └── ...             # Other focused unit-test domains
 ```
 
 ### Frontend Unit Tests (Vitest)
@@ -94,11 +99,12 @@ cd frontend && npm run test -- --watch
 **Test locations:**
 ```
 frontend/
-├── __tests__/          # 44 test files (207+ tests)
+├── __tests__/          # Vitest unit tests
+│   ├── clients/        # Client component tests
 │   ├── components/     # Component tests
 │   ├── hooks/          # Hook tests
 │   ├── lib/            # Utility tests
-│   └── app/            # Page tests
+│   └── pages/          # Page tests
 └── vitest.config.ts    # Vitest configuration
 ```
 
@@ -106,11 +112,11 @@ frontend/
 
 ```bash
 # Full E2E suite
-make test-e2e
+E2E_USERNAME=admin E2E_PASSWORD='<test-password>' make test-frontend-e2e
 
 # Specific browser
 cd frontend && npx playwright test --project=chromium
-cd frontend && npx playwright test --project=webkit
+cd frontend && WEBKIT_ENABLED=true npx playwright test --project=webkit
 
 # Headed mode (see browser)
 cd frontend && npx playwright test --headed
@@ -121,9 +127,8 @@ cd frontend && npx playwright test --debug
 
 **Test locations:**
 ```
-frontend/e2e/
-├── smoke/              # Smoke tests (health, basic nav)
-├── regression/         # Regression test suites
+frontend/
+├── e2e/                # Feature, smoke, regression, and visual scenarios
 └── playwright.config.ts
 ```
 
@@ -170,9 +175,9 @@ describe('Dashboard', () => {
 
 ### E2E (Playwright)
 
-- Tests run against `https://localhost` (frontend with SSL)
-- Chromium and WebKit browsers
-- Smoke tests gate the full suite in CI
+- CI tests run against `https://localhost:3443` through the frontend proxy.
+- Chromium runs by default; WebKit requires `WEBKIT_ENABLED=true` and is enabled in CI.
+- The E2E job runs the configured browser matrix as one workflow job.
 
 ---
 
@@ -186,8 +191,9 @@ Push/PR to master
   → lint-backend (Ruff) + lint-frontend (tsc)
   → test-backend (pytest) + test-frontend (vitest)    ← parallel
   → build (Docker images)
-  → e2e-smoke → e2e-chromium → e2e-webkit             ← sequential
-  → push-images (GHCR)
+  → build (Docker images) → e2e + image scans
+  → ci-gate (aggregate internal CI result)
+  → push-images (GHCR, master only)
 ```
 
 ### Coverage Requirements

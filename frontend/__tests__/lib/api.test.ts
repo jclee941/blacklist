@@ -25,9 +25,7 @@ const mocks = vi.hoisted(() => {
     },
   };
 
-  const axiosGet = vi.fn();
-
-  return { apiInstance, collectionInstance, axiosGet };
+  return { apiInstance, collectionInstance };
 });
 
 vi.mock('axios', () => {
@@ -39,7 +37,6 @@ vi.mock('axios', () => {
   return {
     default: {
       create,
-      get: mocks.axiosGet,
     },
   };
 });
@@ -48,7 +45,6 @@ import {
   addIP,
   deleteIP,
   exportBlacklistRaw,
-  getAuthStatus,
   getBlacklist,
   getBlacklistStats,
   getCollectionHistory,
@@ -61,7 +57,6 @@ import {
   getDatabaseTables,
   getFortinetBlocklist,
   getFortinetPullLogs,
-  getHealth,
   getSettingsGrouped,
   getStats,
   getSystemStatus,
@@ -300,7 +295,6 @@ describe('lib/api', () => {
       await getCredential('regtech');
       await getDatabaseTables();
       await getDatabaseSchema();
-      await getAuthStatus();
       await getDailyDetectionStats();
       await getDailyDetectionStats(7);
       await getSettingsGrouped();
@@ -318,19 +312,15 @@ describe('lib/api', () => {
       expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(7, '/schema');
       expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
         8,
-        '/proxy/collection/credentials/regtech'
-      );
-      expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
-        9,
         '/analytics/detection-timeline?days=30'
       );
       expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
-        10,
+        9,
         '/analytics/detection-timeline?days=7'
       );
-      expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(11, '/settings/grouped');
+      expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(10, '/settings/grouped');
       expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
-        12,
+        11,
         '/proxy/collection/credentials/cloudflare'
       );
     });
@@ -431,13 +421,6 @@ describe('lib/api', () => {
         data: { success: true, data: { blocklist: '1.1.1.1' } },
         headers: { 'content-type': 'application/json' },
       });
-    });
-
-    it('uses top-level axios for health endpoint', async () => {
-      mocks.axiosGet.mockResolvedValueOnce({ data: { status: 'ok' } });
-
-      await expect(getHealth()).resolves.toEqual({ status: 'ok' });
-      expect(mocks.axiosGet).toHaveBeenCalledWith('/health');
     });
   });
 

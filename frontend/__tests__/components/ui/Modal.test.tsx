@@ -35,6 +35,36 @@ describe('Modal', () => {
     });
   });
 
+  describe('dialog accessibility', () => {
+    it('traps focus in the dialog and restores the triggering focus when closed', () => {
+      const trigger = document.createElement('button');
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const { unmount } = render(
+        <Modal {...defaultProps} title="Test Title">
+          <button type="button">First action</button>
+          <button type="button">Last action</button>
+        </Modal>
+      );
+
+      const dialog = screen.getByRole('dialog');
+      const closeButton = screen.getByLabelText('Close');
+      const lastAction = screen.getByRole('button', { name: 'Last action' });
+
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-labelledby');
+
+      lastAction.focus();
+      fireEvent.keyDown(lastAction, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+
+      unmount();
+      expect(trigger).toHaveFocus();
+      trigger.remove();
+    });
+  });
+
   describe('title', () => {
     it('renders title when provided', () => {
       render(<Modal {...defaultProps} title="Test Title" />);
@@ -101,7 +131,7 @@ describe('Modal', () => {
       const { unmount } = render(<Modal {...defaultProps} />);
       expect(document.body.style.overflow).toBe('hidden');
       unmount();
-      expect(document.body.style.overflow).toBe('unset');
+      expect(document.body.style.overflow).toBe('');
     });
   });
 

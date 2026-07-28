@@ -1,8 +1,6 @@
 # TESTS KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Version:** `4.1.0`
 
 ## OVERVIEW
 
@@ -13,18 +11,15 @@ Multi-layer testing: pytest (backend) + Vitest (frontend unit) + Playwright (E2E
 ```text
 tests/
 ├── unit/
-│   ├── routes/       # 43 test files
-│   ├── services/     # 28 test files
-│   ├── collector/    # 24 test files
-│   ├── utils/        # 14 test files
-│   ├── auth/         # 4 test files
-│   ├── monitoring/   # 4 test files
-│   ├── common/       # 2 test files
-│   ├── errors/       # 1 test file
-│   └── smoke/        # 1 smoke test
-├── integration/      # 1 integration test
-├── e2e/              # 6 Playwright specs + 42 snapshots
-└── mock-fortigate/   # standalone Flask mock (320L) + Dockerfile
+│   ├── routes/       # Flask route tests
+│   ├── services/     # application service tests
+│   ├── collector/    # isolated collector tests
+│   ├── utils/        # shared utility tests
+│   ├── auth/         # JWT and middleware tests
+│   ├── monitoring/   # metrics tests
+│   ├── common/       # configuration tests
+│   └── errors/       # error-handler tests
+└── integration/      # credential persistence integration tests
 ```
 
 ## CONFIG
@@ -37,7 +32,7 @@ tests/
 
 - File naming: `test_*.py` (pytest), `*.test.tsx` (Vitest), `*.spec.ts` (Playwright).
 - Credentials: `MOCK_CREDENTIALS` from `test_config.py` — never real credentials.
-- E2E timeout: 60s. Multi-browser snapshots.
+- Playwright tests live in `frontend/e2e/` and use Chromium plus optional WebKit.
 - E2E regression format: `issue-{NUMBER}-{description}.spec.ts` with `PROBLEM`/`ROOT CAUSE`/`FIX` comments.
 
 ## ANTI-PATTERNS
@@ -51,7 +46,7 @@ tests/
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `unit/routes/` | directory | `unit/routes/` | high | 43 test files covering all API endpoints |
-| `unit/services/` | directory | `unit/services/` | high | 28 test files covering service layer |
-| `unit/collector/` | directory | `unit/collector/` | high | 24 test files covering ETL pipelines |
-| `e2e/` | directory | `e2e/` | med | 6 Playwright specs + 42 snapshots |
+| `unit/routes/` | directory | `unit/routes/` | high | Flask route and API contract tests |
+| `unit/services/` | directory | `unit/services/` | high | application service tests |
+| `unit/collector/` | directory | `unit/collector/` | high | isolated collector and ETL tests |
+| `frontend/e2e/` | directory | `frontend/e2e/` | med | Playwright browser scenarios and snapshots |

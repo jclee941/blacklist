@@ -47,6 +47,9 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 memory_handler.setFormatter(formatter)
 logger.addHandler(memory_handler)
 
+_background_tasks_lock = threading.Lock()
+_background_tasks_started = False
+
 
 def create_app():
     """Create Flask application instance"""
@@ -132,8 +135,9 @@ def create_app():
             app.extensions[service_name] = service_instance
 
         app.logger.info(f"✅ Initialized {len(services)}/15 services via dependency injection")
-    except Exception as e:
-        app.logger.error(f"❌ Service initialization failed: {e}")
+    except Exception:
+        app.logger.exception("❌ Service initialization failed")
+        raise
 
     # Enable Gzip compression
     app.config["COMPRESS_ALGORITHM"] = "gzip"
@@ -332,16 +336,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Proxy API routes failed: {e}")
 
-    # 5. Credentials API
-    # DISABLED: Redundant with api/collection.py which implements secure credential handling
-    # try:
-    #     from .routes.web.credentials_routes import credentials_bp
-    #
-    #     csrf.exempt(credentials_bp)
-    #     app.register_blueprint(credentials_bp, name="credentials_web")
-    # except Exception as e:
-    #     app.logger.error(f"❌ Credentials API routes failed: {e}")
-
     # Register error handlers
     try:
         from .errors.handlers import register_error_handlers
@@ -460,17 +454,11 @@ def create_app():
             check_collector_health()
             start_background_tasks()
 
-    threading.Thread(target=delayed_background_start, daemon=True).start()
-
-    # Credentials API Routes
-    # Already registered above in section 5
-    # try:
-    #     from .routes.web.credentials_routes import credentials_bp
-    #
-    #     csrf.exempt(credentials_bp)
-    #     app.register_blueprint(credentials_bp)
-    # except Exception as e:
-    #     app.logger.error(f"Credentials API routes failed: {e}")
+    global _background_tasks_started
+    with _background_tasks_lock:
+        if not _background_tasks_started:
+            threading.Thread(target=delayed_background_start, daemon=True).start()
+            _background_tasks_started = True
 
     return app
 

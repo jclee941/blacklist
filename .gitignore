@@ -34,6 +34,8 @@ docker-compose.override.yml
 # ============================================================================
 node_modules/
 frontend/.next/
+frontend/.open-next/
+frontend/.vercel/
 frontend-source/
 frontend/coverage/
 frontend/test-results/
@@ -81,6 +83,9 @@ docs/*
 !docs/README.md
 !docs/MONOREPO_STRUCTURE.md
 !docs/OPERATOR_MIGRATION_GUIDE.md
+!docs/manual/
+docs/manual/*
+!docs/manual/blacklist-*-release-notes.md
 
 # Analysis documents (never track)
 ANALYSIS*.md

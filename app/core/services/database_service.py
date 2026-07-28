@@ -12,6 +12,9 @@ import time
 from ..config import config
 from ..utils.logger_config import db_logger as logger
 
+MAX_STARTUP_RETRIES = 5
+MAX_STARTUP_BACKOFF_SECONDS = 1.0
+
 
 class DatabaseService:
     """Database service with connection pooling and retry logic for dependency resilience"""
@@ -27,8 +30,14 @@ class DatabaseService:
         else:
             self._initialize_pool_with_retry(max_retries=self.max_retries, base_delay=self.base_delay)
 
-    def _initialize_pool_with_retry(self, max_retries: int = 10, base_delay: float = 2.0):
+    def _initialize_pool_with_retry(
+        self,
+        max_retries: int = MAX_STARTUP_RETRIES,
+        base_delay: float = MAX_STARTUP_BACKOFF_SECONDS,
+    ):
         """Initialize connection pool with exponential backoff retry for Watchtower resilience"""
+        max_retries = min(max_retries, MAX_STARTUP_RETRIES)
+        base_delay = min(base_delay, MAX_STARTUP_BACKOFF_SECONDS)
         retry_count = 0
 
         while retry_count < max_retries:
@@ -292,7 +301,7 @@ class DatabaseService:
 
                 cursor.execute(
                     """
-                    SELECT service_name, username, password, config, created_at, updated_at
+                    SELECT service_name, username, password, config, encrypted, created_at, updated_at
                     FROM collection_credentials
                     WHERE service_name = %s AND is_active = true
                 """,
@@ -309,9 +318,13 @@ class DatabaseService:
                         username,
                         password,
                         config,
+                        encrypted,
                         created_at,
                         updated_at,
                     ) = result
+                    if encrypted:
+                        logger.error("Encrypted credentials could not be decrypted for %s", service_name)
+                        return {"error": "Encrypted credentials could not be decrypted"}
                     return {
                         "service_name": service_name_db,
                         "username": username or "",

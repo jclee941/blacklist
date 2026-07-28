@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 
@@ -54,6 +54,24 @@ class TestDatabaseService:
                 service._initialize_pool_with_retry(max_retries=2, base_delay=0.01)
 
         assert sleep.call_count == 1
+
+    def test_initialize_pool_with_retry_caps_startup_backoff_budget(self, monkeypatch):
+        monkeypatch.delenv("TESTING", raising=False)
+
+        with patch.object(DatabaseService, "_initialize_pool_with_retry"):
+            service = DatabaseService()
+
+        with (
+            patch(
+                "app.core.services.database_service.pool.ThreadedConnectionPool",
+                side_effect=Exception("db down"),
+            ),
+            patch("app.core.services.database_service.time.sleep") as sleep,
+        ):
+            with pytest.raises(Exception, match="db down"):
+                service._initialize_pool_with_retry(max_retries=100, base_delay=100)
+
+        assert sleep.call_args_list == [call(1.0), call(2.0), call(4.0), call(8.0)]
 
     def test_get_connection_reinitializes_pool_when_missing(self):
         with patch.object(DatabaseService, "_initialize_pool_with_retry"):

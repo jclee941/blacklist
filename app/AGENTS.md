@@ -1,9 +1,5 @@
 # APP KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
-
 ## OVERVIEW
 
 Flask API runtime on :2542. App factory pattern via `create_app()` in `core/app.py`.
@@ -14,9 +10,9 @@ Flask API runtime on :2542. App factory pattern via `create_app()` in `core/app.
 app/
 ├── run_app.py              # entry point, PORT=2542
 ├── core/
-│   ├── app.py              # factory + middleware (479L, complexity 39.91)
-│   ├── config.py           # AppConfig: 48 @property → os.getenv()
-│   ├── services/           # 14 services, ServiceFactory DI
+│   ├── app.py              # factory + middleware
+│   ├── config.py           # AppConfig environment mapping
+│   ├── services/           # application services and ServiceFactory DI
 │   ├── routes/api/         # REST JSON (RFC 7807 errors)
 │   ├── routes/web/         # Jinja2 legacy Korean admin
 │   ├── auth/               # JWT (DISABLED at app.py:155)
@@ -34,7 +30,7 @@ app/
 | --------------------- | -------- | ------------------------------------- | ---- | --------------------------------------- |
 | `create_app`          | function | `core/app.py:51`                      | high | app factory + middleware chain          |
 | `initialize_services` | function | `core/services/service_factory.py:37` | high | DI container startup, strict init order |
-| `AppConfig`           | class    | `core/config.py`                      | high | 48-property env config mapping          |
+| `AppConfig`           | class    | `core/config.py`                      | high | environment-backed config mapping       |
 
 Service-level symbols in `core/services/AGENTS.md`.
 
@@ -48,17 +44,14 @@ Service-level symbols in `core/services/AGENTS.md`.
 | Config properties        | `core/config.py`                   | DB, Redis, URLs, Secrets, Admin, JWT, Collection |
 | DI container             | `core/services/service_factory.py` | strict init order, `current_app.extensions[...]`      |
 
-## COMPLEXITY HOTSPOTS
+## MAINTENANCE HOTSPOTS
 
-| File                                         | LOC | Concern                         |
-| -------------------------------------------- | --- | ------------------------------- |
-| `core/app.py`                                | 479 | cognitive complexity 39.91      |
-| `core/routes/api/system_api.py`              | 648 | system status endpoints         |
-| `core/services/secure_credential_service.py` | 624 | AES-256-GCM credential storage  |
-| `core/routes/web/admin.py`                   | 620 | RegTech credential management   |
-| `core/routes/web/collection_panel.py`        | 603 | collection UI + CSRF-exempt API |
-| `core/services/collection_service.py`        | 596 | collection orchestration        |
-| `core/services/blacklist_service.py`         | 534 | complexity 39.43                |
+| File                                         | Concern                        |
+| -------------------------------------------- | ------------------------------ |
+| `core/app.py`                                | app factory and middleware     |
+| `core/services/secure_credential_service.py` | encrypted credential storage   |
+| `core/services/collection_service.py`        | collection orchestration       |
+| `core/services/blacklist_service.py`         | blacklist query and mutation   |
 
 ## ANTI-PATTERNS
 
@@ -68,6 +61,5 @@ Service-level symbols in `core/services/AGENTS.md`.
 
 ## NOTES
 
-- JWT middleware DISABLED at `core/app.py:154-156` (internal deployment).
-- 3 rate limiter instances (Flask-Limiter ×2) identified for future consolidation.
+- Global JWT enforcement is disabled; token endpoints remain available.
 - Middleware chain: `csrf_protect_web_only` → `generate_request_id` → `add_security_headers` → `compress_response`.

@@ -10,7 +10,7 @@ Tests cover:
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 from app.core.services.blacklist_service import BlacklistService
 from app.core.testing_app import create_app
@@ -202,6 +202,13 @@ class TestDecisionLogging:
         # Assert
         mock_metrics.labels.assert_called_once_with(decision="BLOCKED", reason="malware")
         mock_label_instance.inc.assert_called_once()
+
+    @patch("app.core.services.blacklist_service.logger")
+    def test_log_decision_uses_timezone_aware_utc_timestamp(self, mock_logger, blacklist_service):
+        blacklist_service.log_decision("192.168.1.1", "BLOCKED", "malware")
+
+        timestamp = mock_logger.info.call_args.kwargs["timestamp"]
+        assert datetime.fromisoformat(timestamp).tzinfo == timezone.utc
 
     def test_log_decision_includes_metadata(self, blacklist_service):
         """Test log_decision includes optional metadata"""

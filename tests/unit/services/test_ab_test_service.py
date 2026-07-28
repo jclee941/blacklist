@@ -1,5 +1,7 @@
 """Tests for core.services.ab_test_service"""
 
+from datetime import datetime, timezone
+
 from core.services.ab_test_service import ABTestService
 
 
@@ -52,6 +54,7 @@ class TestABTestService:
         assert "features" in result
         assert "timestamp" in result
         assert result["features"] == svc.FEATURE_FLAGS
+        assert datetime.fromisoformat(result["timestamp"]).tzinfo == timezone.utc
 
     def test_update_feature_percentage_success(self):
         svc = self._make_service()

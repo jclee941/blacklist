@@ -7,8 +7,9 @@
 import json
 import logging
 import os
+from binascii import Error as BinasciiError
 from pathlib import Path
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 import base64
 from datetime import datetime
 
@@ -241,11 +242,21 @@ class CredentialService:
             if result:
                 json_str, updated_at = result
 
-                # 평문 JSON으로 저장된 데이터 직접 파싱
-                credentials = json.loads(json_str)
-
-                logger.info(f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}")
-                return credentials
+                try:
+                    encrypted_data = base64.b64decode(json_str.encode(), validate=True)
+                    decrypted_data = self.cipher_suite.decrypt(encrypted_data)
+                    credentials = json.loads(decrypted_data.decode())
+                except (BinasciiError, InvalidToken, UnicodeDecodeError, json.JSONDecodeError):
+                    try:
+                        credentials = json.loads(json_str)
+                    except json.JSONDecodeError:
+                        logger.warning("Credential database record could not be decrypted; trying file backup")
+                    else:
+                        logger.info(f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}")
+                        return credentials
+                else:
+                    logger.info(f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}")
+                    return credentials
 
         except Exception as db_error:
             logger.warning(f"⚠️ 데이터베이스 로드 실패, 파일에서 시도: {db_error}")

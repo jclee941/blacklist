@@ -246,18 +246,6 @@ export const triggerCollectionService = async (
   return data;
 };
 
-// 시스템 상태 API
-export const getHealth = async () => {
-  const { data } = await axios.get('/health');
-  return data;
-};
-
-// 인증 상태 API
-export const getAuthStatus = async () => {
-  const { data } = await api.get('/proxy/collection/credentials/regtech');
-  return data;
-};
-
 // 일별 탐지 통계 API
 export const getDailyDetectionStats = async (days: number = 30) => {
   const { data } = await api.get(`/analytics/detection-timeline?days=${days}`);

@@ -104,6 +104,14 @@ describe('SettingsPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('exposes the automatic deactivation toggle with its accessible state', async () => {
+    render(<SettingsPage />);
+
+    expect(
+      await screen.findByRole('switch', { name: '해제일 경과 IP 자동 비활성화' })
+    ).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('shows system settings fields', () => {
     render(<SettingsPage />);
     expect(screen.getByText('\uc218\uc9d1 \uc8fc\uae30 (\uc2dc\uac04)')).toBeInTheDocument();
@@ -140,6 +148,22 @@ describe('SettingsPage', () => {
       expect(screen.getByText('\uc54c\ub9bc \uc124\uc815')).toBeInTheDocument();
       expect(screen.getByText('\uc774\uba54\uc77c \uc54c\ub9bc')).toBeInTheDocument();
       expect(screen.getByText('Slack \uc54c\ub9bc')).toBeInTheDocument();
+    });
+  });
+
+  it('exposes notification toggles with accessible names and states', async () => {
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByText('알림'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('switch', { name: '이메일 알림' })).toHaveAttribute(
+        'aria-checked',
+        'false'
+      );
+      expect(screen.getByRole('switch', { name: 'Slack 알림' })).toHaveAttribute(
+        'aria-checked',
+        'false'
+      );
     });
   });
 

@@ -15,7 +15,7 @@ import {
   Loader2,
   BarChart3,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   getStats,
@@ -47,6 +47,7 @@ export default function Dashboard() {
   const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
   const [collectionStatus, setCollectionStatus] = useState<CollectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const isCollectionStatusRequestInFlight = useRef(false);
 
   useEffect(() => {
     fetchStats();
@@ -157,6 +158,9 @@ export default function Dashboard() {
   };
 
   const fetchCollectionStatus = async () => {
+    if (isCollectionStatusRequestInFlight.current) return;
+
+    isCollectionStatusRequestInFlight.current = true;
     try {
       const response = await getCollectionStatus();
       if (response && response.success && response.data) {
@@ -164,6 +168,8 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Failed to fetch collection status:', error);
+    } finally {
+      isCollectionStatusRequestInFlight.current = false;
     }
   };
 

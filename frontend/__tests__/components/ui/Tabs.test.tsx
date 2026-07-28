@@ -86,6 +86,37 @@ describe('Tabs', () => {
       fireEvent.click(screen.getByText('Tab 3'));
       expect(onChange).toHaveBeenCalledWith('tab3');
     });
+
+    it('moves focus and selects the next tab with ArrowRight', () => {
+      const onChange = vi.fn();
+      render(<Tabs {...defaultProps} onChange={onChange} />);
+
+      const firstTab = screen.getByRole('tab', { name: 'Tab 1' });
+      const secondTab = screen.getByRole('tab', { name: 'Tab 2' });
+      firstTab.focus();
+      fireEvent.keyDown(firstTab, { key: 'ArrowRight' });
+
+      expect(onChange).toHaveBeenCalledWith('tab2');
+      expect(secondTab).toHaveFocus();
+    });
+  });
+
+  describe('tabpanel linkage', () => {
+    it('links the active tab to its labelled panel', () => {
+      render(
+        <>
+          <Tabs {...defaultProps} />
+          <section id="panel-tab1" role="tabpanel" aria-labelledby="tab-tab1" />
+        </>
+      );
+
+      const activeTab = screen.getByRole('tab', { name: 'Tab 1' });
+      const panel = screen.getByRole('tabpanel');
+
+      expect(activeTab).toHaveAttribute('id', 'tab-tab1');
+      expect(activeTab).toHaveAttribute('aria-controls', panel.id);
+      expect(panel).toHaveAttribute('aria-labelledby', activeTab.id);
+    });
   });
 
   describe('variants', () => {

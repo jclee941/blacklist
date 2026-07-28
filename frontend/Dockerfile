@@ -9,24 +9,9 @@
 # ============================================================================
 
 # ============================================================================
-# STAGE 1: Production Dependencies Only
+# STAGE 1: Build Stage
 # ============================================================================
-FROM node:20-alpine AS deps
-WORKDIR /app
-
-COPY frontend/package*.json ./
-
-RUN set -e && \
-    for i in 1 2 3; do \
-        if npm ci --only=production; then break; \
-        else echo "Attempt $i failed, retrying..." && sleep 10; fi; \
-        [ $i -eq 3 ] && exit 1; \
-    done
-
-# ============================================================================
-# STAGE 2: Build Stage
-# ============================================================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY frontend/package*.json ./
@@ -45,9 +30,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ============================================================================
-# STAGE 3: Production Runtime
+# STAGE 2: Production Runtime
 # ============================================================================
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

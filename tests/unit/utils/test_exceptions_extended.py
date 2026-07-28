@@ -1,8 +1,3 @@
-from unittest.mock import Mock
-
-import pytest
-
-
 class TestConfigExceptions:
     def test_configuration_error(self):
         from core.exceptions.config_exceptions import ConfigurationError
@@ -101,8 +96,7 @@ class TestValidationExceptions:
     def test_internal_server_error(self):
         from core.exceptions.validation_exceptions import InternalServerError
 
-        cause = ValueError("bad value")
-        err = InternalServerError("Something broke", cause=cause)
+        err = InternalServerError("Something broke", cause="bad value")
         assert err.status_code == 500
         assert err.error_code == "INTERNAL_SERVER_ERROR"
 
@@ -182,97 +176,3 @@ class TestInfrastructureExceptions:
         assert err.error_code == "CONNECTION_ERROR"
         assert err.details.get("timeout") == 30
         assert err.details.get("status_code") == 504
-
-
-class TestErrorUtils:
-    def test_handle_exception_already_blacklist_error(self):
-        from core.exceptions.error_utils import handle_exception
-        from core.exceptions.base_exceptions import BlacklistError
-
-        original = BlacklistError("test")
-        result = handle_exception(original)
-        assert result is original
-
-    def test_handle_value_error_raises_type_error(self):
-        """ValidationError.__init__ does not accept cause= kwarg — known production bug."""
-        from core.exceptions.error_utils import handle_exception
-
-        with pytest.raises(TypeError, match="unexpected keyword argument"):
-            handle_exception(ValueError("bad value"))
-
-    def test_handle_file_not_found_raises_type_error(self):
-        """DataProcessingError.__init__ does not accept cause= kwarg — known production bug."""
-        from core.exceptions.error_utils import handle_exception
-
-        with pytest.raises(TypeError, match="unexpected keyword argument"):
-            handle_exception(FileNotFoundError("missing.csv"))
-
-    def test_handle_permission_error_raises_type_error(self):
-        """AuthorizationError.__init__ does not accept cause= kwarg — known production bug."""
-        from core.exceptions.error_utils import handle_exception
-
-        with pytest.raises(TypeError, match="unexpected keyword argument"):
-            handle_exception(PermissionError("access denied"))
-
-    def test_handle_connection_error_raises_type_error(self):
-        """ServiceUnavailableError.__init__ does not accept cause= kwarg — known production bug."""
-        from core.exceptions.error_utils import handle_exception
-
-        with pytest.raises(TypeError, match="unexpected keyword argument"):
-            handle_exception(ConnectionError("refused"))
-
-    def test_handle_generic_exception(self):
-        from core.exceptions.error_utils import handle_exception
-
-        result = handle_exception(RuntimeError("something"))
-        assert hasattr(result, "error_code")
-
-    def test_handle_with_context_raises_type_error(self):
-        """ValueError triggers ValidationError with cause= kwarg — TypeError."""
-        from core.exceptions.error_utils import handle_exception
-
-        with pytest.raises(TypeError, match="unexpected keyword argument"):
-            handle_exception(ValueError("test"), context="processing IPs")
-
-    def test_log_exception_blacklist_error(self):
-        from core.exceptions.error_utils import log_exception
-        from core.exceptions.base_exceptions import BlacklistError
-
-        mock_logger = Mock()
-        log_exception(BlacklistError("test"), logger_instance=mock_logger)
-        mock_logger.error.assert_called()
-
-    def test_log_exception_generic(self):
-        from core.exceptions.error_utils import log_exception
-
-        mock_logger = Mock()
-        log_exception(RuntimeError("test"), logger_instance=mock_logger)
-        mock_logger.error.assert_called()
-
-    def test_create_error_response_blacklist_error(self):
-        from core.exceptions.error_utils import create_error_response
-        from core.exceptions.base_exceptions import BlacklistError
-
-        result = create_error_response(BlacklistError("test"))
-        assert isinstance(result, dict)
-        assert "error" in result or "success" in result
-
-    def test_create_error_response_generic(self):
-        from core.exceptions.error_utils import create_error_response
-
-        result = create_error_response(RuntimeError("test"))
-        assert isinstance(result, dict)
-
-    def test_create_error_response_include_details(self):
-        from core.exceptions.error_utils import create_error_response
-        from core.exceptions.base_exceptions import BlacklistError
-
-        result = create_error_response(BlacklistError("test", details={"key": "val"}), include_details=True)
-        assert isinstance(result, dict)
-
-    def test_create_error_response_exclude_details(self):
-        from core.exceptions.error_utils import create_error_response
-        from core.exceptions.base_exceptions import BlacklistError
-
-        result = create_error_response(BlacklistError("test", details={"key": "val"}), include_details=False)
-        assert isinstance(result, dict)

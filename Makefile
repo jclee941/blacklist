@@ -4,6 +4,7 @@
 
 # Default environment
 ENV ?= development
+PYTHON ?= python3
 
 # Docker Compose Configuration
 COMPOSE_FILE := deploy/docker-compose.yml
@@ -122,9 +123,10 @@ health: ## Check health of all services
 	@curl -s http://localhost:${PORT:-2542}/health | python3 -m json.tool || echo "❌ Application not responding"
 
 # Testing
-test: ## Run all tests (backend + frontend)
+test: ## Run backend, collector, integration, and frontend unit tests
 	@echo "🧪 Running all tests..."
 	@$(MAKE) test-backend
+	@$(MAKE) test-collector-unit
 	@$(MAKE) test-frontend
 	@echo "✅ All tests completed"
 
@@ -136,19 +138,19 @@ test-backend: ## Run backend tests (unit + integration)
 
 test-backend-unit: ## Run backend unit tests
 	@echo "🧪 Running backend unit tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app env COVERAGE_FILE=/tmp/.coverage python -m pytest tests/unit -v --cov=app/core --cov-report=term --cov-report=html:htmlcov
+	@PYTHONPATH=app COVERAGE_FILE=/tmp/blacklist-app.coverage $(PYTHON) -m pytest tests/unit --ignore=tests/unit/collector -v --cov=app/core --cov-report=term --cov-report=html:htmlcov --cov-fail-under=80
 
 test-collector-unit: ## Run collector unit tests
 	@echo "🧪 Running collector unit tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-collector python -m pytest /app/tests/unit -v
+	@PYTHONPATH=collector $(PYTHON) -m pytest tests/unit/collector -v -o 'pythonpath=["collector"]'
 
 test-backend-integration: ## Run backend integration tests
 	@echo "🧪 Running backend integration tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/integration -v
+	@PYTHONPATH=app $(PYTHON) -m pytest tests/integration -v
 
 test-backend-coverage: ## Run backend tests with coverage report
 	@echo "🧪 Running backend tests with coverage..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v \
+	@PYTHONPATH=app COVERAGE_FILE=/tmp/blacklist-app.coverage $(PYTHON) -m pytest tests/unit --ignore=tests/unit/collector -v \
 		--cov=app/core \
 		--cov-report=term \
 		--cov-report=html:htmlcov \
@@ -156,8 +158,8 @@ test-backend-coverage: ## Run backend tests with coverage report
 		--cov-fail-under=80
 	@echo "📊 Coverage report generated in htmlcov/"
 
-test-frontend: ## Run frontend tests (unit + E2E)
-	@echo "🧪 Running frontend tests..."
+test-frontend: ## Run frontend unit tests
+	@echo "🧪 Running frontend unit tests..."
 	@cd frontend && npm run test
 	@echo "✅ Frontend tests completed"
 
@@ -173,46 +175,47 @@ test-frontend-coverage: ## Run frontend tests with coverage
 	@echo "🧪 Running frontend tests with coverage..."
 	@cd frontend && npm run test:coverage
 
-test-watch: ## Run backend tests in watch mode
-	@echo "🧪 Running tests in watch mode..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v --watch
-
 test-quick: ## Run quick smoke tests only
 	@echo "🧪 Running quick smoke tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/unit -v -k "test_health or test_check" --no-cov
+	@PYTHONPATH=app $(PYTHON) -m pytest tests/unit --ignore=tests/unit/collector -v -k "test_health or test_check" --no-cov
 
 test-security: ## Run security-focused tests
 	@echo "🔒 Running security tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m security
+	@PYTHONPATH=app $(PYTHON) -m pytest tests/ --ignore=tests/unit/collector -v -m security
 
 test-db: ## Run database-related tests
 	@echo "💾 Running database tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m db
+	@PYTHONPATH=app $(PYTHON) -m pytest tests/ --ignore=tests/unit/collector -v -m db
 
 test-api: ## Run API endpoint tests
 	@echo "🌐 Running API tests..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m api
+	@PYTHONPATH=app $(PYTHON) -m pytest tests/ --ignore=tests/unit/collector -v -m api
 
-test-all-markers: ## Run all tests by marker (unit, integration, e2e, slow, db, security, api, cache, asyncio)
+test-all-markers: ## Run registered Python markers and fail on test errors
 	@echo "🧪 Running all test markers..."
-	@echo "📋 Unit tests:"
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m unit --no-cov || true
-	@echo ""
-	@echo "📋 Integration tests:"
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m integration --no-cov || true
-	@echo ""
-	@echo "📋 E2E tests:"
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m e2e --no-cov || true
-	@echo ""
-	@echo "📋 Security tests:"
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m security --no-cov || true
-	@echo ""
-	@echo "📋 API tests:"
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v -m api --no-cov || true
+	@set -e; \
+	run_marker() { \
+		label="$$1"; marker="$$2"; \
+		echo "📋 $$label tests:"; \
+		set +e; \
+		PYTHONPATH=app $(PYTHON) -m pytest tests/ --ignore=tests/unit/collector -v -m "$$marker" --no-cov; \
+		status=$$?; \
+		set -e; \
+		if [ $$status -eq 5 ]; then \
+			echo "ℹ️ No $$label tests collected"; \
+		elif [ $$status -ne 0 ]; then \
+			exit $$status; \
+		fi; \
+	}; \
+	run_marker "Unit" unit; \
+	run_marker "Integration" integration; \
+	run_marker "Security" security; \
+	run_marker "Database" db; \
+	run_marker "API" api
 
 test-ci: ## Run tests in CI/CD mode (with coverage and reports)
 	@echo "🤖 Running tests in CI/CD mode..."
-	@$(COMPOSE_CMD) exec -T blacklist-app python -m pytest tests/ -v \
+	@PYTHONPATH=app COVERAGE_FILE=/tmp/blacklist-app.coverage $(PYTHON) -m pytest tests/unit --ignore=tests/unit/collector -v \
 		--cov=app/core \
 		--cov-report=term \
 		--cov-report=html:htmlcov \

@@ -58,25 +58,13 @@ export function IPManagementFilters({
         </select>
       )}
 
-      {activeTab === 'unified' && (
-        <select
-          value={filterSource}
-          onChange={(e) => onFilterSourceChange(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg"
-        >
-          <option value="">소스 전체</option>
-          <option value="REGTECH">REGTECH</option>
-          <option value="MANUAL">수동등록</option>
-        </select>
-      )}
-
       <div className="flex items-center gap-2 flex-1 max-w-md">
         <input
           type="text"
           placeholder="IP 주소 검색..."
           value={searchIP}
           onChange={(e) => onSearchIPChange(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && onSearch()}
+          onKeyDown={(e) => e.key === 'Enter' && onSearch()}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
         />
         <button
