@@ -20,6 +20,7 @@ from .operations import (
     run_collection,
     run_daily_collection,
     run_manual_collection,
+    UNBOUNDED_PAGES,
 )
 
 
@@ -145,9 +146,15 @@ class CollectionScheduler:
         """수집 작업 실행"""
         run_collection(self)
 
-    def _collect_regtech_data(self, username: str, password: str, max_pages: int = 1) -> Dict[str, Any]:
+    def _collect_regtech_data(
+        self,
+        username: str,
+        password: str,
+        max_pages: int = 1,
+    ) -> Dict[str, Any]:
         """REGTECH 데이터 수집"""
-        return collect_regtech_data(username, password, max_pages=max_pages)
+        normalized_max_pages = int(max_pages or UNBOUNDED_PAGES)
+        return collect_regtech_data(username, password, max_pages=normalized_max_pages)
 
     def _record_failure(self, error_message: str):
         """실패 기록"""
@@ -182,7 +189,7 @@ class CollectionScheduler:
         return None
 
     def trigger_manual_collection(self) -> Dict[str, Any]:
-        """수동 수집 트리거 (전체 수집 - 50페이지)"""
+        """수동 수집 트리거 (최근 90일의 실제 마지막 페이지까지)."""
         try:
             logger.info("🔄 Manual collection triggered (전체 수집 모드)")
             collection_thread = threading.Thread(target=self._run_manual_collection, daemon=True)
@@ -193,7 +200,7 @@ class CollectionScheduler:
             return {"success": False, "error": str(exc)}
 
     def _run_manual_collection(self):
-        """수동 수집 작업 실행 (전체 수집 - 50페이지)"""
+        """최근 90일의 실제 마지막 페이지까지 수동 수집한다."""
         run_manual_collection(self)
 
     def force_collection(self, source: str) -> Dict[str, Any]:
@@ -225,7 +232,7 @@ class CollectionScheduler:
 
             logger.info("🔑 Using %s credentials from database: %s", source, username)
             if source == "REGTECH":
-                return self._collect_regtech_data(username, password, max_pages=50)
+                return self._collect_regtech_data(username, password, max_pages=UNBOUNDED_PAGES)
 
             return {"success": False, "error": f"Unknown source: {source}", "collected_count": 0}
         except Exception as exc:
