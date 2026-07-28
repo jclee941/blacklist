@@ -21,6 +21,7 @@ export default function CollectionManagementClient() {
     collectionStatus,
     blacklistStats,
     loading,
+    saving,
     testingConnection,
     triggeringCollection,
     showCredentialModal,
@@ -78,7 +79,7 @@ export default function CollectionManagementClient() {
       />
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-100">수집기</h2>
+        <h2 className="text-lg font-semibold text-gray-900">수집기</h2>
         <Button variant="ghost" size="sm" onClick={fetchData}>
           <RefreshCw className="h-4 w-4 mr-1" />
           새로고침
@@ -90,8 +91,9 @@ export default function CollectionManagementClient() {
           const credential = credentials.find(
             (c: Credential) => c.service_name.toUpperCase() === name
           );
-          const collectorStatus = (collectionStatus?.collectors?.[name] ??
-            collectionStatus?.collectors?.[name.toLowerCase()]) as CollectorStatus | undefined;
+          const collectorStatus: CollectorStatus | undefined =
+            collectionStatus?.collectors?.[name] ??
+            collectionStatus?.collectors?.[name.toLowerCase()];
 
           if (!credential) return null;
 
@@ -116,10 +118,14 @@ export default function CollectionManagementClient() {
         show={showCredentialModal}
         onClose={closeEditModal}
         editingService={editingService}
+        configured={
+          credentials.find((credential) => credential.service_name === editingService)
+            ?.configured ?? false
+        }
         credentialForm={credentialForm}
         onFormChange={setCredentialForm}
         onSave={saveCredentials}
-        loading={loading}
+        loading={saving}
       />
     </div>
   );

@@ -41,25 +41,25 @@ vi.mock('@/app/collection/components', () => ({
   CollectorCard: ({ credential }: { credential: { service_name: string } }) => (
     <div data-testid={`collector-card-${credential.service_name}`} />
   ),
-  CredentialEditModal: ({ show }: { show?: boolean }) =>
-    show ? <div data-testid="credential-modal" /> : null,
+  CredentialEditModal: ({ show, loading }: { show?: boolean; loading?: boolean }) =>
+    show ? <div data-testid="credential-modal" data-loading={String(loading)} /> : null,
   useCollectionManagement: vi.fn(),
 }));
 
 import { useCollectionManagement } from '@/app/collection/components';
 
 describe('CollectionManagementClient', () => {
-  const mockUseCollectionManagement = {
+  const mockUseCollectionManagement: ReturnType<typeof useCollectionManagement> = {
     credentials: [],
     collectionStatus: null,
     blacklistStats: null,
     loading: true,
-    testingConnection: {} as Record<string, boolean>,
-    triggeringCollection: {} as Record<string, boolean>,
+    testingConnection: {},
+    triggeringCollection: {},
     showCredentialModal: false,
     editingService: null,
     notification: null,
-    credentialForm: { username: '', password: '', enabled: true, collection_interval: '86400' },
+    credentialForm: { username: '', password: '', enabled: true, collection_interval: 'daily' },
     fetchData: vi.fn(),
     saveCredentials: vi.fn(),
     testConnection: vi.fn(),
@@ -90,11 +90,15 @@ describe('CollectionManagementClient', () => {
     vi.mocked(useCollectionManagement).mockReturnValue({
       ...mockUseCollectionManagement,
       loading: false,
-      credentials: [{ service_name: 'REGTECH', username: 'user', enabled: true }] as {
-        service_name: string;
-        username: string;
-        enabled: boolean;
-      }[],
+      credentials: [
+        {
+          service_name: 'REGTECH',
+          configured: true,
+          username: 'user',
+          enabled: true,
+          collection_interval: 'daily',
+        },
+      ],
     });
     render(<CollectionManagementClient />);
     expect(screen.getByTestId('page-header')).toHaveTextContent('수집 관리');
@@ -135,5 +139,16 @@ describe('CollectionManagementClient', () => {
     });
     render(<CollectionManagementClient />);
     expect(screen.getByTestId('credential-modal')).toBeInTheDocument();
+  });
+
+  it('passes the dedicated saving state to the credential modal', () => {
+    vi.mocked(useCollectionManagement).mockReturnValue({
+      ...mockUseCollectionManagement,
+      loading: false,
+      saving: true,
+      showCredentialModal: true,
+    });
+    render(<CollectionManagementClient />);
+    expect(screen.getByTestId('credential-modal')).toHaveAttribute('data-loading', 'true');
   });
 });
