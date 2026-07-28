@@ -17,7 +17,7 @@ The collector is an isolated Python 3.11 ETL service for scheduled and manual bl
 | --- | --- |
 | `run_collector.py` | Collector lifecycle entry point |
 | `config.py` | Environment-backed collector configuration |
-| `scheduler.py` | Collection scheduling and manual execution |
+| `scheduler/` | Collection scheduling and manual execution |
 | `health_server.py` | Flask health and operational endpoints |
 | `core/` | Source clients, processing, and database services |
 | `api/` | Collector-facing API helpers |

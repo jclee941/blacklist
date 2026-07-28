@@ -1,8 +1,6 @@
 # COLLECTOR KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Version:** `4.1.0`
 
 ## OVERVIEW
 
@@ -12,16 +10,15 @@ Independent ETL service on :8545. ZERO imports from `app/` — fully isolated. C
 
 ```text
 collector/
-├── run_collector.py         # entry point (288L) → CollectorApplication
+├── run_collector.py         # entry point and lifecycle orchestration
 ├── config.py                # CollectorConfig, env-based + credential cache
-├── scheduler.py             # APScheduler (700L), daily REGTECH 02:00, IP cleanup midnight
-├── health_server.py         # Flask+Waitress on :8545 (500L)
-├── monitoring_scheduler.py  # periodic health reporting
+├── scheduler/               # CollectionScheduler and collection operations
+├── health_server.py         # Flask and Waitress health server on :8545
 ├── core/                    # ETL pipeline modules
 │   ├── regtech/             # REGTECH auth + collection
 │   ├── multi_source/        # async feed aggregation
 │   ├── fortigate_collector.py  # FortiGate device collection (680L)
-│   └── database.py          # collector DB layer (664L)
+│   └── database/            # collector database service and queries
 ├── api/                     # collector API endpoints
 └── utils/
 ```
@@ -29,34 +26,27 @@ collector/
 ## HEALTH SERVER ENDPOINTS
 
 - `/health`, `/status`, `/logs`, `/trigger`
-- `/api/test-auth/<source>`, `/config`
+- `/api/test-auth/<source>`, `/api/force-collection/<source>`
 
 ## SESSION SECURITY
 
-- Thread-safe token lifecycle: `_token_lock`, 4h TTL, 30min safety margin.
-- IP cache eviction: 24h TTL, 100K max, LRU 10%.
-- Credential clearing after use.
+- Credentials are read from the collector database layer and can be cleared from the in-memory cache on shutdown.
 
 ## ANTI-PATTERNS
 
 - Importing from `app/` (zero code sharing policy).
-- `time.sleep()` loops (use scheduler intervals).
 - Hardcoded URLs (use config/env vars).
-- Missing `aiohttp` for bulk operations.
-- Missing locks for shared state.
-- Missing TTL+eviction for caches.
 
 ## NOTES
 
-- `DISABLE_AUTO_COLLECTION` env var disables scheduled collection.
+- `DISABLE_AUTO_COLLECTION=true` starts the scheduler in manual-only mode.
 - Adaptive intervals: 300s-3600s based on collection outcomes.
-- Known: `time.sleep` in scheduler (MEDIUM priority fix).
-- Known: single-stage Dockerfile (MEDIUM priority optimization).
 
 
 ## CODE MAP
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `CollectorApplication` | class | `run_collector.py:50` | high | entry point, lifecycle orchestration |
-| `HealthServer` | class | `health_server.py:40` | high | Flask+Waitress on :8545 (500L) |
+| `main` | function | `run_collector.py` | high | Entry point and lifecycle orchestration |
+| `CollectionScheduler` | class | `scheduler/manager.py` | high | Scheduled and manual collection control |
+| `HealthServer` | class | `health_server.py` | high | Flask and Waitress health server on :8545 |
