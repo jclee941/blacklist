@@ -269,24 +269,15 @@ class CollectorConfig:
     @classmethod
     def to_dict(cls) -> Dict[str, Any]:
         """전체 설정을 딕셔너리로 반환"""
-        # REGTECH credentials 로드 (DB에서, 미설정 시 빈 값)
-        try:
-            regtech_id, regtech_pw = cls.get_regtech_credentials()
-        except ValueError:
-            regtech_id, regtech_pw = "", ""
-
         return {
             # 기본 설정
             "postgres_host": cls.POSTGRES_HOST,
             "postgres_port": cls.POSTGRES_PORT,
             "postgres_db": cls.POSTGRES_DB,
             "postgres_user": cls.POSTGRES_USER,
-            "postgres_password": cls.POSTGRES_PASSWORD,
             "redis_host": cls.REDIS_HOST,
             "redis_port": cls.REDIS_PORT,
             "regtech_base_url": cls.REGTECH_BASE_URL,
-            "regtech_id": regtech_id,
-            "regtech_pw": regtech_pw,
             "collection_interval": cls.COLLECTION_INTERVAL,
             # 성능 설정
             "batch_size": cls.BATCH_SIZE,
