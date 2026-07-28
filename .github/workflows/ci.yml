@@ -42,10 +42,12 @@ jobs:
           CHANGED=$(git diff --name-only $DIFF_TARGET 2>/dev/null || git diff --name-only HEAD)
           echo "Changed files:"
           echo "$CHANGED"
-          echo "frontend=$(echo "$CHANGED" | grep -q '^frontend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "collector=$(echo "$CHANGED" | grep -q '^collector/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "ci=$(echo "$CHANGED" | grep -qE '^(\.github/|postgres/|deploy/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          {
+            echo "frontend=$(echo "$CHANGED" | grep -q '^frontend/' && echo true || echo false)"
+            echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)"
+            echo "collector=$(echo "$CHANGED" | grep -q '^collector/' && echo true || echo false)"
+            echo "ci=$(echo "$CHANGED" | grep -qE '^(\.github/|postgres/|deploy/)' && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
 
   # Replaces inline lint-frontend with reusable workflow
   lint-frontend:
@@ -366,7 +368,7 @@ jobs:
         working-directory: frontend
         run: npm run test:e2e
         env:
-          PLAYWRIGHT_BASE_URL: https://localhost:3443
+          BASE_URL: https://localhost:3443
           WEBKIT_ENABLED: "true"
       - name: Collect logs
         if: failure()
@@ -422,6 +424,8 @@ jobs:
         test-collector,
         test-integration,
         build,
+        e2e,
+        scan-images,
         coverage-report,
       ]
     if: always() && !cancelled()
@@ -441,6 +445,8 @@ jobs:
             "test-collector=${{ needs.test-collector.result }}"
             "test-integration=${{ needs.test-integration.result }}"
             "build=${{ needs.build.result }}"
+            "e2e=${{ needs.e2e.result }}"
+            "scan-images=${{ needs.scan-images.result }}"
             "coverage-report=${{ needs.coverage-report.result }}"
           )
           failed=false

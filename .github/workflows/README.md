@@ -1,92 +1,41 @@
-# GitHub Actions Workflows
+# Blacklist GitHub Actions Workflows
 
-**Version**: 3.6.9
+**Current version:** `4.1.0`
 
-## Workflow Files
+This directory contains the active GitHub Actions workflows for `jclee941/blacklist`.
 
-| File | Type | Trigger | Purpose |
-|------|------|---------|---------|
-| `ci.yml` | Primary | Push/PR to `master` | Full CI: detect, lint, test, build, E2E, push |
-| `release.yml` | Primary | Tag `v*`, manual dispatch | Validate + package + release + registry publish |
-| `build-images.yml` | Reusable/Manual | `workflow_call`, manual dispatch | Build Docker images, optionally push |
-| `_ci-node.yml` | Reusable | `workflow_call` | Shared Node lint/typecheck/test pipeline |
-| `auto-merge.yml` | Automation | `pull_request_target` | Enable PR auto-merge for trusted criteria |
-| `labeler.yml` | Automation | `pull_request_target` | Apply labels based on path rules |
-| `security.yml` | Security | Push/PR to `master` | CodeQL SAST + Trivy dependency scanning |
-| `stale.yml` | Automation | Daily cron + manual | Mark/close inactive issues and PRs |
-| `codex-auto-issue.yml` | Automation | Issue labeled `codex` | Trigger Codex bot via comment |
+## Primary Workflows
 
-## 1. `ci.yml` — CI Pipeline
+| File | Trigger | Purpose |
+| --- | --- | --- |
+| `ci.yml` | Push and pull request to `master` | Path-aware quality checks, image builds, image scans, browser E2E, CI gate, and `latest` GHCR publishing from `master` |
+| `release.yml` | Tag matching `v*`, manual dispatch | Validate release metadata, build five images, package assets, create a GitHub Release, and publish GHCR tags |
+| `build-images.yml` | Reusable call, manual dispatch | Build or export the frontend, app, collector, PostgreSQL, and Redis images |
+| `security.yml` | Push and pull request to `master` | Trivy filesystem dependency scan |
+| `_ci-node.yml` | Reusable call | Node lint and type-check job used by CI |
 
-**Trigger**: Push or PR to `master`
+## CI Pipeline
 
-```text
-Push/PR
-  -> detect-changes
-  -> lint-backend + lint-frontend
-  -> test-backend + test-collector + test-frontend
-  -> test-integration (after test-backend)
-  -> build
-  -> scan-images + e2e (parallel)
-  -> push-images (push on master only)
-```
+`ci.yml` detects frontend, backend, collector, and infrastructure changes. Relevant lint and test jobs run before the application images are built. Successful builds run Trivy image scans and Playwright E2E tests. `ci-gate` collects the results for branch protection. A successful push to `master` can publish `latest` GHCR image tags.
 
-Key points:
-- Uses `vars.RUNNER` with fallback to `ubuntu-latest`
-- Backend and collector lint jobs share Ruff checks
-- Frontend lint/typecheck runs via `_ci-node.yml`
-- E2E runs against `.github/docker-compose.ci.yml`
- Image scanning via Trivy (scan-images job) blocks push
+## Release Pipeline
 
-## 2. `release.yml` — Release Pipeline
-
-**Trigger**:
-- Tag push matching `v*`
-- Manual `workflow_dispatch` with `dry_run`
-
-```text
-validate -> build-images -> package -> create-release -> push-to-registry -> notify
-```
-
-Key points:
- Enforces `VERSION` file match with tag and CHANGELOG entry (hard fail)
-- Packages release tarball + checksums
-- Creates GitHub Release via `gh release create`
-- Pushes `version` and `latest` tags to GHCR
-- Optional Slack notification via `vars.SLACK_WEBHOOK_URL`
-
-## 3. `build-images.yml` — Reusable Builder
-
-- Builds matrix: `frontend`, `app`, `collector`, `postgres`, `redis`
-- Supports `push: true/false`
-- Exports image artifacts when not pushing
-
-## 4. Automation Workflows
-
-- `auto-merge.yml`: enables squash auto-merge for Dependabot, repo owner, or `auto-merge`/`codex` label
-- `labeler.yml`: syncs PR labels using `.github/labeler.yml`
-- `stale.yml`: marks issues/PRs stale after 14 days, closes after 5-day grace (exempt: `keep-open`, `pinned`, `security`)
-- `codex-auto-issue.yml`: posts `@codex` comment on issues labeled `codex` to trigger Codex bot
-
-## 5. `security.yml` — Security Scanning
-
-**Trigger**: Push or PR to `master` (event-based, no cron)
-
-- **CodeQL**: SAST analysis for Python and JavaScript (matrix strategy)
-- **Trivy**: Filesystem dependency scan (CRITICAL severity)
-- Runs in parallel with CI pipeline
-
-## Manual Commands
+Use the repository release entry point, not a hand-created version tag:
 
 ```bash
-# Run CI on master
-gh workflow run ci.yml --ref master
-
-# Run release workflow as dry run
-gh workflow run release.yml -f dry_run=true
-
-# Trigger release by tag
-git tag v3.6.9 && git push origin v3.6.9
+make release TYPE=patch
+make release-dry TYPE=minor
 ```
 
-**Last Updated**: 2026-02-26
+`scripts/release.sh` requires a clean `master` checkout and verified tests. It updates `VERSION`, `CHANGELOG.md`, and `frontend/package.json`, creates an annotated `v<version>` tag, and pushes it. `release.yml` validates the version and changelog, builds images, packages a release bundle, creates the GitHub Release, and publishes versioned and `latest` GHCR images.
+
+## Supporting Automation
+
+The numbered workflow files handle branch-to-PR intake, standard and security reviews, Dependabot updates, and human-authored PR auto-merge. CI and release publication remain consolidated in `ci.yml` and `release.yml`.
+
+## Maintenance Rules
+
+- Pin Actions to full commit SHAs and retain their version comments.
+- Scope permissions to the workflow or job that needs them.
+- Preserve the CI and release contract shared by `scripts/release.sh`, `ci.yml`, and `release.yml`.
+- Store sensitive values in GitHub secrets or repository variables, never in workflow YAML.

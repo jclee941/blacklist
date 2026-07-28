@@ -135,15 +135,12 @@ export default defineConfig({
     // },
   ],
 
-  /* Run your local dev server before starting the tests */
-  /* Skip webServer when BASE_URL points to external environment */
-  webServer:
-    process.env.BASE_URL && !process.env.BASE_URL.includes('localhost')
-      ? undefined
-      : {
-          command: 'npm run dev',
-          url: 'http://localhost:2543',
-          reuseExistingServer: !process.env.CI,
-          timeout: 120000,
-        },
+  webServer: process.env.BASE_URL
+    ? undefined
+    : {
+        command: 'npm run dev',
+        url: 'http://localhost:2543',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+      },
 });

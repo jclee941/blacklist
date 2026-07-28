@@ -1,104 +1,40 @@
-# GitHub Configuration
+# GitHub Automation Guide
 
-**Project**: Blacklist Intelligence Platform  
-**Version**: 3.6.9  
-**Repository**: [qws941/blacklist](https://github.com/qws941/blacklist)
+**Repository:** [jclee941/blacklist](https://github.com/jclee941/blacklist)
+**Current version:** `4.1.0`
 
-## Directory Structure
+GitHub Actions for this application live in `.github/workflows/`. They are repository-local automation, not reusable workflows for other repositories.
 
-```text
-.github/
-├── README.md
-├── CODEOWNERS
-├── dependabot.yml
-├── docker-compose.ci.yml
-├── labeler.yml
-├── scripts/
-└── workflows/
-    ├── README.md
-    ├── _ci-node.yml
-    ├── auto-merge.yml
-    ├── build-images.yml
-    ├── ci.yml
-    ├── codex-auto-issue.yml
-    ├── labeler.yml
-    ├── release.yml
-    ├── security.yml
-    └── stale.yml
-```
+## Canonical Workflows
 
-## Workflows
+| Workflow | Trigger | Current purpose |
+| --- | --- | --- |
+| `ci.yml` | Push and pull request to `master` | Changed-area linting, tests, builds, image scans, E2E, CI gate, and `latest` image publishing from `master` |
+| `release.yml` | `v*` tag or manual dispatch | Version and changelog validation, five-image build, release bundle, GitHub Release, GHCR publishing |
+| `build-images.yml` | Reusable call or manual dispatch | Build the frontend, app, collector, PostgreSQL, and Redis images |
+| `security.yml` | Push and pull request to `master` | Trivy filesystem dependency scan |
+| `_ci-node.yml` | Reusable call | Frontend Node lint and type-check support |
 
-### 1) CI (`ci.yml`)
+Numbered workflow files handle branch-to-PR intake, standard and security reviews, Dependabot updates, and human-authored PR auto-merge. CI and release publication remain consolidated in `ci.yml` and `release.yml`.
 
-- Trigger: push/PR to `master`
-- Purpose: detect-changes -> lint -> unit tests -> image build -> E2E -> GHCR push
-- Notes: uses `vars.RUNNER` fallback (`ubuntu-latest`), supports frontend/backend/collector path gating
+## CI Flow
 
-### 2) Release (`release.yml`)
+`ci.yml` determines whether frontend, backend, collector, or infrastructure paths changed. It runs only the relevant jobs, then builds the affected application images. Successful builds run Trivy image scans and Playwright E2E tests. The `ci-gate` job is the single required branch-protection check. Pushes to `master` can publish `latest` GHCR images after successful build, scan, and E2E jobs.
 
-- Trigger: tag push `v*` and manual `workflow_dispatch` (`dry_run`)
-- Purpose: validate VERSION/tag, build images, package tarball, GitHub Release, GHCR publish
+## Release Flow
 
-### 3) Build Images (`build-images.yml`)
-
-- Trigger: reusable (`workflow_call`) + manual (`workflow_dispatch`)
-- Purpose: build/export or push Docker images for `frontend`, `app`, `collector`, `postgres`, `redis`
-
-### 4) Reusable Node CI (`_ci-node.yml`)
-
-- Trigger: `workflow_call`
-- Purpose: shared Node job for lint/typecheck/test with configurable working directory
-
-### 5) Auto Merge (`auto-merge.yml`)
-
-- Trigger: `pull_request_target` (opened/synchronize/reopened/labeled)
-- Purpose: enable squash auto-merge for Dependabot, repo owner, or PRs labeled `auto-merge`
-
-### 6) Auto Labeler (`labeler.yml`)
-
-- Trigger: `pull_request_target` (opened/synchronize/reopened)
-- Purpose: sync labels from `.github/labeler.yml` path rules
-
-### 7) Stale Cleanup (`stale.yml`)
-
-- Trigger: daily cron + manual dispatch
-- Purpose: mark/close inactive issues and PRs
-
-### 8) Security (`security.yml`)
-
-- Trigger: push/PR to `master`
-- Purpose: CodeQL SAST analysis (Python + JavaScript) + Trivy filesystem dependency scan
-
-### 9) Codex Auto Issue (`codex-auto-issue.yml`)
-
-- Trigger: issue labeled `codex`
-- Purpose: post `@codex` comment to trigger Codex bot
-
-## Key Config Files
-
-- `CODEOWNERS`: review ownership rules
-- `dependabot.yml`: dependency update policy
-- `docker-compose.ci.yml`: E2E compose stack used in CI
-- `labeler.yml`: path-to-label mapping for PR auto-labeling
-
-## Required Repository Settings / Secrets
-
-- `vars.RUNNER` (optional): set to `self-hosted` to run all workflows on self-hosted runners
-- `GITHUB_TOKEN`: auto-provided by GitHub Actions
-- `vars.SLACK_WEBHOOK_URL` (optional): release notification target
-
-## Quick Checks
+Start a release from a clean `master` checkout:
 
 ```bash
-# List workflows
-gh workflow list
-
-# Manually run CI on master
-gh workflow run ci.yml --ref master
-
-# Manually run release workflow (dry run)
-gh workflow run release.yml -f dry_run=true
+make release TYPE=patch
+make release-dry TYPE=minor
 ```
 
-**Last Updated**: 2026-02-26
+`scripts/release.sh` checks the branch, working tree, and test status. It then updates version metadata, generates a changelog entry, commits the release, creates an annotated tag, and pushes. The tag invokes `release.yml`. That workflow validates `VERSION` and `CHANGELOG.md`, packages release artifacts, creates the GitHub Release, and publishes five images to GHCR.
+
+## Workflow Change Rules
+
+- Pin every GitHub Action to a full commit SHA with its version comment.
+- Use least-privilege `permissions` and preserve concurrency controls.
+- Keep CI and release behavior aligned with both `scripts/release.sh` and the workflow source.
+- Don't add secrets or webhook values to tracked workflow files. Use repository secrets or variables.

@@ -7,8 +7,6 @@ services:
     image: postgres:15
     volumes:
       - ../postgres/initdb:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -21,8 +19,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -31,8 +27,6 @@ services:
 
   app:
     image: blacklist-app:ci
-    ports:
-      - "2542:2542"
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,8 +54,6 @@ services:
 
   collector:
     image: blacklist-collector:ci
-    ports:
-      - "8545:8545"
     depends_on:
       postgres:
         condition: service_healthy
