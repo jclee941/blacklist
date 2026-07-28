@@ -4,7 +4,7 @@ name: PR Review (CLIProxyAPI)
 # Skips dependabot[bot] (handled by dependabot-auto-merge.yml).
 #
 # This workflow is downstream-portable: it does NOT require the host repo
-# to contain pr-agent source. It clones jclee941/.github at a separate
+# to contain pr-agent source. It clones jclee941/jclee-bot at a separate
 # path and installs pr-agent from there, then runs the review against
 # the host repo's PR via the GitHub API.
 
@@ -35,21 +35,20 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2
         with:
           egress-policy: audit
       - name: Checkout local actions
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: jclee941/.github
-          ref: master
           fetch-depth: 1
-      - name: Check out pr-agent source from jclee941/.github
-        uses: actions/checkout@v7.0.1
+      - name: Check out pr-agent source from jclee941/jclee-bot
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: jclee941/.github
+          repository: jclee941/jclee-bot
           ref: master
           path: pr-agent-src
+          token: ${{ secrets.GH_PAT }}
           fetch-depth: 1
 
       - name: Set up build cache (NAS-backed on self-hosted)
@@ -61,7 +60,7 @@ jobs:
           python-version: '3.12'
 
       - name: Cache pip dependencies
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.PIP_CACHE_DIR || '~/.cache/pip' }}
           key: ${{ runner.os }}-pr-review-${{ hashFiles('pr-agent-src/pyproject.toml', 'pr-agent-src/requirements.txt') }}
