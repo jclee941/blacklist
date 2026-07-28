@@ -104,7 +104,7 @@ export default function CloudflareSettings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Cloud className="h-5 w-5 text-orange-500" />
+        <Cloud className="h-5 w-5 text-orange-500" aria-hidden="true" />
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">Cloudflare WAF 연동</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -158,7 +158,7 @@ export default function CloudflareSettings() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label
               htmlFor="cloudflare-account-id"
