@@ -1,8 +1,6 @@
 # API ROUTES KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Version:** `4.1.0`
 
 ## OVERVIEW
 
@@ -17,8 +15,8 @@ routes/api/
 ├── fortinet/           # threat feed + device management
 ├── ip_management/      # subpackage: routes/handlers/repository pattern
 ├── monitoring/         # Prometheus metrics endpoints
-├── schemas/            # Pydantic schemas (4 files, 280 LOC) — UNUSED
-├── system_api.py       # 648L, system status endpoints
+├── system/             # system status schemas and operations
+├── system_api.py       # compatibility export for system routes
 ├── dashboard_api.py    # dashboard data aggregation
 ├── analytics.py        # analytics endpoints
 ├── database_api.py     # DB admin endpoints
@@ -40,17 +38,15 @@ routes/api/
 
 ## NOTES
 
-- `schemas/` directory exists but Pydantic schemas are NOT wired to validation.
-- `system_api.py` (648L) is the largest single route file.
-- `ip_management/` uses repository pattern (unlike other route packages).
-- See `ip_management/AGENTS.md` for package-level repository/handler contracts.
+- `ip_management/` uses a repository pattern unlike the other route packages.
+- See `ip_management/AGENTS.md` for package-level repository and handler contracts.
 
 
 ## CODE MAP
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `register_blacklist_routes` | function | `blacklist/__init__.py:25` | high | 5 blueprint registration + error handlers |
-| `register_collection_routes` | function | `collection/__init__.py:18` | high | 7 blueprint registration |
-| `register_fortinet_routes` | function | `fortinet/__init__.py:16` | high | 4 blueprint registration + health |
-| `register_error_handlers` | function | `blacklist/__init__.py:60` | med | legacy 404/500 handlers |
+| `register_blacklist_routes` | function | `blacklist/__init__.py` | high | Blacklist blueprint registration and error handlers |
+| `register_collection_routes` | function | `collection/__init__.py` | high | Collection blueprint registration |
+| `register_fortinet_routes` | function | `fortinet/__init__.py` | high | Fortinet blueprint registration and health |
+| `register_error_handlers` | function | `blacklist/__init__.py` | med | Legacy 404 and 500 handlers |

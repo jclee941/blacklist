@@ -56,7 +56,6 @@ Service-level symbols in `core/services/AGENTS.md`.
 | `core/routes/api/system_api.py`              | 648 | system status endpoints         |
 | `core/services/secure_credential_service.py` | 624 | AES-256-GCM credential storage  |
 | `core/routes/web/admin.py`                   | 620 | RegTech credential management   |
-| `core/routes/web/collection_panel.py`        | 603 | collection-panel blueprint with split data, runtime, and view handlers |
 | `core/services/collection_service.py`        | 596 | collection orchestration        |
 | `core/services/blacklist_service.py`         | 534 | complexity 39.43                |
 
