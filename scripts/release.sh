@@ -103,11 +103,12 @@ info "Checking pre-release test status..."
 
 HEAD_SHA=$(git rev-parse HEAD)
 CI_VERIFIED=false
+CI_WORKFLOW="CI"
 
 # 1. Check remote CI via gh CLI (preferred — verifies exact commit)
 if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
-  CI_CONCLUSION=$(gh run list --commit "$HEAD_SHA" --json conclusion,status --jq '.[0].conclusion // empty' 2>/dev/null || true)
-  CI_STATUS=$(gh run list --commit "$HEAD_SHA" --json status --jq '.[0].status // empty' 2>/dev/null || true)
+  CI_CONCLUSION=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json conclusion,status --jq '.[0].conclusion // empty' 2>/dev/null || true)
+  CI_STATUS=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json status --jq '.[0].status // empty' 2>/dev/null || true)
   if [[ "$CI_CONCLUSION" == "success" ]]; then
     ok "CI passed on HEAD ($HEAD_SHA)"
     CI_VERIFIED=true
