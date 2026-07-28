@@ -157,3 +157,37 @@ class TestCreateApp:
             resp = app.test_client().get("/health")
         assert resp.status_code == 200
         assert resp.get_json()["database"]["blacklist_ips_count"] == 0
+
+    @patch("core.services.service_factory.initialize_services", return_value={})
+    @patch("core.app.threading.Thread")
+    def test_api_requires_jwt_by_default(self, _thread, _init):
+        from core.app import create_app
+
+        with patch.dict("os.environ", {"DISABLE_JWT_AUTH": "false"}):
+            app = create_app()
+            response = app.test_client().get("/api/auth/verify")
+
+        assert response.status_code == 401
+        assert response.get_json()["code"] == "AUTH_TOKEN_MISSING"
+
+    @patch("core.services.service_factory.initialize_services", return_value={})
+    @patch("core.app.threading.Thread")
+    def test_login_endpoint_remains_public(self, _thread, _init):
+        from core.app import create_app
+
+        with patch.dict("os.environ", {"DISABLE_JWT_AUTH": "false"}):
+            app = create_app()
+            response = app.test_client().post("/api/auth/login", json={})
+
+        assert response.status_code == 400
+        assert response.get_json()["code"] == "AUTH_MISSING_CREDENTIALS"
+
+    @patch("core.services.service_factory.initialize_services", return_value={})
+    @patch("core.app.threading.Thread")
+    def test_secret_key_uses_stable_deploy_secret(self, _thread, _init):
+        from core.app import create_app
+
+        with patch.dict("os.environ", {"SECRET_KEY": "stable-deploy-secret", "FLASK_SECRET_KEY": ""}):
+            app = create_app()
+
+        assert app.config["SECRET_KEY"] == "stable-deploy-secret"

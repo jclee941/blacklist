@@ -61,7 +61,7 @@ def create_app():
     # ========================================================================
 
     # Secret key for session management and CSRF protection
-    flask_secret = config.FLASK_SECRET_KEY
+    flask_secret = config.FLASK_SECRET_KEY or config.SECRET_KEY
     if not flask_secret:
         logging.getLogger(__name__).warning(
             "FLASK_SECRET_KEY not set — using random key. "
@@ -143,15 +143,15 @@ def create_app():
     # JWT Authentication (Phase 1.1: Token-based API Auth)
     # ========================================================================
     try:
+        from .auth.middleware import jwt_required_hook
         from .auth.jwt_service import JWTService
         from .auth.decorators import public
 
-        jwt_service = JWTService(app.config["SECRET_KEY"])
+        jwt_service = JWTService(config.JWT_SECRET or app.config["SECRET_KEY"])
         app.extensions["jwt_service"] = jwt_service
 
-        # JWT auth disabled — internal-only deployment, no auth required
-        # app.before_request(jwt_required_hook)
-        app.logger.info("ℹ️ JWT authentication middleware DISABLED")
+        app.before_request(jwt_required_hook)
+        app.logger.info("✅ JWT authentication middleware enabled")
     except Exception as e:
         public = lambda f: f  # noqa: E731 — fallback identity decorator
         app.logger.error(f"❌ JWT auth setup failed: {e}")
