@@ -92,6 +92,20 @@ class TestLoadCredentials:
 
         assert result == credentials
 
+    def test_load_credentials_falls_back_to_file_when_db_record_is_corrupt(self, tmp_path):
+        svc, mock_db = _make_service()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = ("not-a-valid-credential-record", "2024-01-01")
+        mock_conn.cursor.return_value = mock_cursor
+        mock_db.get_connection.return_value = mock_conn
+
+        credentials = {"regtech_id": "backup-user", "regtech_pw": "backup-password"}
+        svc.credentials_file = tmp_path / "credentials.enc"
+        svc.credentials_file.write_bytes(b"encrypted:" + json.dumps(credentials).encode())
+
+        assert svc.load_credentials() == credentials
+
     def test_load_credentials_not_found(self):
         svc, mock_db = _make_service()
         mock_conn = MagicMock()

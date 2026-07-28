@@ -250,11 +250,13 @@ class CredentialService:
                     try:
                         credentials = json.loads(json_str)
                     except json.JSONDecodeError:
-                        logger.error("Credential database record could not be decrypted")
-                        return None
-
-                logger.info(f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}")
-                return credentials
+                        logger.warning("Credential database record could not be decrypted; trying file backup")
+                    else:
+                        logger.info(f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}")
+                        return credentials
+                else:
+                    logger.info(f"✅ 인증정보 데이터베이스 로드 완료: {credentials.get('regtech_id', 'N/A')}")
+                    return credentials
 
         except Exception as db_error:
             logger.warning(f"⚠️ 데이터베이스 로드 실패, 파일에서 시도: {db_error}")
