@@ -10,7 +10,6 @@ import logging
 import os
 import time
 from contextlib import contextmanager
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from cryptography.fernet import Fernet
@@ -290,8 +289,19 @@ class DatabaseService(DatabaseQueryMixin):
                         logger.info(f"📈 처리 진행률: {chunk_idx + 1}/{total_chunks} 청크 완료")
 
                 cursor.execute(
-                    "SELECT COUNT(*) FROM blacklist_ips WHERE created_at >= %s",
-                    (datetime.now() - timedelta(minutes=5),),
+                    """
+                    INSERT INTO collection_stats (timestamp, source, total_ips, last_seen)
+                    SELECT CURRENT_TIMESTAMP,
+                           COALESCE(data_source, 'UNKNOWN'),
+                           COUNT(*),
+                           MAX(last_seen)
+                    FROM blacklist_ips
+                    GROUP BY COALESCE(data_source, 'UNKNOWN')
+                    ON CONFLICT (source) DO UPDATE SET
+                        timestamp = EXCLUDED.timestamp,
+                        total_ips = EXCLUDED.total_ips,
+                        last_seen = EXCLUDED.last_seen
+                    """
                 )
 
                 conn.commit()
@@ -341,6 +351,23 @@ class DatabaseService(DatabaseQueryMixin):
                         details,
                     ),
                 )
+                status = "idle" if success else "error"
+                error_increment = 0 if success else 1
+                success_increment = 1 if success else 0
+                cursor.execute(
+                    """
+                    INSERT INTO collection_status
+                    (service_name, enabled, last_run, status, error_count, success_count)
+                    VALUES (%s, TRUE, CURRENT_TIMESTAMP, %s, %s, %s)
+                    ON CONFLICT (service_name) DO UPDATE SET
+                        enabled = EXCLUDED.enabled,
+                        last_run = EXCLUDED.last_run,
+                        status = EXCLUDED.status,
+                        error_count = collection_status.error_count + EXCLUDED.error_count,
+                        success_count = collection_status.success_count + EXCLUDED.success_count
+                    """,
+                    (source, status, error_increment, success_increment),
+                )
                 conn.commit()
                 cursor.close()
                 logger.info(f"📊 수집 히스토리 기록: {source} (신규: {new_count}, 중복: {updated_count})")
@@ -359,6 +386,41 @@ class DatabaseService(DatabaseQueryMixin):
         except Exception as e:
             logger.error(f"총 IP 개수 조회 실패: {e}")
             return 0
+
+    def get_collection_status(
+        self,
+        service_name: str,
+    ) -> dict[str, str | int | bool | None] | None:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT service_name, enabled, last_run, status,
+                           error_count, success_count
+                    FROM collection_status
+                    WHERE service_name = %s
+                    """,
+                    (service_name,),
+                )
+                result = cursor.fetchone()
+                cursor.close()
+
+                if not result:
+                    return None
+
+                last_run = result[2].isoformat() if result[2] else None
+                return {
+                    "service_name": result[0],
+                    "enabled": result[1],
+                    "last_run": last_run,
+                    "status": result[3],
+                    "error_count": result[4],
+                    "success_count": result[5],
+                }
+        except Exception as e:
+            logger.error(f"수집 상태 조회 실패 {service_name}: {e}")
+            return None
 
     def get_collection_stats(self) -> Dict[str, Any]:
         """고성능 수집 통계 조회"""
