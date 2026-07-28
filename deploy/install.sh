@@ -24,8 +24,6 @@ readonly REQUIRED_SECRET_KEYS=(
     "CREDENTIAL_ENCRYPTION_KEY"
     "ENCRYPTION_SALT"
     "POSTGRES_PASSWORD"
-    "ADMIN_USERNAME"
-    "ADMIN_PASSWORD"
 )
 readonly DEPLOYMENT_VOLUME_NAMES=(
     "blacklist-pgdata"
@@ -312,7 +310,7 @@ deployment_state_exists() {
 generate_env_file() {
     local env_file="$1"
     local temp_file
-    local fernet_key secret_key master_key encryption_salt pg_password admin_username admin_password
+    local fernet_key secret_key master_key encryption_salt pg_password
 
     temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to create private environment file."
     chmod 600 "${temp_file}" || log_error "Unable to protect generated environment file."
@@ -322,8 +320,6 @@ generate_env_file() {
     master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     encryption_salt=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
-    admin_username="admin-$(openssl rand -hex 8 2>/dev/null || head -c 8 /dev/urandom | xxd -p | tr -d '\n')"
-    admin_password=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
 
     if ! cat > "${temp_file}" << EOF
 # Blacklist Platform Secrets (auto-generated)
@@ -335,8 +331,6 @@ SECRET_KEY=${secret_key}
 CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
 ENCRYPTION_SALT=${encryption_salt}
 POSTGRES_PASSWORD=${pg_password}
-ADMIN_USERNAME=${admin_username}
-ADMIN_PASSWORD=${admin_password}
 EOF
     then
         rm -f "${temp_file}"
@@ -366,7 +360,6 @@ setup_secrets() {
         generate_env_file "${env_file}"
         chmod 600 "${env_file}" || log_error "Unable to protect generated environment file."
         log_success "Secrets generated (.env)"
-        log_warning "Administrator credentials were generated; record them securely before deployment."
     fi
 
     local invalid_keys=()
@@ -450,7 +443,7 @@ deploy_services() {
 
     log_info "Starting services..."
     local compose_output
-    if ! compose_output=$(docker compose up -d 2>&1); then
+    if ! compose_output=$(docker compose up -d --pull never 2>&1); then
         printf '%s\n' "${compose_output}"
         log_error "Failed to start Blacklist services"
     fi

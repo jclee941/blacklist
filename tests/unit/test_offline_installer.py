@@ -13,8 +13,6 @@ REQUIRED_ENV_KEYS = {
     "CREDENTIAL_ENCRYPTION_KEY",
     "ENCRYPTION_SALT",
     "POSTGRES_PASSWORD",
-    "ADMIN_USERNAME",
-    "ADMIN_PASSWORD",
 }
 
 
@@ -82,8 +80,11 @@ def test_generates_target_local_secrets_when_env_is_absent(tmp_path: Path) -> No
     # Then: all required values are generated locally and protected.
     env_file = tmp_path / ".env"
     assert result.returncode == 0, result.stdout + result.stderr
-    assert REQUIRED_ENV_KEYS <= parse_env(env_file).keys()
-    assert all(not value.startswith("op://") for value in parse_env(env_file).values())
+    generated_values = parse_env(env_file)
+    assert REQUIRED_ENV_KEYS <= generated_values.keys()
+    assert "ADMIN_USERNAME" not in generated_values
+    assert "ADMIN_PASSWORD" not in generated_values
+    assert all(not value.startswith("op://") for value in generated_values.values())
     assert os.stat(env_file).st_mode & 0o777 == 0o600
 
 
@@ -113,8 +114,6 @@ def test_rejects_missing_placeholders_expressions_empty_values_and_defaults(tmp_
             "SECRET_KEY=${SECRET_KEY}",
             "CREDENTIAL_ENCRYPTION_KEY=",
             "POSTGRES_PASSWORD=postgres",
-            "ADMIN_USERNAME=__SET_ADMIN_USERNAME__",
-            "ADMIN_PASSWORD=",
         )
     ) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")
@@ -141,8 +140,6 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
             'CREDENTIAL_ENCRYPTION_KEY="local-credential-encryption-key-0123456789"',
             "ENCRYPTION_SALT='local-encryption-salt-0123456789'",
             'POSTGRES_PASSWORD="local-postgres-password-0123456789"',
-            "ADMIN_USERNAME='local-admin-user'",
-            'ADMIN_PASSWORD="local-admin-password-0123456789"',
         )
     ) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")
@@ -165,8 +162,6 @@ def test_rejects_quoted_unresolved_secrets_without_exposing_values(tmp_path: Pat
             'CREDENTIAL_ENCRYPTION_KEY="${CREDENTIAL_ENCRYPTION_KEY}"',
             "ENCRYPTION_SALT='local-encryption-salt-0123456789'",
             'POSTGRES_PASSWORD="local-postgres-password-0123456789"',
-            "ADMIN_USERNAME='local-admin-user'",
-            'ADMIN_PASSWORD="local-admin-password-0123456789"',
         )
     ) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")
@@ -212,3 +207,14 @@ def test_rejects_missing_env_when_existing_named_volume_is_detected(tmp_path: Pa
     assert result.returncode != 0
     assert "existing deployment" in result.stdout.lower()
     assert not (tmp_path / ".env").exists()
+
+
+def test_starts_compose_without_pulling_images() -> None:
+    # Given: the installer used inside a disconnected deployment environment.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+
+    # When: the Compose startup command is inspected.
+    startup_command = "docker compose up -d --pull never"
+
+    # Then: startup is constrained to the images loaded from the release bundle.
+    assert startup_command in installer_source
