@@ -31,6 +31,7 @@ from ..regtech_excel import download_excel_data
 
 
 logger = logging.getLogger(__name__)
+REGTECH_PAGE_SIZE = 50
 
 
 class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
@@ -72,7 +73,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
     def collect_blacklist_data(
         self,
-        page_size: int = 2000,
+        page_size: int = REGTECH_PAGE_SIZE,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         max_pages: int = 100,
@@ -80,6 +81,14 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         if not self._ensure_authenticated():
             logger.error("❌ 인증되지 않은 상태에서 수집 시도")
             return []
+
+        requested_capacity = page_size * max_pages
+        effective_page_size = min(page_size, REGTECH_PAGE_SIZE)
+        effective_max_pages = (
+            max_pages
+            if effective_page_size == page_size
+            else max(1, (requested_capacity + effective_page_size - 1) // effective_page_size)
+        )
 
         collection_start = time.time()
 
@@ -121,7 +130,10 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         date_strategies = self._generate_date_strategies(start_date, end_date)
 
         try:
-            logger.info(f"🚀 스마트 REGTECH 데이터 수집 시작 (페이지 크기: {page_size}, 최대 페이지: {max_pages})")
+            logger.info(
+                f"🚀 스마트 REGTECH 데이터 수집 시작 "
+                f"(페이지 크기: {effective_page_size}, 최대 페이지: {effective_max_pages})"
+            )
             logger.info(f"📅 날짜 전략 수: {len(date_strategies)}개")
 
             for strategy_idx, (strategy_name, start_dt, end_dt) in enumerate(date_strategies, 1):
@@ -135,8 +147,8 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
                         break
 
                 strategy_data = []
-                for page_num in range(1, max_pages + 1):
-                    page_data = self._collect_single_page(page_num, page_size, start_dt, end_dt)
+                for page_num in range(1, effective_max_pages + 1):
+                    page_data = self._collect_single_page(page_num, effective_page_size, start_dt, end_dt)
 
                     if not page_data:
                         logger.info(f"📄 전략 {strategy_name} 페이지 {page_num}: 데이터 없음")

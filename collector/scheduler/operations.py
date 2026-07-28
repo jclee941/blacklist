@@ -12,6 +12,7 @@ from .dependencies import db_service, regtech_collector
 
 
 logger = logging.getLogger(__name__)
+REGTECH_PAGE_SIZE = 50
 
 
 class SchedulerProtocol(Protocol):
@@ -72,7 +73,7 @@ def run_adaptive_collection(scheduler: SchedulerProtocol) -> bool:
         logger.info("📅 스케줄 수집 범위: %s ~ %s (1일)", start_date, end_date)
 
         collected_ips = regtech_collector.collect_blacklist_data(
-            page_size=2000,
+            page_size=REGTECH_PAGE_SIZE,
             start_date=start_date,
             end_date=end_date,
             max_pages=1,
@@ -186,7 +187,7 @@ def run_daily_collection(schedule_name: str) -> None:
         collected_ips = regtech_collector.collect_blacklist_data(
             start_date=None,
             end_date=None,
-            page_size=2000,
+            page_size=REGTECH_PAGE_SIZE,
             max_pages=1,
         )
 
@@ -272,7 +273,7 @@ def collect_regtech_data(username: str, password: str, max_pages: int = 1) -> Di
             logger.info("🚀 REGTECH 수동 수집 (3개월: %s ~ %s)", start_date, end_date)
 
         collected_data = regtech_collector.collect_blacklist_data(
-            page_size=2000,
+            page_size=REGTECH_PAGE_SIZE,
             start_date=start_date,
             end_date=end_date,
             max_pages=max_pages,
