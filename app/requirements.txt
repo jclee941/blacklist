@@ -11,7 +11,7 @@ redis==7.4.0
 
 # Data Processing & Analysis
 pandas>=3.0.5  # Python 3.13 compatible
-numpy>=2.4.6,<2.5  # Python 3.11 compatible
+numpy>=2.5.1,<2.6  # Python 3.11 compatible
 openpyxl==3.1.5
 
 # Web Scraping & HTTP Requests
