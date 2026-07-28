@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 |------|------|
-| **버전** | 3.5.68 |
-| **최종수정** | 2026-02-15 |
-| **테스트 합계** | 992+ tests (151+ files) |
+| **버전** | 4.1.0 |
+| **최종수정** | 2026-07-29 |
+| **테스트 합계** | 2,193 automated tests plus Playwright scenarios |
 
 ---
 
@@ -12,11 +12,11 @@
 
 | Test Type | Framework | Files | Tests | Command | Time |
 |-----------|-----------|-------|-------|---------|------|
-| Backend Unit | Pytest | 107 | 785+ | `make test-backend-unit` | 1-2m |
-| Frontend Unit | Vitest | 44 | 207+ | `make test-frontend-unit` | 30s |
-| E2E | Playwright | 3+ | varies | `make test-e2e` | 5-10m |
-| Backend Coverage | Pytest+cov | 107 | 785+ | `make test-backend-coverage` | 2-3m |
-| **Total** | **Multiple** | **151+** | **992+** | **`make test`** | **10-15m** |
+| Backend Unit | Pytest | `tests/unit/` | 1,449 | `make test-backend-unit` | 1-2m |
+| Frontend Unit | Vitest | `frontend/__tests__/` | 431 | `make test-frontend-unit` | 30s |
+| E2E | Playwright | `frontend/e2e/` | 27 spec files | `make test-frontend-e2e` | up to 60m in CI |
+| Backend Coverage | Pytest+cov | `tests/unit/` | 1,449 | `make test-backend-coverage` | 2-3m |
+| **Unit + integration** | **Multiple** | **repository** | **2,193** | **`make test`** | **10-15m** |
 
 ---
 
@@ -24,11 +24,11 @@
 
 - **Docker**: All services run in containers
 - **Make**: Build system (`make --version`)
-- **Node.js**: 20+ (for frontend tests)
+- **Node.js**: 24 (for frontend tests)
 - **Python**: 3.11 (in container)
 
 ```bash
-# Start all services (required for tests)
+# Start all services when running browser E2E scenarios
 make dev
 ```
 
@@ -106,7 +106,7 @@ frontend/
 
 ```bash
 # Full E2E suite
-make test-e2e
+E2E_USERNAME=admin E2E_PASSWORD='<test-password>' make test-frontend-e2e
 
 # Specific browser
 cd frontend && npx playwright test --project=chromium
@@ -121,9 +121,8 @@ cd frontend && npx playwright test --debug
 
 **Test locations:**
 ```
-frontend/e2e/
-├── smoke/              # Smoke tests (health, basic nav)
-├── regression/         # Regression test suites
+frontend/
+├── e2e/                # Feature, smoke, regression, and visual scenarios
 └── playwright.config.ts
 ```
 
@@ -170,9 +169,9 @@ describe('Dashboard', () => {
 
 ### E2E (Playwright)
 
-- Tests run against `https://localhost` (frontend with SSL)
+- CI tests run against `https://localhost:3443` through the frontend proxy.
 - Chromium and WebKit browsers
-- Smoke tests gate the full suite in CI
+- The E2E job runs the configured browser matrix as one workflow job.
 
 ---
 
@@ -186,8 +185,9 @@ Push/PR to master
   → lint-backend (Ruff) + lint-frontend (tsc)
   → test-backend (pytest) + test-frontend (vitest)    ← parallel
   → build (Docker images)
-  → e2e-smoke → e2e-chromium → e2e-webkit             ← sequential
-  → push-images (GHCR)
+  → build (Docker images) → e2e + image scans
+  → ci-gate (aggregate internal CI result)
+  → push-images (GHCR, master only)
 ```
 
 ### Coverage Requirements
