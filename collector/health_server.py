@@ -317,7 +317,7 @@ class HealthServer:
     def _run_server(self):
         """Run Flask server with waitress"""
         waitress = importlib.import_module("waitress")
-        waitress.serve(self.app, host="0.0.0.0", port=self.port, _quiet=True)
+        waitress.serve(self.app, host="127.0.0.1", port=self.port, _quiet=True)
 
 
 def start_health_server():

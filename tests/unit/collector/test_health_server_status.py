@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 import pytest
 
 from collector.health_server import CollectorStatus, HealthServer
@@ -49,3 +51,13 @@ def test_collector_status_uses_database_run_totals(
     assert status["last_run"] == "2026-07-28T11:57:29.898479"
     assert status["interval_seconds"] == 86_400
     assert status["next_run"] == "2026-07-29T00:00:00"
+
+
+def test_health_server_binds_to_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
+    waitress = Mock()
+    monkeypatch.setattr("collector.health_server.importlib.import_module", lambda _name: waitress)
+    server = HealthServer(collectors_ref={}, port=8545)
+
+    server._run_server()
+
+    waitress.serve.assert_called_once_with(server.app, host="127.0.0.1", port=8545, _quiet=True)
