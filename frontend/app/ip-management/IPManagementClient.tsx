@@ -52,7 +52,6 @@ export default function IPManagementClient() {
   const handleSearchReset = () => {
     setSearchIP('');
     setPage(1);
-    setTimeout(() => fetchData(), 0);
   };
 
   return (

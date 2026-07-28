@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import IPManagementClient from '@/app/ip-management/IPManagementClient';
 
 // Mock child components
@@ -158,7 +158,7 @@ describe('IPManagementClient', () => {
     expect(openAddModalMock).toHaveBeenCalled();
   });
 
-  it('handles search reset', () => {
+  it('resets search state without scheduling an uncancelled delayed refresh', () => {
     const setSearchIPMock = vi.fn();
     const setPageMock = vi.fn();
     const fetchDataMock = vi.fn();
@@ -170,14 +170,15 @@ describe('IPManagementClient', () => {
       fetchData: fetchDataMock,
     });
 
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
     render(<IPManagementClient />);
 
     fireEvent.click(screen.getByText('Reset'));
 
     expect(setSearchIPMock).toHaveBeenCalledWith('');
     expect(setPageMock).toHaveBeenCalledWith(1);
-    // fetchData is called inside setTimeout, so we wait
-    waitFor(() => expect(fetchDataMock).toHaveBeenCalled());
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+    setTimeoutSpy.mockRestore();
   });
 
   it('shows modals when flags are true', () => {
