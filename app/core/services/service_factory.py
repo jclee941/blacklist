@@ -63,15 +63,11 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     # 1. CORE INFRASTRUCTURE (No Dependencies)
     # ============================================================
 
-    try:
-        from .database_service import DatabaseService
+    from .database_service import DatabaseService
 
-        # Initialize DatabaseService instance
-        db_service = DatabaseService()
-        services["db_service"] = db_service
-        logger.info("  ✅ db_service (DatabaseService)")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize db_service: {e}")
+    db_service = DatabaseService()
+    services["db_service"] = db_service
+    logger.info("  ✅ db_service (DatabaseService)")
 
     # ============================================================
     # 2. SERVICES DEPENDING ON DB_SERVICE

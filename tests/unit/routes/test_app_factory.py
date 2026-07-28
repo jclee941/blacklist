@@ -3,6 +3,8 @@
 import logging
 from unittest.mock import patch, MagicMock
 
+import pytest
+
 from core.app import MemoryHandler
 
 
@@ -131,13 +133,26 @@ class TestCreateApp:
         assert resp.headers.get("Content-Encoding") != "gzip"
 
     @patch("core.app.threading.Thread")
-    @patch("core.services.service_factory.initialize_services", side_effect=Exception("boom"))
-    def test_service_init_failure_handled(self, _init, _thread):
+    @patch("core.services.service_factory.initialize_services", side_effect=RuntimeError("boom"))
+    def test_service_init_failure_stops_application_startup(self, _init, _thread):
         from core.app import create_app
-        from flask import Flask
 
-        app = create_app()  # Should not raise
-        assert isinstance(app, Flask)
+        with pytest.raises(RuntimeError, match="boom"):
+            create_app()
+
+    def test_background_tasks_start_once_per_process(self):
+        from core.app import create_app
+
+        with (
+            patch("core.app._background_tasks_started", False, create=True),
+            patch("core.services.service_factory.initialize_services", return_value={}),
+            patch("core.app.threading.Thread") as thread_class,
+        ):
+            create_app()
+            create_app()
+
+        assert thread_class.call_count == 1
+        thread_class.return_value.start.assert_called_once()
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app.threading.Thread")

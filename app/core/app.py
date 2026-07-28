@@ -47,6 +47,9 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 memory_handler.setFormatter(formatter)
 logger.addHandler(memory_handler)
 
+_background_tasks_lock = threading.Lock()
+_background_tasks_started = False
+
 
 def create_app():
     """Create Flask application instance"""
@@ -132,8 +135,9 @@ def create_app():
             app.extensions[service_name] = service_instance
 
         app.logger.info(f"✅ Initialized {len(services)}/15 services via dependency injection")
-    except Exception as e:
-        app.logger.error(f"❌ Service initialization failed: {e}")
+    except Exception:
+        app.logger.exception("❌ Service initialization failed")
+        raise
 
     # Enable Gzip compression
     app.config["COMPRESS_ALGORITHM"] = "gzip"
@@ -450,7 +454,11 @@ def create_app():
             check_collector_health()
             start_background_tasks()
 
-    threading.Thread(target=delayed_background_start, daemon=True).start()
+    global _background_tasks_started
+    with _background_tasks_lock:
+        if not _background_tasks_started:
+            threading.Thread(target=delayed_background_start, daemon=True).start()
+            _background_tasks_started = True
 
     return app
 

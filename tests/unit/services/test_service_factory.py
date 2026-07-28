@@ -1,6 +1,5 @@
 """Unit tests for service_factory module"""
 
-import sys
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -47,7 +46,7 @@ class TestServiceFactory:
         mock_app = Mock()
         mock_app.extensions = {}
 
-        from app.core.services.service_factory import initialize_services
+        from core.services.service_factory import initialize_services
 
         services = initialize_services(mock_app)
         assert "db_service" in services
@@ -59,7 +58,7 @@ class TestServiceFactory:
         mock_app = Mock()
         mock_app.extensions = {}
 
-        from app.core.services.service_factory import initialize_services
+        from core.services.service_factory import initialize_services
 
         services = initialize_services(mock_app)
         assert isinstance(services, dict)
@@ -77,21 +76,15 @@ class TestServiceFactory:
         assert isinstance(services, dict)
 
     @patch("psycopg2.connect")
-    def test_initialize_services_db_failure_is_handled(self, mock_connect):
-        """DatabaseService failure is handled gracefully"""
+    def test_initialize_services_fails_when_database_service_is_unavailable(self, mock_connect):
         mock_connect.return_value = MagicMock()
         mock_app = Mock()
         mock_app.extensions = {}
 
-        from app.core.services.service_factory import initialize_services
+        from core.services.service_factory import initialize_services
 
         with patch(
-            "app.core.services.service_factory.DatabaseService",
-            create=True,
-            side_effect=Exception("Cannot connect to DB"),
+            "core.services.database_service.DatabaseService", side_effect=RuntimeError("Cannot connect to DB")
         ):
-            try:
-                services = initialize_services(mock_app)
-                assert services.get("db_service") is None or "db_service" not in services
-            except Exception:
-                assert True
+            with pytest.raises(RuntimeError, match="Cannot connect to DB"):
+                initialize_services(mock_app)
