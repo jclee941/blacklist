@@ -4,19 +4,21 @@
 |------|------|
 | **버전** | 4.1.0 |
 | **최종수정** | 2026-07-29 |
-| **테스트 합계** | 2,193 automated tests plus Playwright scenarios |
+| **범위** | Backend/collector Pytest, frontend Vitest, and Playwright scenarios |
 
 ---
 
 ## Quick Reference
 
-| Test Type | Framework | Files | Tests | Command | Time |
-|-----------|-----------|-------|-------|---------|------|
-| Backend Unit | Pytest | `tests/unit/` | 1,449 | `make test-backend-unit` | 1-2m |
-| Frontend Unit | Vitest | `frontend/__tests__/` | 431 | `make test-frontend-unit` | 30s |
-| E2E | Playwright | `frontend/e2e/` | 27 spec files | `make test-frontend-e2e` | up to 60m in CI |
-| Backend Coverage | Pytest+cov | `tests/unit/` | 1,449 | `make test-backend-coverage` | 2-3m |
-| **Unit + integration** | **Multiple** | **repository** | **2,193** | **`make test`** | **10-15m** |
+| Test Type | Framework | Location | Command | Notes |
+|-----------|-----------|----------|---------|-------|
+| Backend Unit | Pytest | `tests/unit/` except `tests/unit/collector/` | `make test-backend-unit` | Enforces 80% app coverage |
+| Collector Unit | Pytest | `tests/unit/collector/` | `make test-collector-unit` | Uses the isolated collector import path |
+| Backend Integration | Pytest | `tests/integration/` | `make test-backend-integration` | Credential persistence scenarios |
+| Frontend Unit | Vitest | `frontend/__tests__/` | `make test-frontend-unit` | Runs Vitest once |
+| E2E | Playwright | `frontend/e2e/` | `make test-frontend-e2e` | Separate from `make test`; CI budget is 60 minutes |
+| Backend Coverage | Pytest+cov | application unit suite | `make test-backend-coverage` | Writes terminal, HTML, and XML reports |
+| **Unit + integration** | **Multiple** | **repository** | **`make test`** | **Backend, collector, integration, and Vitest; excludes Playwright** |
 
 ---
 
@@ -39,7 +41,8 @@ make dev
 ### All Tests
 
 ```bash
-# Run entire test suite (backend + frontend)
+# Run backend, collector, integration, and frontend unit suites
+# Playwright E2E runs separately.
 make test
 ```
 
@@ -66,13 +69,13 @@ docker compose exec -T blacklist-app python -m pytest tests/unit -v --tb=short
 ```
 tests/
 ├── unit/
-│   ├── auth/           # JWT, middleware tests (8 files)
-│   ├── services/       # Service layer tests (14 files)
-│   ├── routes/         # API endpoint tests (25+ files)
+│   ├── auth/           # JWT and middleware tests
+│   ├── services/       # Service layer tests
+│   ├── routes/         # API endpoint tests
 │   ├── database/       # Database layer tests
 │   ├── utils/          # Utility tests
 │   ├── collector/      # Collector unit tests
-│   └── ...             # 107 files total
+│   └── ...             # Other focused unit-test domains
 ```
 
 ### Frontend Unit Tests (Vitest)
@@ -94,7 +97,7 @@ cd frontend && npm run test -- --watch
 **Test locations:**
 ```
 frontend/
-├── __tests__/          # 44 test files (207+ tests)
+├── __tests__/          # Vitest unit tests
 │   ├── components/     # Component tests
 │   ├── hooks/          # Hook tests
 │   ├── lib/            # Utility tests

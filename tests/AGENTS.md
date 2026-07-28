@@ -46,7 +46,7 @@ tests/
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `unit/routes/` | directory | `unit/routes/` | high | 43 test files covering all API endpoints |
-| `unit/services/` | directory | `unit/services/` | high | 28 test files covering service layer |
-| `unit/collector/` | directory | `unit/collector/` | high | 24 test files covering ETL pipelines |
+| `unit/routes/` | directory | `unit/routes/` | high | Flask route and API contract tests |
+| `unit/services/` | directory | `unit/services/` | high | application service tests |
+| `unit/collector/` | directory | `unit/collector/` | high | isolated collector and ETL tests |
 | `frontend/e2e/` | directory | `frontend/e2e/` | med | Playwright browser scenarios and snapshots |
