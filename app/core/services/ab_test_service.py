@@ -7,7 +7,7 @@ A/B 테스트 서비스 - Phase 3.3: 점진적 롤아웃
 import logging
 import hashlib
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class ABTestService:
             "feature": feature,
             "variant": variant,
             "result": result,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info(f"A/B Test: {log_data}")
@@ -88,7 +88,7 @@ class ABTestService:
         """
         return {
             "features": self.FEATURE_FLAGS,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def update_feature_percentage(self, feature: str, percentage: int) -> Dict[str, Any]:
@@ -118,7 +118,7 @@ class ABTestService:
             "feature": feature,
             "old_percentage": old_percentage,
             "new_percentage": percentage,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
 
