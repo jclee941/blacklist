@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import Dashboard from '@/app/page';
 
 vi.mock('lucide-react', () => ({
@@ -191,6 +191,21 @@ describe('DashboardPage', () => {
       expect(mockGetCollectionStatus).toHaveBeenCalled();
       expect(mockGetWhitelist).toHaveBeenCalled();
     });
+  });
+
+  it('does not start a second collection status request while the first poll is pending', async () => {
+    mockGetCollectionStatus.mockReturnValue(new Promise(() => {}));
+    render(<Dashboard />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockGetCollectionStatus).toHaveBeenCalledTimes(1);
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(mockGetCollectionStatus).toHaveBeenCalledTimes(1);
   });
 
   it('handles API errors gracefully', async () => {
