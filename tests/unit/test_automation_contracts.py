@@ -49,9 +49,11 @@ jobs:
     permissions:
       contents: read
   create-release:
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}
     permissions:
       contents: write
   push-to-registry:
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}
     permissions:
       packages: write
   notify:
@@ -63,6 +65,8 @@ Release notes file not found
 if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
 git ls-files --error-unmatch \"$RELEASE_NOTES_FILE\"
 git add \"$VERSION_FILE\" \"$CHANGELOG_FILE\" \"$FRONTEND_PKG\" \"$RELEASE_NOTES_FILE\"
+CI_WORKFLOW=\"CI\"
+gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
 """,
         ".github/docker-compose.ci.yml": """
 ports:
@@ -116,6 +120,21 @@ docs/manual/*
             ".github/workflows/release.yml",
             "      contents: read\n      packages: write",
             "release workflow job 'build-images' lacks explicit least-privilege permissions",
+        ),
+        (
+            "scripts/release.sh",
+            'CI_WORKFLOW="CI"',
+            "release script does not select the primary CI workflow",
+        ),
+        (
+            "scripts/release.sh",
+            'gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA"',
+            "release script does not limit remote verification to the primary CI workflow",
+        ),
+        (
+            ".github/workflows/release.yml",
+            "    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}",
+            "release workflow publication jobs are not restricted to tag-triggered non-dry runs",
         ),
         (
             ".github/workflows/ci.yml",

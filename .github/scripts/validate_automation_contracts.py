@@ -22,6 +22,10 @@ RELEASE_JOB_PERMISSIONS: Final = {
     "push-to-registry": "    permissions:\n      packages: write",
     "notify": "    permissions: {}",
 }
+PRIMARY_CI_WORKFLOW: Final = "CI"
+TAG_TRIGGERED_NON_DRY_RUN_CONDITION: Final = (
+    "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}"
+)
 
 
 def read(relative_path: str) -> str:
@@ -35,6 +39,15 @@ def has_explicit_job_permissions(workflow: str, job_name: str, permissions: str)
         re.MULTILINE | re.DOTALL,
     )
     return job is not None and permissions in job.group("body")
+
+
+def has_job_condition(workflow: str, job_name: str, condition: str) -> bool:
+    job = re.search(
+        rf"^  {re.escape(job_name)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:|\Z)",
+        workflow,
+        re.MULTILINE | re.DOTALL,
+    )
+    return job is not None and f"    if: {condition}" in job.group("body")
 
 
 def main() -> None:
@@ -53,9 +66,9 @@ def main() -> None:
             ("contents: read\n      packages: write" in build_images, "build-images lacks contents: read"),
             ("collector/|tests/unit/collector/" in ci, "collector test changes are not detected"),
             ("contents: read\n  packages: write" not in ci, "CI grants package write globally"),
-            ("node-version: \"24\"" in ci, "CI frontend lint does not use Node 24"),
+            ('node-version: "24"' in ci, "CI frontend lint does not use Node 24"),
             ("node-version: 24" in ci, "CI frontend test or E2E does not use Node 24"),
-            ("default: \"24\"" in reusable_node, "reusable Node workflow does not default to Node 24"),
+            ('default: "24"' in reusable_node, "reusable Node workflow does not default to Node 24"),
             ("contents: read\n      packages: write" in ci, "image publishing lacks contents: read"),
             ("context: ./deploy/redis" in ci, "CI Redis build context is invalid"),
             ("API_URL: https://localhost:3443" in ci, "E2E API calls bypass the frontend proxy"),
@@ -74,7 +87,7 @@ def main() -> None:
                 ),
                 "CI gate does not fail when a required job is cancelled",
             ),
-            ("ports:\n      - \"3443:443\"" in ci_compose, "CI frontend is not exposed on the proxy port"),
+            ('ports:\n      - "3443:443"' in ci_compose, "CI frontend is not exposed on the proxy port"),
             ("ADMIN_USERNAME: admin" in ci_compose, "CI app username does not match E2E credentials"),
             ("ADMIN_PASSWORD: blacklist-dev-password" in ci_compose, "CI app password does not match E2E credentials"),
             ("FROM node:24-alpine AS builder" in frontend_dockerfile, "frontend build image does not use Node 24"),
@@ -92,6 +105,21 @@ def main() -> None:
             (
                 'git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$RELEASE_NOTES_FILE"' in release_script,
                 "release script does not stage release notes",
+            ),
+            (
+                f'CI_WORKFLOW="{PRIMARY_CI_WORKFLOW}"' in release_script,
+                "release script does not select the primary CI workflow",
+            ),
+            (
+                'gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA"' in release_script,
+                "release script does not limit remote verification to the primary CI workflow",
+            ),
+            (
+                all(
+                    has_job_condition(release, job_name, TAG_TRIGGERED_NON_DRY_RUN_CONDITION)
+                    for job_name in ("create-release", "push-to-registry")
+                ),
+                "release workflow publication jobs are not restricted to tag-triggered non-dry runs",
             ),
             ("Release notes file not found" in release, "release workflow does not validate release notes"),
             (

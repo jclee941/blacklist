@@ -192,7 +192,6 @@ class DatabaseService:
             affected_rows = cursor.rowcount
             conn.commit()
             cursor.close()
-            self.return_connection(conn)
             return affected_rows
         except Exception as e:
             logger.error(f"Execute query failed: {e}")
@@ -202,6 +201,9 @@ class DatabaseService:
             except Exception as e:
                 logger.debug("Rollback failed during error handling: %s", e)
             raise
+        finally:
+            if conn:
+                self.return_connection(conn)
 
     def create_raw_connection(self):
         """
