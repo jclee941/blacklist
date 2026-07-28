@@ -15,9 +15,11 @@ import subprocess
 import sys
 import time
 import urllib.parse
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Final, List, Optional
+from typing_extensions import override
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -32,6 +34,18 @@ from ..regtech_excel import download_excel_data
 
 logger = logging.getLogger(__name__)
 REGTECH_PAGE_SIZE = 50
+REGTECH_PAGE_ATTEMPTS: Final = 3
+
+
+@dataclass(frozen=True, slots=True)
+class RegtechPageCollectionError(RuntimeError):
+    strategy: str
+    page_num: int
+    attempts: int
+
+    @override
+    def __str__(self) -> str:
+        return f"REGTECH page collection failed: strategy={self.strategy} page={self.page_num} attempts={self.attempts}"
 
 
 class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
@@ -76,55 +90,26 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         page_size: int = REGTECH_PAGE_SIZE,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        max_pages: int = 100,
+        max_pages: Optional[int] = 100,
     ) -> List[Dict[str, Any]]:
         if not self._ensure_authenticated():
             logger.error("❌ 인증되지 않은 상태에서 수집 시도")
             return []
 
-        requested_capacity = page_size * max_pages
         effective_page_size = min(page_size, REGTECH_PAGE_SIZE)
-        effective_max_pages = (
-            max_pages
-            if effective_page_size == page_size
-            else max(1, (requested_capacity + effective_page_size - 1) // effective_page_size)
-        )
+        if max_pages is None:
+            effective_max_pages = None
+        else:
+            requested_capacity = page_size * max_pages
+            effective_max_pages = (
+                max_pages
+                if effective_page_size == page_size
+                else max(1, (requested_capacity + effective_page_size - 1) // effective_page_size)
+            )
 
         collection_start = time.time()
 
-        disable_excel = os.getenv("DISABLE_EXCEL_COLLECTION", "false").lower() == "true"
-
-        if start_date and end_date and not disable_excel:
-            logger.info(f"📥 Excel 다운로드 시도: {start_date} ~ {end_date}")
-            excel_data = self._download_excel_data(start_date, end_date)
-
-            is_excel_stale = False
-            if excel_data:
-                valid_dates = []
-                for item in excel_data:
-                    d = item.get("detection_date")
-                    if d and isinstance(d, str):
-                        valid_dates.append(d)
-
-                max_date_str = max(valid_dates) if valid_dates else None
-
-                if max_date_str:
-                    try:
-                        max_date = datetime.strptime(max_date_str, "%Y-%m-%d").date()
-                        today = datetime.now().date()
-                        if (today - max_date).days > 3:
-                            is_excel_stale = True
-                            logger.warning(f"⚠️ Excel 데이터가 오래됨 (최신: {max_date_str}). HTML 수집으로 전환합니다.")
-                    except Exception:
-                        pass
-
-            if excel_data and not is_excel_stale:
-                collection_time = time.time() - collection_start
-                logger.info(f"✅ Excel 수집 완료: {len(excel_data)}개 IP ({collection_time:.2f}초)")
-                return self._post_process_collected_data(excel_data)
-
-            if not is_excel_stale:
-                logger.warning("⚠️ Excel 다운로드 실패, HTML 페이지네이션으로 전환")
+        excel_enabled = os.getenv("DISABLE_EXCEL_COLLECTION", "false").lower() != "true"
 
         collected_data = []
         date_strategies = self._generate_date_strategies(start_date, end_date)
@@ -132,23 +117,69 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         try:
             logger.info(
                 f"🚀 스마트 REGTECH 데이터 수집 시작 "
-                f"(페이지 크기: {effective_page_size}, 최대 페이지: {effective_max_pages})"
+                f"(페이지 크기: {effective_page_size}, 최대 페이지: {effective_max_pages or '제한 없음'})"
             )
             logger.info(f"📅 날짜 전략 수: {len(date_strategies)}개")
 
             for strategy_idx, (strategy_name, start_dt, end_dt) in enumerate(date_strategies, 1):
                 logger.info(f"🔄 전략 {strategy_idx}/{len(date_strategies)}: {strategy_name} ({start_dt} ~ {end_dt})")
 
-                if start_dt and end_dt:
+                if excel_enabled and start_dt and end_dt:
                     excel_data = self._download_excel_data(start_dt, end_dt)
                     if excel_data:
-                        logger.info(f"✅ 전략 {strategy_name} Excel 성공: {len(excel_data)}개 IP")
-                        collected_data.extend(excel_data)
-                        break
+                        detection_dates = [
+                            detection_date
+                            for item in excel_data
+                            if isinstance((detection_date := item.get("detection_date")), str)
+                        ]
+                        latest_detection_date = max(detection_dates, default=None)
+                        excel_is_fresh = True
+                        if latest_detection_date:
+                            try:
+                                latest_date = datetime.strptime(latest_detection_date, "%Y-%m-%d").date()
+                            except ValueError:
+                                logger.warning(
+                                    "REGTECH Excel 날짜 파싱 실패: 전략=%s 최신일=%s",
+                                    strategy_name,
+                                    latest_detection_date,
+                                )
+                            else:
+                                excel_is_fresh = (datetime.now().date() - latest_date).days <= 3
+
+                        if excel_is_fresh:
+                            logger.info(f"✅ 전략 {strategy_name} Excel 성공: {len(excel_data)}개 IP")
+                            collected_data.extend(excel_data)
+                            break
+
+                        logger.warning(
+                            "REGTECH Excel 데이터가 오래되어 HTML 수집으로 전환: 전략=%s 최신일=%s",
+                            strategy_name,
+                            latest_detection_date,
+                        )
 
                 strategy_data = []
-                for page_num in range(1, effective_max_pages + 1):
-                    page_data = self._collect_single_page(page_num, effective_page_size, start_dt, end_dt)
+                page_num = 1
+                while effective_max_pages is None or page_num <= effective_max_pages:
+                    page_data = None
+                    for attempt in range(1, REGTECH_PAGE_ATTEMPTS + 1):
+                        page_data = self._collect_single_page(page_num, effective_page_size, start_dt, end_dt)
+                        if page_data is not None:
+                            break
+                        if attempt < REGTECH_PAGE_ATTEMPTS:
+                            logger.warning(
+                                "REGTECH 페이지 재시도: 전략=%s 페이지=%s 시도=%s/%s",
+                                strategy_name,
+                                page_num,
+                                attempt,
+                                REGTECH_PAGE_ATTEMPTS,
+                            )
+
+                    if page_data is None:
+                        raise RegtechPageCollectionError(
+                            strategy=strategy_name,
+                            page_num=page_num,
+                            attempts=REGTECH_PAGE_ATTEMPTS,
+                        )
 
                     if not page_data:
                         logger.info(f"📄 전략 {strategy_name} 페이지 {page_num}: 데이터 없음")
@@ -160,6 +191,8 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
                     if len(strategy_data) >= 10000000:
                         logger.warning("⚠️ 메모리 한계 도달 (1000만개), 현재 전략 중단")
                         break
+
+                    page_num += 1
 
                 if strategy_data:
                     logger.info(f"✅ 전략 {strategy_name} 성공: {len(strategy_data)}개 IP 수집")
@@ -175,6 +208,8 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
             return self._post_process_collected_data(collected_data)
 
+        except RegtechPageCollectionError:
+            raise
         except Exception as e:
             logger.error(f"❌ REGTECH 데이터 수집 중 오류: {e}")
             return collected_data
@@ -249,7 +284,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         page_size: int,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Dict[str, Any]] | None:
         try:
             data_url = f"{self.base_url}/fcti/securityAdvisory/advisoryList"
 
@@ -297,7 +332,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
             if not self.rate_limiter.wait_if_needed():
                 logger.warning(f"⚠️ 페이지 {page_num} Rate Limiter 대기 실패. 수집 중단.")
-                return []
+                return None
 
             cookie_count = len(self.session.cookies)
             has_jwt = any(c.name == "regtech-va" for c in self.session.cookies)
@@ -332,7 +367,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
             if result.returncode != 0:
                 logger.error(f"❌ curl 실행 실패: {result.stderr}")
                 self.rate_limiter.on_failure()
-                return []
+                return None
 
             response_text = result.stdout
             logger.info(f"📊 응답 길이: {len(response_text)}")
@@ -381,6 +416,14 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
                 return []
 
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.error(
+                "REGTECH 페이지 요청 실패: 페이지=%s 오류=%s",
+                page_num,
+                type(exc).__name__,
+            )
+            self.rate_limiter.on_failure()
+            return None
         except Exception as e:
             logger.error(f"❌ 페이지 {page_num} 수집 실패: {e}")
 
