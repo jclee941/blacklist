@@ -1,16 +1,15 @@
 """Tests for collector/config.py — CollectorConfig class."""
 
 import pytest
-from typing import Any, cast
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+from collector.config import CollectorConfig
 
 
 class TestCollectorConfigMethods:
-    cfg: Any = cast(Any, None)
+    cfg = CollectorConfig
 
     def setup_method(self):
-        from collector.config import CollectorConfig
-
         self.cfg = CollectorConfig
         self.cfg._credentials_cache = {}
         self.cfg._cache_loaded = False
@@ -46,10 +45,8 @@ class TestCollectorConfigMethods:
     def test_validate_config_success(self):
         assert self.cfg.validate_config() is True
 
-    @patch.object(__import__("collector.config", fromlist=["CollectorConfig"]).CollectorConfig, "POSTGRES_HOST", "")
+    @patch.object(CollectorConfig, "POSTGRES_HOST", "")
     def test_validate_config_missing_host(self):
-        from collector.config import CollectorConfig
-
         assert CollectorConfig.validate_config() is False
 
     def test_validate_config_invalid_batch_size(self):
@@ -66,11 +63,9 @@ class TestCollectorConfigMethods:
 
 
 class TestGetCredentials:
-    cfg: Any = cast(Any, None)
+    cfg = CollectorConfig
 
     def setup_method(self):
-        from collector.config import CollectorConfig
-
         self.cfg = CollectorConfig
         self.cfg._credentials_cache = {}
         self.cfg._cache_loaded = False
@@ -89,16 +84,17 @@ class TestGetCredentials:
             self.cfg.get_regtech_credentials()
 
     @patch("collector.config.psycopg2")
-    def test_db_load_failure_raises(self, mock_psycopg2):
+    def test_db_load_failure_raises(self, mock_psycopg2: MagicMock):
         """ValueError raised when DB connection fails and no cached credentials."""
         mock_psycopg2.connect.side_effect = RuntimeError("no db")
         with pytest.raises(ValueError, match="REGTECH credentials not configured"):
             self.cfg.get_regtech_credentials()
 
     def test_to_dict(self):
-        """to_dict returns credential values from DB cache."""
         self.cfg._credentials_cache = {"REGTECH": {"username": "u", "password": "p", "config": {}}}
         self.cfg._cache_loaded = True
         d = self.cfg.to_dict()
-        assert d["regtech_id"] == "u"
+        assert "postgres_password" not in d
+        assert "regtech_id" not in d
+        assert "regtech_pw" not in d
         assert d["batch_size"] > 0

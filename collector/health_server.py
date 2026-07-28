@@ -4,7 +4,7 @@ Provides HTTP health endpoint at :8545/health
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
 from flask import Flask, jsonify
 import threading
 import logging
@@ -16,6 +16,15 @@ logger = logging.getLogger(__name__)
 
 # Global log buffer for recent logs (circular buffer)
 LOG_BUFFER: deque[dict[str, Any]] = deque(maxlen=100)
+
+
+class CollectorStatus(TypedDict):
+    enabled: bool
+    run_count: int
+    error_count: int
+    interval_seconds: int
+    last_run: str | None
+    next_run: str | None
 
 
 class LogBufferHandler(logging.Handler):
@@ -254,22 +263,34 @@ class HealthServer:
                     }
                 ), 500
 
-    def _get_collector_status(self):
+    def _get_collector_status(self) -> dict[str, CollectorStatus]:
         """Get current collector status from scheduler stats"""
-        status = {}
+        status: dict[str, CollectorStatus] = {}
 
         regtech_creds = self._db.get_collection_credentials("REGTECH")
         regtech_enabled = regtech_creds.get("enabled", False) if regtech_creds else False
+        persisted_status = self._db.get_collection_status("REGTECH")
 
-        # Use scheduler collection_stats if available (primary source)
-        if self.scheduler:
+        if persisted_status:
+            stats = self.scheduler.collection_stats if self.scheduler else {}
+            success_count = int(persisted_status["success_count"] or 0)
+            error_count = int(persisted_status["error_count"] or 0)
+            status["REGTECH"] = {
+                "enabled": bool(regtech_enabled),
+                "run_count": success_count + error_count,
+                "error_count": error_count,
+                "interval_seconds": int(stats.get("adaptive_interval", 0) or 0),
+                "last_run": str(persisted_status["last_run"]) if persisted_status["last_run"] else None,
+                "next_run": self.scheduler._get_next_run_time() if self.scheduler else None,
+            }
+        elif self.scheduler:
             stats = self.scheduler.collection_stats
             status["REGTECH"] = {
-                "enabled": regtech_enabled,
-                "run_count": stats.get("total_runs", 0),
-                "error_count": stats.get("failed_runs", 0),
-                "interval_seconds": stats.get("adaptive_interval", 86400),
-                "last_run": stats.get("last_run"),  # Already ISO string or None
+                "enabled": bool(regtech_enabled),
+                "run_count": int(stats.get("total_runs", 0) or 0),
+                "error_count": int(stats.get("failed_runs", 0) or 0),
+                "interval_seconds": int(stats.get("adaptive_interval", 86400) or 86400),
+                "last_run": str(stats["last_run"]) if stats.get("last_run") else None,
                 "next_run": self.scheduler._get_next_run_time(),
             }
         else:
@@ -277,7 +298,7 @@ class HealthServer:
             for name in self.collectors:
                 cred_enabled = regtech_enabled if name == "REGTECH" else False
                 status[name] = {
-                    "enabled": cred_enabled,
+                    "enabled": bool(cred_enabled),
                     "run_count": 0,
                     "error_count": 0,
                     "interval_seconds": 0,
