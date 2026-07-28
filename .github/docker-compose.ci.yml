@@ -37,6 +37,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       FLASK_ENV: testing
       SECRET_KEY: ci-test-secret-key
+      CREDENTIAL_MASTER_KEY: ci-test-credential-master-key
+      ENCRYPTION_SALT: ci-test-encryption-salt
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_USER: postgres
@@ -62,6 +64,8 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/blacklist
       REDIS_URL: redis://redis:6379/0
+      CREDENTIAL_MASTER_KEY: ci-test-credential-master-key
+      ENCRYPTION_SALT: ci-test-encryption-salt
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_USER: postgres

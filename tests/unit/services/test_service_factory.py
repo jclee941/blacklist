@@ -8,6 +8,11 @@ from unittest.mock import Mock, patch, MagicMock
 class TestServiceFactory:
     """Tests for service_factory module-level functions"""
 
+    @pytest.fixture(autouse=True)
+    def credential_master_key(self, monkeypatch):
+        monkeypatch.setenv("CREDENTIAL_MASTER_KEY", "test-credential-master-key")
+        monkeypatch.setenv("ENCRYPTION_SALT", "test-encryption-salt")
+
     # --- get_service_info ---
 
     def test_get_service_info_returns_dict(self):
@@ -87,4 +92,19 @@ class TestServiceFactory:
             "core.services.database_service.DatabaseService", side_effect=RuntimeError("Cannot connect to DB")
         ):
             with pytest.raises(RuntimeError, match="Cannot connect to DB"):
+                initialize_services(mock_app)
+
+    @patch("psycopg2.connect")
+    def test_initialize_services_fails_when_secure_credential_service_is_unavailable(self, mock_connect):
+        mock_connect.return_value = MagicMock()
+        mock_app = Mock()
+        mock_app.extensions = {}
+
+        from core.services.service_factory import initialize_services
+
+        with patch(
+            "core.services.secure_credential_service.SecureCredentialService",
+            side_effect=RuntimeError("Credential master key is required"),
+        ):
+            with pytest.raises(RuntimeError, match="Credential master key is required"):
                 initialize_services(mock_app)
