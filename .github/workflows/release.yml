@@ -64,6 +64,7 @@ jobs:
     needs: validate
     permissions:
       contents: read
+      packages: write
     uses: ./.github/workflows/build-images.yml
     with:
       version: ${{ needs.validate.outputs.version }}

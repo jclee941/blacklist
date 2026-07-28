@@ -338,7 +338,7 @@ jobs:
     needs: build
     if: always() && needs.build.result == 'success'
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -419,9 +419,7 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Download artifacts from the Actions tab for detailed reports." >> "$GITHUB_STEP_SUMMARY"
 
-  # Single required status check for branch protection.
-  # Solves: path-filtered jobs get SKIPPED, which doesn't satisfy required checks.
-  # Make 'ci-gate' the ONLY required check in branch protection settings.
+  # Aggregate internal CI result; repository protection is enforced by jclee-bot checks.
   ci-gate:
     needs:
       [
@@ -464,18 +462,16 @@ jobs:
           for r in "${results[@]}"; do
             job="${r%%=*}"
             result="${r##*=}"
-            if [ "$result" = "failure" ]; then
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               echo "❌ $job: $result" >> "$GITHUB_STEP_SUMMARY"
               failed=true
-            elif [ "$result" = "cancelled" ]; then
-              echo "⚠️ $job: $result" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "✅ $job: $result" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
           if [ "$failed" = "true" ]; then
             echo ""
-            echo "CI gate FAILED — one or more jobs failed."
+            echo "CI gate FAILED — one or more jobs failed or were cancelled."
             exit 1
           fi
           echo ""

@@ -16,7 +16,7 @@ WORKFLOWS: Final = ROOT / ".github" / "workflows"
 MUTABLE_ACTION_REF: Final = re.compile(r"^\s*-?\s*uses:\s+[^\s]+@(v|main|master|latest)", re.MULTILINE)
 RELEASE_JOB_PERMISSIONS: Final = {
     "validate": "    permissions:\n      contents: read",
-    "build-images": "    permissions:\n      contents: read",
+    "build-images": "    permissions:\n      contents: read\n      packages: write",
     "package": "    permissions:\n      contents: read",
     "create-release": "    permissions:\n      contents: write",
     "push-to-registry": "    permissions:\n      packages: write",
@@ -62,6 +62,18 @@ def main() -> None:
             ("BASE_URL: https://localhost:3443" in ci, "E2E browser target bypasses the frontend proxy"),
             ("E2E_USERNAME: admin" in ci, "CI does not provide the E2E username"),
             ("E2E_PASSWORD: blacklist-dev-password" in ci, "CI does not provide the E2E password"),
+            (
+                has_explicit_job_permissions(ci, "e2e", "    timeout-minutes: 60"),
+                "CI E2E timeout is too short for the full browser matrix",
+            ),
+            (
+                has_explicit_job_permissions(
+                    ci,
+                    "ci-gate",
+                    '          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then',
+                ),
+                "CI gate does not fail when a required job is cancelled",
+            ),
             ("ports:\n      - \"3443:443\"" in ci_compose, "CI frontend is not exposed on the proxy port"),
             ("ADMIN_USERNAME: admin" in ci_compose, "CI app username does not match E2E credentials"),
             ("ADMIN_PASSWORD: blacklist-dev-password" in ci_compose, "CI app password does not match E2E credentials"),

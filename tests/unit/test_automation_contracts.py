@@ -22,6 +22,13 @@ API_URL: https://localhost:3443
 BASE_URL: https://localhost:3443
 E2E_USERNAME: admin
 E2E_PASSWORD: blacklist-dev-password
+jobs:
+  e2e:
+    timeout-minutes: 60
+  ci-gate:
+    steps:
+      - run: |
+          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
 """,
         ".github/workflows/build-images.yml": """
       contents: read
@@ -37,6 +44,7 @@ jobs:
   build-images:
     permissions:
       contents: read
+      packages: write
   package:
     permissions:
       contents: read
@@ -103,6 +111,21 @@ docs/manual/*
             ".github/workflows/release.yml",
             "  notify:\n    permissions: {}",
             "release workflow job 'notify' lacks explicit least-privilege permissions",
+        ),
+        (
+            ".github/workflows/release.yml",
+            "      contents: read\n      packages: write",
+            "release workflow job 'build-images' lacks explicit least-privilege permissions",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "    timeout-minutes: 60",
+            "CI E2E timeout is too short for the full browser matrix",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            '          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then',
+            "CI gate does not fail when a required job is cancelled",
         ),
     ),
 )
