@@ -79,6 +79,11 @@ case "$BUMP_TYPE" in
   patch) NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
 esac
 
+RELEASE_NOTES_FILE="docs/manual/blacklist-${NEW_VERSION}-release-notes.md"
+if [[ ! -f "$RELEASE_NOTES_FILE" ]]; then
+  error "Release notes file not found: ${RELEASE_NOTES_FILE}. Create it before releasing."
+fi
+
 # Check tag doesn't already exist
 if git tag -l "v${NEW_VERSION}" | grep -q .; then
   error "Tag v${NEW_VERSION} already exists"
@@ -304,8 +309,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "Release pipeline will now:"
 echo "  1. Validate VERSION == tag"
-echo "  2. Build 5 Docker images (frontend, app, collector, postgres, redis)"
-echo "  3. Package release bundle"
+  echo "  2. Build 5 Docker images (frontend, app, collector, postgres, redis)"
+  echo "  3. Package release bundle with ${RELEASE_NOTES_FILE}"
 echo "  4. Create GitHub Release with assets"
 echo "  5. Push images to GHCR"
 echo "  6. Send Slack notification"
