@@ -9,6 +9,8 @@ from typing import Dict, Any
 import psycopg2
 import logging
 
+from .exceptions import CredentialDecryptionError, MissingMasterKeyError
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,12 +92,7 @@ class CollectorConfig:
 
                     key = os.getenv("CREDENTIAL_MASTER_KEY", "").encode()
                     if not key:
-                        logger.warning(f"CREDENTIAL_MASTER_KEY 미설정, {source} 복호화 건너뜀")
-                        cls._credentials_cache[source] = {
-                            "username": username,
-                            "password": password,
-                            "config": row_config,
-                        }
+                        logger.error("❌ %s", MissingMasterKeyError())
                         continue
 
                     # PBKDF2로 Fernet 키 파생 (database.py와 동일한 방식)
@@ -128,12 +125,7 @@ class CollectorConfig:
                     logger.info(f"✅ DB 인증정보 로드 성공 (복호화): {source}")
 
                 except Exception as decrypt_error:
-                    logger.warning(f"복호화 실패 ({source}), 평문 사용: {decrypt_error}")
-                    cls._credentials_cache[source] = {
-                        "username": username,
-                        "password": password,
-                        "config": row_config,
-                    }
+                    logger.error("❌ %s", CredentialDecryptionError(source, decrypt_error))
 
             cur.close()
             conn.close()
