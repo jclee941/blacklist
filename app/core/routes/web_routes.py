@@ -62,36 +62,6 @@ def index():
             )
 
 
-# Old code with fallback - now replaced
-def _old_template_based_index():
-    try:
-        # 기본 템플릿 데이터
-        template_data = {
-            "page_title": "위협 정보 관리 시스템",
-            "service_status": "operational",
-            "version": config.VERSION,  # UI Fix version
-            "timestamp": datetime.now().isoformat(),
-            "ui_fix": True,
-        }
-
-        return render_template("index.html", **template_data)
-
-    except Exception as e:
-        logger.error(f"Index page rendering failed: {e}")
-        # Fallback to JSON if template fails
-        return jsonify(
-            {
-                "status": "success",
-                "message": "Blacklist Homepage Working!",
-                "timestamp": datetime.now().isoformat(),
-                "service": "blacklist-app",
-                "version": config.VERSION,
-                "automation": "enabled",
-                "error": f"Template rendering failed: {str(e)}",
-            }
-        )
-
-
 @web_bp.route("/dashboard", methods=["GET"])
 def dashboard():
     """대시보드 페이지"""

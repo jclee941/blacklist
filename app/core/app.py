@@ -332,16 +332,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Proxy API routes failed: {e}")
 
-    # 5. Credentials API
-    # DISABLED: Redundant with api/collection.py which implements secure credential handling
-    # try:
-    #     from .routes.web.credentials_routes import credentials_bp
-    #
-    #     csrf.exempt(credentials_bp)
-    #     app.register_blueprint(credentials_bp, name="credentials_web")
-    # except Exception as e:
-    #     app.logger.error(f"❌ Credentials API routes failed: {e}")
-
     # Register error handlers
     try:
         from .errors.handlers import register_error_handlers
@@ -461,16 +451,6 @@ def create_app():
             start_background_tasks()
 
     threading.Thread(target=delayed_background_start, daemon=True).start()
-
-    # Credentials API Routes
-    # Already registered above in section 5
-    # try:
-    #     from .routes.web.credentials_routes import credentials_bp
-    #
-    #     csrf.exempt(credentials_bp)
-    #     app.register_blueprint(credentials_bp)
-    # except Exception as e:
-    #     app.logger.error(f"Credentials API routes failed: {e}")
 
     return app
 
