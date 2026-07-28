@@ -62,6 +62,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
+      DISABLE_JWT_AUTH: "true"
       TZ: Asia/Seoul
     volumes:
       - blacklist-collector-data:/app/data
@@ -99,8 +100,6 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME is required}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       TZ: Asia/Seoul
     volumes:
       - blacklist-logs:/app/logs
