@@ -33,6 +33,16 @@ npm run test:e2e
 npm run build
 ```
 
+## E2E Credentials
+
+Playwright requires `E2E_USERNAME` and `E2E_PASSWORD`. Set both before running authenticated tests. Keep real credentials out of tracked files.
+
+```bash
+E2E_USERNAME=admin E2E_PASSWORD='<test-password>' npm run test:e2e
+```
+
+When `BASE_URL` isn't set, Playwright starts `npm run dev` at `http://localhost:2543`. Set `BASE_URL` to test an already running environment. CI supplies its own test credentials.
+
 ## Flask Integration
 
 `next.config.ts` proxies `/api/:path*` to Flask at `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:2542`. It also proxies health, metrics, static assets, and legacy UI paths. Keep browser requests in `lib/api.ts` so headers, error handling, and backend contracts stay consistent.
