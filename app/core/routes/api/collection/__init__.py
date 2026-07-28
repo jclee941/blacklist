@@ -13,6 +13,7 @@ from .credentials import collection_credentials_bp
 from .sync import collection_sync_bp
 from .config import collection_config_bp
 from .sources import sources_bp
+from . import credential_validation
 
 
 def register_collection_routes(app):

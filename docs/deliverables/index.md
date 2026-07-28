@@ -62,7 +62,7 @@
 
 | 번호 | 산출물명 | 파일명 | 버전 | 상태 | 설명 |
 |------|----------|--------|------|------|------|
-| D-006 | **설치 가이드** | [`04-INSTALLATION-GUIDE.md`](./04-INSTALLATION-GUIDE.md) | 3.6.9 | ✅ 완료 | 환경별 설치 절차 (개발/스테이징/운영/Air-Gap) |
+| D-006 | **설치 가이드** | [`04-INSTALLATION-GUIDE.md`](./04-INSTALLATION-GUIDE.md) | 4.1.0 | ✅ 완료 | 오프라인 패키지 설치·운영·복구 절차 |
 | D-007 | **운영 가이드** | [`05-OPERATIONS-GUIDE.md`](./05-OPERATIONS-GUIDE.md) | 3.6.9 | ✅ 완료 | 운영 절차, 모니터링, 장애대응 |
 | D-008 | **개발자 가이드** | [`../../AGENTS.md`](../../AGENTS.md) | 3.6.9 | ✅ 완료 | 개발 규칙, 패턴, 코드맵 |
 | D-013 | **OpenAPI 명세** | [`03-API-REFERENCE.md`](./03-API-REFERENCE.md) | 3.6.9 | ✅ 완료 | REST API 상세 명세 (문서 통합) |

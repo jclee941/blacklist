@@ -1,6 +1,7 @@
 'use client';
 
-import { ReactNode, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -51,7 +52,7 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="flex min-h-[100dvh] items-center justify-center p-4">
         <button
           type="button"
           className="fixed inset-0 bg-black/50 transition-opacity cursor-default w-full h-full"
@@ -63,14 +64,12 @@ export default function Modal({
         >
           {(title || showCloseButton) && (
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              {title && (
-                <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-              )}
+              {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
               {showCloseButton && (
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center text-gray-500 transition-colors hover:text-gray-700"
                   aria-label="Close"
                 >
                   <X className="h-5 w-5" />

@@ -78,6 +78,19 @@ class TestAuthLogin:
             response = client.post("/api/auth/login", json={"username": "envuser", "password": "envpass"})
             assert response.status_code == 200
 
+    def test_login_uses_env_credentials_when_settings_are_absent(self, client, app):
+        app.extensions["settings_service"].get_setting.side_effect = lambda _key, default=None: default
+        app.extensions["jwt_service"].encode_token.return_value = "generated-token"
+
+        with patch.dict("os.environ", {"ADMIN_USERNAME": "generated-user", "ADMIN_PASSWORD": "generated-pass"}):
+            response = client.post(
+                "/api/auth/login",
+                json={"username": "generated-user", "password": "generated-pass"},
+            )
+
+        assert response.status_code == 200
+        assert response.get_json()["token"] == "generated-token"
+
     def test_login_no_settings_service(self, client, app):
         """Without settings_service, returns 500 AUTH_SERVICE_UNAVAILABLE."""
         # Source code (auth_routes.py:46-56): when settings_service is None,

@@ -76,21 +76,27 @@ make db-shell
 
 ### 환경변수 설정
 
-`deploy/.env.example`을 복사하여 `.env` 파일을 생성합니다:
+대상 장비에서 설치 스크립트로 필수 부트스트랩 값을 생성합니다:
 
 ```bash
-cp deploy/.env.example .env
+deploy/install.sh --check-secrets
 ```
+
+생성된 `deploy/.env`는 권한이 `0600`으로 설정됩니다. 각 값은 대상 장비에서 생성된 리터럴
+값이어야 하며, 파일 경로, 참조 문자열, 변수 표현식, 자리표시자 또는 빈 값은 허용되지 않습니다.
+업그레이드할 때는 기존 파일을 그대로 보존하고 새 번들 디렉터리로 복사한 뒤 설치 전에
+검증합니다. 암호화 키가 바뀌면 저장된 인증정보를 복호화할 수 없습니다. 첫 설치 후에는
+웹 UI에서 REGTECH 인증정보를 설정합니다.
 
 **필수 환경변수:**
 
-| 변수                        | 설명                    | 생성 방법                                                  |
-| --------------------------- | ----------------------- | ---------------------------------------------------------- |
-| `CREDENTIAL_MASTER_KEY`     | AES-256 마스터 키 (hex) | `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `SECRET_KEY`                | Flask 시크릿 키         | 위와 동일                                                  |
-| `CREDENTIAL_ENCRYPTION_KEY` | 크레덴셜 암호화 키      | 위와 동일                                                  |
-| `ENCRYPTION_SALT`           | 암호화 솔트             | 위와 동일                                                  |
-| `POSTGRES_PASSWORD`         | DB 비밀번호             | 직접 설정                                                  |
+| 변수                        | 설명                    | 생성 방법                    |
+| --------------------------- | ----------------------- | ---------------------------- |
+| `CREDENTIAL_MASTER_KEY`     | AES-256 마스터 키 (hex) | 대상 장비에서 자동 생성      |
+| `SECRET_KEY`                | Flask 시크릿 키         | 대상 장비에서 자동 생성      |
+| `CREDENTIAL_ENCRYPTION_KEY` | 크레덴셜 암호화 키      | 대상 장비에서 자동 생성      |
+| `ENCRYPTION_SALT`           | 암호화 솔트             | 대상 장비에서 자동 생성      |
+| `POSTGRES_PASSWORD`         | DB 비밀번호             | 대상 장비에서 자동 생성      |
 
 **선택 환경변수:**
 
@@ -98,11 +104,6 @@ cp deploy/.env.example .env
 | --------------------- | ------------------------------- | ----------------------------------- |
 | `POSTGRES_USER`       | postgres                        | DB 사용자                           |
 | `POSTGRES_DB`         | blacklist                       | DB 이름                             |
-| `JWT_SECRET_KEY`      | —                               | JWT 서명 키                         |
-| `JWT_EXPIRY_HOURS`    | 8                               | JWT 만료 시간                       |
-| `ADMIN_USERNAME`      | **SET_ADMIN_USERNAME**          | 관리자 계정 (배포 시 변경 필수)     |
-| `ADMIN_PASSWORD`      | **SET_ADMIN_PASSWORD**          | 관리자 비밀번호 (배포 시 변경 필수) |
-
 | `COLLECTOR_URL`       | http://blacklist-collector:8545 | Collector URL                       |
 | `LOG_LEVEL`           | INFO                            | 로그 레벨                           |
 | `COLLECTION_INTERVAL` | 3600                            | 수집 간격 (초)                      |
@@ -150,8 +151,18 @@ cd blacklist-3.6.9
 
 # 2. 설치 스크립트 실행
 chmod +x install.sh
+./install.sh --check-secrets
 ./install.sh
 ```
+
+첫 실행은 `.env`가 없을 때만 필수 부트스트랩 값을 생성합니다. 기존 `.env`에 빈 값,
+파일 경로, 참조 문자열, 변수 표현식, 자리표시자 또는 기본 비밀번호가 있으면 파일을 덮어쓰지
+않고 설치를 중단합니다.
+
+서비스가 정상 기동하면 수집 관리 화면에서 REGTECH 카드의 **설정 및 저장**을 선택합니다.
+최초 설정에서는 아이디와 비밀번호를 입력하고, 수집 간격과 활성화 여부를 지정한 뒤
+저장합니다. 저장 후 **테스트**가 성공한 것을 확인하고 **수집**을 실행합니다. 저장된
+비밀번호는 화면으로 다시 반환되지 않습니다.
 
 ### install.sh 동작 순서
 
@@ -225,109 +236,238 @@ chmod +x install.sh
 | **create-release**   | GitHub Release + 번들 asset                 |
 | **push-to-registry** | GHCR: version + latest 태그                 |
 
-### 릴리스 담당자 작업 체크리스트
+### 릴리스 실행 절차
 
-#### 1. 릴리스 입력 파일 준비
+릴리스 작업은 저장소의 `master` 브랜치에서 수행합니다. 배포 작업은 릴리스 번들을
+전달받은 운영 서버에서 수행합니다. 각 단계의 명령이 실패하면 원인을 해결하기 전까지
+다음 단계로 넘어가지 않습니다.
 
-태그를 만들기 전에 다음 파일을 대상 버전에 맞춥니다. `${VERSION}`은 `VERSION`
-파일에 기록된 SemVer 값입니다.
+#### 1. 릴리스 대상 확인
 
-- [ ] `VERSION`에 대상 버전이 기록되어 있습니다.
-- [ ] `frontend/package.json`의 `version`이 `VERSION`과 같습니다.
-- [ ] `CHANGELOG.md`에 `## [${VERSION}]` 항목이 있습니다.
-- [ ] `docs/manual/blacklist-${VERSION}-release-notes.md`가 있습니다.
-- [ ] `docs/manual/blacklist-offline-deployment-guide.pdf`가 최신 운영 절차를 반영합니다.
-- [ ] `deploy/docker-compose.release.yml`, `deploy/base.yml`, `deploy/install.sh`,
-      `deploy/prereqs/`를 검토했습니다.
+저장소 루트에서 브랜치, 작업 트리, 대상 버전을 먼저 확인합니다.
 
-`release.yml`의 `package` 작업은 위 릴리스 노트와 PDF를 번들에 복사하므로 파일이
-없으면 릴리스가 실패합니다. 이미지 압축 파일과 최종 번들은 워크플로가 생성하므로
-저장소에 직접 추가하지 않습니다.
+```bash
+git switch master
+git pull --ff-only origin master
+test -z "$(git status --porcelain)"
 
-#### 2. 게시 경로 선택
+VERSION="$(tr -d '[:space:]' < VERSION)"
+test "$(node -p "require('./frontend/package.json').version")" = "${VERSION}"
+grep -q "^## \[${VERSION}\]" CHANGELOG.md
+test -f "docs/manual/blacklist-${VERSION}-release-notes.md"
+test -f docs/manual/blacklist-offline-deployment-guide.pdf
+```
 
-아래 두 경로 중 하나만 사용합니다.
+다음 파일은 태그를 만들기 전에 내용을 직접 검토합니다.
 
-**일반 자동 버전 상승**
+| 확인 대상                              | 완료 기준                                     |
+| -------------------------------------- | --------------------------------------------- |
+| `VERSION`                              | 게시할 SemVer와 일치                          |
+| `frontend/package.json`                | `version`이 `VERSION`과 일치                  |
+| `CHANGELOG.md`                         | 해당 버전의 변경 사항과 날짜가 정확함         |
+| 버전별 릴리스 노트                     | 설치 영향, 변경 사항, 알려진 문제를 포함      |
+| 오프라인 배포 PDF                      | 현재 `install.sh`와 운영 절차를 반영          |
+| `deploy/base.yml`                      | 포트, 볼륨, 필수 환경 변수가 운영 구성과 일치 |
+| `deploy/docker-compose.release.yml`    | 5개 서비스 이미지가 모두 정의됨               |
+| `deploy/install.sh`, `deploy/prereqs/` | 대상 운영체제에서 실행 가능한 구성임          |
 
-현재 `VERSION`이 이전 릴리스 버전일 때 사용합니다. `scripts/release.sh`가 버전,
-CHANGELOG, Frontend 버전을 갱신한 뒤 커밋과 태그를 생성합니다.
+이미지 압축 파일과 최종 번들은 `release.yml`이 생성합니다. 빌드 결과물을 저장소에
+추가하지 않습니다.
+
+#### 2. 버전 게시 방식 선택
+
+현재 `VERSION`에서 새 버전을 계산해야 할 때만 자동 버전 상승을 사용합니다.
+`release-dry` 출력에서 새 버전과 CHANGELOG 내용을 확인한 뒤 실제 명령을 실행합니다.
 
 ```bash
 make release-dry TYPE=patch
 make release TYPE=patch
 ```
 
-**이미 준비된 버전 게시**
+`make release`는 `VERSION`, `frontend/package.json`, `CHANGELOG.md`를 수정하고 커밋,
+태그, `master`를 원격에 게시합니다. `TYPE`은 `patch`, `minor`, `major` 중 하나입니다.
 
-릴리스 준비 PR에서 `VERSION`, CHANGELOG, 릴리스 노트를 이미 대상 버전으로
-갱신했다면 `make release`를 실행하지 않습니다. 다시 실행하면 다음 버전으로 한 번 더
-상승합니다. `master`의 필수 CI 성공을 확인한 뒤 현재 버전으로 태그만 게시합니다.
+릴리스 준비 PR에서 대상 버전을 이미 반영했다면 `make release`를 실행하지 않습니다.
+현재 `master` 커밋의 CI 성공과 태그 미존재를 확인한 뒤 태그만 게시합니다.
 
 ```bash
-VERSION="$(tr -d '[:space:]' < VERSION)"
-test "$(node -p "require('./frontend/package.json').version")" = "${VERSION}"
-grep -q "^## \[${VERSION}\]" CHANGELOG.md
-test -f "docs/manual/blacklist-${VERSION}-release-notes.md"
-test -f docs/manual/blacklist-offline-deployment-guide.pdf
+HEAD_SHA="$(git rev-parse HEAD)"
+test "${HEAD_SHA}" = "$(git rev-parse origin/master)"
+test "$(gh run list --workflow CI --commit "${HEAD_SHA}" --limit 1 \
+  --json conclusion --jq '.[0].conclusion')" = "success"
+test -z "$(git tag -l "v${VERSION}")"
+test -z "$(git ls-remote --tags origin "refs/tags/v${VERSION}")"
 
 git tag -a "v${VERSION}" -m "v${VERSION}"
 git push origin "v${VERSION}"
 ```
 
-#### 3. 릴리스 워크플로 확인
+#### 3. Release 워크플로 확인
 
-- [ ] `Release`의 `validate`, `build-images`, `package`, `create-release`,
-      `push-to-registry` 작업이 성공했습니다.
-- [ ] `Release Notes Generator`가 동일 태그의 GitHub Release를 생성하거나
-      갱신했습니다.
-- [ ] GitHub Release에 `blacklist-${VERSION}.tar.gz`와
-      `blacklist-${VERSION}.tar.gz.sha256`가 첨부되었습니다.
-- [ ] GHCR의 5개 서비스 이미지에 `${VERSION}`과 `latest` 태그가 게시되었습니다.
+태그 게시 후 GitHub Actions의 `Release` 실행을 엽니다. 아래 작업이 모두 성공해야
+게시 완료입니다.
 
-#### 4. 릴리스 번들 검증
+| 작업               | 확인 내용                                                  |
+| ------------------ | ---------------------------------------------------------- |
+| `validate`         | 태그, `VERSION`, CHANGELOG 버전이 일치                     |
+| `build-images`     | frontend, app, collector, postgres, redis 이미지 빌드 성공 |
+| `package`          | 릴리스 번들과 두 checksum 파일 생성                        |
+| `create-release`   | 해당 태그의 GitHub Release와 첨부 파일 생성                |
+| `push-to-registry` | 5개 이미지의 `${VERSION}`, `latest` 태그 게시              |
 
-다운로드한 두 파일이 같은 디렉토리에 있는 상태에서 패키지 체크섬과 구성을
-확인합니다.
+`create-release` 또는 `push-to-registry`가 실패한 상태에서는 배포 파일을 전달하지
+않습니다. 같은 버전의 태그를 새 커밋으로 다시 만들지 말고, 실패 원인을 수정한 뒤 해당
+워크플로를 다시 실행합니다.
+
+#### 4. 릴리스 번들 인수 검사
+
+GitHub Release에서 번들과 checksum 파일을 새 검증 디렉토리에 내려받습니다.
 
 ```bash
+mkdir "release-${VERSION}-verify"
+cd "release-${VERSION}-verify"
+gh release download "v${VERSION}" \
+  --pattern "blacklist-${VERSION}.tar.gz" \
+  --pattern "blacklist-${VERSION}.tar.gz.sha256"
+
 sha256sum -c "blacklist-${VERSION}.tar.gz.sha256"
 tar tzf "blacklist-${VERSION}.tar.gz"
 tar xzf "blacklist-${VERSION}.tar.gz"
 cd "blacklist-${VERSION}"
+
+test "$(cat VERSION)" = "${VERSION}"
+test -f docker-compose.yml
+test -f base.yml
+test -x install.sh
+test -f RELEASE_NOTES.md
+test -f docs/blacklist-offline-deployment-guide.pdf
+test -f images/checksums.sha256
+test "$(find images -maxdepth 1 -name '*.tar.gz' | wc -l)" -eq 5
 sha256sum -c images/checksums.sha256
 ```
 
-압축 해제된 번들에 이미지 5종, `docker-compose.yml`, `base.yml`, `install.sh`,
-`VERSION`, `RELEASE_NOTES.md`, `docs/blacklist-offline-deployment-guide.pdf`가 있어야
-합니다.
+검사에 실패한 파일은 운영 서버로 전달하지 않습니다. GitHub Release의 원본을 다시
+내려받아 확인하고, 원본도 실패하면 Release 워크플로를 다시 실행합니다.
 
-#### 5. 운영 배포 및 완료 확인
+#### 5. 운영 배포 준비
 
-- [ ] 데이터베이스와 기존 `.env`를 백업했습니다.
-- [ ] 점검 시간을 확보하고 `install.sh`가 실행 중인 모든 Docker 컨테이너를
-      중지한다는 내용을 운영자에게 전달했습니다.
-- [ ] `./install.sh`를 실행하고 이미지 체크섬 검증이 성공했습니다.
-- [ ] `docker compose ps`에서 5개 서비스가 정상 상태입니다.
-- [ ] 5개 컨테이너의 `org.opencontainers.image.version` 라벨이 `${VERSION}`과
-      같고 `0.0.0-dev` 또는 이전 버전이 아닙니다.
-- [ ] API `/api/health`, Collector `/health`, Frontend HTTPS 접근을 확인했습니다.
-- [ ] 수동 REGTECH 수집을 1회 실행하고 수집 상태와 로그를 확인했습니다.
-- [ ] 설치 과정에서 중지된 다른 운영 컨테이너가 있다면 별도 운영 절차에 따라
-      다시 기동했습니다.
+운영 서버에서 다음 항목을 배포 전에 확인합니다.
+
+- [ ] 점검 시작·종료 시각과 서비스 영향 범위를 공지했습니다.
+- [ ] PostgreSQL 백업 파일이 생성됐고 복원 명령을 확인했습니다.
+- [ ] 기존 `.env`를 별도 백업 위치에 복사했습니다.
+- [ ] 현재 사용 중인 5개 이미지 태그를 기록했습니다.
+- [ ] 새 번들의 외부 checksum과 `images/checksums.sha256` 검사가 성공했습니다.
+- [ ] 디스크 여유 공간이 이미지 5개와 기존 이미지 보관에 충분합니다.
+
+기존 배포 디렉토리에서 백업을 생성합니다. 데이터베이스 사용자와 이름은 실행 중인
+컨테이너에서 읽으므로 운영 환경의 값을 명령에 다시 적지 않습니다.
 
 ```bash
+VERSION="$(cat VERSION)"
+BACKUP_DIR="$(pwd)/backup-${VERSION}-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "${BACKUP_DIR}"
+
+POSTGRES_USER="$(docker exec blacklist-postgres printenv POSTGRES_USER)"
+POSTGRES_DB="$(docker exec blacklist-postgres printenv POSTGRES_DB)"
+docker exec blacklist-postgres \
+  pg_dump -U "${POSTGRES_USER}" "${POSTGRES_DB}" \
+  > "${BACKUP_DIR}/postgres.sql"
+test -s "${BACKUP_DIR}/postgres.sql"
+
+cp -p .env "${BACKUP_DIR}/.env"
+test -f "${BACKUP_DIR}/.env"
+docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' \
+  | grep '^blacklist-' > "${BACKUP_DIR}/images.txt"
+test -s "${BACKUP_DIR}/images.txt"
+```
+
+새 번들 디렉터리에 기존 `.env`를 복사합니다. 이 단계는 설치기 실행보다 먼저 끝나야 합니다.
+설치기는 기존 `.env`를 재생성하거나 보정하지 않으며, 유효하지 않은 값이 있으면 중단합니다.
+
+```bash
+NEW_BUNDLE_DIR="/path/to/blacklist-${VERSION}"
+test -d "${NEW_BUNDLE_DIR}"
+cp -p "${BACKUP_DIR}/.env" "${NEW_BUNDLE_DIR}/.env"
+test -f "${NEW_BUNDLE_DIR}/.env"
+cd "${NEW_BUNDLE_DIR}"
+./install.sh --check-secrets
+```
+
+검사를 통과해야 하며, 실패하면 기존 운영 백업에서 원래 값을 복원합니다.
+
+`install.sh`는 호스트에서 실행 중인 Docker 컨테이너를 모두 중지합니다. 배포 대상이
+아닌 컨테이너가 함께 실행 중이면 아래 목록을 확인해 별도 중지·기동 순서를 정한 후
+작업합니다.
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+./install.sh
+```
+
+설치 출력에서 `All checksums verified`와 `Installation completed`를 확인합니다.
+checksum 파일이 없어서 검증을 건너뛰었다는 경고가 나오면 배포를 중단합니다.
+
+#### 6. 배포 완료 판정
+
+설치가 끝난 디렉토리에서 서비스 상태, 이미지 버전, HTTP 응답을 확인합니다.
+
+```bash
+VERSION="$(cat VERSION)"
+docker compose ps
+
 for container in blacklist-app blacklist-collector blacklist-frontend \
   blacklist-postgres blacklist-redis; do
   deployed_version="$(docker inspect --format \
     '{{ index .Config.Labels "org.opencontainers.image.version" }}' "${container}")"
   test "${deployed_version}" = "${VERSION}"
 done
+
+curl -fsS http://127.0.0.1:2542/health
+curl -fsS http://127.0.0.1:8545/health
+curl -fkIs https://127.0.0.1:443/health
 ```
 
-헬스 체크 또는 수집 검증이 실패하면 신규 배포를 완료로 기록하지 않습니다. 로그와
-실패 시점을 보존한 뒤 이전 이미지 태그와 데이터베이스 백업으로 복구하고, 복구 후
-동일한 헬스 체크를 다시 수행합니다.
+수집 관리 화면에서 REGTECH 인증정보가 **설정됨**으로 표시되는지 확인하고 **테스트**를
+실행합니다. 테스트가 성공하면 **수집**을 한 번 실행하고 최근 실행 시각과 수집 건수가
+갱신됐는지 확인합니다.
+
+```bash
+curl -fsS -X POST \
+  http://127.0.0.1:8545/api/force-collection/REGTECH
+curl -fsS http://127.0.0.1:8545/status
+```
+
+다음 조건을 모두 충족한 시각을 배포 완료 시각으로 기록합니다.
+
+- 5개 서비스가 실행 중이며 health check가 정상입니다.
+- 5개 이미지의 OCI version 라벨이 대상 버전과 일치합니다.
+- API, Collector, Frontend가 정상 응답합니다.
+- REGTECH 수동 수집이 성공하고 최근 실행 시각이 갱신됩니다.
+- 설치 전에 중지한 다른 운영 컨테이너가 정상 상태로 복귀합니다.
+
+#### 7. 실패 시 복구
+
+헬스 체크, 버전 검사, 수동 수집 중 하나라도 실패하면 배포 완료로 처리하지 않습니다.
+먼저 장애 시점의 상태와 로그를 보관합니다.
+
+```bash
+docker compose ps > "deploy-${VERSION}-status.txt"
+docker compose logs --no-color > "deploy-${VERSION}-logs.txt" 2>&1
+docker compose down
+```
+
+배포 전에 기록한 이미지 태그와 `.env`를 복원하고 서비스를 다시 시작합니다. 데이터
+변경 때문에 이전 버전이 기동하지 못하는 경우에만 준비한 PostgreSQL 백업을 복원합니다.
+복구 후에는 6절의 상태, HTTP, 수집 검사를 다시 수행합니다.
+
+```bash
+cp -p "${BACKUP_DIR}/.env" .env
+while read -r image_ref image_id; do
+  docker tag "${image_id}" "${image_ref}"
+done < "${BACKUP_DIR}/images.txt"
+docker compose up -d
+```
 
 ### 릴리스 프로세스
 

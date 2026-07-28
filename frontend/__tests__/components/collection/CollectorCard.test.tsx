@@ -55,8 +55,9 @@ describe('CollectorCard', () => {
   const defaultCredential: Credential = {
     service_name: 'REGTECH',
     username: 'testuser',
+    configured: true,
     enabled: true,
-    collection_interval: '3600',
+    collection_interval: 'hourly',
     last_collection: '2025-01-15T10:00:00Z',
     connection_status: 'connected',
   };
@@ -158,10 +159,10 @@ describe('CollectorCard', () => {
       expect(screen.getByText('연결됨')).toBeInTheDocument();
     });
 
-    it('shows 미확인 badge for failed status (falls to default)', () => {
+    it('shows 오류 badge for failed status', () => {
       const failedCred = { ...defaultCredential, connection_status: 'failed' as const };
       render(<CollectorCard {...defaultProps} credential={failedCred} />);
-      expect(screen.getByText('미확인')).toBeInTheDocument();
+      expect(screen.getByText('오류')).toBeInTheDocument();
     });
 
     it('shows 미확인 badge for unknown status', () => {
@@ -192,7 +193,7 @@ describe('CollectorCard', () => {
 
     it('calls onEdit with service name when settings button is clicked', () => {
       render(<CollectorCard {...defaultProps} />);
-      fireEvent.click(screen.getByText('설정'));
+      fireEvent.click(screen.getByText('설정 및 저장'));
       expect(defaultProps.onEdit).toHaveBeenCalledWith('REGTECH');
     });
 
@@ -206,6 +207,23 @@ describe('CollectorCard', () => {
       const disabledCred = { ...defaultCredential, enabled: false };
       render(<CollectorCard {...defaultProps} credential={disabledCred} />);
       expect(screen.getByText('수집')).toBeDisabled();
+    });
+
+    it('disables test and collection until credentials are configured', () => {
+      const unconfigured = { ...defaultCredential, configured: false, username: '' };
+      render(<CollectorCard {...defaultProps} credential={unconfigured} />);
+      expect(screen.getByText('미설정')).toBeInTheDocument();
+      expect(screen.getByText('테스트')).toBeDisabled();
+      expect(screen.getByText('수집')).toBeDisabled();
+      expect(screen.getByText('설정 및 저장')).toBeEnabled();
+      expect(screen.getByText('설정 및 저장')).toHaveAttribute('data-variant', 'primary');
+    });
+
+    it('disables testing when configured credentials are disabled', () => {
+      const disabledCredential = { ...defaultCredential, enabled: false };
+      render(<CollectorCard {...defaultProps} credential={disabledCredential} />);
+
+      expect(screen.getByText('테스트')).toBeDisabled();
     });
   });
 });

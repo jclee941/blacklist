@@ -3,6 +3,7 @@ import type { CredentialPayload, IPPayload } from '@/types';
 
 // JWT token management
 const TOKEN_KEY = 'blacklist_auth_token';
+const LOGIN_ENDPOINT = '/auth/login';
 
 export const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -51,17 +52,17 @@ api.interceptors.request.use(attachToken);
 collectionApi.interceptors.request.use(attachToken);
 
 api.interceptors.response.use(
-  (r) => r,
+  (response) => response,
   (error: unknown) => Promise.reject(error)
 );
 collectionApi.interceptors.response.use(
-  (r) => r,
+  (response) => response,
   (error: unknown) => Promise.reject(error)
 );
 
 // 인증 API
 export const login = async (username: string, password: string) => {
-  const { data } = await api.post('/auth/login', { username, password });
+  const { data } = await api.post(LOGIN_ENDPOINT, { username, password });
   if (data.token) {
     setToken(data.token);
   }

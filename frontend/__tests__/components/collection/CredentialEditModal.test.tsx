@@ -94,7 +94,7 @@ describe('CredentialEditModal', () => {
     username: 'testuser',
     password: '',
     enabled: true,
-    collection_interval: '3600',
+    collection_interval: 'hourly',
   };
 
   const defaultProps = {
@@ -102,6 +102,7 @@ describe('CredentialEditModal', () => {
     onClose: vi.fn(),
     editingService: 'REGTECH',
     credentialForm: defaultForm,
+    configured: true,
     onFormChange: vi.fn(),
     onSave: vi.fn(),
     loading: false,
@@ -118,14 +119,14 @@ describe('CredentialEditModal', () => {
 
   it('renders modal with service name in title', () => {
     render(<CredentialEditModal {...defaultProps} />);
-    expect(screen.getByText('REGTECH 인증정보 수정')).toBeInTheDocument();
+    expect(screen.getByText('REGTECH 설정 및 저장')).toBeInTheDocument();
   });
 
   it('renders common fields: username, password, collection interval', () => {
     render(<CredentialEditModal {...defaultProps} />);
     expect(screen.getByLabelText('사용자명')).toBeInTheDocument();
     expect(screen.getByLabelText('비밀번호')).toBeInTheDocument();
-    expect(screen.getByLabelText('수집 주기 (초)')).toBeInTheDocument();
+    expect(screen.getByLabelText('수집 주기')).toBeInTheDocument();
   });
 
   it('renders enabled checkbox', () => {
@@ -154,13 +155,21 @@ describe('CredentialEditModal', () => {
     );
   });
 
-  it('calls onFormChange when collection interval changes', () => {
+  it('offers only backend-supported collection intervals and updates the selected value', () => {
     render(<CredentialEditModal {...defaultProps} />);
-    fireEvent.change(screen.getByLabelText('수집 주기 (초)'), {
-      target: { value: '7200' },
+    const intervalSelect = screen.getByLabelText('수집 주기');
+
+    expect(screen.getAllByRole('option').map((option) => option.getAttribute('value'))).toEqual([
+      'hourly',
+      'daily',
+      'weekly',
+    ]);
+
+    fireEvent.change(intervalSelect, {
+      target: { value: 'weekly' },
     });
     expect(defaultProps.onFormChange).toHaveBeenCalledWith(
-      expect.objectContaining({ collection_interval: '7200' })
+      expect.objectContaining({ collection_interval: 'weekly' })
     );
   });
 
@@ -180,7 +189,7 @@ describe('CredentialEditModal', () => {
 
   it('calls onSave when save button is clicked with valid form', () => {
     render(<CredentialEditModal {...defaultProps} />);
-    fireEvent.click(screen.getByText('저장'));
+    fireEvent.click(screen.getByText('설정 및 저장'));
     expect(defaultProps.onSave).toHaveBeenCalled();
   });
 
@@ -189,15 +198,24 @@ describe('CredentialEditModal', () => {
     expect(screen.getByText('Loading...')).toBeDisabled();
   });
 
-  it('shows validation error when username is empty', () => {
+  it('shows validation error only after saving an invalid username', () => {
     const emptyUsernameForm = { ...defaultForm, username: '' };
     render(<CredentialEditModal {...defaultProps} credentialForm={emptyUsernameForm} />);
+
+    expect(screen.queryByTestId('error-사용자명')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('설정 및 저장'));
+
     expect(screen.getByTestId('error-사용자명')).toHaveTextContent('사용자명을 입력하세요');
+    expect(defaultProps.onSave).not.toHaveBeenCalled();
   });
 
-  it('disables save button when form is invalid (empty username)', () => {
-    const emptyUsernameForm = { ...defaultForm, username: '' };
-    render(<CredentialEditModal {...defaultProps} credentialForm={emptyUsernameForm} />);
-    expect(screen.getByText('저장')).toBeDisabled();
+  it('requires a password after saving unconfigured credentials', () => {
+    render(<CredentialEditModal {...defaultProps} configured={false} />);
+
+    expect(screen.queryByTestId('error-비밀번호')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('설정 및 저장'));
+
+    expect(screen.getByTestId('error-비밀번호')).toHaveTextContent('비밀번호를 입력하세요');
+    expect(defaultProps.onSave).not.toHaveBeenCalled();
   });
 });

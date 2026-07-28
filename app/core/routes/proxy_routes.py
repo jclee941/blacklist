@@ -36,6 +36,9 @@ def forward_to_backend(endpoint: str, method: str | None = None):
 
         # Prepare headers (forward relevant headers, always include Content-Type for JSON)
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        authorization = request.headers.get("Authorization")
+        if authorization:
+            headers["Authorization"] = authorization
 
         # Forward request with same method, headers, and body
         if method == "GET":

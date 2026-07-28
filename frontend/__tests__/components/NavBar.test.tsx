@@ -36,6 +36,12 @@ vi.mock('next/image', () => ({
 }));
 
 describe('NavBar Component', () => {
+  it('does not render administrator session controls', () => {
+    render(<NavBar />);
+
+    expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
+  });
+
   it('renders logo correctly', () => {
     render(<NavBar />);
     const logo = screen.getByAltText('Nextrade');

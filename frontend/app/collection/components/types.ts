@@ -1,3 +1,5 @@
+import type { CollectionInterval } from '@/types';
+
 export interface CollectorStatus {
   enabled: boolean;
   error_count: number;
@@ -9,10 +11,11 @@ export interface CollectorStatus {
 
 export interface Credential {
   service_name: string;
+  configured: boolean;
   username: string;
   enabled: boolean;
-  collection_interval?: string;
-  last_collection?: string;
+  collection_interval: CollectionInterval;
+  last_collection?: string | null;
   connection_status?: 'connected' | 'locked' | 'failed' | 'unknown';
   status_message?: string;
 }
@@ -45,7 +48,7 @@ export interface CredentialFormState {
   username: string;
   password: string;
   enabled: boolean;
-  collection_interval: string;
+  collection_interval: CollectionInterval;
 }
 
 export interface NotificationState {

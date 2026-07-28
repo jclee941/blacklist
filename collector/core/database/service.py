@@ -25,6 +25,10 @@ except ImportError:
     except ImportError:
         CollectorConfig = importlib.import_module("config").CollectorConfig
 
+try:
+    from ...exceptions import CredentialDecryptionError, MissingMasterKeyError
+except ImportError:
+    from exceptions import CredentialDecryptionError, MissingMasterKeyError
 from .queries import DatabaseQueryMixin
 
 
@@ -70,13 +74,14 @@ class DatabaseService(DatabaseQueryMixin):
             logger.error(f"❌ 복호화 시스템 초기화 실패: {e}")
             self._cipher_suite = None
 
-    def _decrypt_password(self, encrypted_data: str) -> str:
+    def _decrypt_password(self, encrypted_data: str, service_name: str) -> str:
         """암호화된 비밀번호 복호화"""
-        try:
-            if not self._cipher_suite:
-                logger.error("❌ 복호화 시스템이 초기화되지 않음")
-                return encrypted_data
+        if not self._cipher_suite:
+            error = MissingMasterKeyError()
+            logger.error("❌ %s", error)
+            raise error
 
+        try:
             decoded = base64.b64decode(encrypted_data.encode())
             decrypted = self._cipher_suite.decrypt(decoded)
             decrypted_json = decrypted.decode()
@@ -84,7 +89,7 @@ class DatabaseService(DatabaseQueryMixin):
             return credential_data.get("password", "")
         except Exception as e:
             logger.error(f"❌ 비밀번호 복호화 실패: {e}")
-            return encrypted_data
+            raise CredentialDecryptionError(service_name, e) from e
 
     def _evict_stale_ips(self) -> int:
         """Evict stale IPs by TTL, then LRU if over max size.
@@ -207,7 +212,7 @@ class DatabaseService(DatabaseQueryMixin):
                     final_password = password
                     if encrypted and password:
                         logger.info(f"🔐 {service_name} 암호화된 비밀번호 복호화 중...")
-                        final_password = self._decrypt_password(password)
+                        final_password = self._decrypt_password(password, service_name)
 
                     if isinstance(config, str):
                         try:

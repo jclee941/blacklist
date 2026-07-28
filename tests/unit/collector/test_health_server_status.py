@@ -34,6 +34,17 @@ class HealthServerHarness(HealthServer):
     def collector_status(self) -> dict[str, CollectorStatus]:
         return self._get_collector_status()
 
+    def run_server(self) -> None:
+        self._run_server()
+
+
+class WaitressFake:
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, str, int, bool]] = []
+
+    def serve(self, app: object, *, host: str, port: int, _quiet: bool) -> None:
+        self.calls.append((app, host, port, _quiet))
+
 
 def test_collector_status_uses_database_run_totals(
     monkeypatch: pytest.MonkeyPatch,
@@ -49,3 +60,17 @@ def test_collector_status_uses_database_run_totals(
     assert status["last_run"] == "2026-07-28T11:57:29.898479"
     assert status["interval_seconds"] == 86_400
     assert status["next_run"] == "2026-07-29T00:00:00"
+
+
+def test_health_server_binds_to_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
+    waitress = WaitressFake()
+
+    def import_module(_name: str) -> WaitressFake:
+        return waitress
+
+    monkeypatch.setattr("collector.health_server.importlib.import_module", import_module)
+    server = HealthServerHarness(collectors_ref={}, port=8545)
+
+    server.run_server()
+
+    assert waitress.calls == [(server.app, "127.0.0.1", 8545, True)]

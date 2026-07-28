@@ -29,6 +29,11 @@ class DatabaseFake:
         return None
 
 
+class MissingCredentialsDatabaseFake(DatabaseFake):
+    def get_collection_credentials(self, _service_name: str) -> None:
+        return None
+
+
 def test_collect_regtech_data_uses_portal_page_size(monkeypatch: pytest.MonkeyPatch) -> None:
     collector = RegtechCollectorFake()
     monkeypatch.setattr(operations, "regtech_collector", collector)
@@ -37,3 +42,13 @@ def test_collect_regtech_data_uses_portal_page_size(monkeypatch: pytest.MonkeyPa
     _ = operations.collect_regtech_data("username", "password", max_pages=2)
 
     assert collector.requested_page_size == 50
+
+
+def test_daily_collection_stops_when_credentials_are_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    collector = RegtechCollectorFake()
+    monkeypatch.setattr(operations, "regtech_collector", collector)
+    monkeypatch.setattr(operations, "db_service", MissingCredentialsDatabaseFake())
+
+    operations.run_daily_collection("daily")
+
+    assert collector.requested_page_size is None

@@ -82,7 +82,7 @@ make release TYPE=patch      # 릴리스 자동화
 | [01. 요구사항 명세서](deliverables/01-REQUIREMENTS-SPECIFICATION.md) | 기능/비기능 요구사항 33+19개 정의 |
 | [02. 시스템 설계서](deliverables/02-SYSTEM-DESIGN.md) | 시스템 구성도, 설계 원칙, 컴포넌트 상세 |
 | [03. API 레퍼런스](deliverables/03-API-REFERENCE.md) | REST API 48개 엔드포인트 상세 명세 |
-| [04. 설치 가이드](deliverables/04-INSTALLATION-GUIDE.md) | 환경별 설치 절차 (개발/스테이징/운영/Air-Gap) |
+| [04. 설치 가이드](deliverables/04-INSTALLATION-GUIDE.md) | 오프라인 패키지 설치·운영·복구 절차 |
 | [05. 운영 가이드](deliverables/05-OPERATIONS-GUIDE.md) | 운영 절차, 모니터링, 장애대응 |
 | [06. 장애 대응 매뉴얼](deliverables/06-RUNBOOK.md) | 장애대응, 정기점검, 백업/복구 |
 | [07. 테스트 리포트](deliverables/07-TEST-REPORT.md) | 테스트 수행 결과 및 커버리지 |

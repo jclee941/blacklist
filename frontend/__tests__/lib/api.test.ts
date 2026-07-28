@@ -84,6 +84,8 @@ import {
   verifyToken,
 } from '@/lib/api';
 
+const responseErrorHandler = mocks.apiInstance.interceptors.response.use.mock.calls[0]?.[1];
+
 describe('lib/api', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -189,6 +191,24 @@ describe('lib/api', () => {
 
       const config = requestCb!({ headers: {} });
       expect(config.headers.Authorization).toBeUndefined();
+    });
+
+    it('does not redirect internal deployments after a 401 response', async () => {
+      const error = { response: { status: 401 }, config: { url: '/web-stats' } };
+      setToken('expired-token');
+
+      window.history.replaceState(null, '', '/login');
+
+      await expect(responseErrorHandler(error)).rejects.toBe(error);
+      expect(getToken()).toBe('expired-token');
+    });
+
+    it('keeps the stored token for a failed login response', async () => {
+      const error = { response: { status: 401 }, config: { url: '/auth/login' } };
+      setToken('existing-token');
+
+      await expect(responseErrorHandler(error)).rejects.toBe(error);
+      expect(getToken()).toBe('existing-token');
     });
   });
 

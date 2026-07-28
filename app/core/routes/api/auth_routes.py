@@ -80,15 +80,12 @@ def login():
 
     # Check credentials against app settings
     try:
-        admin_username = settings_service.get_setting("admin_username", "admin")
-        admin_password = settings_service.get_setting("admin_password", "")
+        admin_username = settings_service.get_setting("admin_username", config.ADMIN_USERNAME)
+        admin_password = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
     except Exception as e:
         # Fallback to environment variables
         logger.warning("Settings service unavailable, falling back to env vars: %s", e)
         admin_username = config.ADMIN_USERNAME
-        admin_password = config.ADMIN_PASSWORD
-
-    if not admin_password:
         admin_password = config.ADMIN_PASSWORD
 
     if username != admin_username or password != admin_password:

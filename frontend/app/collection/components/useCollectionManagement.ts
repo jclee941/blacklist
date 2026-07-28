@@ -9,7 +9,7 @@ import {
   triggerCollectionService,
   updateCredential,
 } from '@/lib/api';
-import type { CredentialPayload } from '@/types';
+import type { CollectionInterval } from '@/types';
 import type {
   Credential,
   CollectionStatus,
@@ -27,6 +27,30 @@ const INITIAL_FORM_STATE: CredentialFormState = {
   enabled: true,
   collection_interval: 'daily',
 };
+
+function toCollectionInterval(interval: string | undefined): CollectionInterval {
+  switch (interval) {
+    case 'hourly':
+      return 'hourly';
+    case 'weekly':
+      return 'weekly';
+    case 'daily':
+    default:
+      return 'daily';
+  }
+}
+
+function toConnectionStatus(status: string | undefined): Credential['connection_status'] {
+  switch (status) {
+    case 'connected':
+    case 'locked':
+    case 'failed':
+    case 'unknown':
+      return status;
+    default:
+      return undefined;
+  }
+}
 
 export function useCollectionManagement() {
   const [credentials, setCredentials] = useState<Credential[]>([]);
@@ -46,36 +70,59 @@ export function useCollectionManagement() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const credPromises = COLLECTORS.map(async (service) => {
+      const credPromises = COLLECTORS.map(async (service): Promise<Credential> => {
         try {
           const data = await getCredential(service.toLowerCase());
           if (data && data.success && data.data) {
-            return {
+            const credential: Credential = {
               service_name: data.data.service_name,
+              configured: data.data.configured === true,
               username: data.data.username,
               enabled: data.data.enabled,
-              collection_interval: data.data.collection_interval,
+              collection_interval: toCollectionInterval(data.data.collection_interval),
               last_collection: data.data.last_collection,
-              connection_status: data.data.connection_status ?? ('unknown' as const),
-              status_message: data.data.status_message,
+              connection_status: toConnectionStatus(data.data.connection_status),
             };
+            return data.data.status_message
+              ? { ...credential, status_message: data.data.status_message }
+              : credential;
           }
         } catch {
           // Credentials not yet configured — return default empty card
         }
         return {
           service_name: service,
+          configured: false,
           username: '',
           enabled: false,
-          collection_interval: 60,
+          collection_interval: 'daily',
           last_collection: null,
-          connection_status: 'unknown' as const,
+          connection_status: 'unknown',
         };
       });
 
       const credResults = await Promise.all(credPromises);
-      const validCreds = credResults.filter((c) => c !== null) as Credential[];
-      setCredentials(validCreds);
+      setCredentials((previousCredentials) =>
+        credResults.map((credential) => {
+          if (credential.connection_status !== undefined) {
+            return credential;
+          }
+
+          const previousCredential = previousCredentials.find(
+            (previousCredential) => previousCredential.service_name === credential.service_name
+          );
+
+          if (!previousCredential) {
+            return { ...credential, connection_status: 'unknown' };
+          }
+
+          return {
+            ...credential,
+            connection_status: previousCredential.connection_status ?? 'unknown',
+            status_message: previousCredential.status_message,
+          };
+        })
+      );
 
       const statusData = await getCollectionStatus();
       if (statusData && statusData.success && statusData.data) {
@@ -199,10 +246,7 @@ export function useCollectionManagement() {
 
     setSaving(true);
     try {
-      const data = await updateCredential(
-        editingService.toLowerCase(),
-        credentialForm as unknown as CredentialPayload
-      );
+      const data = await updateCredential(editingService.toLowerCase(), credentialForm);
 
       if (data.success) {
         setNotification({

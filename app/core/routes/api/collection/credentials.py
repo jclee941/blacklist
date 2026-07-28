@@ -4,8 +4,9 @@ Handles credential management
 """
 
 import logging
-import requests
 from datetime import datetime
+
+import requests
 from flask import Blueprint, jsonify, request, g, current_app
 from ....exceptions import (
     ValidationError,
@@ -99,6 +100,7 @@ def manage_credentials(source: str):
                         "success": True,
                         "data": {
                             "service_name": source_upper,
+                            "configured": False,
                             "username": "",
                             "password": "",
                             "config": {},
@@ -114,6 +116,7 @@ def manage_credentials(source: str):
 
             response_data = {
                 "service_name": credentials["service_name"],
+                "configured": True,
                 "username": credentials["username"],
                 "password": "***masked***",
                 "config": credentials.get("config", {}),
