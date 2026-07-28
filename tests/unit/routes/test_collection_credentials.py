@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import Mock, patch
-from flask import Flask, g
 from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
+from flask import Flask, g
 
 from core.errors.handlers import register_error_handlers
 
@@ -99,6 +100,7 @@ class TestManageCredentials:
         assert data["success"] is True
         assert data["data"]["username"] == "admin"
         assert data["data"]["password"] == "***masked***"
+        assert data["data"]["configured"] is True
 
     def test_get_credentials_invalid_source(self, client):
         """GET /api/collection/credentials/invalid returns 400"""
@@ -118,6 +120,7 @@ class TestManageCredentials:
         assert data["data"]["username"] == ""
         assert data["data"]["enabled"] is False
         assert data["data"]["connection_status"] == "unknown"
+        assert data["data"]["configured"] is False
 
     def test_put_credentials_success(self, client, app):
         """PUT /api/collection/credentials/regtech updates credentials"""
@@ -177,6 +180,36 @@ class TestManageCredentials:
             "/api/collection/credentials/regtech",
             content_type="application/json",
         )
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            [],
+            {"username": ["admin"], "password": "secret"},
+            {"username": "admin", "password": ["secret"]},
+            {"username": "admin", "password": "secret", "enabled": "true"},
+            {"username": "admin", "password": "secret", "collection_interval": "monthly"},
+        ],
+    )
+    def test_put_credentials_rejects_invalid_payload_types(self, client, payload):
+        response = client.put(
+            "/api/collection/credentials/regtech",
+            json=payload,
+        )
+
+        assert response.status_code == 400
+
+    def test_put_cloudflare_rejects_non_string_config(self, client):
+        response = client.put(
+            "/api/collection/credentials/cloudflare",
+            json={
+                "password": "cf-token",
+                "account_id": ["account"],
+                "list_id": "list-456",
+            },
+        )
+
         assert response.status_code == 400
 
 
