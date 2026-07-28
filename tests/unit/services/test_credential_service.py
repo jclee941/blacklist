@@ -1,5 +1,6 @@
 """Tests for credential_service.py"""
 
+import base64
 import json
 from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
@@ -62,16 +63,34 @@ class TestSaveCredentials:
 
 
 class TestLoadCredentials:
-    def test_load_credentials_from_db(self):
+    def test_load_credentials_from_db_decrypts_saved_payload(self, tmp_path):
         svc, mock_db = _make_service()
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
-        cred_data = json.dumps({"regtech_id": "user1", "regtech_pw": "pass1"})
-        mock_cursor.fetchone.return_value = ("regtech", cred_data)
+        credentials = {"regtech_id": "user1", "regtech_pw": "pass1"}
+        encrypted_data = svc.cipher_suite.encrypt(json.dumps(credentials).encode())
+        mock_cursor.fetchone.return_value = (base64.b64encode(encrypted_data).decode(), "2024-01-01")
         mock_conn.cursor.return_value = mock_cursor
         mock_db.get_connection.return_value = mock_conn
+
+        svc.credentials_file = tmp_path / "credentials.enc"
         result = svc.load_credentials()
-        assert result is not None or result is None  # depends on parsing
+
+        assert result == credentials
+
+    def test_load_credentials_from_db_accepts_legacy_plaintext_json(self, tmp_path):
+        svc, mock_db = _make_service()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        credentials = {"regtech_id": "legacy-user", "regtech_pw": "legacy-password"}
+        mock_cursor.fetchone.return_value = (json.dumps(credentials), "2024-01-01")
+        mock_conn.cursor.return_value = mock_cursor
+        mock_db.get_connection.return_value = mock_conn
+
+        svc.credentials_file = tmp_path / "credentials.enc"
+        result = svc.load_credentials()
+
+        assert result == credentials
 
     def test_load_credentials_not_found(self):
         svc, mock_db = _make_service()
