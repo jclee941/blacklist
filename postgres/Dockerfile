@@ -1,7 +1,6 @@
 # PostgreSQL 15 - Blacklist Intelligence Platform
 FROM postgres:15-alpine
 
-LABEL maintainer="NextRade <dev@jclee.me>"
 LABEL description="PostgreSQL 15 for Blacklist Intelligence Platform"
 
 ARG APP_VERSION="0.0.0-dev"
