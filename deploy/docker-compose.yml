@@ -1,39 +1,41 @@
 services:
   blacklist-postgres:
     extends:
-      file: deploy/base.yml
+      file: base.yml
       service: blacklist-postgres
     build:
-      context: ./postgres
+      context: ../postgres
       dockerfile: Dockerfile
     image: blacklist-postgres:latest
 
   blacklist-redis:
     extends:
-      file: deploy/base.yml
+      file: base.yml
       service: blacklist-redis
     build:
-      context: deploy/redis
+      context: redis
       dockerfile: Dockerfile
     image: blacklist-redis:latest
 
   blacklist-collector:
     extends:
-      file: deploy/base.yml
+      file: base.yml
       service: blacklist-collector
     build:
-      context: .
+      context: ..
       dockerfile: collector/Dockerfile
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: blacklist-collector:latest
+    environment:
+      WARP_PROXY_URL: http://127.0.0.1:40000
 
   blacklist-app:
     extends:
-      file: deploy/base.yml
+      file: base.yml
       service: blacklist-app
     build:
-      context: .
+      context: ..
       dockerfile: app/Dockerfile
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
@@ -43,10 +45,10 @@ services:
 
   blacklist-frontend:
     extends:
-      file: deploy/base.yml
+      file: base.yml
       service: blacklist-frontend
     build:
-      context: .
+      context: ..
       dockerfile: frontend/Dockerfile
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}

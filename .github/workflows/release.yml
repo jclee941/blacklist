@@ -69,15 +69,17 @@ jobs:
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
           BUNDLE="blacklist-${VERSION}"
-          mkdir -p "${BUNDLE}/images"
+          mkdir -p "${BUNDLE}/docs" "${BUNDLE}/images"
 
-          cp images/*.tar.gz "${BUNDLE}/images/"
+          cp -- images/*.tar.gz "${BUNDLE}/images/"
 
           # Copy release bundle files
           cp deploy/docker-compose.release.yml "${BUNDLE}/docker-compose.yml"
           cp deploy/base.yml "${BUNDLE}/"
           cp deploy/install.sh "${BUNDLE}/"
           cp -r deploy/prereqs "${BUNDLE}/" 2>/dev/null || true
+          cp "docs/manual/blacklist-${VERSION}-release-notes.md" "${BUNDLE}/RELEASE_NOTES.md"
+          cp docs/manual/blacklist-offline-deployment-guide.pdf "${BUNDLE}/docs/"
 
           if [ -f "${BUNDLE}/install.sh" ]; then
             sed -i "s/^VERSION=.*/VERSION=${VERSION}/" "${BUNDLE}/install.sh"
@@ -85,8 +87,8 @@ jobs:
 
           echo "${VERSION}" > "${BUNDLE}/VERSION"
 
-          cd "${BUNDLE}/images" && sha256sum *.tar.gz > checksums.sha256 && cd ../..
-          tar czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
+          cd "${BUNDLE}/images" && sha256sum -- ./*.tar.gz > checksums.sha256 && cd ../..
+          tar --owner=0 --group=0 --numeric-owner -czf "${BUNDLE}.tar.gz" "${BUNDLE}/"
           sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

@@ -32,7 +32,6 @@ LABEL org.opencontainers.image.revision=${GIT_COMMIT}
 LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.title="blacklist-collector"
 LABEL org.opencontainers.image.description="Blacklist Data Collector Service"
-LABEL maintainer="qws941"
 LABEL com.docker.compose.project=blacklist
 LABEL com.docker.compose.service=collector
 

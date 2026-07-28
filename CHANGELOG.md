@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.1.0] - 2026-07-28
+
+### Added
+- Cloudflare 연동 전용 화면과 전역 메뉴를 추가했습니다.
+- 한국어 오프라인 배포·운영 가이드와 패치 노트를 릴리즈 번들에 포함했습니다.
+
+### Changed
+- 일반 오프라인 설치 시 실행 중인 모든 Docker 컨테이너를 중지한 후 Blacklist 서비스를 기동합니다.
+- 릴리즈 이미지 5종의 버전 라벨을 `4.1.0`으로 통일했습니다.
+
+### Fixed
+- REGTECH 요청 페이지네이션, 날짜 형식, 페이지 크기와 다중 소스 수집량 계산을 수정했습니다.
+- REGTECH 수집 트리거의 요청별 제한 시간과 Collector 패키지 import 충돌을 수정했습니다.
+- Compose 빌드 경로와 오프라인 설치 실패 전파를 수정했습니다.
+- Python 3.11 이미지에서 설치 가능한 NumPy 2.4 계열로 의존성 범위를 수정했습니다.
+- 릴리즈 이미지의 개인 maintainer 메타데이터를 제거했습니다.
+
+---
+
 ## [3.6.9] - 2026-02-27
 
 ### Removed

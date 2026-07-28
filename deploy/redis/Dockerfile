@@ -1,7 +1,6 @@
 # Redis 7 - Blacklist Intelligence Platform (cache-only, no persistence)
 FROM redis:7-alpine
 
-LABEL maintainer="NextRade <dev@jclee.me>"
 LABEL description="Redis 7 for Blacklist Intelligence Platform"
 
 ARG APP_VERSION="0.0.0-dev"

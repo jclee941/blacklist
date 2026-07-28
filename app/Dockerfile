@@ -121,8 +121,6 @@ LABEL org.opencontainers.image.revision=${GIT_COMMIT:-unknown}
 LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.title="blacklist-app"
 LABEL org.opencontainers.image.description="Blacklist Flask API"
-LABEL maintainer="qws941"
-
 LABEL com.docker.compose.project=blacklist
 LABEL com.docker.compose.service=app
 

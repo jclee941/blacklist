@@ -12,6 +12,7 @@ export default function NavBar() {
     { href: '/', label: '대시보드' },
     { href: '/ip-management', label: 'IP 관리' },
     { href: '/fortinet', label: 'FortiGate' },
+    { href: '/cloudflare', label: 'Cloudflare 연동' },
     { href: '/collection', label: '데이터 수집' },
     { href: '/database', label: '데이터베이스' },
     { href: '/analytics', label: '분석' },
@@ -28,7 +29,7 @@ export default function NavBar() {
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-4" data-testid="navbar-desktop-menu">
+          <div className="hidden lg:flex items-center space-x-4" data-testid="navbar-desktop-menu">
             {menuItems.map((item) => (
               <Link
                 key={item.href}
@@ -53,7 +54,7 @@ export default function NavBar() {
           <button
             type="button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-md hover:bg-gray-800 transition"
+            className="lg:hidden p-2 rounded-md hover:bg-gray-800 transition"
             aria-label={isMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
             aria-expanded={isMenuOpen}
             aria-controls="navbar-mobile-menu"
@@ -72,7 +73,7 @@ export default function NavBar() {
       {isMenuOpen && (
         <div
           id="navbar-mobile-menu"
-          className="md:hidden bg-gray-800 border-t border-gray-700"
+          className="lg:hidden bg-gray-800 border-t border-gray-700"
           data-testid="navbar-mobile-menu"
         >
           <div className="px-2 pt-2 pb-3 space-y-1">
