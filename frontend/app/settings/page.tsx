@@ -137,7 +137,12 @@ export default function SettingsPage() {
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <section
+        id={`panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${activeTab}`}
+        className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6"
+      >
         {message && (
           <div
             className={`mb-4 p-3 rounded-lg ${
@@ -166,6 +171,9 @@ export default function SettingsPage() {
                 </div>
                 <button
                   type="button"
+                  role="switch"
+                  aria-label="해제일 경과 IP 자동 비활성화"
+                  aria-checked={systemSettings.auto_deactivate_expired}
                   onClick={() =>
                     setSystemSettings((s) => ({
                       ...s,
@@ -357,6 +365,9 @@ export default function SettingsPage() {
                 </div>
                 <button
                   type="button"
+                  role="switch"
+                  aria-label="이메일 알림"
+                  aria-checked={notificationSettings.email_alerts}
                   onClick={() =>
                     setNotificationSettings((s) => ({ ...s, email_alerts: !s.email_alerts }))
                   }
@@ -383,6 +394,9 @@ export default function SettingsPage() {
                 </div>
                 <button
                   type="button"
+                  role="switch"
+                  aria-label="Slack 알림"
+                  aria-checked={notificationSettings.slack_alerts}
                   onClick={() =>
                     setNotificationSettings((s) => ({ ...s, slack_alerts: !s.slack_alerts }))
                   }
@@ -439,7 +453,7 @@ export default function SettingsPage() {
             {saving ? '저장 중...' : '설정 저장'}
           </button>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
