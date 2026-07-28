@@ -17,7 +17,7 @@ GitHub Actions for this application live in `.github/workflows/`. They are repos
 
 ## CI Flow
 
-`ci.yml` determines whether frontend, backend, collector, or infrastructure paths changed. It runs only the relevant jobs, then builds the affected application images. Successful builds run Trivy image scans and Playwright E2E tests. The `ci-gate` job is the single required branch-protection check. Pushes to `master` can publish `latest` GHCR images after successful build, scan, and E2E jobs.
+`ci.yml` determines whether frontend, backend, collector, or infrastructure paths changed. It runs only the relevant jobs, then builds the affected application images. Successful builds run Trivy image scans and Playwright E2E tests, and `ci-gate` summarizes those internal CI results. The repository ruleset requires `jclee-bot / pr-metadata`, `jclee-bot / secret-scan`, and `jclee-bot / actionlint`. Pushes to `master` can publish `latest` GHCR images after successful build, scan, and E2E jobs.
 
 ## Release Flow
 
