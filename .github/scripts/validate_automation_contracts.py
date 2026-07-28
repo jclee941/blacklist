@@ -14,10 +14,27 @@ from typing import Final
 ROOT: Final = Path(__file__).resolve().parents[2]
 WORKFLOWS: Final = ROOT / ".github" / "workflows"
 MUTABLE_ACTION_REF: Final = re.compile(r"^\s*-?\s*uses:\s+[^\s]+@(v|main|master|latest)", re.MULTILINE)
+RELEASE_JOB_PERMISSIONS: Final = {
+    "validate": "    permissions:\n      contents: read",
+    "build-images": "    permissions:\n      contents: read",
+    "package": "    permissions:\n      contents: read",
+    "create-release": "    permissions:\n      contents: write",
+    "push-to-registry": "    permissions:\n      packages: write",
+    "notify": "    permissions: {}",
+}
 
 
 def read(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def has_explicit_job_permissions(workflow: str, job_name: str, permissions: str) -> bool:
+    job = re.search(
+        rf"^  {re.escape(job_name)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:|\Z)",
+        workflow,
+        re.MULTILINE | re.DOTALL,
+    )
+    return job is not None and permissions in job.group("body")
 
 
 def main() -> None:
@@ -28,6 +45,7 @@ def main() -> None:
     ci_compose = read(".github/docker-compose.ci.yml")
     frontend_dockerfile = read("frontend/Dockerfile")
     reusable_node = read(".github/workflows/_ci-node.yml")
+    gitignore = read(".gitignore")
 
     failures = [
         message
@@ -51,10 +69,31 @@ def main() -> None:
             ("FROM node:24-alpine AS runner" in frontend_dockerfile, "frontend runtime image does not use Node 24"),
             ("RELEASE_NOTES_FILE=" in release_script, "release script does not define its release note asset"),
             ("Release notes file not found" in release_script, "release script does not validate release notes"),
+            (
+                "!docs/manual/\ndocs/manual/*\n!docs/manual/blacklist-*-release-notes.md" in gitignore,
+                "release notes remain ignored by .gitignore",
+            ),
+            (
+                'git ls-files --error-unmatch "$RELEASE_NOTES_FILE"' in release_script,
+                "release script does not require tracked release notes",
+            ),
+            (
+                'git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$RELEASE_NOTES_FILE"' in release_script,
+                "release script does not stage release notes",
+            ),
             ("Release notes file not found" in release, "release workflow does not validate release notes"),
+            (
+                'if [[ ! -s "$RELEASE_NOTES_FILE" ]]; then' in release,
+                "release workflow does not reject empty release notes",
+            ),
         )
         if not condition
     ]
+    failures.extend(
+        f"release workflow job '{job_name}' lacks explicit least-privilege permissions"
+        for job_name, permissions in RELEASE_JOB_PERMISSIONS.items()
+        if not has_explicit_job_permissions(release, job_name, permissions)
+    )
 
     mutable_files = [
         workflow.relative_to(ROOT).as_posix()

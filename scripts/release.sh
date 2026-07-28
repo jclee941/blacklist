@@ -13,7 +13,7 @@
 #   1. Validate clean working tree and master branch
 #   2. Bump VERSION file (semver)
 #   3. Auto-generate CHANGELOG entry from git log
-#   4. Commit VERSION + CHANGELOG
+#   4. Commit version metadata, changelog, and release notes
 #   5. Create annotated tag v{VERSION}
 #   6. Push to master + push tag
 #   7. Release pipeline auto-triggers (build → package → GHCR)
@@ -82,6 +82,12 @@ esac
 RELEASE_NOTES_FILE="docs/manual/blacklist-${NEW_VERSION}-release-notes.md"
 if [[ ! -f "$RELEASE_NOTES_FILE" ]]; then
   error "Release notes file not found: ${RELEASE_NOTES_FILE}. Create it before releasing."
+fi
+if [[ ! -s "$RELEASE_NOTES_FILE" ]]; then
+  error "Release notes file is empty: ${RELEASE_NOTES_FILE}. Add release details before releasing."
+fi
+if ! git ls-files --error-unmatch "$RELEASE_NOTES_FILE" >/dev/null 2>&1; then
+  error "Release notes file must be tracked: ${RELEASE_NOTES_FILE}. Add and commit it before releasing."
 fi
 
 # Check tag doesn't already exist
@@ -285,7 +291,7 @@ else
 fi
 
 # 3. Commit
-git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG"
+git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$RELEASE_NOTES_FILE"
 git commit -m "chore(release): v${NEW_VERSION}
 
 Automated release: ${BUMP_TYPE} bump ${CURRENT_VERSION} → ${NEW_VERSION}"

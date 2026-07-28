@@ -83,6 +83,9 @@ docs/*
 !docs/README.md
 !docs/MONOREPO_STRUCTURE.md
 !docs/OPERATOR_MIGRATION_GUIDE.md
+!docs/manual/
+docs/manual/*
+!docs/manual/blacklist-*-release-notes.md
 
 # Analysis documents (never track)
 ANALYSIS*.md
