@@ -58,6 +58,7 @@ def main() -> None:
     ci_compose = read(".github/docker-compose.ci.yml")
     frontend_dockerfile = read("frontend/Dockerfile")
     reusable_node = read(".github/workflows/_ci-node.yml")
+    dependabot = read(".github/dependabot.yml")
     gitignore = read(".gitignore")
 
     failures = [
@@ -125,6 +126,10 @@ def main() -> None:
             (
                 'if [[ ! -s "$RELEASE_NOTES_FILE" ]]; then' in release,
                 "release workflow does not reject empty release notes",
+            ),
+            (
+                '  - package-ecosystem: "npm"\n    directory: "/frontend"' in dependabot,
+                "Dependabot npm directory does not point to /frontend",
             ),
         )
         if not condition

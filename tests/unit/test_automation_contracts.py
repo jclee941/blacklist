@@ -79,6 +79,14 @@ FROM node:24-alpine AS builder
 FROM node:24-alpine AS runner
 """,
         ".github/workflows/_ci-node.yml": 'default: "24"',
+        ".github/dependabot.yml": """
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+""",
+        "frontend/package.json": "{}",
+        "frontend/package-lock.json": "{}",
         ".gitignore": """
 docs/*
 !docs/manual/
@@ -146,9 +154,14 @@ docs/manual/*
             '          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then',
             "CI gate does not fail when a required job is cancelled",
         ),
+        (
+            ".github/dependabot.yml",
+            '    directory: "/frontend"',
+            "Dependabot npm directory does not point to /frontend",
+        ),
     ),
 )
-def test_validator_rejects_missing_release_contract(
+def test_validator_rejects_missing_automation_contract(
     tmp_path: Path,
     path: str,
     required_text: str,
