@@ -138,8 +138,30 @@ class TestDatabaseService:
         conn.cursor.return_value = cursor
         cursor.execute.side_effect = Exception("write error")
 
-        with patch.object(service, "get_connection", return_value=conn):
+        with (
+            patch.object(service, "get_connection", return_value=conn),
+            patch.object(service, "return_connection") as return_connection,
+        ):
             with pytest.raises(Exception, match="write error"):
                 service.execute("UPDATE t SET x = 1")
 
         conn.rollback.assert_called_once()
+        return_connection.assert_called_once_with(conn)
+
+    def test_execute_returns_connection_on_success(self):
+        with patch.object(DatabaseService, "_initialize_pool_with_retry"):
+            service = DatabaseService()
+
+        conn = Mock()
+        cursor = Mock()
+        conn.cursor.return_value = cursor
+        cursor.rowcount = 1
+
+        with (
+            patch.object(service, "get_connection", return_value=conn),
+            patch.object(service, "return_connection") as return_connection,
+        ):
+            result = service.execute("UPDATE t SET x = 1")
+
+        assert result == 1
+        return_connection.assert_called_once_with(conn)
