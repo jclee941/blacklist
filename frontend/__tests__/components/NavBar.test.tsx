@@ -49,6 +49,7 @@ describe('NavBar Component', () => {
     expect(screen.getByText('대시보드')).toBeInTheDocument();
     expect(screen.getByText('IP 관리')).toBeInTheDocument();
     expect(screen.getByText('FortiGate')).toBeInTheDocument();
+    expect(screen.getByText('Cloudflare 연동')).toBeInTheDocument();
     // 모니터링 메뉴는 대시보드로 통합되어 제거됨
     expect(screen.getByText('데이터 수집')).toBeInTheDocument();
     expect(screen.getByText('데이터베이스')).toBeInTheDocument();
@@ -104,5 +105,8 @@ describe('NavBar Component', () => {
 
     const ipManagementLinks = screen.getAllByText('IP 관리');
     expect(ipManagementLinks[0].closest('a')).toHaveAttribute('href', '/ip-management');
+
+    const cloudflareLinks = screen.getAllByText('Cloudflare 연동');
+    expect(cloudflareLinks[0].closest('a')).toHaveAttribute('href', '/cloudflare');
   });
 });
