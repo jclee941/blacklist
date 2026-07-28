@@ -45,11 +45,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const webkitEnabled = process.env.WEBKIT_ENABLED === 'true';
+const templateTest = /(?:^|\/)_template-.*\.spec\.ts$/;
+const smokeTest = /smoke\.spec\.ts/;
 
 export default defineConfig({
+  globalSetup: './e2e/global-setup.ts',
   // TEST DISCOVERY: Points to e2e directory
   // Tests are now physically in frontend/e2e/
   testDir: './e2e',
+  testIgnore: templateTest,
 
   /* Global test timeout (default 30s is often too short for networkidle) */
   timeout: 60 * 1000,
@@ -105,7 +109,7 @@ export default defineConfig({
 
     {
       name: 'chromium',
-      testIgnore: /smoke\.spec\.ts/,
+      testIgnore: [smokeTest, templateTest],
       use: { ...devices['Desktop Chrome'] },
     },
 
@@ -119,6 +123,7 @@ export default defineConfig({
       ? [
           {
             name: 'webkit',
+            testIgnore: [smokeTest, templateTest],
             use: { ...devices['Desktop Safari'] },
           },
         ]
