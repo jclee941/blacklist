@@ -86,8 +86,7 @@ deploy/install.sh --check-secrets
 값이어야 하며, 파일 경로, 참조 문자열, 변수 표현식, 자리표시자 또는 빈 값은 허용되지 않습니다.
 업그레이드할 때는 기존 파일을 그대로 보존하고 새 번들 디렉터리로 복사한 뒤 설치 전에
 검증합니다. 암호화 키가 바뀌면 저장된 인증정보를 복호화할 수 없습니다. 첫 설치 후에는
-생성된 `ADMIN_USERNAME`과 `ADMIN_PASSWORD`로 웹 UI에 로그인합니다. 업그레이드에서는 이 값도
-기존 `.env`에서 보존합니다.
+웹 UI에서 REGTECH 인증정보를 설정합니다.
 
 **필수 환경변수:**
 
@@ -98,8 +97,6 @@ deploy/install.sh --check-secrets
 | `CREDENTIAL_ENCRYPTION_KEY` | 크레덴셜 암호화 키      | 대상 장비에서 자동 생성      |
 | `ENCRYPTION_SALT`           | 암호화 솔트             | 대상 장비에서 자동 생성      |
 | `POSTGRES_PASSWORD`         | DB 비밀번호             | 대상 장비에서 자동 생성      |
-| `ADMIN_USERNAME`            | 웹 UI 관리자 계정       | 대상 장비에서 자동 생성      |
-| `ADMIN_PASSWORD`            | 웹 UI 관리자 비밀번호   | 대상 장비에서 자동 생성      |
 
 **선택 환경변수:**
 
@@ -107,8 +104,6 @@ deploy/install.sh --check-secrets
 | --------------------- | ------------------------------- | ----------------------------------- |
 | `POSTGRES_USER`       | postgres                        | DB 사용자                           |
 | `POSTGRES_DB`         | blacklist                       | DB 이름                             |
-| `JWT_SECRET_KEY`      | —                               | JWT 서명 키                         |
-| `JWT_EXPIRY_HOURS`    | 8                               | JWT 만료 시간                       |
 | `COLLECTOR_URL`       | http://blacklist-collector:8545 | Collector URL                       |
 | `LOG_LEVEL`           | INFO                            | 로그 레벨                           |
 | `COLLECTION_INTERVAL` | 3600                            | 수집 간격 (초)                      |
