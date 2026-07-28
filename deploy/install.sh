@@ -18,6 +18,30 @@ log_step() { echo -e "\n${CYAN}===${NC} ${BOLD}$1${NC}\n"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGES_DIR="${SCRIPT_DIR}/images"
 VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
+readonly REQUIRED_SECRET_KEYS=(
+    "CREDENTIAL_MASTER_KEY"
+    "SECRET_KEY"
+    "CREDENTIAL_ENCRYPTION_KEY"
+    "ENCRYPTION_SALT"
+    "POSTGRES_PASSWORD"
+    "ADMIN_USERNAME"
+    "ADMIN_PASSWORD"
+)
+readonly DEPLOYMENT_VOLUME_NAMES=(
+    "blacklist-pgdata"
+    "blacklist-redis-data"
+    "blacklist-collector-data"
+    "blacklist-logs"
+    "blacklist-uploads"
+    "blacklist-app-data"
+    "blacklist_blacklist-pgdata"
+    "blacklist_blacklist-redis-data"
+    "blacklist_blacklist-collector-data"
+    "blacklist_blacklist-logs"
+    "blacklist_blacklist-uploads"
+    "blacklist_blacklist-app-data"
+)
+readonly VARIABLE_REFERENCE_PREFIX="\${"
 
 install_docker_offline() {
     log_step "Offline Docker Installation"
@@ -210,37 +234,98 @@ load_images() {
     log_success "All images loaded"
 }
 
-setup_secrets() {
-    log_step "Setup Environment Secrets"
+trim_whitespace() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "${value}"
+}
 
-    local env_file="${SCRIPT_DIR}/.env"
-    local need_gen=false
+normalize_dotenv_value() {
+    local value
+    value=$(trim_whitespace "$1")
 
-    # Check if .env exists and has required keys
-    if [ -f "${env_file}" ]; then
-        if grep -q "CREDENTIAL_MASTER_KEY=.\+" "${env_file}" && \
-           grep -q "SECRET_KEY=.\+" "${env_file}" && \
-           grep -q "CREDENTIAL_ENCRYPTION_KEY=.\+" "${env_file}"; then
-            log_info ".env already exists with all required secrets"
-            return 0
-        else
-            log_warning ".env exists but missing required secrets, regenerating..."
-            need_gen=true
+    case "${value}" in
+        \"*)
+            if [[ "${value}" =~ ^\"(.*)\"[[:space:]]*(\#.*)?$ ]]; then
+                DOTENV_NORMALIZED_VALUE="${BASH_REMATCH[1]}"
+            else
+                return 1
+            fi
+            ;;
+        \'*)
+            if [[ "${value}" =~ ^\'(.*)\'[[:space:]]*(\#.*)?$ ]]; then
+                DOTENV_NORMALIZED_VALUE="${BASH_REMATCH[1]}"
+            else
+                return 1
+            fi
+            ;;
+        *)
+            value="${value%%[[:space:]]\#*}"
+            DOTENV_NORMALIZED_VALUE=$(trim_whitespace "${value}")
+            ;;
+    esac
+
+    [ -n "${DOTENV_NORMALIZED_VALUE}" ]
+}
+
+read_required_secret_value() {
+    local env_file="$1"
+    local required_key="$2"
+    local line value=""
+    local matches=0
+
+    DOTENV_NORMALIZED_VALUE=""
+    while IFS= read -r line || [ -n "${line}" ]; do
+        line="${line%$'\r'}"
+        [[ "${line}" =~ ^[[:space:]]*$ || "${line}" =~ ^[[:space:]]*\# ]] && continue
+
+        if [[ "${line}" =~ ^[[:space:]]*(export[[:space:]]+)?${required_key}[[:space:]]*=(.*)$ ]]; then
+            matches=$((matches + 1))
+            value="${BASH_REMATCH[2]}"
         fi
-    else
-        need_gen=true
-    fi
+    done < "${env_file}"
 
-    if [ "$need_gen" = true ]; then
-        log_info "Generating secrets..."
-        
-        local fernet_key secret_key master_key pg_password
-        fernet_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
-        secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
-        master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
-        pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
-        
-        cat > "${env_file}" << EOF
+    [ "${matches}" -eq 1 ] || return 1
+    normalize_dotenv_value "${value}"
+}
+
+deployment_state_exists() {
+    local container_ids volume
+
+    command -v docker > /dev/null 2>&1 || return 1
+
+    if ! container_ids=$(docker ps -aq --filter 'name=^/blacklist-'); then
+        log_error "Unable to inspect Docker deployment state; refusing to generate secrets."
+    fi
+    [ -n "${container_ids}" ] && return 0
+
+    for volume in "${DEPLOYMENT_VOLUME_NAMES[@]}"; do
+        if docker volume inspect "${volume}" > /dev/null 2>&1; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+generate_env_file() {
+    local env_file="$1"
+    local temp_file
+    local fernet_key secret_key master_key encryption_salt pg_password admin_username admin_password
+
+    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to create private environment file."
+    chmod 600 "${temp_file}" || log_error "Unable to protect generated environment file."
+
+    fernet_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+    secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    encryption_salt=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    admin_username="admin-$(openssl rand -hex 8 2>/dev/null || head -c 8 /dev/urandom | xxd -p | tr -d '\n')"
+    admin_password=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+
+    if ! cat > "${temp_file}" << EOF
 # Blacklist Platform Secrets (auto-generated)
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -248,13 +333,67 @@ COMPOSE_PROJECT_NAME=blacklist
 CREDENTIAL_MASTER_KEY=${master_key}
 SECRET_KEY=${secret_key}
 CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
+ENCRYPTION_SALT=${encryption_salt}
 POSTGRES_PASSWORD=${pg_password}
+ADMIN_USERNAME=${admin_username}
+ADMIN_PASSWORD=${admin_password}
 EOF
-
-        chmod 600 "${env_file}"
-        log_success "Secrets generated (.env)"
-        log_warning "Store .env securely - it contains encryption keys"
+    then
+        rm -f "${temp_file}"
+        log_error "Unable to write generated environment file."
     fi
+
+    if ! mv "${temp_file}" "${env_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to save generated environment file."
+    fi
+}
+
+setup_secrets() {
+    log_step "Setup Environment Secrets"
+
+    umask 077
+
+    local env_file="${SCRIPT_DIR}/.env"
+    if [ -f "${env_file}" ]; then
+        chmod 600 "${env_file}" || log_error "Unable to protect existing environment file."
+    else
+        if deployment_state_exists; then
+            log_error "Existing deployment state detected; refusing to generate new secrets. Restore the original .env."
+        fi
+
+        log_info "Generating secrets..."
+        generate_env_file "${env_file}"
+        chmod 600 "${env_file}" || log_error "Unable to protect generated environment file."
+        log_success "Secrets generated (.env)"
+        log_warning "Administrator credentials were generated; record them securely before deployment."
+    fi
+
+    local invalid_keys=()
+    local key value
+    for key in "${REQUIRED_SECRET_KEYS[@]}"; do
+        if ! read_required_secret_value "${env_file}" "${key}"; then
+            invalid_keys+=("${key}")
+            continue
+        fi
+
+        value="${DOTENV_NORMALIZED_VALUE}"
+        if [ -z "${value}" ] ||
+           [[ "${value}" == op://* ]] ||
+           [[ "${value}" == *"${VARIABLE_REFERENCE_PREFIX}"* ]] ||
+           [[ "${value}" =~ \$[A-Za-z_][A-Za-z0-9_]* ]] ||
+           [[ "${value}" == __SET_* ]] ||
+           { [ "${key}" = "POSTGRES_PASSWORD" ] && [ "${value}" = "postgres" ]; }; then
+            invalid_keys+=("${key}")
+        fi
+    done
+
+    if [ "${#invalid_keys[@]}" -gt 0 ]; then
+        log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in .env."
+    fi
+
+    log_success ".env secret validation passed"
+    log_warning "Back up .env securely; upgrades require the same encryption keys"
 }
 
 stop_all_running_containers() {
@@ -323,6 +462,14 @@ deploy_services() {
     log_success "Services started"
 }
 
+validate_compose_config() {
+    log_step "Validate Compose Configuration"
+    if ! (cd "${SCRIPT_DIR}" && docker compose config --quiet); then
+        log_error "Compose configuration validation failed"
+    fi
+    log_success "Compose configuration"
+}
+
 health_checks() {
     log_step "Health Checks"
 
@@ -331,7 +478,7 @@ health_checks() {
     fi
 
     local endpoints=(
-        "http://localhost:2542/api/health|API"
+        "http://localhost:2542/health|API"
         "http://localhost:8545/health|Collector"
     )
 
@@ -381,20 +528,28 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
+    echo "  --check-secrets Generate or validate .env, then exit"
     echo "  --help, -h     Show this help"
     echo ""
 }
 
 main() {
     local skip_load=false
+    local check_secrets=false
 
     for arg in "$@"; do
         case $arg in
             --skip-load) skip_load=true ;;
+            --check-secrets) check_secrets=true ;;
             --help|-h) show_help; exit 0 ;;
             *) log_warning "Unknown option: $arg" ;;
         esac
     done
+
+    if [ "$check_secrets" = true ]; then
+        setup_secrets
+        return 0
+    fi
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
@@ -412,6 +567,7 @@ main() {
     fi
 
     setup_secrets
+    validate_compose_config
     stop_all_running_containers
 
     deploy_services
