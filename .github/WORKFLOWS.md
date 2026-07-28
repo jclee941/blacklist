@@ -28,7 +28,7 @@ make release TYPE=patch
 make release-dry TYPE=minor
 ```
 
-Before releasing, create `docs/manual/blacklist-<next-version>-release-notes.md`. `scripts/release.sh` checks the branch, working tree, test status, and that versioned release note before changing metadata. It then updates version metadata, generates a changelog entry, commits the release, creates an annotated tag, and pushes. The tag invokes `release.yml`. That workflow validates `VERSION`, `CHANGELOG.md`, and the versioned release note before building images, packages release artifacts, creates the GitHub Release, and publishes five images to GHCR.
+Before releasing, create, add, and commit `docs/manual/blacklist-<next-version>-release-notes.md`. `scripts/release.sh` checks the branch, working tree, test status, and that the versioned release note is non-empty and tracked before changing metadata. It then updates version metadata, generates a changelog entry, commits the release, creates an annotated tag, and pushes. The tag invokes `release.yml`. That workflow validates `VERSION`, `CHANGELOG.md`, and the versioned release note before building images, packages release artifacts, creates the GitHub Release, and publishes five images to GHCR.
 
 ## Workflow Change Rules
 
