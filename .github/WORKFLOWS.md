@@ -15,8 +15,6 @@ GitHub Actions for this application live in `.github/workflows/`. They are repos
 | `security.yml` | Push and pull request to `master` | Trivy filesystem dependency scan |
 | `_ci-node.yml` | Reusable call | Frontend Node lint and type-check support |
 
-Numbered workflow files handle branch-to-PR intake, standard and security reviews, Dependabot updates, and human-authored PR auto-merge. CI and release publication remain consolidated in `ci.yml` and `release.yml`.
-
 ## CI Flow
 
 `ci.yml` determines whether frontend, backend, collector, or infrastructure paths changed. It runs only the relevant jobs, then builds the affected application images. Successful builds run Trivy image scans and Playwright E2E tests. The `ci-gate` job is the single required branch-protection check. Pushes to `master` can publish `latest` GHCR images after successful build, scan, and E2E jobs.
@@ -30,7 +28,7 @@ make release TYPE=patch
 make release-dry TYPE=minor
 ```
 
-`scripts/release.sh` checks the branch, working tree, and test status. It then updates version metadata, generates a changelog entry, commits the release, creates an annotated tag, and pushes. The tag invokes `release.yml`. That workflow validates `VERSION` and `CHANGELOG.md`, packages release artifacts, creates the GitHub Release, and publishes five images to GHCR.
+Before releasing, create `docs/manual/blacklist-<next-version>-release-notes.md`. `scripts/release.sh` checks the branch, working tree, test status, and that versioned release note before changing metadata. It then updates version metadata, generates a changelog entry, commits the release, creates an annotated tag, and pushes. The tag invokes `release.yml`. That workflow validates `VERSION`, `CHANGELOG.md`, and the versioned release note before building images, packages release artifacts, creates the GitHub Release, and publishes five images to GHCR.
 
 ## Workflow Change Rules
 
@@ -38,3 +36,4 @@ make release-dry TYPE=minor
 - Use least-privilege `permissions` and preserve concurrency controls.
 - Keep CI and release behavior aligned with both `scripts/release.sh` and the workflow source.
 - Don't add secrets or webhook values to tracked workflow files. Use repository secrets or variables.
+- Run `uv run .github/scripts/validate_automation_contracts.py`, `actionlint`, and `docker compose -f .github/docker-compose.ci.yml config --quiet` before changing automation.
