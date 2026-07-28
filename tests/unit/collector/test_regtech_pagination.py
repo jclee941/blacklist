@@ -9,12 +9,15 @@ from collector.core.regtech.collector import REGTECH_PAGE_SIZE, RegtechCollector
 PageData = list[dict[str, str]]
 DateStrategy = tuple[str, str | None, str | None]
 PageCollector = Callable[[int, int, str | None, str | None], PageData | None]
+ExcelDownloader = Callable[[str, str], PageData]
 
 
 @dataclass(frozen=True, slots=True)
 class CollectorScenario:
     strategies: tuple[DateStrategy, ...]
     collect_page: PageCollector
+    excel_enabled: bool = False
+    download_excel: ExcelDownloader | None = None
 
 
 def _record_performance(
@@ -34,7 +37,10 @@ def _prepare_collector(
     scenario: CollectorScenario,
 ) -> RegtechCollector:
     collector = RegtechCollector()
-    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
+    if scenario.excel_enabled:
+        monkeypatch.delenv("DISABLE_EXCEL_COLLECTION", raising=False)
+    else:
+        monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
 
     def date_strategies(_start: str | None, _end: str | None) -> list[DateStrategy]:
         return list(scenario.strategies)
@@ -44,6 +50,8 @@ def _prepare_collector(
     monkeypatch.setattr(collector, "_collect_single_page", scenario.collect_page)
     monkeypatch.setattr(collector, "_record_collection_performance", _record_performance)
     monkeypatch.setattr(collector, "_post_process_collected_data", _post_process)
+    if scenario.download_excel is not None:
+        monkeypatch.setattr(collector, "_download_excel_data", scenario.download_excel)
     return collector
 
 
@@ -51,18 +59,6 @@ def test_collect_blacklist_data_caps_page_size_without_reducing_capacity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     requests: list[tuple[int, int]] = []
-
-    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
-    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
-
-    def date_strategies(_start_date: str | None, _end_date: str | None) -> list[tuple[str, None, None]]:
-        return [("전체 데이터", None, None)]
-
-    monkeypatch.setattr(
-        collector,
-        "_generate_date_strategies",
-        date_strategies,
-    )
 
     def collect_page(
         page_num: int, page_size: int, _start_date: str | None, _end_date: str | None
@@ -88,20 +84,7 @@ def test_collect_blacklist_data_caps_page_size_without_reducing_capacity(
 def test_collect_blacklist_data_retries_transient_page_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    collector = RegtechCollector()
     requests: list[int] = []
-
-    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
-    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
-
-    def date_strategies(_start_date: str | None, _end_date: str | None) -> list[tuple[str, None, None]]:
-        return [("전체 데이터", None, None)]
-
-    monkeypatch.setattr(
-        collector,
-        "_generate_date_strategies",
-        date_strategies,
-    )
 
     def collect_page(
         page_num: int,
@@ -114,20 +97,10 @@ def test_collect_blacklist_data_retries_transient_page_failure(
             return None
         return [{"ip_address": f"192.0.2.{page_num}"}]
 
-    monkeypatch.setattr(collector, "_collect_single_page", collect_page)
-
-    def record_performance(
-        _collected_data: list[dict[str, str]],
-        _strategies: list[tuple[str, str | None, str | None]],
-        _duration: float,
-    ) -> None:
-        return None
-
-    def post_process(data: list[dict[str, str]]) -> list[dict[str, str]]:
-        return data
-
-    monkeypatch.setattr(collector, "_record_collection_performance", record_performance)
-    monkeypatch.setattr(collector, "_post_process_collected_data", post_process)
+    collector = _prepare_collector(
+        monkeypatch,
+        CollectorScenario(strategies=(("전체 데이터", None, None),), collect_page=collect_page),
+    )
 
     result = collector.collect_blacklist_data(page_size=REGTECH_PAGE_SIZE, max_pages=2)
 
@@ -138,18 +111,8 @@ def test_collect_blacklist_data_retries_transient_page_failure(
 def test_collect_blacklist_data_attempts_excel_once_before_html_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    collector = RegtechCollector()
     excel_requests: list[tuple[str, str]] = []
     page_requests: list[int] = []
-
-    monkeypatch.delenv("DISABLE_EXCEL_COLLECTION", raising=False)
-    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
-
-    def date_strategies(
-        _start_date: str | None,
-        _end_date: str | None,
-    ) -> list[tuple[str, str, str]]:
-        return [("사용자 지정", "2026-07-01", "2026-07-28")]
 
     def download_excel(start_date: str, end_date: str) -> list[dict[str, str]]:
         excel_requests.append((start_date, end_date))
@@ -164,21 +127,15 @@ def test_collect_blacklist_data_attempts_excel_once_before_html_fallback(
         page_requests.append(page_num)
         return [{"ip_address": "192.0.2.1"}]
 
-    def record_performance(
-        _collected_data: list[dict[str, str]],
-        _strategies: list[tuple[str, str | None, str | None]],
-        _duration: float,
-    ) -> None:
-        return None
-
-    def post_process(data: list[dict[str, str]]) -> list[dict[str, str]]:
-        return data
-
-    monkeypatch.setattr(collector, "_generate_date_strategies", date_strategies)
-    monkeypatch.setattr(collector, "_download_excel_data", download_excel)
-    monkeypatch.setattr(collector, "_collect_single_page", collect_page)
-    monkeypatch.setattr(collector, "_record_collection_performance", record_performance)
-    monkeypatch.setattr(collector, "_post_process_collected_data", post_process)
+    collector = _prepare_collector(
+        monkeypatch,
+        CollectorScenario(
+            strategies=(("사용자 지정", "2026-07-01", "2026-07-28"),),
+            collect_page=collect_page,
+            excel_enabled=True,
+            download_excel=download_excel,
+        ),
+    )
 
     result = collector.collect_blacklist_data(
         page_size=REGTECH_PAGE_SIZE,
@@ -195,17 +152,7 @@ def test_collect_blacklist_data_attempts_excel_once_before_html_fallback(
 def test_collect_blacklist_data_falls_back_to_html_for_stale_excel(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    collector = RegtechCollector()
     page_requests: list[int] = []
-
-    monkeypatch.delenv("DISABLE_EXCEL_COLLECTION", raising=False)
-    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
-
-    def date_strategies(
-        _start_date: str | None,
-        _end_date: str | None,
-    ) -> list[tuple[str, str, str]]:
-        return [("사용자 지정", "2026-07-01", "2026-07-28")]
 
     def download_excel(_start_date: str, _end_date: str) -> list[dict[str, str]]:
         return [{"ip_address": "192.0.2.10", "detection_date": "2000-01-01"}]
@@ -219,21 +166,15 @@ def test_collect_blacklist_data_falls_back_to_html_for_stale_excel(
         page_requests.append(page_num)
         return [{"ip_address": "192.0.2.20"}]
 
-    def record_performance(
-        _collected_data: list[dict[str, str]],
-        _strategies: list[tuple[str, str | None, str | None]],
-        _duration: float,
-    ) -> None:
-        return None
-
-    def post_process(data: list[dict[str, str]]) -> list[dict[str, str]]:
-        return data
-
-    monkeypatch.setattr(collector, "_generate_date_strategies", date_strategies)
-    monkeypatch.setattr(collector, "_download_excel_data", download_excel)
-    monkeypatch.setattr(collector, "_collect_single_page", collect_page)
-    monkeypatch.setattr(collector, "_record_collection_performance", record_performance)
-    monkeypatch.setattr(collector, "_post_process_collected_data", post_process)
+    collector = _prepare_collector(
+        monkeypatch,
+        CollectorScenario(
+            strategies=(("사용자 지정", "2026-07-01", "2026-07-28"),),
+            collect_page=collect_page,
+            excel_enabled=True,
+            download_excel=download_excel,
+        ),
+    )
 
     result = collector.collect_blacklist_data(
         page_size=REGTECH_PAGE_SIZE,
@@ -249,17 +190,7 @@ def test_collect_blacklist_data_falls_back_to_html_for_stale_excel(
 def test_collect_blacklist_data_rejects_partial_result_after_retries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    collector = RegtechCollector()
     requests: list[int] = []
-
-    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
-    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
-
-    def date_strategies(
-        _start_date: str | None,
-        _end_date: str | None,
-    ) -> list[tuple[str, None, None]]:
-        return [("전체 데이터", None, None)]
 
     def collect_page(
         page_num: int,
@@ -272,20 +203,10 @@ def test_collect_blacklist_data_rejects_partial_result_after_retries(
             return [{"ip_address": "192.0.2.1"}]
         return None
 
-    def record_performance(
-        _collected_data: list[dict[str, str]],
-        _strategies: list[tuple[str, str | None, str | None]],
-        _duration: float,
-    ) -> None:
-        return None
-
-    def post_process(data: list[dict[str, str]]) -> list[dict[str, str]]:
-        return data
-
-    monkeypatch.setattr(collector, "_generate_date_strategies", date_strategies)
-    monkeypatch.setattr(collector, "_collect_single_page", collect_page)
-    monkeypatch.setattr(collector, "_record_collection_performance", record_performance)
-    monkeypatch.setattr(collector, "_post_process_collected_data", post_process)
+    collector = _prepare_collector(
+        monkeypatch,
+        CollectorScenario(strategies=(("전체 데이터", None, None),), collect_page=collect_page),
+    )
 
     with pytest.raises(RuntimeError):
         _ = collector.collect_blacklist_data(page_size=REGTECH_PAGE_SIZE, max_pages=2)
@@ -296,17 +217,7 @@ def test_collect_blacklist_data_rejects_partial_result_after_retries(
 def test_collect_blacklist_data_skips_excel_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    collector = RegtechCollector()
     excel_requests: list[tuple[str, str]] = []
-
-    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
-    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
-
-    def date_strategies(
-        _start_date: str | None,
-        _end_date: str | None,
-    ) -> list[tuple[str, str, str]]:
-        return [("사용자 지정", "2026-07-01", "2026-07-28")]
 
     def download_excel(start_date: str, end_date: str) -> list[dict[str, str]]:
         excel_requests.append((start_date, end_date))
@@ -320,21 +231,14 @@ def test_collect_blacklist_data_skips_excel_when_disabled(
     ) -> list[dict[str, str]]:
         return [{"ip_address": "192.0.2.1"}]
 
-    def record_performance(
-        _collected_data: list[dict[str, str]],
-        _strategies: list[tuple[str, str | None, str | None]],
-        _duration: float,
-    ) -> None:
-        return None
-
-    def post_process(data: list[dict[str, str]]) -> list[dict[str, str]]:
-        return data
-
-    monkeypatch.setattr(collector, "_generate_date_strategies", date_strategies)
-    monkeypatch.setattr(collector, "_download_excel_data", download_excel)
-    monkeypatch.setattr(collector, "_collect_single_page", collect_page)
-    monkeypatch.setattr(collector, "_record_collection_performance", record_performance)
-    monkeypatch.setattr(collector, "_post_process_collected_data", post_process)
+    collector = _prepare_collector(
+        monkeypatch,
+        CollectorScenario(
+            strategies=(("사용자 지정", "2026-07-01", "2026-07-28"),),
+            collect_page=collect_page,
+            download_excel=download_excel,
+        ),
+    )
 
     result = collector.collect_blacklist_data(
         page_size=REGTECH_PAGE_SIZE,
