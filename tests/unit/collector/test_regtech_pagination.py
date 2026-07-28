@@ -1,47 +1,66 @@
+from collections.abc import Callable
+from dataclasses import dataclass
+
 import pytest
 
 from collector.core.regtech.collector import REGTECH_PAGE_SIZE, RegtechCollector
 
 
+PageData = list[dict[str, str]]
+DateStrategy = tuple[str, str | None, str | None]
+PageCollector = Callable[[int, int, str | None, str | None], PageData | None]
+
+
+@dataclass(frozen=True, slots=True)
+class CollectorScenario:
+    strategies: tuple[DateStrategy, ...]
+    collect_page: PageCollector
+
+
+def _record_performance(
+    _collected_data: PageData,
+    _strategies: list[DateStrategy],
+    _duration: float,
+) -> None:
+    return None
+
+
+def _post_process(data: PageData) -> PageData:
+    return data
+
+
+def _prepare_collector(
+    monkeypatch: pytest.MonkeyPatch,
+    scenario: CollectorScenario,
+) -> RegtechCollector:
+    collector = RegtechCollector()
+    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
+
+    def date_strategies(_start: str | None, _end: str | None) -> list[DateStrategy]:
+        return list(scenario.strategies)
+
+    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
+    monkeypatch.setattr(collector, "_generate_date_strategies", date_strategies)
+    monkeypatch.setattr(collector, "_collect_single_page", scenario.collect_page)
+    monkeypatch.setattr(collector, "_record_collection_performance", _record_performance)
+    monkeypatch.setattr(collector, "_post_process_collected_data", _post_process)
+    return collector
+
+
 def test_collect_blacklist_data_caps_page_size_without_reducing_capacity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    collector = RegtechCollector()
     requests: list[tuple[int, int]] = []
 
-    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
-    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
-
-    def date_strategies(_start_date: str | None, _end_date: str | None) -> list[tuple[str, None, None]]:
-        return [("전체 데이터", None, None)]
-
-    monkeypatch.setattr(
-        collector,
-        "_generate_date_strategies",
-        date_strategies,
-    )
-
-    def collect_page(page_num: int, page_size: int, _start_date: str | None, _end_date: str | None) -> list[dict[str, str]]:
+    def collect_page(
+        page_num: int, page_size: int, _start_date: str | None, _end_date: str | None
+    ) -> list[dict[str, str]]:
         requests.append((page_num, page_size))
         return [{"ip_address": f"192.0.2.{page_num}"}]
 
-    monkeypatch.setattr(collector, "_collect_single_page", collect_page)
-
-    def record_performance(
-        _collected_data: list[dict[str, str]],
-        _strategies: list[tuple[str, str | None, str | None]],
-        _duration: float,
-    ) -> None:
-        return None
-
-    def post_process(data: list[dict[str, str]]) -> list[dict[str, str]]:
-        return data
-
-    monkeypatch.setattr(collector, "_record_collection_performance", record_performance)
-    monkeypatch.setattr(
-        collector,
-        "_post_process_collected_data",
-        post_process,
+    collector = _prepare_collector(
+        monkeypatch,
+        CollectorScenario(strategies=(("전체 데이터", None, None),), collect_page=collect_page),
     )
 
     page_size = 2_000
