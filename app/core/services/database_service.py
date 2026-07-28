@@ -292,7 +292,7 @@ class DatabaseService:
 
                 cursor.execute(
                     """
-                    SELECT service_name, username, password, config, created_at, updated_at
+                    SELECT service_name, username, password, config, encrypted, created_at, updated_at
                     FROM collection_credentials
                     WHERE service_name = %s AND is_active = true
                 """,
@@ -309,9 +309,13 @@ class DatabaseService:
                         username,
                         password,
                         config,
+                        encrypted,
                         created_at,
                         updated_at,
                     ) = result
+                    if encrypted:
+                        logger.error("Encrypted credentials could not be decrypted for %s", service_name)
+                        return {"error": "Encrypted credentials could not be decrypted"}
                     return {
                         "service_name": service_name_db,
                         "username": username or "",
