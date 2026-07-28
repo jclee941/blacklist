@@ -51,23 +51,14 @@ const attachToken = (config: import('axios').InternalAxiosRequestConfig) => {
 api.interceptors.request.use(attachToken);
 collectionApi.interceptors.request.use(attachToken);
 
-const handleResponseError = (error: unknown): Promise<never> => {
-  if (
-    axios.isAxiosError(error) &&
-    error.response?.status === 401 &&
-    error.config?.url !== LOGIN_ENDPOINT
-  ) {
-    removeToken();
-    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-      window.location.assign('/login');
-    }
-  }
-
-  return Promise.reject(error);
-};
-
-api.interceptors.response.use((r) => r, handleResponseError);
-collectionApi.interceptors.response.use((r) => r, handleResponseError);
+api.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => Promise.reject(error)
+);
+collectionApi.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => Promise.reject(error)
+);
 
 // 인증 API
 export const login = async (username: string, password: string) => {
