@@ -6,7 +6,6 @@ from collector.scheduler import operations
 class RegtechCollectorFake:
     def __init__(self) -> None:
         self.requested_page_size: int | None = None
-        self.requested_max_pages: int | None = 1
 
     def authenticate(self, username: str, password: str) -> bool:
         _ = username, password
@@ -18,11 +17,10 @@ class RegtechCollectorFake:
         page_size: int,
         start_date: str,
         end_date: str,
-        max_pages: int | None,
+        max_pages: int,
     ) -> list[dict[str, str]]:
-        _ = start_date, end_date
+        _ = start_date, end_date, max_pages
         self.requested_page_size = page_size
-        self.requested_max_pages = max_pages
         return []
 
 
@@ -39,19 +37,3 @@ def test_collect_regtech_data_uses_portal_page_size(monkeypatch: pytest.MonkeyPa
     _ = operations.collect_regtech_data("username", "password", max_pages=2)
 
     assert collector.requested_page_size == 50
-
-
-def test_collect_regtech_data_converts_unbounded_page_sentinel(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    collector = RegtechCollectorFake()
-    monkeypatch.setattr(operations, "regtech_collector", collector)
-    monkeypatch.setattr(operations, "db_service", DatabaseFake())
-
-    _ = operations.collect_regtech_data(
-        "username",
-        "password",
-        max_pages=operations.UNBOUNDED_PAGES,
-    )
-
-    assert collector.requested_max_pages is None

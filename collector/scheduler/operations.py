@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Final, Protocol
+from typing import Any, Dict, Protocol
 
 from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
 
@@ -13,7 +13,6 @@ from .dependencies import db_service, regtech_collector
 
 logger = logging.getLogger(__name__)
 REGTECH_PAGE_SIZE = 50
-UNBOUNDED_PAGES: Final = 0
 
 
 class SchedulerProtocol(Protocol):
@@ -22,12 +21,7 @@ class SchedulerProtocol(Protocol):
     def _adjust_interval_success(self) -> None: ...
     def _adjust_interval_failure(self) -> None: ...
     def _record_failure(self, error_message: str) -> None: ...
-    def _collect_regtech_data(
-        self,
-        username: str,
-        password: str,
-        max_pages: int = 1,
-    ) -> Dict[str, Any]: ...
+    def _collect_regtech_data(self, username: str, password: str, max_pages: int = 1) -> Dict[str, Any]: ...
 
 
 def load_initial_stats(collection_stats: Dict[str, Any]) -> None:
@@ -278,12 +272,11 @@ def collect_regtech_data(username: str, password: str, max_pages: int = 1) -> Di
             start_date = (today - relativedelta(months=3)).strftime("%Y-%m-%d")
             logger.info("🚀 REGTECH 수동 수집 (3개월: %s ~ %s)", start_date, end_date)
 
-        page_limit = None if max_pages == UNBOUNDED_PAGES else max_pages
         collected_data = regtech_collector.collect_blacklist_data(
             page_size=REGTECH_PAGE_SIZE,
             start_date=start_date,
             end_date=end_date,
-            max_pages=page_limit,
+            max_pages=max_pages,
         )
 
         saved_count = 0
@@ -323,7 +316,7 @@ def collect_regtech_data(username: str, password: str, max_pages: int = 1) -> Di
 def run_manual_collection(scheduler: SchedulerProtocol) -> None:
     """Run the full manual REGTECH collection."""
     try:
-        logger.info("📊 Starting manual 90-day collection through the final page")
+        logger.info("📊 Starting manual full collection (50 pages)")
         credentials = db_service.get_collection_credentials("REGTECH")
         if not credentials:
             logger.error("❌ No REGTECH credentials found in database")
@@ -336,7 +329,7 @@ def run_manual_collection(scheduler: SchedulerProtocol) -> None:
             return
 
         logger.info("🔑 Using REGTECH credentials from database: %s", regtech_id)
-        result = scheduler._collect_regtech_data(regtech_id, regtech_pw, max_pages=UNBOUNDED_PAGES)
+        result = scheduler._collect_regtech_data(regtech_id, regtech_pw, max_pages=50)
         if result["success"]:
             logger.info("✅ Manual full collection completed: %s IPs", result["collected_count"])
             return
