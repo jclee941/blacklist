@@ -72,7 +72,9 @@ tests/
 │   ├── auth/           # JWT and middleware tests
 │   ├── services/       # Service layer tests
 │   ├── routes/         # API endpoint tests
-│   ├── database/       # Database layer tests
+│   ├── common/         # Configuration tests
+│   ├── errors/         # Error-handler tests
+│   ├── monitoring/     # Metrics tests
 │   ├── utils/          # Utility tests
 │   ├── collector/      # Collector unit tests
 │   └── ...             # Other focused unit-test domains
@@ -98,10 +100,11 @@ cd frontend && npm run test -- --watch
 ```
 frontend/
 ├── __tests__/          # Vitest unit tests
+│   ├── clients/        # Client component tests
 │   ├── components/     # Component tests
 │   ├── hooks/          # Hook tests
 │   ├── lib/            # Utility tests
-│   └── app/            # Page tests
+│   └── pages/          # Page tests
 └── vitest.config.ts    # Vitest configuration
 ```
 
@@ -113,7 +116,7 @@ E2E_USERNAME=admin E2E_PASSWORD='<test-password>' make test-frontend-e2e
 
 # Specific browser
 cd frontend && npx playwright test --project=chromium
-cd frontend && npx playwright test --project=webkit
+cd frontend && WEBKIT_ENABLED=true npx playwright test --project=webkit
 
 # Headed mode (see browser)
 cd frontend && npx playwright test --headed
@@ -173,7 +176,7 @@ describe('Dashboard', () => {
 ### E2E (Playwright)
 
 - CI tests run against `https://localhost:3443` through the frontend proxy.
-- Chromium and WebKit browsers
+- Chromium runs by default; WebKit requires `WEBKIT_ENABLED=true` and is enabled in CI.
 - The E2E job runs the configured browser matrix as one workflow job.
 
 ---
