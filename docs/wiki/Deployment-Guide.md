@@ -225,6 +225,110 @@ chmod +x install.sh
 | **create-release**   | GitHub Release + 번들 asset                 |
 | **push-to-registry** | GHCR: version + latest 태그                 |
 
+### 릴리스 담당자 작업 체크리스트
+
+#### 1. 릴리스 입력 파일 준비
+
+태그를 만들기 전에 다음 파일을 대상 버전에 맞춥니다. `${VERSION}`은 `VERSION`
+파일에 기록된 SemVer 값입니다.
+
+- [ ] `VERSION`에 대상 버전이 기록되어 있습니다.
+- [ ] `frontend/package.json`의 `version`이 `VERSION`과 같습니다.
+- [ ] `CHANGELOG.md`에 `## [${VERSION}]` 항목이 있습니다.
+- [ ] `docs/manual/blacklist-${VERSION}-release-notes.md`가 있습니다.
+- [ ] `docs/manual/blacklist-offline-deployment-guide.pdf`가 최신 운영 절차를 반영합니다.
+- [ ] `deploy/docker-compose.release.yml`, `deploy/base.yml`, `deploy/install.sh`,
+      `deploy/prereqs/`를 검토했습니다.
+
+`release.yml`의 `package` 작업은 위 릴리스 노트와 PDF를 번들에 복사하므로 파일이
+없으면 릴리스가 실패합니다. 이미지 압축 파일과 최종 번들은 워크플로가 생성하므로
+저장소에 직접 추가하지 않습니다.
+
+#### 2. 게시 경로 선택
+
+아래 두 경로 중 하나만 사용합니다.
+
+**일반 자동 버전 상승**
+
+현재 `VERSION`이 이전 릴리스 버전일 때 사용합니다. `scripts/release.sh`가 버전,
+CHANGELOG, Frontend 버전을 갱신한 뒤 커밋과 태그를 생성합니다.
+
+```bash
+make release-dry TYPE=patch
+make release TYPE=patch
+```
+
+**이미 준비된 버전 게시**
+
+릴리스 준비 PR에서 `VERSION`, CHANGELOG, 릴리스 노트를 이미 대상 버전으로
+갱신했다면 `make release`를 실행하지 않습니다. 다시 실행하면 다음 버전으로 한 번 더
+상승합니다. `master`의 필수 CI 성공을 확인한 뒤 현재 버전으로 태그만 게시합니다.
+
+```bash
+VERSION="$(tr -d '[:space:]' < VERSION)"
+test "$(node -p "require('./frontend/package.json').version")" = "${VERSION}"
+grep -q "^## \[${VERSION}\]" CHANGELOG.md
+test -f "docs/manual/blacklist-${VERSION}-release-notes.md"
+test -f docs/manual/blacklist-offline-deployment-guide.pdf
+
+git tag -a "v${VERSION}" -m "v${VERSION}"
+git push origin "v${VERSION}"
+```
+
+#### 3. 릴리스 워크플로 확인
+
+- [ ] `Release`의 `validate`, `build-images`, `package`, `create-release`,
+      `push-to-registry` 작업이 성공했습니다.
+- [ ] `Release Notes Generator`가 동일 태그의 GitHub Release를 생성하거나
+      갱신했습니다.
+- [ ] GitHub Release에 `blacklist-${VERSION}.tar.gz`와
+      `blacklist-${VERSION}.tar.gz.sha256`가 첨부되었습니다.
+- [ ] GHCR의 5개 서비스 이미지에 `${VERSION}`과 `latest` 태그가 게시되었습니다.
+
+#### 4. 릴리스 번들 검증
+
+다운로드한 두 파일이 같은 디렉토리에 있는 상태에서 패키지 체크섬과 구성을
+확인합니다.
+
+```bash
+sha256sum -c "blacklist-${VERSION}.tar.gz.sha256"
+tar tzf "blacklist-${VERSION}.tar.gz"
+tar xzf "blacklist-${VERSION}.tar.gz"
+cd "blacklist-${VERSION}"
+sha256sum -c images/checksums.sha256
+```
+
+압축 해제된 번들에 이미지 5종, `docker-compose.yml`, `base.yml`, `install.sh`,
+`VERSION`, `RELEASE_NOTES.md`, `docs/blacklist-offline-deployment-guide.pdf`가 있어야
+합니다.
+
+#### 5. 운영 배포 및 완료 확인
+
+- [ ] 데이터베이스와 기존 `.env`를 백업했습니다.
+- [ ] 점검 시간을 확보하고 `install.sh`가 실행 중인 모든 Docker 컨테이너를
+      중지한다는 내용을 운영자에게 전달했습니다.
+- [ ] `./install.sh`를 실행하고 이미지 체크섬 검증이 성공했습니다.
+- [ ] `docker compose ps`에서 5개 서비스가 정상 상태입니다.
+- [ ] 5개 컨테이너의 `org.opencontainers.image.version` 라벨이 `${VERSION}`과
+      같고 `0.0.0-dev` 또는 이전 버전이 아닙니다.
+- [ ] API `/api/health`, Collector `/health`, Frontend HTTPS 접근을 확인했습니다.
+- [ ] 수동 REGTECH 수집을 1회 실행하고 수집 상태와 로그를 확인했습니다.
+- [ ] 설치 과정에서 중지된 다른 운영 컨테이너가 있다면 별도 운영 절차에 따라
+      다시 기동했습니다.
+
+```bash
+for container in blacklist-app blacklist-collector blacklist-frontend \
+  blacklist-postgres blacklist-redis; do
+  deployed_version="$(docker inspect --format \
+    '{{ index .Config.Labels "org.opencontainers.image.version" }}' "${container}")"
+  test "${deployed_version}" = "${VERSION}"
+done
+```
+
+헬스 체크 또는 수집 검증이 실패하면 신규 배포를 완료로 기록하지 않습니다. 로그와
+실패 시점을 보존한 뒤 이전 이미지 태그와 데이터베이스 백업으로 복구하고, 복구 후
+동일한 헬스 체크를 다시 수행합니다.
+
 ### 릴리스 프로세스
 
 ```bash
