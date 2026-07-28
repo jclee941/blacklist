@@ -80,17 +80,15 @@ git lfs pull
 USB 또는 내부 네트워크를 통해 폐쇄망 서버로 전송합니다:
 ```
 blacklist/
-├── dist/
-│   └── images/
-│       ├── blacklist-app.tar.gz       (~200MB)
-│       ├── blacklist-frontend.tar.gz  (~150MB)
-│       ├── blacklist-collector.tar.gz (~180MB)
-│       ├── blacklist-postgres.tar.gz  (~200MB)
-│       └── blacklist-redis.tar.gz     (~50MB)
-├── scripts/
-│   └── deploy-airgap.sh
+├── images/
+│   ├── app.tar.gz
+│   ├── collector.tar.gz
+│   ├── frontend.tar.gz
+│   ├── postgres.tar.gz
+│   └── redis.tar.gz
 ├── docker-compose.yml
-└── .env.example
+├── base.yml
+└── install.sh
 ```
 
 ### 3.2 설치 절차
@@ -108,47 +106,36 @@ cd /opt/blacklist
 
 #### Step 2: 환경 설정
 ```bash
-# 환경 파일 생성
-cp .env.example .env
-
-# 필수 설정 수정
-nano .env
+# 첫 설치: 대상 서버에서 리터럴 키 값을 생성하고 검증
+chmod +x install.sh
+./install.sh --check-secrets
 ```
 
-**.env 필수 설정:**
+첫 설치에서만 설치기가 대상 서버의 `.env`에 필수 키와 비밀번호를 생성하고 권한을 `0600`으로
+설정합니다. `CREDENTIAL_MASTER_KEY`에는 생성된 리터럴 키 값이 들어가야 합니다. 파일 경로,
+변수 표현식, 자리표시자, 빈 값은 넣지 마세요. 기존 `.env`가 있으면 설치기는 값을 다시 만들지
+않으며, 유효하지 않은 값이 하나라도 있으면 설치를 중단합니다.
+
+설치기가 생성한 `ADMIN_USERNAME`과 `ADMIN_PASSWORD`로 웹 UI에 처음 로그인합니다. 이 값도
+`.env`에 보존하며, 문서나 화면에 자격증명 값을 기록하지 않습니다.
+
+업그레이드에서는 기존 배포 디렉터리의 `.env`를 먼저 백업한 뒤 새 번들 디렉터리에 복사하고
+검증합니다. 기존 암호화 키와 `ADMIN_USERNAME`, `ADMIN_PASSWORD`를 유지해야 저장된 인증정보와
+관리자 로그인 흐름을 보존할 수 있습니다.
+
 ```bash
-# 데이터베이스
-POSTGRES_USER=blacklist
-POSTGRES_PASSWORD=<강력한_비밀번호>
-POSTGRES_DB=blacklist
-
-# Redis
-REDIS_URL=redis://blacklist-redis:6379/0
-
-# 암호화 키 경로
-CREDENTIAL_MASTER_KEY=/opt/blacklist/keys/CREDENTIAL_MASTER_KEY.txt
-
-# 환경
-FLASK_ENV=production
+# 업그레이드: 이전 .env를 새 번들에 전달
+cp -p /path/to/previous/blacklist/.env /opt/blacklist/.env
+cd /opt/blacklist
+./install.sh --check-secrets
 ```
 
-#### Step 3: 마스터 키 생성
+#### Step 3: 배포 실행
 ```bash
-# 키 디렉토리 생성
-mkdir -p /opt/blacklist/keys
-
-# 마스터 키 생성 (한 번만)
-openssl rand -base64 32 > /opt/blacklist/keys/CREDENTIAL_MASTER_KEY.txt
-chmod 600 /opt/blacklist/keys/CREDENTIAL_MASTER_KEY.txt
-```
-
-#### Step 4: 배포 실행
-```bash
-cd /opt/blacklist/scripts
-chmod +x deploy-airgap.sh
+cd /opt/blacklist
 
 # Air-Gap 모드로 배포
-./deploy-airgap.sh airgap
+./install.sh
 ```
 
 **스크립트 실행 과정:**
@@ -157,13 +144,13 @@ chmod +x deploy-airgap.sh
 3. 컨테이너 시작
 4. 헬스체크 수행
 
-#### Step 5: 설치 확인
+#### Step 4: 설치 확인
 ```bash
 # 컨테이너 상태 확인
 docker compose ps
 
 # 헬스체크
-curl http://localhost/health
+curl http://localhost:2542/health
 
 # 로그 확인
 docker compose logs -f
@@ -183,13 +170,13 @@ cd blacklist
 ### 4.2 설치 절차
 
 ```bash
-# 환경 설정
-cp .env.example .env
-nano .env  # WARP 프록시 설정 추가
+# 첫 설치: 대상 서버에서 필수 키와 비밀번호 생성
+chmod +x deploy/install.sh
+./deploy/install.sh --check-secrets
+nano deploy/.env  # WARP 프록시 설정 추가
 
 # NAS 모드로 배포
-cd scripts
-./deploy-airgap.sh nas
+./deploy/install.sh
 ```
 
 ---
@@ -258,20 +245,18 @@ docker compose exec blacklist-postgres psql -U blacklist -f /docker-entrypoint-i
 ### 7.2 인증정보 설정
 첫 번째 실행 후 웹 UI에서 인증정보를 설정합니다:
 
-1. `https://localhost/settings` 접속
-2. **인증정보 설정** 메뉴 선택
-3. REGTECH 계정 정보 입력
-4. **연결 테스트** 클릭
+1. `https://localhost`에서 `.env`의 생성된 관리자 계정으로 로그인
+2. `https://localhost/collection`에서 REGTECH 카드의 **인증정보 설정** 선택
+3. REGTECH 계정 정보, 수집 간격, 활성화 여부 입력 후 **설정 및 저장** 선택
+4. **연결 테스트**가 성공한 것을 확인한 뒤 **수집** 실행
 
-**참고:** 마스터 키는 환경 변수로도 설정 가능합니다. `CREDENTIAL_MASTER_KEY` 환경 변수를 설정하면 파일 경로 대신 해당 키 값이 사용됩니다.
+저장된 REGTECH 비밀번호는 화면에서 다시 표시되지 않습니다. 인증정보를 다시 설정해야 할 때는
+같은 화면에서 새 값을 저장합니다.
 
 ### 7.3 첫 수집 실행
-```bash
-# 수동 수집 트리거
-curl -X POST https://localhost/api/collection/regtech/trigger \
-  -H "Content-Type: application/json" \
-  -d '{"start_date": "2026-01-01", "end_date": "2026-01-15"}'
-```
+
+관리자 로그인 후 수집 관리 화면에서 REGTECH **수집**을 선택합니다. 완료 후 최근 실행 시각과
+수집 건수가 갱신됐는지 확인합니다.
 
 ---
 
@@ -322,9 +307,9 @@ docker compose up -d
 | 항목 | 확인 명령 | 예상 결과 |
 |------|----------|----------|
 | 컨테이너 상태 | `docker compose ps` | 모든 서비스 "Up" |
-| API 헬스 | `curl localhost/health` | `{"status":"healthy"}` |
+| API 헬스 | `curl localhost:2542/health` | `{"status":"healthy"}` |
 | Frontend 접근 | 브라우저 접속 | 대시보드 표시 |
-| DB 연결 | `curl localhost/api/dashboard/stats` | JSON 응답 |
+| DB 연결 | 관리자 로그인 후 대시보드 확인 | 통계 표시 |
 | Collector | `curl localhost:8545/status` | 서비스 정보 |
 
 ---
