@@ -178,7 +178,11 @@ def run_daily_collection(schedule_name: str) -> None:
     logger.info("📆 일일 수집 시작: %s", schedule_name)
 
     credentials = db_service.get_collection_credentials("REGTECH")
-    if credentials and not credentials.get("enabled", False):
+    if not credentials:
+        logger.error("❌ REGTECH 인증정보를 사용할 수 없어 일일 수집 중단")
+        return
+
+    if not credentials.get("enabled", False):
         logger.info("⏭️ REGTECH 수집 비활성화 — 건너뜀")
         return
 
