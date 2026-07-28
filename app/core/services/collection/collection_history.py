@@ -92,6 +92,7 @@ class CollectionHistoryManager:
 
     def get_recent_history(self, collection_type: str = None, days: int = 30) -> List[Dict[str, Any]]:
         """최근 수집 이력 조회"""
+        conn = None
         try:
             conn = self.db_service.get_connection()
             cursor = conn.cursor()
@@ -132,13 +133,15 @@ class CollectionHistoryManager:
                 history.append(history_item)
 
             cursor.close()
-            conn.close()
 
             return history
 
         except Exception as e:
             logger.error(f"Failed to get collection history: {e}")
             return []
+        finally:
+            if conn:
+                self.db_service.return_connection(conn)
 
     def get_collection_statistics(self) -> Dict[str, Any]:
         """수집 통계 조회"""

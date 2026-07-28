@@ -83,13 +83,24 @@ class TestCollectionHistoryManager:
         history_data = [
             ("REGTECH", 100, datetime(2025, 1, 15), datetime(2025, 1, 16), None, datetime(2025, 1, 15)),
         ]
-        self._mock_cursor_conn(fetchall=history_data)
+        mock_conn, _ = self._mock_cursor_conn(fetchall=history_data)
 
         with patch("app.core.services.collection.collection_history.current_app", self.mock_app):
             result = self.manager.get_recent_history()
 
         assert len(result) == 1
         assert result[0]["service_name"] == "REGTECH"
+        self.mock_db.return_connection.assert_called_once_with(mock_conn)
+
+    def test_get_recent_history_returns_connection_after_query_error(self):
+        mock_conn, mock_cursor = self._mock_cursor_conn()
+        mock_cursor.execute.side_effect = Exception("Query failed")
+
+        with patch("app.core.services.collection.collection_history.current_app", self.mock_app):
+            result = self.manager.get_recent_history()
+
+        assert result == []
+        self.mock_db.return_connection.assert_called_once_with(mock_conn)
 
     def test_get_recent_history_with_type_filter(self):
         """History filtered by collection type"""
