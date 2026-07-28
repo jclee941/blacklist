@@ -6,7 +6,7 @@ Enhanced Logger Configuration with Tagging System
 import logging
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import os
 from ..config import config
@@ -18,7 +18,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record):
         # 기본 로그 데이터
         log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),

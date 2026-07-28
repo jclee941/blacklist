@@ -1,6 +1,7 @@
 """Unit tests for core.utils.logger_config."""
 
 import logging
+from datetime import datetime, timezone
 
 
 from core.utils.logger_config import (
@@ -61,6 +62,7 @@ class TestStructuredFormatter:
         result = formatter.format(record)
         parsed = json.loads(result)
         assert "timestamp" in parsed
+        assert datetime.fromisoformat(parsed["timestamp"]).tzinfo == timezone.utc
 
 
 class TestTaggedLogger:
