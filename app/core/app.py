@@ -143,15 +143,13 @@ def create_app():
     # JWT Authentication (Phase 1.1: Token-based API Auth)
     # ========================================================================
     try:
-        from .auth.middleware import jwt_required_hook
         from .auth.jwt_service import JWTService
         from .auth.decorators import public
 
         jwt_service = JWTService(config.JWT_SECRET or app.config["SECRET_KEY"])
         app.extensions["jwt_service"] = jwt_service
 
-        app.before_request(jwt_required_hook)
-        app.logger.info("✅ JWT authentication middleware enabled")
+        app.logger.info("ℹ️ JWT authentication middleware disabled for internal deployment")
     except Exception as e:
         public = lambda f: f  # noqa: E731 — fallback identity decorator
         app.logger.error(f"❌ JWT auth setup failed: {e}")
