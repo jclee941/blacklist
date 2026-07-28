@@ -1,8 +1,9 @@
 """Tests for app/core/routes/proxy_routes.py — API proxy forwarding to backend and collector."""
 
-from unittest.mock import patch, MagicMock
-from flask import Flask
+from unittest.mock import MagicMock, patch
+
 import requests as real_requests
+from flask import Flask
 
 
 def create_app():
@@ -161,6 +162,22 @@ class TestForwardToBackend:
             resp = self.client.get("/api/proxy/collection/status")
 
         assert resp.status_code == 404
+
+    @patch("core.routes.proxy_routes.requests")
+    def test_proxy_forwards_authorization_header(self, mock_requests):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"success": True}
+        mock_requests.get.return_value = mock_resp
+
+        with self.app.app_context():
+            resp = self.client.get(
+                "/api/proxy/collection/credentials/regtech",
+                headers={"Authorization": "Bearer operator-token"},
+            )
+
+        assert resp.status_code == 200
+        assert mock_requests.get.call_args.kwargs["headers"]["Authorization"] == "Bearer operator-token"
 
 
 class TestTriggerProxy:
