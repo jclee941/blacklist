@@ -123,7 +123,7 @@ health: ## Check health of all services
 	@curl -s http://localhost:${PORT:-2542}/health | python3 -m json.tool || echo "❌ Application not responding"
 
 # Testing
-test: ## Run all tests (backend + frontend)
+test: ## Run backend, collector, integration, and frontend unit tests
 	@echo "🧪 Running all tests..."
 	@$(MAKE) test-backend
 	@$(MAKE) test-collector-unit
@@ -158,8 +158,8 @@ test-backend-coverage: ## Run backend tests with coverage report
 		--cov-fail-under=80
 	@echo "📊 Coverage report generated in htmlcov/"
 
-test-frontend: ## Run frontend tests (unit + E2E)
-	@echo "🧪 Running frontend tests..."
+test-frontend: ## Run frontend unit tests
+	@echo "🧪 Running frontend unit tests..."
 	@cd frontend && npm run test
 	@echo "✅ Frontend tests completed"
 
