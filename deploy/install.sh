@@ -29,7 +29,8 @@ install_docker_offline() {
 
     log_info "Installing Docker Engine..."
     # Find docker tarball
-    local docker_tgz=$(find "${prereqs_dir}" -name "docker-*.tgz" | head -n 1)
+    local docker_tgz
+    docker_tgz=$(find "${prereqs_dir}" -name "docker-*.tgz" | head -n 1)
     if [ -z "$docker_tgz" ]; then
         log_error "Docker binary tarball not found in prereqs/"
     fi
@@ -118,7 +119,8 @@ preflight_checks() {
         log_warning "Checksum file not found (integrity check will be skipped)"
     fi
 
-    local available_gb=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
+    local available_gb
+    available_gb=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
     if [ "${available_gb}" -lt 3 ]; then
         log_warning "Low disk space: ${available_gb}GB (recommend 3GB+)"
     else
@@ -232,10 +234,11 @@ setup_secrets() {
     if [ "$need_gen" = true ]; then
         log_info "Generating secrets..."
         
-        local fernet_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
-        local secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
-        local master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
-        local pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+        local fernet_key secret_key master_key pg_password
+        fernet_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+        secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+        master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+        pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
         
         cat > "${env_file}" << EOF
 # Blacklist Platform Secrets (auto-generated)
@@ -252,6 +255,38 @@ EOF
         log_success "Secrets generated (.env)"
         log_warning "Store .env securely - it contains encryption keys"
     fi
+}
+
+stop_all_running_containers() {
+    log_step "Stop Running Containers"
+
+    local running_ids=()
+    local running_output
+    if ! running_output=$(docker ps -q); then
+        log_error "Failed to list running containers"
+    fi
+    if [ -n "${running_output}" ]; then
+        mapfile -t running_ids <<< "${running_output}"
+    fi
+
+    if [ "${#running_ids[@]}" -eq 0 ]; then
+        log_info "No running containers found"
+        return 0
+    fi
+
+    log_info "Stopping ${#running_ids[@]} running container(s)..."
+    if ! docker stop "${running_ids[@]}" > /dev/null; then
+        log_error "Failed to stop all running containers"
+    fi
+
+    local remaining_output
+    if ! remaining_output=$(docker ps -q); then
+        log_error "Failed to verify stopped containers"
+    fi
+    if [ -n "${remaining_output}" ]; then
+        log_error "Some containers are still running after stop"
+    fi
+    log_success "All running containers stopped"
 }
 
 deploy_services() {
@@ -275,7 +310,12 @@ deploy_services() {
     done
 
     log_info "Starting services..."
-    docker compose up -d 2>&1 | grep -v "^$" || true
+    local compose_output
+    if ! compose_output=$(docker compose up -d 2>&1); then
+        printf '%s\n' "${compose_output}"
+        log_error "Failed to start Blacklist services"
+    fi
+    printf '%s\n' "${compose_output}"
 
     log_info "Waiting for services to initialize (30s)..."
     sleep 30
@@ -286,7 +326,9 @@ deploy_services() {
 health_checks() {
     log_step "Health Checks"
 
-    docker compose ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || docker compose ps
+    if ! docker compose ps --format "table {{.Name}}\t{{.Status}}"; then
+        log_error "Failed to read service status"
+    fi
 
     local endpoints=(
         "http://localhost:2542/api/health|API"
@@ -300,14 +342,14 @@ health_checks() {
         if curl -s "${url}" 2>/dev/null | grep -q "healthy\|status"; then
             log_success "${name}: healthy"
         else
-            log_warning "${name}: not responding"
+            log_error "${name}: not responding"
         fi
     done
 
     if curl -sk "https://localhost:443" > /dev/null 2>&1; then
         log_success "Frontend: accessible"
     else
-        log_warning "Frontend: not responding"
+        log_error "Frontend: not responding"
     fi
 }
 
@@ -370,6 +412,7 @@ main() {
     fi
 
     setup_secrets
+    stop_all_running_containers
 
     deploy_services
     health_checks
