@@ -46,7 +46,7 @@ test.describe('Regression: Issue #XXX - [SHORT DESCRIPTION]', () => {
     await page.goto('/');
   });
 
-  test('should [expected behavior that was broken] @regression', async ({ page }) => {
+  test('should [expected behavior that was broken] @regression', () => {
     // STEP 1: Reproduce the original conditions
     // [Add steps to set up the scenario that triggered the bug]
 
