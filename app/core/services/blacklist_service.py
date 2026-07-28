@@ -4,7 +4,7 @@
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, cast
 from dataclasses import dataclass
 from ..utils.version import get_app_version
@@ -73,7 +73,7 @@ class BlacklistService(BlacklistCollectorMixin):
             "ip": ip,
             "decision": decision,
             "reason": reason,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         if metadata:
