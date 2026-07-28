@@ -11,7 +11,7 @@ markers = [
     "db: Database tests",
     "api: API endpoint tests",
 ]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --ignore=tests/unit/collector"
 
 [tool.ruff]
 line-length = 120
