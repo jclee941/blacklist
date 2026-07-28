@@ -51,6 +51,25 @@ describe('useCollectionManagement', () => {
     });
   });
 
+  it('keeps the configured credential state returned by the API', async () => {
+    vi.mocked(getCredential).mockResolvedValue({
+      success: true,
+      data: {
+        service_name: 'REGTECH',
+        username: 'admin',
+        configured: true,
+        enabled: true,
+        collection_interval: 'daily',
+        last_collection: null,
+      },
+    });
+
+    const { result } = renderHook(() => useCollectionManagement());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.credentials[0]?.configured).toBe(true);
+  });
+
   // --- Modal controls ---
 
   it('opens credential modal for REGTECH', async () => {
@@ -136,6 +155,39 @@ describe('useCollectionManagement', () => {
     });
 
     expect(testCredential).toHaveBeenCalled();
+  });
+
+  it('preserves a recent connection test status when polling returns no status', async () => {
+    vi.mocked(getCredential).mockResolvedValue({
+      success: true,
+      data: {
+        service_name: 'REGTECH',
+        username: 'admin',
+        configured: true,
+        enabled: true,
+        collection_interval: 'daily',
+        last_collection: null,
+      },
+    });
+    vi.mocked(testCredential).mockResolvedValue({
+      success: true,
+      data: { status: 'connected', message: '인증 성공' },
+    });
+
+    const { result } = renderHook(() => useCollectionManagement());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.testConnection('REGTECH');
+    });
+
+    await act(async () => {
+      await result.current.fetchData();
+    });
+
+    expect(result.current.credentials[0]?.connection_status).toBe('connected');
+    expect(result.current.credentials[0]?.status_message).toBe('인증 성공');
   });
 
   // --- Notification ---

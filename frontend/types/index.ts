@@ -71,11 +71,21 @@ export interface ActivityLog {
   run_count?: number;
 }
 
+export const COLLECTION_INTERVAL_OPTIONS = ['hourly', 'daily', 'weekly'] as const;
+
+export type CollectionInterval = (typeof COLLECTION_INTERVAL_OPTIONS)[number];
+
+export const COLLECTION_INTERVAL_SECONDS: Record<CollectionInterval, number> = {
+  hourly: 3600,
+  daily: 86400,
+  weekly: 604800,
+};
+
 export interface CredentialPayload {
   username: string;
   password?: string;
   enabled?: boolean;
-  collection_interval?: string;
+  collection_interval?: CollectionInterval;
 }
 
 export interface IPPayload {
