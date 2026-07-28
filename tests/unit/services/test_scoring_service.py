@@ -1,7 +1,7 @@
 """ThreatScoringService 유닛 테스트"""
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.services.scoring_service import ThreatScoringService
 
@@ -78,19 +78,19 @@ class TestCalculateScore:
 
     def test_recent_activity_within_24h(self):
         """24시간 이내 활동이면 +10점"""
-        recent = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+        recent = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         score = self.service.calculate_score("1.2.3.4", {"last_seen": recent})
         assert score == 20  # 10 (unknown source) + 10 (recent)
 
     def test_recent_activity_beyond_24h_no_bonus(self):
         """24시간 이후 활동은 가산점 없음"""
-        old = (datetime.utcnow() - timedelta(hours=48)).isoformat()
+        old = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
         score = self.service.calculate_score("1.2.3.4", {"last_seen": old})
         assert score == 10
 
     def test_recent_activity_datetime_object(self):
         """datetime 객체도 처리 가능"""
-        recent = datetime.utcnow() - timedelta(hours=1)
+        recent = datetime.now(timezone.utc) - timedelta(hours=1)
         score = self.service.calculate_score("1.2.3.4", {"last_seen": recent})
         assert score == 20
 
@@ -101,7 +101,7 @@ class TestCalculateScore:
 
     def test_max_score_capped_at_100(self):
         """최대 100점 제한"""
-        recent = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+        recent = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         context = {
             "in_blacklist": True,  # 50
             "detection_count": 100,  # 30 (cap)
@@ -120,6 +120,11 @@ class TestCalculateScore:
         }
         score = self.service.calculate_score("1.2.3.4", context)
         assert score == 75
+
+    def test_evaluation_timestamp_is_timezone_aware_utc(self):
+        result = self.service.evaluate_with_scoring("1.2.3.4")
+
+        assert datetime.fromisoformat(result["timestamp"]).tzinfo == timezone.utc
 
 
 @pytest.mark.unit

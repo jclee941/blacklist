@@ -6,7 +6,7 @@ IP 위협 수준을 점수화하여 차단 여부 결정
 
 import logging
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -62,17 +62,18 @@ class ThreatScoringService:
         if last_seen:
             # 최근 24시간 이내 활동이면 가산점
             try:
-                from datetime import datetime, timedelta
-
                 if isinstance(last_seen, str):
                     last_seen_dt = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
                 else:
                     last_seen_dt = last_seen
 
-                if datetime.utcnow() - last_seen_dt < timedelta(hours=24):
+                if last_seen_dt.tzinfo is None:
+                    last_seen_dt = last_seen_dt.replace(tzinfo=timezone.utc)
+
+                if datetime.now(timezone.utc) - last_seen_dt < timedelta(hours=24):
                     score += 10
                     logger.info(f"Score +10: {ip} active within 24h")
-            except Exception as e:
+            except (TypeError, ValueError) as e:
                 logger.warning(f"Failed to parse last_seen: {e}")
 
         return min(score, 100)  # 최대 100점
@@ -128,7 +129,7 @@ class ThreatScoringService:
                 "allow": self.ALLOW_THRESHOLD,
             },
             "details": context,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def explain_score(self, ip: str, score_result: Dict[str, Any]) -> str:
