@@ -25,7 +25,10 @@ except ImportError:
     except ImportError:
         CollectorConfig = importlib.import_module("config").CollectorConfig
 
-from ...exceptions import CredentialDecryptionError, MissingMasterKeyError
+try:
+    from ...exceptions import CredentialDecryptionError, MissingMasterKeyError
+except ImportError:
+    from exceptions import CredentialDecryptionError, MissingMasterKeyError
 from .queries import DatabaseQueryMixin
 
 
