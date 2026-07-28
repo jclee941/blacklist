@@ -1,10 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
+import { getE2ECredentials } from './auth.fixtures';
 
 test.describe.configure({ mode: 'parallel' });
 
 async function loginViaApi(page: Page) {
   const response = await page.request.post('/api/auth/login', {
-    data: { username: 'admin', password: 'admin' },
+    data: getE2ECredentials(),
   });
   expect(response.ok()).toBeTruthy();
   const body = await response.json();
@@ -20,7 +21,7 @@ async function loginViaApi(page: Page) {
 test.describe('인증 - API 로그인', () => {
   test('유효한 자격증명으로 로그인 성공', async ({ page }) => {
     const response = await page.request.post(`/api/auth/login`, {
-      data: { username: 'admin', password: 'admin' },
+      data: getE2ECredentials(),
     });
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
@@ -67,7 +68,7 @@ test.describe('인증 - 토큰 기반 접근', () => {
   });
 
   test('토큰 검증 API 정상 동작', async ({ page }) => {
-    const token = await loginViaApi(page);
+    await loginViaApi(page);
     const response = await page.request.get(`/api/health`);
     expect(response.ok()).toBeTruthy();
   });

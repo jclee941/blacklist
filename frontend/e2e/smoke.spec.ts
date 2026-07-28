@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { getE2ECredentials } from './auth.fixtures';
 
 /**
  * Smoke Tests - Deployment Verification
@@ -10,11 +11,11 @@ import { test, expect, type Page } from '@playwright/test';
  * Run with custom URL: BASE_URL=https://staging.example.com npm run test:e2e -- --grep "@smoke"
  */
 
-const API_BASE = process.env.API_URL || 'http://localhost:2542';
+const API_BASE = process.env.API_URL || process.env.BASE_URL || 'http://localhost:2543';
 
 async function getToken(page: Page): Promise<string> {
   const res = await page.request.post(`${API_BASE}/api/auth/login`, {
-    data: { username: 'admin', password: 'admin' },
+    data: getE2ECredentials(),
   });
   const body = await res.json();
   return body.data?.token ?? body.token ?? '';
