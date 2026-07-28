@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { getE2ECredentials } from './auth.fixtures';
 
 /**
  * Batch IP Operations E2E Tests
@@ -15,7 +16,7 @@ import { test, expect, Page } from '@playwright/test';
 
 async function loginViaApi(page: Page) {
   const res = await page.request.post('/api/auth/login', {
-    data: { username: 'admin', password: 'admin' },
+    data: getE2ECredentials(),
   });
   const body = await res.json();
   const token = body.data?.token || body.token;
