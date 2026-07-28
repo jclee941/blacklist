@@ -41,7 +41,13 @@ def interval_string_to_seconds(interval_str: str) -> int:
         return 86400  # default to daily
 
 
-def call_collector_api(endpoint: str, method: str = "GET", data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def call_collector_api(
+    endpoint: str,
+    method: str = "GET",
+    data: Optional[Dict[str, Any]] = None,
+    *,
+    timeout: Optional[int] = None,
+) -> Dict[str, Any]:
     """Call collector service API"""
     url = f"{COLLECTOR_SERVICE_URL}{endpoint}"
     last_error: Optional[Exception] = None
@@ -49,9 +55,9 @@ def call_collector_api(endpoint: str, method: str = "GET", data: Optional[Dict[s
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             if method == "GET":
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=timeout or 10)
             elif method == "POST":
-                response = requests.post(url, json=data, timeout=30)
+                response = requests.post(url, json=data, timeout=timeout or 30)
             else:
                 return {"success": False, "error": f"Unsupported method: {method}"}
 
