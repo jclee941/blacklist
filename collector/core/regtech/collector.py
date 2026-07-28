@@ -24,10 +24,10 @@ from requests.adapters import HTTPAdapter
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from collector.config import CollectorConfig
-from core.regtech.auth import RegtechAuthMixin
-from core.regtech.data_processor import RegtechDataProcessorMixin
-from core.rate_limiter import auth_rate_limiter, regtech_rate_limiter
-from core.regtech_excel import download_excel_data
+from .auth import RegtechAuthMixin
+from .data_processor import RegtechDataProcessorMixin
+from ..rate_limiter import auth_rate_limiter, regtech_rate_limiter
+from ..regtech_excel import download_excel_data
 
 
 logger = logging.getLogger(__name__)
@@ -61,9 +61,10 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         self.authenticated = False
         self._data_cache = {}
         self._auth_cache = {}
+        self._performance_cache: List[Dict[str, Any]] = []
         self._cache_ttl = 3600
         self._jwt_expiry: Optional[float] = None
-        self._last_credentials: Optional[tuple] = None
+        self._last_credentials: Optional[tuple[str, str]] = None
 
         self.rate_limiter = regtech_rate_limiter
         self.auth_rate_limiter = auth_rate_limiter
@@ -168,7 +169,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
     def _generate_date_strategies(
         self, start_date: Optional[str] = None, end_date: Optional[str] = None
-    ) -> List[tuple]:
+    ) -> List[tuple[str, Optional[str], Optional[str]]]:
         strategies: List[tuple[str, Optional[str], Optional[str]]] = []
 
         if start_date is None and end_date is None:
@@ -193,7 +194,12 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         logger.info(f"📋 생성된 날짜 전략: {[s[0] for s in strategies]}")
         return strategies
 
-    def _record_collection_performance(self, collected_data: List[Dict], strategies: List[tuple], duration: float):
+    def _record_collection_performance(
+        self,
+        collected_data: List[Dict[str, Any]],
+        strategies: List[tuple[str, Optional[str], Optional[str]]],
+        duration: float,
+    ):
         performance_log = {
             "timestamp": datetime.now().isoformat(),
             "total_strategies": len(strategies),
@@ -206,7 +212,6 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
         logger.info(f"📊 수집 성과: {performance_log}")
 
-        self._performance_cache = getattr(self, "_performance_cache", [])
         self._performance_cache.append(performance_log)
 
         if len(self._performance_cache) > 10:
@@ -234,7 +239,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         end_date: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         try:
-            data_url = f"{self.base_url}/fcti/securityAdvisory/advisoryList?tabSort=blacklist"
+            data_url = f"{self.base_url}/fcti/securityAdvisory/advisoryList"
 
             cache_key = f"page_{page_num}_{page_size}_{start_date}_{end_date}_blacklist"
             if cache_key in self._data_cache:
@@ -250,12 +255,12 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
                 "cveId": "",
                 "ipId": "",
                 "estId": "",
-                "startDate": start_date or "",
-                "endDate": end_date or "",
+                "startDate": start_date.replace("-", "") if start_date else "",
+                "endDate": end_date.replace("-", "") if end_date else "",
                 "findCondition": "all",
                 "findKeyword": "",
                 "excelDown": "blacklist",
-                "size": "50",
+                "size": str(page_size),
             }
 
             headers = {
@@ -298,8 +303,6 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
                 ["curl", "-s", "-X", "POST", data_url]
                 + headers_list
                 + [
-                    "-H",
-                    "Content-Type: application/x-www-form-urlencoded",
                     "--data",
                     urllib.parse.urlencode(request_data),
                 ]
@@ -322,7 +325,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
             response_text = result.stdout
             logger.info(f"📊 응답 길이: {len(response_text)}")
 
-            from core.archive_manager import archive_content
+            from ..archive_manager import archive_content
 
             archive_content(
                 "REGTECH",
