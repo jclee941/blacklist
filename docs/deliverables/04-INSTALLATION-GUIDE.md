@@ -109,6 +109,8 @@ blacklist-4.1.0/
 │   ├── blacklist-redis.tar.gz
 │   └── checksums.sha256
 └── prereqs/
+    ├── docker-29.2.1.tgz
+    ├── docker-compose-linux-x86_64
     └── docker.service
 ```
 
