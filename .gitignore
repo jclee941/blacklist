@@ -47,6 +47,7 @@ frontend/ssl/
 .serena.json
 .sisyphus/
 .opencode/
+.omo/
 .playwright-mcp/
 .DS_Store
 .ruff_cache/
