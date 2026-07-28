@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -45,7 +44,7 @@ jobs:
           {
             echo "frontend=$(echo "$CHANGED" | grep -q '^frontend/' && echo true || echo false)"
             echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)"
-            echo "collector=$(echo "$CHANGED" | grep -q '^collector/' && echo true || echo false)"
+            echo "collector=$(echo "$CHANGED" | grep -qE '^(collector/|tests/unit/collector/)' && echo true || echo false)"
             echo "ci=$(echo "$CHANGED" | grep -qE '^(\.github/|postgres/|deploy/)' && echo true || echo false)"
           } >> "$GITHUB_OUTPUT"
 
@@ -55,7 +54,7 @@ jobs:
     if: needs.detect-changes.outputs.frontend == 'true'
     uses: ./.github/workflows/_ci-node.yml
     with:
-      node-version: "20"
+      node-version: "24"
       working-directory: frontend
       run-lint: true
       run-typecheck: true
@@ -92,7 +91,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
@@ -304,6 +303,13 @@ jobs:
           path: ${{ matrix.service }}.tar.gz
           retention-days: 1
 
+  validate-automation:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python .github/scripts/validate_automation_contracts.py
+
   scan-images:
     needs: build
     if: always() && needs.build.result == 'success'
@@ -357,7 +363,7 @@ jobs:
           }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - working-directory: frontend
@@ -369,6 +375,9 @@ jobs:
         run: npm run test:e2e
         env:
           BASE_URL: https://localhost:3443
+          API_URL: https://localhost:3443
+          E2E_USERNAME: admin
+          E2E_PASSWORD: blacklist-dev-password
           WEBKIT_ENABLED: "true"
       - name: Collect logs
         if: failure()
@@ -423,6 +432,7 @@ jobs:
         test-backend,
         test-collector,
         test-integration,
+        validate-automation,
         build,
         e2e,
         scan-images,
@@ -444,6 +454,7 @@ jobs:
             "test-backend=${{ needs.test-backend.result }}"
             "test-collector=${{ needs.test-collector.result }}"
             "test-integration=${{ needs.test-integration.result }}"
+            "validate-automation=${{ needs.validate-automation.result }}"
             "build=${{ needs.build.result }}"
             "e2e=${{ needs.e2e.result }}"
             "scan-images=${{ needs.scan-images.result }}"
@@ -479,6 +490,7 @@ jobs:
       group: deploy-ghcr-master
       cancel-in-progress: false
     permissions:
+      contents: read
       packages: write
     strategy:
       fail-fast: false
@@ -498,8 +510,8 @@ jobs:
             dockerfile: postgres/Dockerfile
           - service: redis
             from-artifact: false
-            context: ./redis
-            dockerfile: redis/Dockerfile
+            context: ./deploy/redis
+            dockerfile: Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ !matrix.from-artifact }}
