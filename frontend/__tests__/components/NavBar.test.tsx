@@ -1,27 +1,12 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import NavBar from '../../components/NavBar';
-
-const { mockPathname, mockReplace, mockLogout } = vi.hoisted(() => ({
-  mockPathname: vi.fn(() => '/'),
-  mockReplace: vi.fn(),
-  mockLogout: vi.fn(),
-}));
 
 // Mock Next.js modules
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
-}));
-
-vi.mock('next/navigation', () => ({
-  usePathname: mockPathname,
-  useRouter: () => ({ replace: mockReplace }),
-}));
-
-vi.mock('@/lib/api', () => ({
-  logout: mockLogout,
 }));
 
 vi.mock('next/image', () => ({
@@ -51,26 +36,10 @@ vi.mock('next/image', () => ({
 }));
 
 describe('NavBar Component', () => {
-  beforeEach(() => {
-    mockPathname.mockReturnValue('/');
-    vi.clearAllMocks();
-  });
-
-  it('does not expose protected navigation on the login route', () => {
-    mockPathname.mockReturnValue('/login');
-
+  it('does not render administrator session controls', () => {
     render(<NavBar />);
 
-    expect(screen.queryByTestId('navbar')).not.toBeInTheDocument();
-  });
-
-  it('clears the session and returns to login', () => {
-    render(<NavBar />);
-
-    fireEvent.click(screen.getByRole('button', { name: '로그아웃' }));
-
-    expect(mockLogout).toHaveBeenCalledOnce();
-    expect(mockReplace).toHaveBeenCalledWith('/login');
+    expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
   });
 
   it('renders logo correctly', () => {
