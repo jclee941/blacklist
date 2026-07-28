@@ -27,7 +27,9 @@ const mocks = vi.hoisted(() => {
 
   const axiosGet = vi.fn();
 
-  return { apiInstance, collectionInstance, axiosGet };
+  const isAxiosError = vi.fn();
+
+  return { apiInstance, collectionInstance, axiosGet, isAxiosError };
 });
 
 vi.mock('axios', () => {
@@ -40,6 +42,7 @@ vi.mock('axios', () => {
     default: {
       create,
       get: mocks.axiosGet,
+      isAxiosError: mocks.isAxiosError,
     },
   };
 });
@@ -83,6 +86,8 @@ import {
   updateSettingsBatch,
   verifyToken,
 } from '@/lib/api';
+
+const responseErrorHandler = mocks.apiInstance.interceptors.response.use.mock.calls[0]?.[1];
 
 describe('lib/api', () => {
   beforeEach(() => {
@@ -189,6 +194,26 @@ describe('lib/api', () => {
 
       const config = requestCb!({ headers: {} });
       expect(config.headers.Authorization).toBeUndefined();
+    });
+
+    it('clears the stored token after a non-login 401 response', async () => {
+      const error = { response: { status: 401 }, config: { url: '/web-stats' } };
+      mocks.isAxiosError.mockReturnValue(true);
+      setToken('expired-token');
+
+      window.history.replaceState(null, '', '/login');
+
+      await expect(responseErrorHandler(error)).rejects.toBe(error);
+      expect(getToken()).toBeNull();
+    });
+
+    it('keeps the stored token for a failed login response', async () => {
+      const error = { response: { status: 401 }, config: { url: '/auth/login' } };
+      mocks.isAxiosError.mockReturnValue(true);
+      setToken('existing-token');
+
+      await expect(responseErrorHandler(error)).rejects.toBe(error);
+      expect(getToken()).toBe('existing-token');
     });
   });
 

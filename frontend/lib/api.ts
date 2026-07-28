@@ -3,6 +3,7 @@ import type { CredentialPayload, IPPayload } from '@/types';
 
 // JWT token management
 const TOKEN_KEY = 'blacklist_auth_token';
+const LOGIN_ENDPOINT = '/auth/login';
 
 export const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -50,18 +51,27 @@ const attachToken = (config: import('axios').InternalAxiosRequestConfig) => {
 api.interceptors.request.use(attachToken);
 collectionApi.interceptors.request.use(attachToken);
 
-api.interceptors.response.use(
-  (r) => r,
-  (error: unknown) => Promise.reject(error)
-);
-collectionApi.interceptors.response.use(
-  (r) => r,
-  (error: unknown) => Promise.reject(error)
-);
+const handleResponseError = (error: unknown): Promise<never> => {
+  if (
+    axios.isAxiosError(error) &&
+    error.response?.status === 401 &&
+    error.config?.url !== LOGIN_ENDPOINT
+  ) {
+    removeToken();
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.assign('/login');
+    }
+  }
+
+  return Promise.reject(error);
+};
+
+api.interceptors.response.use((r) => r, handleResponseError);
+collectionApi.interceptors.response.use((r) => r, handleResponseError);
 
 // 인증 API
 export const login = async (username: string, password: string) => {
-  const { data } = await api.post('/auth/login', { username, password });
+  const { data } = await api.post(LOGIN_ENDPOINT, { username, password });
   if (data.token) {
     setToken(data.token);
   }
