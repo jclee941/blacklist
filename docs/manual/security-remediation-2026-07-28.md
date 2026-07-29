@@ -41,6 +41,21 @@ mv .env /etc/blacklist/.env
 chmod 600 /etc/blacklist/.env
 ```
 
+## 관리자 최초 부트스트랩과 교체
+
+새 설치에서는 설치 프로그램이 target host에서 `ADMIN_USERNAME`과 `ADMIN_PASSWORD`를 생성해 `/etc/blacklist/.env`에 저장합니다. Username은 비밀값이 아닌 고정값 `admin`이고, password는 256-bit 무작위 값입니다. 이 값들은 고객별로 설치 시 생성되며 배포 tarball, manifest 또는 vendor 시스템에 포함되지 않습니다.
+
+전체 설치에서는 health check와 설치 완료 메시지 뒤에 최초 password를 한 번만 표시합니다. 새 환경 파일을 만드는 `--check-secrets` 실행도 생성 직후 한 번 표시합니다. 기존 환경 파일을 사용하는 재설치와 업그레이드에서는 다시 표시하지 않습니다. 이 화면에서 즉시 password manager에 보관하고, 첫 로그인 후 아래 절차로 교체하십시오. 다른 secret 값은 화면에 표시되지 않습니다.
+
+Password를 교체하려면 target host의 password manager에서 새 고엔트로피 값을 만든 뒤 `/etc/blacklist/.env`의 `ADMIN_PASSWORD`를 안전하게 수정합니다. Username을 교체해야 할 때는 같은 파일의 `ADMIN_USERNAME`도 수정합니다. 파일 권한을 `600`으로 유지하고 app 컨테이너를 재생성해 변경된 환경을 적용합니다. 단순 `docker compose restart`는 변경된 환경 파일을 다시 읽지 않으므로 사용하지 않습니다.
+
+```bash
+chmod 600 /etc/blacklist/.env
+docker compose --env-file /etc/blacklist/.env up -d --force-recreate blacklist-app
+```
+
+최초 password를 잃어버린 경우에도 같은 복구 절차를 사용합니다. 이 제품에는 사용자 테이블이나 별도 password reset 저장소가 없으므로 `/etc/blacklist/.env`에 새 `ADMIN_PASSWORD`를 기록하고 app 컨테이너를 재생성해야 합니다. `system_settings`에 `admin_username` 또는 `admin_password` override가 이미 존재하는 환경에서는 해당 값이 환경 파일보다 우선하므로 override도 함께 교체하거나 제거하십시오.
+
 ## 설치 프로그램 옵션
 
 `--verify-only`는 번들을 설치하지 않고 검사합니다. root 권한 없이 실행할 수 있어 배포 전 감사에 적합합니다.
