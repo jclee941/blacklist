@@ -6,6 +6,8 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 BASE_COMPOSE = REPOSITORY_ROOT / "deploy" / "base.yml"
+ENV_EXAMPLE = REPOSITORY_ROOT / "deploy" / ".env.example"
+COLLECTOR_AUTH_ADR = REPOSITORY_ROOT / "docs" / "decisions" / "0002-collector-authentication-enforcement.md"
 RELEASE_NOTES = REPOSITORY_ROOT / "docs" / "manual" / "blacklist-4.1.0-release-notes.md"
 BASE_SOURCE = BASE_COMPOSE.read_text(encoding="utf-8")
 
@@ -21,10 +23,27 @@ def _service_block(service_name: str) -> str:
 
 def test_collector_auth_matches_adr() -> None:
     # Given: the collector's shared Compose environment.
-    # When: its deferred authentication setting is inspected.
-    # Then: it remains enabled and is anchored to the governing ADR.
-    assert 'DISABLE_JWT_AUTH: "true"' in BASE_SOURCE
+    # When: its enforced authentication setting and ADR decision are inspected.
+    # Then: enforcement is enabled and anchored to the governing ADR.
+    adr_source = COLLECTOR_AUTH_ADR.read_text(encoding="utf-8")
+
+    assert 'DISABLE_JWT_AUTH: "false"' in _service_block("blacklist-collector")
     assert "0002-collector-authentication-enforcement" in BASE_SOURCE
+    assert re.search(r"(?m)^Decision:\s*enforce\s*$", adr_source) is not None
+
+
+def test_collector_auth_secret_is_wired_to_both_services() -> None:
+    collector_service = _service_block("blacklist-collector")
+    app_service = _service_block("blacklist-app")
+
+    assert "COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}" in collector_service
+    assert "COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}" in app_service
+
+
+def test_collector_auth_secret_example_is_an_empty_placeholder() -> None:
+    env_example = ENV_EXAMPLE.read_text(encoding="utf-8")
+
+    assert re.search(r"(?m)^COLLECTOR_AUTH_TOKEN=$", env_example) is not None
 
 
 def test_collector_publishes_no_ports() -> None:

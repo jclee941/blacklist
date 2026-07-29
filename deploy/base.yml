@@ -72,10 +72,11 @@ services:
       COLLECTION_INTERVAL: 86400
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
-      # ADR-0002 (0002-collector-authentication-enforcement) defers JWT enforcement; bridge-network isolation is the real control.
-      DISABLE_JWT_AUTH: "true"
+      # ADR-0002 (0002-collector-authentication-enforcement) enforces bearer authentication on collector control routes.
+      DISABLE_JWT_AUTH: "false"
       TZ: Asia/Seoul
     volumes:
       - blacklist-collector-data:/app/data
@@ -113,6 +114,7 @@ services:
       BLACKLIST_API_URL: http://blacklist-app:2542/api
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
       TZ: Asia/Seoul
