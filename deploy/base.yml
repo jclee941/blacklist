@@ -8,7 +8,8 @@ services:
   blacklist-postgres:
     container_name: blacklist-postgres
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - blacklist-net
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-blacklist}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -26,7 +27,8 @@ services:
   blacklist-redis:
     container_name: blacklist-redis
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - blacklist-net
     environment:
       TZ: Asia/Seoul
     volumes:
@@ -41,22 +43,23 @@ services:
   blacklist-collector:
     container_name: blacklist-collector
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - blacklist-net
     depends_on:
       blacklist-postgres:
         condition: service_healthy
       blacklist-redis:
         condition: service_healthy
     environment:
-      POSTGRES_HOST: localhost
+      POSTGRES_HOST: blacklist-postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-blacklist}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      REDIS_HOST: localhost
+      REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
       HEALTH_CHECK_PORT: 8545
-      BLACKLIST_API_URL: http://localhost:2542
+      BLACKLIST_API_URL: http://blacklist-app:2542
       COLLECTION_INTERVAL: 86400
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
@@ -77,7 +80,8 @@ services:
   blacklist-app:
     container_name: blacklist-app
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - blacklist-net
     depends_on:
       blacklist-postgres:
         condition: service_healthy
@@ -87,15 +91,15 @@ services:
       FLASK_ENV: production
       PORT: 2542
       SSL_ENABLED: "false"
-      POSTGRES_HOST: localhost
+      POSTGRES_HOST: blacklist-postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-blacklist}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      REDIS_HOST: localhost
+      REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
-      COLLECTOR_URL: http://localhost:8545
-      BLACKLIST_API_URL: http://localhost:2542/api
+      COLLECTOR_URL: http://blacklist-collector:8545
+      BLACKLIST_API_URL: http://blacklist-app:2542/api
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
@@ -115,13 +119,16 @@ services:
   blacklist-frontend:
     container_name: blacklist-frontend
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - blacklist-net
+    ports:
+      - "443:443"
     depends_on:
       blacklist-app:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://localhost:2542
+      NEXT_PUBLIC_API_URL: http://blacklist-app:2542
       PORT: 443
       HOSTNAME: "0.0.0.0"
       TZ: Asia/Seoul
@@ -146,3 +153,7 @@ volumes:
   blacklist-logs:
   blacklist-uploads:
   blacklist-app-data:
+
+networks:
+  blacklist-net:
+    driver: bridge

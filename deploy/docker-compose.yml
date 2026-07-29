@@ -61,3 +61,7 @@ volumes:
   blacklist-logs:
   blacklist-uploads:
   blacklist-app-data:
+
+networks:
+  blacklist-net:
+    driver: bridge
