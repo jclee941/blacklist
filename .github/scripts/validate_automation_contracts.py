@@ -23,6 +23,9 @@ RELEASE_JOB_PERMISSIONS: Final = {
     "notify": "    permissions: {}",
 }
 PRIMARY_CI_WORKFLOW: Final = "CI"
+CI_E2E_COMPOSE_COMMAND: Final = (
+    'docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml'
+)
 TAG_TRIGGERED_NON_DRY_RUN_CONDITION: Final = (
     "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}"
 )
@@ -77,6 +80,14 @@ def main() -> None:
             ("E2E_USERNAME: admin" in ci, "CI does not provide the E2E username"),
             ("E2E_PASSWORD: blacklist-dev-password" in ci, "CI does not provide the E2E password"),
             (
+                CI_E2E_COMPOSE_COMMAND in ci,
+                "CI E2E does not compose deploy/base.yml with the CI override",
+            ),
+            (
+                "BLACKLIST_TLS_DIR=$RUNNER_TEMP/blacklist-ci-tls" in ci,
+                "CI E2E stack does not set BLACKLIST_TLS_DIR",
+            ),
+            (
                 has_explicit_job_permissions(ci, "e2e", "    timeout-minutes: 60"),
                 "CI E2E timeout is too short for the full browser matrix",
             ),
@@ -88,9 +99,25 @@ def main() -> None:
                 ),
                 "CI gate does not fail when a required job is cancelled",
             ),
-            ('ports:\n      - "3443:443"' in ci_compose, "CI frontend is not exposed on the proxy port"),
+            ('ports: !override\n      - "3443:3000"' in ci_compose, "CI frontend is not exposed on the proxy port"),
             ("ADMIN_USERNAME: admin" in ci_compose, "CI app username does not match E2E credentials"),
             ("ADMIN_PASSWORD: blacklist-dev-password" in ci_compose, "CI app password does not match E2E credentials"),
+            (
+                all(
+                    required in ci_compose
+                    for required in (
+                        "  blacklist-postgres:",
+                        "  blacklist-redis:",
+                        "image: blacklist-postgres:ci",
+                        "image: blacklist-redis:ci",
+                    )
+                )
+                and "\n  postgres:" not in ci_compose
+                and "\n  redis:" not in ci_compose
+                and "image: postgres:" not in ci_compose
+                and "image: redis:" not in ci_compose,
+                "CI compose duplicates PostgreSQL or Redis instead of overriding deployment services",
+            ),
             ("FROM node:24-alpine AS builder" in frontend_dockerfile, "frontend build image does not use Node 24"),
             ("FROM node:24-alpine AS runner" in frontend_dockerfile, "frontend runtime image does not use Node 24"),
             (
