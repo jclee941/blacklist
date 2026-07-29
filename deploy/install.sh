@@ -19,6 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGES_DIR="${SCRIPT_DIR}/images"
 VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
 ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
+STOP_ALL_CONTAINERS=false
 readonly REQUIRED_SECRET_KEYS=(
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
@@ -537,6 +538,7 @@ show_help() {
     echo "  --skip-load    Skip image loading (images already loaded)"
     echo "  --check-secrets Generate or validate .env, then exit"
     echo "  --verify-only  Verify the bundle layout and image checksums, then exit (read-only)"
+    echo "  --stop-all-containers  Stop every running container on the host before deploying"
     echo "  --help, -h     Show this help"
     echo ""
 }
@@ -551,6 +553,7 @@ main() {
             --skip-load) skip_load=true ;;
             --check-secrets) check_secrets=true ;;
             --verify-only) verify_only=true ;;
+            --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
             --help|-h) show_help; exit 0 ;;
             *) log_warning "Unknown option: $arg" ;;
         esac
@@ -587,7 +590,11 @@ main() {
 
     setup_secrets
     validate_compose_config
-    stop_all_running_containers
+    if [ "$STOP_ALL_CONTAINERS" = true ]; then
+        stop_all_running_containers
+    else
+        log_info "Leaving unrelated containers running (use --stop-all-containers to stop every container on this host)"
+    fi
 
     deploy_services
     health_checks

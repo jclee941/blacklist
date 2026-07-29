@@ -97,9 +97,10 @@ def test_help_lists_new_flags(tmp_path: Path) -> None:
     # When: help is requested.
     result = run_installer(tmp_path, "--help")
 
-    # Then: the read-only verification mode is documented.
+    # Then: both newly added operator controls are documented.
     assert result.returncode == 0, result.stdout + result.stderr
     assert "--verify-only" in result.stdout
+    assert "--stop-all-containers" in result.stdout
 
 
 def test_install_requires_root(tmp_path: Path) -> None:
@@ -145,3 +146,24 @@ def test_check_secrets_still_runs_without_root(tmp_path: Path) -> None:
     assert result.returncode == 0, output
     assert root_refusals(output) == [], output
     assert Path(environment["BLACKLIST_ENV_FILE"]).exists(), output
+
+
+
+def test_stop_all_containers_is_opt_in() -> None:
+    # Given: the installer as it runs on a host shared with unrelated services.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+
+    # When: the host-wide stop behaviour is inspected.
+    call_sites = [
+        line
+        for line in installer_source.splitlines()
+        if line.strip() == "stop_all_running_containers"
+    ]
+
+    # Then: stopping every container on the host is off unless explicitly requested.
+    assert "STOP_ALL_CONTAINERS=false" in installer_source
+    assert "--stop-all-containers) STOP_ALL_CONTAINERS=true ;;" in installer_source
+    assert 'if [ "$STOP_ALL_CONTAINERS" = true ]; then' in installer_source
+
+    # Then: the only call is nested inside that conditional, never at statement level.
+    assert call_sites == ["        stop_all_running_containers"], call_sites
