@@ -93,6 +93,7 @@ def proxy_trigger_collection(source: str):
     try:
         url = f"{COLLECTOR_SERVICE_URL}/trigger"
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        headers.update(config.COLLECTOR_AUTH_REQUEST_KWARGS.get("headers", {}))
         data = request.get_json(silent=True) or {}
         data["source"] = source
         response = requests.post(url, json=data, headers=headers, timeout=120)

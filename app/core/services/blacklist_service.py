@@ -403,6 +403,7 @@ class BlacklistService(BlacklistCollectorMixin):
                 f"{config.COLLECTOR_URL}/api/force-collection/REGTECH",
                 json={"force": force},
                 timeout=60,
+                **config.COLLECTOR_AUTH_REQUEST_KWARGS,
             )
 
             if response.status_code == 200:

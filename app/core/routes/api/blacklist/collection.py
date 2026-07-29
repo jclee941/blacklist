@@ -35,6 +35,7 @@ def trigger_regtech_collection():
                 "start_date": data.get("start_date"),
                 "end_date": data.get("end_date"),
             },
+            **config.COLLECTOR_AUTH_REQUEST_KWARGS,
         )
 
         if collector_response.status_code == 200:

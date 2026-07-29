@@ -28,6 +28,7 @@ class BlacklistCollectorMixin:
                 health_response = requests_module.get(
                     f"{config.COLLECTOR_URL}/health",
                     timeout=5,
+                    **config.COLLECTOR_AUTH_REQUEST_KWARGS,
                 )
                 collector_healthy = health_response.status_code == 200
             except Exception:
@@ -82,6 +83,7 @@ class BlacklistCollectorMixin:
                 data_response = requests_module.get(
                     f"{config.COLLECTOR_URL}/api/data",
                     timeout=30,
+                    **config.COLLECTOR_AUTH_REQUEST_KWARGS,
                 )
 
                 if data_response.status_code == 200:

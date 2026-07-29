@@ -17,10 +17,25 @@ class RedisAuthParams(TypedDict, total=False):
     password: str
 
 
+class CollectorAuthRequestKwargs(TypedDict, total=False):
+    headers: dict[str, str]
+
+
 class AppConfig:
     @property
     def COLLECTOR_URL(self) -> str:
         return os.environ.get("COLLECTOR_URL", "http://blacklist-collector:8545")
+
+    @property
+    def COLLECTOR_AUTH_TOKEN(self) -> str:
+        return os.getenv("COLLECTOR_AUTH_TOKEN", "")
+
+    @property
+    def COLLECTOR_AUTH_REQUEST_KWARGS(self) -> CollectorAuthRequestKwargs:
+        token = self.COLLECTOR_AUTH_TOKEN
+        if not token:
+            return {}
+        return {"headers": {"Authorization": f"Bearer {token}"}}
 
     @property
     def BLACKLIST_API_URL(self) -> str:

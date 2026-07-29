@@ -431,7 +431,7 @@ def create_app():
 
         try:
             url = f"{config.COLLECTOR_URL}/health"
-            resp = requests.get(url, timeout=5)
+            resp = requests.get(url, timeout=5, **config.COLLECTOR_AUTH_REQUEST_KWARGS)
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("status") == "healthy":

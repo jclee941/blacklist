@@ -5,10 +5,18 @@ Collection Status Manager
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Set
+from typing import Dict, Any, Set, TypedDict
+
+import requests
 from flask import current_app
 
 logger = logging.getLogger(__name__)
+
+
+class CollectionState(TypedDict):
+    running: bool
+    last_run: str | None
+    last_error: str | None
 
 
 class CollectionStatusManager:
@@ -16,7 +24,7 @@ class CollectionStatusManager:
 
     def __init__(self):
         self.active_collections: Set[str] = set()
-        self.collection_status = {
+        self.collection_status: dict[str, CollectionState] = {
             "regtech": {"running": False, "last_run": None, "last_error": None},
         }
 
@@ -85,11 +93,13 @@ class CollectionStatusManager:
     def _check_collector_container(self) -> Dict[str, Any]:
         """컬렉터 컨테이너 상태 체크"""
         try:
-            import requests
-
             from ...config import config
 
-            response = requests.get(f"{config.COLLECTOR_URL}/health", timeout=5)
+            response = requests.get(
+                f"{config.COLLECTOR_URL}/health",
+                timeout=5,
+                **config.COLLECTOR_AUTH_REQUEST_KWARGS,
+            )
 
             if response.status_code == 200:
                 return {
