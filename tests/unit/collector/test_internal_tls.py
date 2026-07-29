@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+import redis
 
 from collector.config import CollectorConfig
 from collector.core.database.service import DatabaseService
@@ -70,3 +71,12 @@ def test_collector_redis_params_require_verified_tls(monkeypatch: pytest.MonkeyP
     assert params["ssl"] is True
     assert params["ssl_cert_reqs"] == "required"
     assert params["ssl_ca_certs"] == "/probe/ca.crt"
+
+
+def test_collector_redis_params_construct_a_supported_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(CollectorConfig, "INTERNAL_CA_CERT", "/probe/ca.crt")
+
+    client = redis.Redis(**CollectorConfig.get_redis_connection_params())
+
+    assert client.connection_pool.connection_class is redis.SSLConnection
+    assert client.connection_pool.connection_kwargs["ssl_ca_certs"] == "/probe/ca.crt"
