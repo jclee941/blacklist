@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import socket
 import subprocess
 from pathlib import Path
 
@@ -200,3 +201,40 @@ exit 0
     assert result.returncode == 0, output
     assert "integer expression expected" not in output, output
     assert "info --format {{.DockerRootDir}}" in performed, performed
+
+
+def test_published_port_occupancy_is_fatal(tmp_path: Path) -> None:
+    # Given: a process already listening on the port the test bundle publishes.
+    published_port = 44443
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", published_port))
+        listener.listen()
+
+        images_dir, environment = prepare_bundle(tmp_path)
+        write_checksum_file(images_dir, BUNDLE_IMAGES)
+        (tmp_path / "bin" / "ss").unlink()
+
+        installer = tmp_path / "install.sh"
+        installer_source = installer.read_text(encoding="utf-8")
+        configured_source = installer_source.replace(
+            "readonly PUBLISHED_FRONTEND_PORT=443",
+            f"readonly PUBLISHED_FRONTEND_PORT={published_port}",
+        ).replace(
+            "for port in 443 2542 5432 6379 8545; do",
+            f"for port in {published_port}; do",
+        )
+        assert configured_source != installer_source
+        _ = installer.write_text(configured_source, encoding="utf-8")
+
+        # When: the read-only bundle verification checks that occupied port.
+        result = run_verification(tmp_path, environment)
+
+    # Then: occupancy is fatal, scoped to the frontend, and checked after upgrade removal.
+    output = result.stdout + result.stderr
+    shipped_source = INSTALLER.read_text(encoding="utf-8")
+    deploy_body = shipped_source.split("\ndeploy_services() {", 1)[1].split("\n}", 1)[0]
+    assert result.returncode != 0, output
+    assert str(published_port) in output, output
+    assert "for port in 443 2542 5432 6379 8545; do" not in shipped_source
+    assert deploy_body.index('docker rm -f "$c"') < deploy_body.index("verify_published_port_available")
+    assert deploy_body.index("verify_published_port_available") < deploy_body.index('log_info "Starting services..."')

@@ -22,6 +22,7 @@ ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
 STOP_ALL_CONTAINERS=false
 SKIP_POSTURE_CHECK=false
 POSTURE_COMPOSE_FILES=()
+readonly PUBLISHED_FRONTEND_PORT=443
 readonly REQUIRED_SECRET_KEYS=(
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
@@ -204,11 +205,6 @@ preflight_verify() {
         log_success "Disk space on ${disk_target}: ${available_gb}GB"
     fi
 
-    for port in 443 2542 5432 6379 8545; do
-        if ss -tuln 2>/dev/null | grep -q ":${port} "; then
-            log_warning "Port ${port} in use"
-        fi
-    done
 }
 
 preflight_checks() {
@@ -225,6 +221,20 @@ preflight_checks() {
          install_docker_compose
     fi
     log_success "Docker Compose $(docker compose version --short)"
+}
+
+verify_published_port_available() {
+    log_step "Verify Published Port Availability"
+
+    local listeners
+    if ! listeners=$(ss -H -ltn "sport = :${PUBLISHED_FRONTEND_PORT}" 2>/dev/null); then
+        log_error "Unable to inspect published port ${PUBLISHED_FRONTEND_PORT}"
+    fi
+    if [ -n "${listeners}" ]; then
+        log_error "Published frontend port ${PUBLISHED_FRONTEND_PORT} is already in use"
+    fi
+
+    log_success "Published frontend port ${PUBLISHED_FRONTEND_PORT} is available"
 }
 
 verify_checksums() {
@@ -514,6 +524,8 @@ deploy_services() {
         fi
     done
 
+    verify_published_port_available
+
     log_info "Starting services..."
     local compose_output
     if ! compose_output=$(docker compose --env-file "${ENV_FILE}" up -d --pull never 2>&1); then
@@ -696,6 +708,7 @@ main() {
 
     if [ "$verify_only" = true ]; then
         preflight_verify
+        verify_published_port_available
         verify_checksums
         verify_security_posture
         log_success "Bundle verification completed (no changes were made)"
