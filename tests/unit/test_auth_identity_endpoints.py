@@ -7,7 +7,7 @@ from core.auth.jwt_service import JWTService
 from core.routes.api.auth_routes import auth_bp
 
 
-SECRET = "test-secret-key-0123456789abcdef"
+SECRET = "test-identity-secret"
 
 
 @pytest.fixture

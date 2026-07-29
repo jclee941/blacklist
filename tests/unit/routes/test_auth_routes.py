@@ -127,7 +127,7 @@ class TestAuthMe:
         """
         from core.auth.jwt_service import JWTService
 
-        secret = "test-secret-key-0123456789abcdef"
+        secret = "test-identity-secret"
         app.config["SECRET_KEY"] = secret
         app.extensions["jwt_service"] = JWTService(secret)
         token = JWTService(secret).encode_token(user_id="admin", role="admin")
@@ -166,7 +166,7 @@ class TestAuthVerify:
         """
         from core.auth.jwt_service import JWTService
 
-        secret = "test-secret-key-0123456789abcdef"
+        secret = "test-identity-secret"
         app.config["SECRET_KEY"] = secret
         app.extensions["jwt_service"] = JWTService(secret)
         token = JWTService(secret).encode_token(user_id="admin", role="admin")
