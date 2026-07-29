@@ -404,14 +404,9 @@ load_images() {
         log_info "Loading ${name}..."
         local load_output
         if load_output=$(gunzip -c "${img_path}" | docker load 2>&1); then
-            # Extract loaded image name:tag (e.g. "blacklist-app:3.5.41") and tag as :latest
             local loaded_image
             loaded_image=$(echo "$load_output" | grep -oP 'Loaded image: \K.*' | head -1)
-            if [ -n "$loaded_image" ]; then
-                local repo="${loaded_image%%:*}"
-                docker tag "$loaded_image" "${repo}:latest" 2>/dev/null || true
-            fi
-            log_success "${name}"
+            log_success "${name} (${loaded_image})"
         else
             log_error "Failed to load ${name}"
         fi
@@ -516,6 +511,7 @@ generate_env_file() {
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 COMPOSE_PROJECT_NAME=blacklist
+BLACKLIST_VERSION=${VERSION}
 CREDENTIAL_MASTER_KEY=${master_key}
 SECRET_KEY=${secret_key}
 COLLECTOR_AUTH_TOKEN=${collector_auth_token}
@@ -619,13 +615,6 @@ deploy_services() {
     log_step "Deploy Services"
 
     cd "${SCRIPT_DIR}"
-
-    # Backup current image tags for rollback
-    local backup_file="${SCRIPT_DIR}/.rollback-images"
-    if docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -q '^blacklist-'; then
-        docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep '^blacklist-' | grep -v '<none>' > "${backup_file}" || true
-        log_info "Current image tags saved to .rollback-images"
-    fi
 
     local containers="blacklist-app blacklist-collector blacklist-frontend blacklist-postgres blacklist-redis"
     for c in $containers; do

@@ -165,3 +165,25 @@ def test_health_check_does_not_probe_unpublished_ports() -> None:
     # Then: neither internal-only service port is called through localhost.
     assert "localhost:2542" not in health_body
     assert "localhost:8545" not in health_body
+
+
+def test_images_are_not_retagged_latest() -> None:
+    # Given: the image loading and generated-environment paths in the offline installer.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+    generated_env_body = installer_function("generate_env_file")
+
+    # When: release tag handling is inspected.
+
+    # Then: no image is aliased to latest and Compose receives the bundle version.
+    assert 'docker tag "$loaded_image" "${repo}:latest"' not in installer_source
+    assert "BLACKLIST_VERSION=${VERSION}" in generated_env_body
+
+
+def test_rollback_file_is_not_written() -> None:
+    # Given: the offline installer has no rollback-file reader.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+
+    # When: its deployment path is inspected.
+
+    # Then: it does not advertise a dead recovery artifact by writing one.
+    assert ".rollback-images" not in installer_source
