@@ -92,9 +92,7 @@ def login():
         admin_username and admin_username.strip() and admin_password and admin_password.strip()
     )
     if not credentials_configured:
-        logger.error(
-            "Administrator login is disabled: configure ADMIN_USERNAME and ADMIN_PASSWORD"
-        )
+        logger.error("Administrator login is disabled: configure ADMIN_USERNAME and ADMIN_PASSWORD")
     elif username != admin_username or password != admin_password:
         logger.warning(f"Failed login attempt for user: {username}")
     else:
