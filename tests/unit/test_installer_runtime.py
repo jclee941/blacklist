@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -101,6 +102,11 @@ def parse_env(env_file: Path) -> dict[str, str]:
     )
 
 
+def installer_function(name: str) -> str:
+    source = INSTALLER.read_text(encoding="utf-8")
+    return source.split(f"\n{name}() {{", 1)[1].split("\n}", 1)[0]
+
+
 def test_generated_env_contains_a_collector_token(tmp_path: Path) -> None:
     # Given: two fresh offline bundles with separate target environment files.
     first_dir = tmp_path / "first"
@@ -120,3 +126,42 @@ def test_generated_env_contains_a_collector_token(tmp_path: Path) -> None:
     assert first_token
     assert second_token
     assert first_token != second_token
+
+
+def test_health_regex_rejects_error_payload() -> None:
+    # Given: the literal response pattern used by the installer's published health probe.
+    health_body = installer_function("health_checks")
+    pattern_match = re.search(r"grep (?:-q|-Eq) ([\"'])(?P<pattern>.*?)\1", health_body)
+    assert pattern_match is not None, health_body
+    pattern = pattern_match.group("pattern")
+
+    # When: representative unhealthy and healthy JSON payloads are checked with that ERE.
+    outcomes = {
+        payload: subprocess.run(
+            ["grep", "-Eq", pattern],
+            input=payload,
+            check=False,
+            text=True,
+        ).returncode
+        for payload in (
+            '{"status":"error"}',
+            '{"status":"healthy"}',
+            '{"status": "healthy"}',
+        )
+    }
+
+    # Then: only the exact healthy status is accepted, regardless of JSON spacing.
+    assert outcomes['{"status":"error"}'] == 1
+    assert outcomes['{"status":"healthy"}'] == 0
+    assert outcomes['{"status": "healthy"}'] == 0
+
+
+def test_health_check_does_not_probe_unpublished_ports() -> None:
+    # Given: ADR-0001 leaves the Flask and collector ports unpublished on the host.
+    health_body = installer_function("health_checks")
+
+    # When: the host-side health probes are inspected.
+
+    # Then: neither internal-only service port is called through localhost.
+    assert "localhost:2542" not in health_body
+    assert "localhost:8545" not in health_body

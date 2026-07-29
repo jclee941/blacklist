@@ -742,26 +742,12 @@ health_checks() {
         log_error "Failed to read service status"
     fi
 
-    local endpoints=(
-        "http://localhost:2542/health|API"
-        "http://localhost:8545/health|Collector"
-    )
-
     echo ""
-    for ep in "${endpoints[@]}"; do
-        local url="${ep%|*}"
-        local name="${ep#*|}"
-        if curl -s "${url}" 2>/dev/null | grep -q "healthy\|status"; then
-            log_success "${name}: healthy"
-        else
-            log_error "${name}: not responding"
-        fi
-    done
-
-    if curl -sk "https://localhost:443" > /dev/null 2>&1; then
-        log_success "Frontend: accessible"
+    if curl -sk "https://localhost:${PUBLISHED_FRONTEND_PORT}/health" 2>/dev/null |
+        grep -Eq '"status"[[:space:]]*:[[:space:]]*"healthy"'; then
+        log_success "Frontend: healthy"
     else
-        log_error "Frontend: not responding"
+        log_error "Frontend: unhealthy or not responding"
     fi
 }
 
