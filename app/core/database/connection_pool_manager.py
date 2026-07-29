@@ -168,8 +168,7 @@ class SmartConnectionManager:
                 "connections": 0,
             }
         finally:
-            if conn:
-                conn.close()
+            conn.close()
 
 
 # 전역 스마트 연결 관리자

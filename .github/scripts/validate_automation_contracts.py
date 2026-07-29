@@ -35,22 +35,13 @@ def read(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
-def has_explicit_job_permissions(workflow: str, job_name: str, permissions: str) -> bool:
+def job_body(workflow: str, job_name: str) -> str:
     job = re.search(
         rf"^  {re.escape(job_name)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:|\Z)",
         workflow,
         re.MULTILINE | re.DOTALL,
     )
-    return job is not None and permissions in job.group("body")
-
-
-def has_job_condition(workflow: str, job_name: str, condition: str) -> bool:
-    job = re.search(
-        rf"^  {re.escape(job_name)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:|\Z)",
-        workflow,
-        re.MULTILINE | re.DOTALL,
-    )
-    return job is not None and f"    if: {condition}" in job.group("body")
+    return job.group("body") if job else ""
 
 
 def main() -> None:
@@ -88,15 +79,12 @@ def main() -> None:
                 "CI E2E stack does not set BLACKLIST_TLS_DIR",
             ),
             (
-                has_explicit_job_permissions(ci, "e2e", "    timeout-minutes: 60"),
+                "    timeout-minutes: 60" in job_body(ci, "e2e"),
                 "CI E2E timeout is too short for the full browser matrix",
             ),
             (
-                has_explicit_job_permissions(
-                    ci,
-                    "ci-gate",
-                    '          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then',
-                ),
+                '          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then'
+                in job_body(ci, "ci-gate"),
                 "CI gate does not fail when a required job is cancelled",
             ),
             ('ports: !override\n      - "3443:3000"' in ci_compose, "CI frontend is not exposed on the proxy port"),
@@ -152,7 +140,7 @@ def main() -> None:
             ),
             (
                 all(
-                    has_job_condition(release, job_name, TAG_TRIGGERED_NON_DRY_RUN_CONDITION)
+                    f"    if: {TAG_TRIGGERED_NON_DRY_RUN_CONDITION}" in job_body(release, job_name)
                     for job_name in ("create-release", "push-to-registry")
                 ),
                 "release workflow publication jobs are not restricted to tag-triggered non-dry runs",
@@ -172,7 +160,7 @@ def main() -> None:
     failures.extend(
         f"release workflow job '{job_name}' lacks explicit least-privilege permissions"
         for job_name, permissions in RELEASE_JOB_PERMISSIONS.items()
-        if not has_explicit_job_permissions(release, job_name, permissions)
+        if permissions not in job_body(release, job_name)
     )
 
     mutable_files = [

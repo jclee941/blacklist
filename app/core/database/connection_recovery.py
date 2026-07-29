@@ -89,8 +89,7 @@ class PostgreSQLConnectionManager:
                 "connections": 0,
             }
         finally:
-            if conn:
-                conn.close()
+            conn.close()
 
 
 # 전역 연결 관리자 인스턴스
