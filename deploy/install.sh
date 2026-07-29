@@ -536,6 +536,35 @@ EOF
     fi
 }
 
+# BLACKLIST_VERSION selects the image tag every compose file resolves. It is NOT a
+# secret, and setup_secrets() deliberately never rewrites an existing environment
+# file, so an upgrade would otherwise keep the previous release's tag and silently
+# redeploy the old images. Re-sync it on every run instead.
+sync_deployment_version() {
+    local env_file="$1"
+    local temp_file
+
+    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage the environment file update."
+    chmod 600 "${temp_file}" || log_error "Unable to protect the staged environment file."
+
+    if ! { grep -v '^BLACKLIST_VERSION=' "${env_file}" || true; } > "${temp_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to read the existing environment file: ${env_file}"
+    fi
+
+    if ! printf 'BLACKLIST_VERSION=%s\n' "${VERSION}" >> "${temp_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to record the deployment version."
+    fi
+
+    if ! mv "${temp_file}" "${env_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to update the environment file: ${env_file}"
+    fi
+
+    chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
+}
+
 setup_secrets() {
     log_step "Setup Environment Secrets"
 
@@ -556,6 +585,9 @@ setup_secrets() {
         chmod 600 "${env_file}" || log_error "Unable to protect generated environment file."
         log_success "Secrets generated (${env_file})"
     fi
+
+    sync_deployment_version "${env_file}"
+    log_info "Deployment version pinned to ${VERSION}"
 
     local invalid_keys=()
     local key value
