@@ -144,6 +144,7 @@ services:
       INTERNAL_TLS_CERT: /run/blacklist/tls/tls.crt
       INTERNAL_TLS_KEY: /run/blacklist/tls/tls.key
       COLLECTOR_URL: https://blacklist-collector:8545
+      COLLECTOR_COLLECTION_TIMEOUT: ${COLLECTOR_COLLECTION_TIMEOUT:-360}
       BLACKLIST_API_URL: https://blacklist-app:2542/api
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}

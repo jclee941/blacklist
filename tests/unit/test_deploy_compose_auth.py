@@ -46,6 +46,18 @@ def test_collector_auth_secret_example_is_an_empty_placeholder() -> None:
     assert re.search(r"(?m)^COLLECTOR_AUTH_TOKEN=$", env_example) is not None
 
 
+def test_collection_timeout_is_wired_to_the_app_service() -> None:
+    app_service = _service_block("blacklist-app")
+
+    assert "COLLECTOR_COLLECTION_TIMEOUT: ${COLLECTOR_COLLECTION_TIMEOUT:-360}" in app_service
+
+
+def test_collection_timeout_default_is_documented() -> None:
+    env_example = ENV_EXAMPLE.read_text(encoding="utf-8")
+
+    assert re.search(r"(?m)^# COLLECTOR_COLLECTION_TIMEOUT=360\b", env_example) is not None
+
+
 def test_collector_publishes_no_ports() -> None:
     # Given: the collector service definition.
     collector_service = _service_block("blacklist-collector")
