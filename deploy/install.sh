@@ -586,8 +586,6 @@ setup_secrets() {
         log_success "Secrets generated (${env_file})"
     fi
 
-    sync_deployment_version "${env_file}"
-    log_info "Deployment version pinned to ${VERSION}"
 
     local invalid_keys=()
     local key value
@@ -613,6 +611,8 @@ setup_secrets() {
     fi
 
     log_success "Secret validation passed (${env_file})"
+    sync_deployment_version "${env_file}"
+    log_info "Deployment version pinned to ${VERSION}"
     log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
 }
 

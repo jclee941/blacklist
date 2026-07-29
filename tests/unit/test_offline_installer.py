@@ -150,9 +150,18 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
     # When: bootstrap secret validation runs during an upgrade.
     result = run_secret_check(tmp_path)
 
-    # Then: the existing encryption material remains byte-for-byte unchanged.
+    # Then: every existing secret survives verbatim. Byte-identity is no longer the
+    # right assertion because the installer re-pins the non-secret BLACKLIST_VERSION
+    # on each run; assert the actual intent instead, and that no secret was added,
+    # dropped, or rewritten.
+    body = env_file.read_text(encoding="utf-8")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert env_file.read_text(encoding="utf-8") == original
+    for line in original.splitlines():
+        assert line in body, line
+    surviving_secrets = [
+        line for line in body.splitlines() if not line.startswith("BLACKLIST_VERSION=")
+    ]
+    assert surviving_secrets == original.splitlines()
     assert os.stat(env_file).st_mode & 0o777 == 0o600
 
 
