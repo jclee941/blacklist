@@ -29,12 +29,20 @@ services:
     restart: unless-stopped
     networks:
       - blacklist-net
+    command:
+      - redis-server
+      - /usr/local/etc/redis/redis.conf
+      - --bind
+      - 0.0.0.0
+      - --requirepass
+      - ${REDIS_PASSWORD}
     environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       TZ: Asia/Seoul
     volumes:
       - blacklist-redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-h", "localhost", "ping"]
+      test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" ping']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -58,6 +66,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       HEALTH_CHECK_PORT: 8545
       BLACKLIST_API_URL: http://blacklist-app:2542
       COLLECTION_INTERVAL: 86400
@@ -98,6 +107,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       COLLECTOR_URL: http://blacklist-collector:8545
       BLACKLIST_API_URL: http://blacklist-app:2542/api
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}

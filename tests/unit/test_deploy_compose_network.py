@@ -50,6 +50,19 @@ def test_datastores_publish_no_ports() -> None:
     assert all(re.search(r"(?m)^    ports:", block) is None for block in service_blocks)
 
 
+def test_redis_requires_a_password() -> None:
+    # Given: the Redis service definition.
+    redis_service = _service_block("blacklist-redis")
+
+    # When: its startup command is inspected.
+    # Then: Redis requires the generated deployment password.
+    assert "/usr/local/etc/redis/redis.conf" in redis_service
+    assert "--bind" in redis_service
+    assert "0.0.0.0" in redis_service
+    assert "--requirepass" in redis_service
+    assert "${REDIS_PASSWORD}" in redis_service
+
+
 def test_services_address_each_other_by_service_name() -> None:
     # Given: the services that communicate across the deployment network.
     collector_service = _service_block("blacklist-collector")
