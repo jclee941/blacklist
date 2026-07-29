@@ -27,10 +27,20 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: blacklist-collector:latest
-    # Dev-only: REGTECH blocks this network's egress IP, so requests are sent
-    # through a WARP proxy running on the developer's host. On the bridge network
-    # 127.0.0.1 would resolve to the container itself, so the host gateway alias is
-    # required. Set WARP_PROXY_URL= (empty) to disable when no proxy is running.
+    # Dev-only: REGTECH blocks this network's egress IP, so the collector sends its
+    # requests through a WARP proxy on the developer's host. This is an
+    # APPLICATION-level proxy, so it affects only the collector's outbound REGTECH
+    # calls; no other service or host interface is routed through WARP.
+    #
+    # On the bridge network 127.0.0.1 is the container itself, so the host gateway
+    # alias is required. MEASURED: a proxy bound to 127.0.0.1 only is REFUSED from
+    # the bridge; it must listen on an address the gateway can reach. For
+    # Cloudflare WARP run:
+    #   warp-cli proxy port 40000        # then bind/forward it to 0.0.0.0:40000
+    # Verify with:
+    #   docker run --rm --add-host=host.docker.internal:host-gateway alpine \
+    #     wget -qO- http://host.docker.internal:40000/
+    # Set WARP_PROXY_URL= (empty) to disable when no proxy is running.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:

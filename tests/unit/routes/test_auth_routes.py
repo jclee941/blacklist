@@ -119,18 +119,25 @@ class TestAuthMe:
         return app.test_client()
 
     def test_me_returns_current_user(self, client, app):
-        """Returns g.current_user data."""
+        """Returns the identity carried by the request's bearer token.
 
-        @app.before_request
-        def set_user():
-            from flask import g
+        The endpoint used to read g.current_user, populated by a before_request
+        hook this application never registers, so it returned 500 in production.
+        It now resolves the token itself; the intent of this test is unchanged.
+        """
+        from core.auth.jwt_service import JWTService
 
-            g.current_user = {"user_id": "admin", "role": "admin"}
+        secret = "test-secret-key-0123456789abcdef"
+        app.config["SECRET_KEY"] = secret
+        app.extensions["jwt_service"] = JWTService(secret)
+        token = JWTService(secret).encode_token(user_id="admin", role="admin")
 
-        response = client.get("/api/auth/me")
+        response = client.get(
+            "/api/auth/me", headers={"Authorization": f"Bearer {token}"}
+        )
         assert response.status_code == 200
         data = response.get_json()
-        assert data["user_id"] == "admin"
+        assert data["sub"] == "admin"
         assert data["role"] == "admin"
 
 
@@ -151,15 +158,23 @@ class TestAuthVerify:
         return app.test_client()
 
     def test_verify_returns_valid(self, client, app):
-        """Returns valid=True with user info."""
+        """Returns valid=True for a genuine bearer token.
 
-        @app.before_request
-        def set_user():
-            from flask import g
+        Previously this asserted against a hand-injected g.current_user, which
+        production never populated. Verifying the real token keeps the original
+        intent and now exercises the path a caller actually takes.
+        """
+        from core.auth.jwt_service import JWTService
 
-            g.current_user = {"user_id": "admin", "role": "admin"}
+        secret = "test-secret-key-0123456789abcdef"
+        app.config["SECRET_KEY"] = secret
+        app.extensions["jwt_service"] = JWTService(secret)
+        token = JWTService(secret).encode_token(user_id="admin", role="admin")
 
-        response = client.get("/api/auth/verify")
+        response = client.get(
+            "/api/auth/verify", headers={"Authorization": f"Bearer {token}"}
+        )
         assert response.status_code == 200
         data = response.get_json()
         assert data["valid"] is True
+        assert data["user"]["sub"] == "admin"
