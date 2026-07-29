@@ -39,7 +39,7 @@
 - App과 Collector 이미지가 Python 3.11에서 빌드되도록 NumPy 의존성 범위를 수정했습니다.
 - 모든 릴리즈 이미지에서 개인 maintainer 메타데이터를 제거했습니다.
 - 설치 전에 데이터베이스 비밀번호와 자격증명 암호화 키를 필수로 검증합니다.
-- Collector 제어 서버를 컨테이너 내부 loopback 주소로 제한했습니다.
+- Collector를 내부 브리지 네트워크에 연결하고 host port를 공개하지 않았습니다. Collector에는 JWT 검증이 없으므로 JWT 강제 적용은 ADR-0002에 따라 보류합니다.
 
 ## 설치 시 중요 사항
 
