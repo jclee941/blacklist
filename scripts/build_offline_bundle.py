@@ -17,12 +17,62 @@ import shutil
 import subprocess
 import sys
 import tarfile
+from dataclasses import dataclass
 from pathlib import Path
 
 
 SERVICES = ("app", "collector", "frontend", "postgres", "redis")
 MANIFEST_NAME = "MANIFEST.sha256"
 CHECKSUMS_NAME = "checksums.sha256"
+
+
+@dataclass(frozen=True)
+class BuildSpec:
+    """How one service image is built, mirroring the release pipeline matrix."""
+
+    service: str
+    context: str
+    dockerfile: str
+
+
+BUILD_SPECS = (
+    BuildSpec("app", ".", "app/Dockerfile"),
+    BuildSpec("collector", ".", "collector/Dockerfile"),
+    BuildSpec("frontend", ".", "frontend/Dockerfile"),
+    BuildSpec("postgres", "postgres", "postgres/Dockerfile"),
+    BuildSpec("redis", ".", "deploy/redis/Dockerfile"),
+)
+
+
+def build_command(spec: BuildSpec, version: str, commit: str) -> list[str]:
+    """Return the docker build invocation for one service."""
+    return [
+        "docker", "build",
+        "-f", spec.dockerfile,
+        "-t", f"blacklist-{spec.service}:{version}",
+        "--build-arg", f"APP_VERSION={version}",
+        "--build-arg", f"GIT_COMMIT={commit}",
+        spec.context,
+    ]
+
+
+def current_commit(repo_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    return result.stdout.strip() or "unknown"
+
+
+def build_images(repo_root: Path, version: str) -> None:
+    """Build every service image at the resolved release tag."""
+    commit = current_commit(repo_root)
+    for spec in BUILD_SPECS:
+        print(f"building blacklist-{spec.service}:{version}", file=sys.stderr)
+        run(build_command(spec, version, commit), cwd=repo_root)
 
 
 class BundleError(RuntimeError):
@@ -183,12 +233,17 @@ def pack(bundle_dir: Path, output_dir: Path) -> Path:
     return archive
 
 
-def build(repo_root: Path, output_dir: Path, *, skip_images: bool) -> Path:
+def build(
+    repo_root: Path, output_dir: Path, *, skip_images: bool, rebuild: bool
+) -> Path:
     version = resolve_version(repo_root)
     bundle_dir = output_dir / f"blacklist-{version}"
     if bundle_dir.exists():
         shutil.rmtree(bundle_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    if rebuild:
+        build_images(repo_root, version)
 
     assemble(repo_root, bundle_dir, version)
     # Stamp before hashing: a manifest built over the pre-stamp installer would
@@ -220,11 +275,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="reuse image archives already present in the bundle directory",
     )
+    _ = parser.add_argument(
+        "--build",
+        action="store_true",
+        help="build every service image at the resolved version before packaging",
+    )
     arguments = parser.parse_args(argv)
 
     repo_root = Path(__file__).resolve().parents[1]
     try:
-        archive = build(repo_root, (repo_root / arguments.output).resolve(), skip_images=arguments.skip_images)
+        archive = build(
+            repo_root,
+            (repo_root / arguments.output).resolve(),
+            skip_images=arguments.skip_images,
+            rebuild=arguments.build,
+        )
     except BundleError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

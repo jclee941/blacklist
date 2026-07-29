@@ -152,3 +152,31 @@ def test_complete_prereqs_report_no_gaps(tmp_path: Path) -> None:
     _ = (prereqs / "docker-compose-linux-x86_64").write_bytes(b"binary")
 
     assert builder.prereq_gaps(prereqs) == []
+
+
+def test_build_specs_mirror_the_ci_matrix() -> None:
+    # Given: images must be built exactly as the release pipeline builds them,
+    # or the bundle ships something that was never tested.
+    builder = load_builder()
+    specs = {spec.service: spec for spec in builder.BUILD_SPECS}
+
+    assert set(specs) == set(builder.SERVICES)
+    assert specs["frontend"].dockerfile == "frontend/Dockerfile"
+    assert specs["app"].dockerfile == "app/Dockerfile"
+    assert specs["collector"].dockerfile == "collector/Dockerfile"
+    assert specs["postgres"].dockerfile == "postgres/Dockerfile"
+    assert specs["redis"].dockerfile == "deploy/redis/Dockerfile"
+    # postgres builds from its own directory in CI; everything else from the root.
+    assert specs["postgres"].context == "postgres"
+    assert specs["app"].context == "."
+
+
+def test_build_command_tags_the_resolved_version() -> None:
+    builder = load_builder()
+    spec = next(spec for spec in builder.BUILD_SPECS if spec.service == "app")
+
+    command = builder.build_command(spec, "7.3.1", "abc1234")
+
+    assert "blacklist-app:7.3.1" in command
+    assert "APP_VERSION=7.3.1" in " ".join(command)
+    assert "GIT_COMMIT=abc1234" in " ".join(command)
