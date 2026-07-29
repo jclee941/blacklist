@@ -88,30 +88,38 @@ def login():
         admin_username = config.ADMIN_USERNAME
         admin_password = config.ADMIN_PASSWORD
 
-    if username != admin_username or password != admin_password:
+    credentials_configured = bool(
+        admin_username and admin_username.strip() and admin_password and admin_password.strip()
+    )
+    if not credentials_configured:
+        logger.error(
+            "Administrator login is disabled: configure ADMIN_USERNAME and ADMIN_PASSWORD"
+        )
+    elif username != admin_username or password != admin_password:
         logger.warning(f"Failed login attempt for user: {username}")
+    else:
+        # Generate JWT token
+        jwt_service = current_app.extensions["jwt_service"]
+        token = jwt_service.encode_token(user_id=username, role="admin")
+
+        logger.info(f"User '{username}' logged in successfully")
         return jsonify(
             {
-                "type": "about:blank",
-                "title": "Unauthorized",
-                "status": 401,
-                "detail": "Invalid username or password",
-                "code": "AUTH_INVALID_CREDENTIALS",
+                "token": token,
+                "expires_in": 28800,
+                "user": {"id": username, "role": "admin"},
             }
-        ), 401
+        ), 200
 
-    # Generate JWT token
-    jwt_service = current_app.extensions["jwt_service"]
-    token = jwt_service.encode_token(user_id=username, role="admin")
-
-    logger.info(f"User '{username}' logged in successfully")
     return jsonify(
         {
-            "token": token,
-            "expires_in": 28800,
-            "user": {"id": username, "role": "admin"},
+            "type": "about:blank",
+            "title": "Unauthorized",
+            "status": 401,
+            "detail": "Invalid username or password",
+            "code": "AUTH_INVALID_CREDENTIALS",
         }
-    ), 200
+    ), 401
 
 
 @auth_bp.route("/me", methods=["GET"])

@@ -69,8 +69,8 @@ class TestAppConfigDefaults:
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.ADMIN_USERNAME == "__SET_ADMIN_USERNAME__"
-        assert cfg.ADMIN_PASSWORD == "__SET_ADMIN_PASSWORD__"
+        assert cfg.ADMIN_USERNAME is None
+        assert cfg.ADMIN_PASSWORD is None
 
     @patch.dict(os.environ, {}, clear=True)
     def test_app_port_default(self):

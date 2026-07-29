@@ -173,12 +173,12 @@ class AppConfig:
         return os.getenv("SETTINGS_ENCRYPTION_KEY")
 
     @property
-    def ADMIN_USERNAME(self) -> str:
-        return os.getenv("ADMIN_USERNAME", "__SET_ADMIN_USERNAME__")
+    def ADMIN_USERNAME(self) -> str | None:
+        return os.getenv("ADMIN_USERNAME")
 
     @property
-    def ADMIN_PASSWORD(self) -> str:
-        return os.getenv("ADMIN_PASSWORD", "__SET_ADMIN_PASSWORD__")
+    def ADMIN_PASSWORD(self) -> str | None:
+        return os.getenv("ADMIN_PASSWORD")
 
     @property
     def ADMIN_RESET_KEY(self) -> Optional[str]:
