@@ -63,6 +63,17 @@ def test_redis_requires_a_password() -> None:
     assert "${REDIS_PASSWORD}" in redis_service
 
 
+def test_frontend_publishes_only_the_https_port() -> None:
+    # Given: the frontend service definition.
+    frontend_service = _service_block("blacklist-frontend")
+
+    # When: its listener and host publication are inspected.
+    # Then: host HTTPS reaches an unprivileged container port.
+    assert '"443:3000"' in frontend_service
+    assert "PORT: 3000" in frontend_service
+    assert "PORT: 443" not in frontend_service
+
+
 def test_services_address_each_other_by_service_name() -> None:
     # Given: the services that communicate across the deployment network.
     collector_service = _service_block("blacklist-collector")

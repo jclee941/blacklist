@@ -132,14 +132,14 @@ services:
     networks:
       - blacklist-net
     ports:
-      - "443:443"
+      - "443:3000"
     depends_on:
       blacklist-app:
         condition: service_healthy
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: http://blacklist-app:2542
-      PORT: 443
+      PORT: 3000
       HOSTNAME: "0.0.0.0"
       TZ: Asia/Seoul
     healthcheck:
@@ -147,8 +147,8 @@ services:
         - CMD-SHELL
         - >-
           node -e "const http=require('http');const https=require('https');
-          http.get('http://localhost:443/health',r=>{process.exit(r.statusCode===200?0:1)})
-          .on('error',()=>{https.get({hostname:'localhost',port:443,path:'/health',
+          http.get('http://localhost:3000/health',r=>{process.exit(r.statusCode===200?0:1)})
+          .on('error',()=>{https.get({hostname:'localhost',port:3000,path:'/health',
           rejectUnauthorized:false},r=>{process.exit(r.statusCode===200?0:1)})
           .on('error',()=>process.exit(1))})"
       interval: 30s

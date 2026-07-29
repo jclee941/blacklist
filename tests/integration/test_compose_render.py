@@ -23,8 +23,13 @@ ENCRYPTION_SALT=x
 """
 
 
+class PublishedPort(TypedDict):
+    published: str
+
+
 class RenderedService(TypedDict, total=False):
     network_mode: str
+    ports: list[PublishedPort]
 
 
 class RenderedCompose(TypedDict):
@@ -53,6 +58,24 @@ def _render_compose(tmp_path: Path) -> subprocess.CompletedProcess[str]:
         check=False,
         text=True,
     )
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("docker") is None, reason="Docker is required")
+def test_only_expected_ports_are_published(tmp_path: Path) -> None:
+    # Given: the development deployment with all required secrets defined.
+    # When: Docker Compose renders the inherited service configuration.
+    result = _render_compose(tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    rendered = cast(RenderedCompose, json.loads(result.stdout))
+
+    # Then: the frontend HTTPS endpoint is the sole host-published port.
+    published_ports = {
+        str(port["published"])
+        for service in rendered["services"].values()
+        for port in service.get("ports", [])
+    }
+    assert published_ports == {"443"}
 
 
 @pytest.mark.integration
