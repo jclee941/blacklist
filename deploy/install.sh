@@ -103,6 +103,72 @@ require_root() {
     [ "$(id -u)" -eq 0 ] || log_error "Root privileges are required to install; re-run as root (current EUID: $(id -u))."
 }
 
+normalize_manifest_records() {
+    sed -E 's/^([[:xdigit:]]{64})[[:space:]]+(\*)?(\.\/)?/\1  /' "${SCRIPT_DIR}/MANIFEST.sha256"
+}
+
+verify_manifest_entry() {
+    local relative_path="${1#./}"
+    relative_path="${relative_path#\*}"
+
+    local expected_hash=""
+    local listed_hash listed_path
+    while read -r listed_hash listed_path; do
+        if [ "${listed_path}" = "${relative_path}" ]; then
+            expected_hash="${listed_hash}"
+            break
+        fi
+    done < <(normalize_manifest_records)
+
+    if ! [[ "${expected_hash}" =~ ^[[:xdigit:]]{64}$ ]]; then
+        log_error "Manifest entry missing or malformed: ${relative_path}"
+    fi
+
+    local actual_hash
+    if ! actual_hash=$(sha256sum "${SCRIPT_DIR}/${relative_path}" 2>/dev/null | awk '{print $1}'); then
+        log_error "Manifest-listed file not found: ${relative_path}"
+    fi
+    if [ "${expected_hash,,}" != "${actual_hash}" ]; then
+        log_error "Manifest verification failed for ${relative_path}"
+    fi
+}
+
+verify_manifest() {
+    log_step "Verify Bundle Manifest (SHA256)"
+
+    local manifest_file="${SCRIPT_DIR}/MANIFEST.sha256"
+    if [ ! -f "${manifest_file}" ]; then
+        log_error "Bundle manifest not found: MANIFEST.sha256"
+    fi
+
+    local entry_count
+    entry_count=$(awk 'NF { count++ } END { print count + 0 }' "${manifest_file}")
+    if [ "${entry_count}" -eq 0 ]; then
+        log_error "Bundle manifest contains no verifiable entries: MANIFEST.sha256"
+    fi
+
+    if ! (cd "${SCRIPT_DIR}" && normalize_manifest_records | sha256sum -c --strict -); then
+        log_error "Bundle manifest verification failed"
+    fi
+
+    local docker_tgz=""
+    if [ -d "${SCRIPT_DIR}/prereqs" ]; then
+        docker_tgz=$(find "${SCRIPT_DIR}/prereqs" -maxdepth 1 -type f -name 'docker-*.tgz' -print -quit)
+    fi
+    if [ -n "${docker_tgz}" ]; then
+        verify_manifest_entry "${docker_tgz#"${SCRIPT_DIR}/"}"
+    fi
+
+    local privileged_file
+    for privileged_file in prereqs/docker.service prereqs/docker-compose-linux-x86_64; do
+        if [ -f "${SCRIPT_DIR}/${privileged_file}" ]; then
+            verify_manifest_entry "${privileged_file}"
+        fi
+    done
+
+    log_success "Bundle manifest verified"
+}
+
 install_docker_offline() {
     log_step "Offline Docker Installation"
     
@@ -118,14 +184,17 @@ install_docker_offline() {
     if [ -z "$docker_tgz" ]; then
         log_error "Docker binary tarball not found in prereqs/"
     fi
+    local docker_relative="${docker_tgz#"${SCRIPT_DIR}/"}"
     
     # Extract to /usr/bin
+    verify_manifest_entry "${docker_relative}"
     if ! tar -xzf "$docker_tgz" -C /usr/bin --strip-components=1; then
         log_error "Failed to extract Docker binaries"
     fi
     
     # Setup service
     if [ -f "${prereqs_dir}/docker.service" ]; then
+        verify_manifest_entry "prereqs/docker.service"
         cp "${prereqs_dir}/docker.service" /etc/systemd/system/
         systemctl daemon-reload
         systemctl enable --now docker
@@ -145,12 +214,15 @@ install_docker_compose() {
     fi
     
     mkdir -p /usr/libexec/docker/cli-plugins
+    verify_manifest_entry "prereqs/docker-compose-linux-x86_64"
     cp "$compose_bin" /usr/libexec/docker/cli-plugins/docker-compose
     chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 }
 
 preflight_verify() {
     log_step "Preflight Checks"
+
+    verify_manifest
 
     if [ ! -d "${IMAGES_DIR}" ]; then
         log_error "images/ directory not found"
