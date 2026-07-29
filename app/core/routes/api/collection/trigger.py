@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g
 from ....exceptions import ValidationError, ServiceUnavailableError, ExternalAPIError
+from ....config import config
 from .utils import call_collector_api
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ def trigger_collection(source: str):
         f"/api/force-collection/{source_upper}",
         method="POST",
         data={"force": force},
-        timeout=90,
+        timeout=config.COLLECTOR_COLLECTION_TIMEOUT,
     )
 
     # Check if API call failed

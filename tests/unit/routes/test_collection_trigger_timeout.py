@@ -28,4 +28,4 @@ def test_regtech_trigger_allows_full_collection_time(monkeypatch: MonkeyPatch) -
         g.request_id = "test-request"
         _ = trigger_module.trigger_collection("regtech")
 
-    assert requested_timeout == 90
+    assert requested_timeout == 360
