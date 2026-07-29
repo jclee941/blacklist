@@ -22,14 +22,14 @@ class TestAppConfigDefaults:
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.COLLECTOR_URL == "http://blacklist-collector:8545"
+        assert cfg.COLLECTOR_URL == "https://blacklist-collector:8545"
 
     @patch.dict(os.environ, {}, clear=True)
     def test_blacklist_api_url_default(self):
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.BLACKLIST_API_URL == "http://blacklist-app:2542/api"
+        assert cfg.BLACKLIST_API_URL == "https://blacklist-app:2542/api"
 
     @patch.dict(os.environ, {}, clear=True)
     def test_regtech_base_url_default(self):

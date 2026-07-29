@@ -238,7 +238,7 @@ WORKDIR /app
 # - retries: 3 (mark unhealthy after 3 consecutive failures)
 # ============================================================================
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:2542/health || exit 1
+    CMD curl -f --cacert /run/blacklist/ca.crt https://blacklist-app:2542/health || exit 1
 
 # Container deployment via Portainer API (no auto-update dependency)
 

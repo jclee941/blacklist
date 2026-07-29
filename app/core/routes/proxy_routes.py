@@ -42,15 +42,38 @@ def forward_to_backend(endpoint: str, method: str | None = None):
 
         # Forward request with same method, headers, and body
         if method == "GET":
-            response = requests.get(url, params=query_params, headers=headers, timeout=30)
+            response = requests.get(
+                url,
+                params=query_params,
+                headers=headers,
+                timeout=30,
+                verify=config.INTERNAL_CA_CERT,
+            )
         elif method == "POST":
             data = request.get_json(silent=True) or {}
-            response = requests.post(url, json=data, headers=headers, timeout=30)
+            response = requests.post(
+                url,
+                json=data,
+                headers=headers,
+                timeout=30,
+                verify=config.INTERNAL_CA_CERT,
+            )
         elif method == "PUT":
             data = request.get_json(silent=True) or {}
-            response = requests.put(url, json=data, headers=headers, timeout=30)
+            response = requests.put(
+                url,
+                json=data,
+                headers=headers,
+                timeout=30,
+                verify=config.INTERNAL_CA_CERT,
+            )
         elif method == "DELETE":
-            response = requests.delete(url, headers=headers, timeout=30)
+            response = requests.delete(
+                url,
+                headers=headers,
+                timeout=30,
+                verify=config.INTERNAL_CA_CERT,
+            )
         else:
             return jsonify({"success": False, "error": f"Unsupported method: {method}"}), 405
 
@@ -96,7 +119,13 @@ def proxy_trigger_collection(source: str):
         headers.update(config.COLLECTOR_AUTH_REQUEST_KWARGS.get("headers", {}))
         data = request.get_json(silent=True) or {}
         data["source"] = source
-        response = requests.post(url, json=data, headers=headers, timeout=120)
+        response = requests.post(
+            url,
+            json=data,
+            headers=headers,
+            timeout=120,
+            verify=config.INTERNAL_CA_CERT,
+        )
         try:
             return response.json(), response.status_code
         except ValueError:

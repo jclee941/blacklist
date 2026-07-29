@@ -22,6 +22,7 @@ class RedisSecurityParams(TypedDict, total=False):
 
 class CollectorAuthRequestKwargs(TypedDict, total=False):
     headers: dict[str, str]
+    verify: str
 
 
 class AppConfig:
@@ -31,7 +32,7 @@ class AppConfig:
 
     @property
     def COLLECTOR_URL(self) -> str:
-        return os.environ.get("COLLECTOR_URL", "http://blacklist-collector:8545")
+        return os.environ.get("COLLECTOR_URL", "https://blacklist-collector:8545")
 
     @property
     def COLLECTOR_AUTH_TOKEN(self) -> str:
@@ -41,12 +42,23 @@ class AppConfig:
     def COLLECTOR_AUTH_REQUEST_KWARGS(self) -> CollectorAuthRequestKwargs:
         token = self.COLLECTOR_AUTH_TOKEN
         if not token:
-            return {}
-        return {"headers": {"Authorization": f"Bearer {token}"}}
+            return {"verify": self.INTERNAL_CA_CERT}
+        return {
+            "headers": {"Authorization": f"Bearer {token}"},
+            "verify": self.INTERNAL_CA_CERT,
+        }
 
     @property
     def BLACKLIST_API_URL(self) -> str:
-        return os.getenv("BLACKLIST_API_URL", "http://blacklist-app:2542/api")
+        return os.getenv("BLACKLIST_API_URL", "https://blacklist-app:2542/api")
+
+    @property
+    def INTERNAL_TLS_CERT(self) -> str:
+        return os.getenv("INTERNAL_TLS_CERT", "/run/blacklist/tls/tls.crt")
+
+    @property
+    def INTERNAL_TLS_KEY(self) -> str:
+        return os.getenv("INTERNAL_TLS_KEY", "/run/blacklist/tls/tls.key")
 
     @property
     def REGTECH_BASE_URL(self) -> str:

@@ -988,8 +988,6 @@ post_install() {
     echo ""
     echo "Access Points:"
     echo "  Frontend:  https://localhost:443"
-    echo "  API:       http://localhost:2542/api/health"
-    echo "  Collector: http://localhost:8545/health"
     echo ""
     echo "Management:"
     echo "  Status:    docker compose ps"

@@ -4,9 +4,10 @@ from unittest.mock import MagicMock, patch
 
 import requests as real_requests
 from flask import Flask
+from flask.testing import FlaskClient
 
 
-def create_app():
+def create_app() -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
     from core.routes.proxy_routes import proxy_bp
@@ -17,6 +18,9 @@ def create_app():
 
 class TestForwardToBackend:
     """Tests for the forward_to_backend helper via proxy endpoints."""
+
+    app: Flask = create_app()
+    client: FlaskClient = app.test_client()
 
     def setup_method(self):
         self.app = create_app()
@@ -34,6 +38,7 @@ class TestForwardToBackend:
 
         assert resp.status_code == 200
         mock_requests.get.assert_called_once()
+        assert mock_requests.get.call_args.kwargs["verify"] == "/run/blacklist/ca.crt"
 
     @patch("core.routes.proxy_routes.requests")
     def test_proxy_credentials_get(self, mock_requests):
@@ -183,6 +188,9 @@ class TestForwardToBackend:
 class TestTriggerProxy:
     """POST /api/proxy/collection/trigger/<source> — forwards to collector service."""
 
+    app: Flask = create_app()
+    client: FlaskClient = app.test_client()
+
     def setup_method(self):
         self.app = create_app()
         self.client = self.app.test_client()
@@ -200,6 +208,7 @@ class TestTriggerProxy:
         assert resp.status_code == 200
         sent_json = mock_requests.post.call_args[1].get("json") or mock_requests.post.call_args.kwargs.get("json")
         assert sent_json["source"] == "regtech"
+        assert mock_requests.post.call_args.kwargs["verify"] == "/run/blacklist/ca.crt"
 
     @patch("core.routes.proxy_routes.requests.post")
     def test_trigger_collector_unavailable(self, mock_post):

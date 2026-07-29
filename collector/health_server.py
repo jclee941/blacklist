@@ -8,8 +8,9 @@ from typing import Any, TypedDict
 from flask import Flask, jsonify
 import threading
 import logging
-import importlib
+import os
 from collections import deque
+from werkzeug.serving import make_server
 from .core.database import DatabaseService
 from .core.control_auth import register_control_auth
 
@@ -317,9 +318,15 @@ class HealthServer:
         logger.info(f"Health server started on port {self.port}")
 
     def _run_server(self):
-        """Run Flask server with waitress"""
-        waitress = importlib.import_module("waitress")
-        waitress.serve(self.app, host="127.0.0.1", port=self.port, _quiet=True)
+        certificate = os.environ.get("INTERNAL_TLS_CERT", "/run/blacklist/tls/tls.crt")
+        private_key = os.environ.get("INTERNAL_TLS_KEY", "/run/blacklist/tls/tls.key")
+        server = make_server(
+            "0.0.0.0",
+            self.port,
+            self.app,
+            ssl_context=(certificate, private_key),
+        )
+        server.serve_forever()
 
 
 def start_health_server():

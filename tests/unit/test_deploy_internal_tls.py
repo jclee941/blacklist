@@ -10,6 +10,8 @@ POSTGRES_DOCKERFILE = (ROOT / "postgres" / "Dockerfile").read_text(encoding="utf
 POSTGRES_TLS_ENTRYPOINT = ROOT / "postgres" / "tls-entrypoint.sh"
 POSTGRES_TLS_CONFIG = ROOT / "postgres" / "configure-tls.sh"
 REDIS_DOCKERFILE = (ROOT / "deploy" / "redis" / "Dockerfile").read_text(encoding="utf-8")
+APP_RUN_SOURCE = (ROOT / "app" / "run_app.py").read_text(encoding="utf-8")
+FRONTEND_TLS_PRELOAD = ROOT / "deploy" / "frontend-internal-tls.cjs"
 
 
 def service_block(service_name: str) -> str:
@@ -90,3 +92,40 @@ def test_collector_clients_receive_the_internal_ca() -> None:
         "${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro"
         in collector
     )
+
+
+def test_app_and_collector_serve_https_with_target_certificates() -> None:
+    app = service_block("blacklist-app")
+    collector = service_block("blacklist-collector")
+
+    assert "SSL_ENABLED" not in app
+    assert "INTERNAL_TLS_CERT: /run/blacklist/tls/tls.crt" in app
+    assert "INTERNAL_TLS_KEY: /run/blacklist/tls/tls.key" in app
+    assert "${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/app:/run/blacklist/tls:ro" in app
+    assert "https://blacklist-app:2542/health" in app
+    assert "INTERNAL_TLS_CERT: /run/blacklist/tls/tls.crt" in collector
+    assert "INTERNAL_TLS_KEY: /run/blacklist/tls/tls.key" in collector
+    assert "${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/collector:/run/blacklist/tls:ro" in collector
+    assert "https://blacklist-collector:8545/health" in collector
+    assert "ssl_context=" in APP_RUN_SOURCE
+
+
+def test_internal_service_urls_use_https_and_frontend_verifies_the_ca() -> None:
+    app = service_block("blacklist-app")
+    collector = service_block("blacklist-collector")
+    frontend = service_block("blacklist-frontend")
+
+    assert "COLLECTOR_URL: https://blacklist-collector:8545" in app
+    assert "BLACKLIST_API_URL: https://blacklist-app:2542/api" in app
+    assert "BLACKLIST_API_URL: https://blacklist-app:2542" in collector
+    assert "NEXT_PUBLIC_API_URL: https://blacklist-app:2542" in frontend
+    assert "NODE_OPTIONS: --require=/run/blacklist/frontend-internal-tls.cjs" in frontend
+    assert "/run/blacklist/ca.crt:ro" in frontend
+    assert "/run/blacklist/frontend-internal-tls.cjs:ro" in frontend
+    assert "http://blacklist-app" not in BASE_SOURCE
+    assert "http://blacklist-collector" not in BASE_SOURCE
+
+    assert FRONTEND_TLS_PRELOAD.is_file()
+    preload = FRONTEND_TLS_PRELOAD.read_text(encoding="utf-8")
+    assert "https.request" in preload
+    assert "ca:" in preload

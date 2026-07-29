@@ -35,14 +35,14 @@ class ResponseFake:
         return self._payload
 
 
-def test_collector_auth_request_kwargs_are_empty_without_shared_token(
+def test_collector_auth_request_kwargs_verify_tls_without_shared_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("COLLECTOR_AUTH_TOKEN", raising=False)
 
     request_kwargs = config.COLLECTOR_AUTH_REQUEST_KWARGS
 
-    assert request_kwargs == {}
+    assert request_kwargs == {"verify": "/run/blacklist/ca.crt"}
 
 
 def test_collector_auth_request_kwargs_contain_bearer_token(
@@ -52,7 +52,10 @@ def test_collector_auth_request_kwargs_contain_bearer_token(
 
     request_kwargs = config.COLLECTOR_AUTH_REQUEST_KWARGS
 
-    assert request_kwargs == {"headers": {"Authorization": f"Bearer {AUTH_TOKEN}"}}
+    assert request_kwargs == {
+        "headers": {"Authorization": f"Bearer {AUTH_TOKEN}"},
+        "verify": "/run/blacklist/ca.crt",
+    }
 
 
 def test_collector_get_constructs_authenticated_request(
@@ -68,9 +71,10 @@ def test_collector_get_constructs_authenticated_request(
 
     assert result == {"status": "healthy"}
     request_get.assert_called_once_with(
-        "http://blacklist-collector:8545/health",
+        "https://blacklist-collector:8545/health",
         timeout=10,
         headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        verify="/run/blacklist/ca.crt",
     )
 
 
@@ -88,10 +92,11 @@ def test_collector_post_constructs_authenticated_request(
 
     assert result == {"success": True}
     request_post.assert_called_once_with(
-        "http://blacklist-collector:8545/trigger",
+        "https://blacklist-collector:8545/trigger",
         json=payload,
         timeout=30,
         headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        verify="/run/blacklist/ca.crt",
     )
 
 

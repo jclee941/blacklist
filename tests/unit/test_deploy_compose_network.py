@@ -85,9 +85,9 @@ def test_services_address_each_other_by_service_name() -> None:
     for service in (collector_service, app_service):
         assert "POSTGRES_HOST: blacklist-postgres" in service
         assert "REDIS_HOST: blacklist-redis" in service
-    assert "http://blacklist-collector:8545" in app_service
-    assert "http://blacklist-app:2542" in collector_service
-    assert "http://blacklist-app:2542" in frontend_service
+    assert "https://blacklist-collector:8545" in app_service
+    assert "https://blacklist-app:2542" in collector_service
+    assert "https://blacklist-app:2542" in frontend_service
 
     inter_service_urls: list[str] = re.findall(
         r"(?m)^\s+[A-Z_]+_URL:\s*(\S+)",

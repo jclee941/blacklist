@@ -37,6 +37,18 @@ def get_flask_app():
 # Get Flask application instance
 app = get_flask_app()
 
-if __name__ == "__main__":
+
+def run_server() -> None:
     port = int(os.environ.get("PORT", 2542))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    certificate = os.environ.get("INTERNAL_TLS_CERT", "/run/blacklist/tls/tls.crt")
+    private_key = os.environ.get("INTERNAL_TLS_KEY", "/run/blacklist/tls/tls.key")
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=False,
+        ssl_context=(certificate, private_key),
+    )
+
+
+if __name__ == "__main__":
+    run_server()

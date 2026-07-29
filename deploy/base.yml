@@ -94,8 +94,10 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       INTERNAL_CA_CERT: /run/blacklist/ca.crt
+      INTERNAL_TLS_CERT: /run/blacklist/tls/tls.crt
+      INTERNAL_TLS_KEY: /run/blacklist/tls/tls.key
       HEALTH_CHECK_PORT: 8545
-      BLACKLIST_API_URL: http://blacklist-app:2542
+      BLACKLIST_API_URL: https://blacklist-app:2542
       COLLECTION_INTERVAL: 86400
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
@@ -109,8 +111,9 @@ services:
       - blacklist-collector-data:/app/data
       - blacklist-logs:/app/logs
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/collector:/run/blacklist/tls:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8545/health"]
+      test: ["CMD", "curl", "-f", "--cacert", "/run/blacklist/ca.crt", "https://blacklist-collector:8545/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -129,7 +132,6 @@ services:
     environment:
       FLASK_ENV: production
       PORT: 2542
-      SSL_ENABLED: "false"
       POSTGRES_HOST: blacklist-postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-blacklist}
@@ -139,8 +141,10 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       INTERNAL_CA_CERT: /run/blacklist/ca.crt
-      COLLECTOR_URL: http://blacklist-collector:8545
-      BLACKLIST_API_URL: http://blacklist-app:2542/api
+      INTERNAL_TLS_CERT: /run/blacklist/tls/tls.crt
+      INTERNAL_TLS_KEY: /run/blacklist/tls/tls.key
+      COLLECTOR_URL: https://blacklist-collector:8545
+      BLACKLIST_API_URL: https://blacklist-app:2542/api
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}
@@ -156,8 +160,9 @@ services:
       - blacklist-uploads:/app/uploads
       - blacklist-app-data:/app/data
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/app:/run/blacklist/tls:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2542/health"]
+      test: ["CMD", "curl", "-f", "--cacert", "/run/blacklist/ca.crt", "https://blacklist-app:2542/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -175,10 +180,15 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://blacklist-app:2542
+      NEXT_PUBLIC_API_URL: https://blacklist-app:2542
+      INTERNAL_CA_CERT: /run/blacklist/ca.crt
+      NODE_OPTIONS: --require=/run/blacklist/frontend-internal-tls.cjs
       PORT: 3000
       HOSTNAME: "0.0.0.0"
       TZ: Asia/Seoul
+    volumes:
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
+      - ./frontend-internal-tls.cjs:/run/blacklist/frontend-internal-tls.cjs:ro
     healthcheck:
       test:
         - CMD-SHELL
