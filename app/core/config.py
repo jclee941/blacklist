@@ -7,17 +7,9 @@ Centralized Configuration — Single source of truth for all environment variabl
 """
 
 import os
-from typing import Any, Optional, TypedDict
-from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlsplit, urlunsplit
+from typing import TypedDict
 
-
-class RedisSecurityParams(TypedDict, total=False):
-    """Redis transport and optional authentication parameters."""
-
-    password: str
-    ssl: bool
-    ssl_ca_certs: str
-    ssl_cert_reqs: str
+from core.datastore_config import DatastoreConfig
 
 
 class CollectorAuthRequestKwargs(TypedDict, total=False):
@@ -25,11 +17,7 @@ class CollectorAuthRequestKwargs(TypedDict, total=False):
     verify: str
 
 
-class AppConfig:
-    @property
-    def INTERNAL_CA_CERT(self) -> str:
-        return os.getenv("INTERNAL_CA_CERT", "/run/blacklist/ca.crt")
-
+class AppConfig(DatastoreConfig):
     @property
     def COLLECTOR_URL(self) -> str:
         return os.environ.get("COLLECTOR_URL", "https://blacklist-collector:8545")
@@ -65,130 +53,20 @@ class AppConfig:
         return os.getenv("REGTECH_BASE_URL", "https://regtech.fsec.or.kr")
 
     @property
-    def POSTGRES_HOST(self) -> str:
-        return os.getenv("POSTGRES_HOST", "blacklist-postgres")
-
-    @property
-    def POSTGRES_PORT(self) -> int:
-        return int(os.getenv("POSTGRES_PORT", "5432"))
-
-    @property
-    def POSTGRES_DB(self) -> str:
-        return os.getenv("POSTGRES_DB", "blacklist")
-
-    @property
-    def POSTGRES_USER(self) -> str:
-        return os.getenv("POSTGRES_USER", "postgres")
-
-    @property
-    def POSTGRES_PASSWORD(self) -> str:
-        return os.getenv("POSTGRES_PASSWORD", "postgres")
-
-    @property
-    def POSTGRES_FALLBACK_HOSTS(self) -> list[str]:
-        """Comma-separated fallback hosts for DB connection retry."""
-        raw = os.getenv("POSTGRES_FALLBACK_HOSTS", "blacklist-postgres,postgres,localhost")
-        return [h.strip() for h in raw.split(",") if h.strip()]
-
-    @property
-    def POSTGRES_URL(self) -> Optional[str]:
-        return os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
-
-    def get_postgres_params(self) -> dict[str, Any]:
-        """Return connection params, preferring DATABASE_URL/POSTGRES_URL if set."""
-        url = self.POSTGRES_URL
-        if url:
-            parsed = urlparse(url)
-            return {
-                "host": parsed.hostname or "localhost",
-                "port": parsed.port or 5432,
-                "database": parsed.path.lstrip("/") or "blacklist",
-                "user": parsed.username or "postgres",
-                "password": parsed.password or self.POSTGRES_PASSWORD,
-                "sslmode": "verify-full",
-                "sslrootcert": self.INTERNAL_CA_CERT,
-            }
-        return {
-            "host": self.POSTGRES_HOST,
-            "port": self.POSTGRES_PORT,
-            "database": self.POSTGRES_DB,
-            "user": self.POSTGRES_USER,
-            "password": self.POSTGRES_PASSWORD,
-            "sslmode": "verify-full",
-            "sslrootcert": self.INTERNAL_CA_CERT,
-        }
-
-    def get_postgres_dsn(self) -> str:
-        dsn = self.POSTGRES_URL or (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
-        parsed = urlsplit(dsn)
-        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-        query.update({"sslmode": "verify-full", "sslrootcert": self.INTERNAL_CA_CERT})
-        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
-
-    @property
-    def REDIS_HOST(self) -> str:
-        return os.getenv("REDIS_HOST", "blacklist-redis")
-
-    @property
-    def REDIS_PORT(self) -> int:
-        return int(os.getenv("REDIS_PORT", "6379"))
-
-    @property
-    def REDIS_PASSWORD(self) -> str:
-        return os.getenv("REDIS_PASSWORD", "")
-
-    @property
-    def REDIS_URL(self) -> str:
-        return self.get_redis_url()
-
-    def get_redis_url(self, database: int | None = None) -> str:
-        query = urlencode({"ssl_ca_certs": self.INTERNAL_CA_CERT, "ssl_cert_reqs": "required"})
-        path = "" if database is None else f"/{database}"
-        if self.REDIS_PASSWORD:
-            return f"rediss://:{quote(self.REDIS_PASSWORD, safe='')}@{self.REDIS_HOST}:{self.REDIS_PORT}{path}?{query}"
-        return f"rediss://{self.REDIS_HOST}:{self.REDIS_PORT}{path}?{query}"
-
-    def get_redis_auth_params(self) -> RedisSecurityParams:
-        params: RedisSecurityParams = {
-            "ssl": True,
-            "ssl_ca_certs": self.INTERNAL_CA_CERT,
-            "ssl_cert_reqs": "required",
-        }
-        if not self.REDIS_PASSWORD:
-            return params
-        params["password"] = self.REDIS_PASSWORD
-        return params
-
-    def get_redis_params(self) -> dict[str, bool | int | str]:
-        params: dict[str, bool | int | str] = {
-            "host": self.REDIS_HOST,
-            "port": self.REDIS_PORT,
-            "ssl": True,
-            "ssl_ca_certs": self.INTERNAL_CA_CERT,
-            "ssl_cert_reqs": "required",
-        }
-        if self.REDIS_PASSWORD:
-            params["password"] = self.REDIS_PASSWORD
-        return params
-
-    @property
     def RATE_LIMIT_WHITELIST(self) -> list[str]:
         """Rate limit exempt IPs/prefixes. Entries ending with '.' are prefix matches."""
         return os.getenv("RATE_LIMIT_WHITELIST", "127.0.0.1,localhost,172.,192.168.").split(",")
 
     @property
-    def SECRET_KEY(self) -> Optional[str]:
+    def SECRET_KEY(self) -> str | None:
         return os.getenv("SECRET_KEY")
 
     @property
-    def FLASK_SECRET_KEY(self) -> Optional[str]:
+    def FLASK_SECRET_KEY(self) -> str | None:
         return os.getenv("FLASK_SECRET_KEY")
 
     @property
-    def JWT_SECRET(self) -> Optional[str]:
+    def JWT_SECRET(self) -> str | None:
         return os.getenv("JWT_SECRET_KEY")
 
     @property
@@ -196,19 +74,19 @@ class AppConfig:
         return int(os.getenv("JWT_EXPIRY_HOURS", "8"))
 
     @property
-    def CREDENTIAL_MASTER_KEY(self) -> Optional[str]:
+    def CREDENTIAL_MASTER_KEY(self) -> str | None:
         return os.getenv("CREDENTIAL_MASTER_KEY")
 
     @property
-    def CREDENTIAL_ENCRYPTION_KEY(self) -> Optional[str]:
+    def CREDENTIAL_ENCRYPTION_KEY(self) -> str | None:
         return os.getenv("CREDENTIAL_ENCRYPTION_KEY")
 
     @property
-    def ENCRYPTION_SALT(self) -> Optional[str]:
+    def ENCRYPTION_SALT(self) -> str | None:
         return os.getenv("ENCRYPTION_SALT")
 
     @property
-    def SETTINGS_ENCRYPTION_KEY(self) -> Optional[str]:
+    def SETTINGS_ENCRYPTION_KEY(self) -> str | None:
         return os.getenv("SETTINGS_ENCRYPTION_KEY")
 
     @property
@@ -220,7 +98,7 @@ class AppConfig:
         return os.getenv("ADMIN_PASSWORD")
 
     @property
-    def ADMIN_RESET_KEY(self) -> Optional[str]:
+    def ADMIN_RESET_KEY(self) -> str | None:
         return os.getenv("ADMIN_RESET_KEY")
 
     @property
@@ -256,7 +134,7 @@ class AppConfig:
         return int(os.getenv("COLLECTOR_PORT", "8545"))
 
     @property
-    def APP_VERSION(self) -> Optional[str]:
+    def APP_VERSION(self) -> str | None:
         return os.getenv("APP_VERSION")
 
     @property

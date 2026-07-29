@@ -1,4 +1,5 @@
 #!/bin/bash
+# noqa: SIZE_OK - Customers run this as one integrity-verified executable; splitting sourced files enlarges the installer attack surface.
 set -euo pipefail
 
 readonly RED='\033[0;31m'
@@ -236,7 +237,6 @@ install_docker_offline() {
     fi
 
     log_info "Installing Docker Engine..."
-    # Find docker tarball
     local docker_tgz
     docker_tgz=$(find "${prereqs_dir}" -name "docker-*.tgz" | head -n 1)
     if [ -z "$docker_tgz" ]; then
@@ -244,13 +244,11 @@ install_docker_offline() {
     fi
     local docker_relative="${docker_tgz#"${SCRIPT_DIR}/"}"
     
-    # Extract to /usr/bin
     verify_manifest_entry "${docker_relative}"
     if ! tar -xzf "$docker_tgz" -C /usr/bin --strip-components=1; then
         log_error "Failed to extract Docker binaries"
     fi
     
-    # Setup service
     if [ -f "${prereqs_dir}/docker.service" ]; then
         verify_manifest_entry "prereqs/docker.service"
         cp "${prereqs_dir}/docker.service" /etc/systemd/system/

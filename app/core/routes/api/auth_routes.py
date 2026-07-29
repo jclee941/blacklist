@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify, request, current_app
 
 from core.auth.decorators import public
 from core.config import config
+from core.exceptions.auth_exceptions import AuthenticationError
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,6 @@ def login():
             }
         ), 400
 
-    # Validate against configured admin credentials
     settings_service = current_app.extensions.get("settings_service")
     if not settings_service:
         logger.error("settings_service not available for authentication")
@@ -78,7 +78,6 @@ def login():
             }
         ), 500
 
-    # Check credentials against app settings
     try:
         admin_username = settings_service.get_setting("admin_username", config.ADMIN_USERNAME)
         admin_password = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
@@ -96,7 +95,6 @@ def login():
     elif username != admin_username or password != admin_password:
         logger.warning(f"Failed login attempt for user: {username}")
     else:
-        # Generate JWT token
         jwt_service = current_app.extensions["jwt_service"]
         token = jwt_service.encode_token(user_id=username, role="admin")
 
@@ -138,7 +136,7 @@ def _resolve_bearer_identity():
 
     try:
         return jwt_service.validate_token(header[7:])
-    except Exception:
+    except AuthenticationError:
         return None
 
 
