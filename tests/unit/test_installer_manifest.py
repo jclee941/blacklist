@@ -239,3 +239,48 @@ def test_manifest_names_are_normalised(tmp_path: Path, listed_name: str) -> None
     output = result.stdout + result.stderr
     assert result.returncode == 0, output
     assert "Bundle manifest verified" in output, output
+
+
+def test_signature_is_skipped_without_keyring(tmp_path: Path) -> None:
+    # Given: a valid unsigned bundle on a host without the provisioned release keyring.
+    environment = prepare_bundle(tmp_path)
+    write_manifest(tmp_path)
+
+    # When: signature verification is optional.
+    result = run_verification(tmp_path, environment)
+
+    # Then: verification succeeds while announcing the skipped authenticity check.
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert "signature verification skipped" in output.lower(), output
+
+
+def test_require_signature_is_fatal_without_keyring(tmp_path: Path) -> None:
+    # Given: a valid unsigned bundle on a host without the provisioned release keyring.
+    environment = prepare_bundle(tmp_path)
+    write_manifest(tmp_path)
+
+    # When: the operator requires detached signature verification.
+    result = run_verification(tmp_path, environment, "--require-signature")
+
+    # Then: the missing host trust anchor is fatal.
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "/etc/blacklist/release-pubkey.gpg" in output, output
+
+
+def test_signature_verification_uses_host_keyring() -> None:
+    # Given: the shipped installer source and the ADR-mandated trust anchor.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+
+    # When: the detached signature verifier is inspected.
+    function_marker = "\nverify_manifest_signature() {"
+
+    # Then: gpgv uses only the fixed host keyring and bundle signature inputs.
+    assert function_marker in installer_source, installer_source
+    function_body = installer_source.split(function_marker, 1)[1].split("\n}", 1)[0]
+    assert (
+        "gpgv --keyring /etc/blacklist/release-pubkey.gpg "
+        "MANIFEST.sha256.asc MANIFEST.sha256"
+    ) in function_body
+    assert '${SCRIPT_DIR}/release-pubkey.gpg' not in function_body

@@ -21,6 +21,7 @@ VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
 ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
 STOP_ALL_CONTAINERS=false
 SKIP_POSTURE_CHECK=false
+REQUIRE_SIGNATURE=false
 POSTURE_COMPOSE_FILES=()
 readonly PUBLISHED_FRONTEND_PORT=443
 readonly REQUIRED_SECRET_KEYS=(
@@ -169,6 +170,32 @@ verify_manifest() {
     log_success "Bundle manifest verified"
 }
 
+verify_manifest_signature() {
+    log_step "Verify Bundle Manifest Signature"
+
+    if [ ! -f /etc/blacklist/release-pubkey.gpg ]; then
+        if [ "${REQUIRE_SIGNATURE}" = true ]; then
+            log_error "Required release keyring not found: /etc/blacklist/release-pubkey.gpg"
+        fi
+        log_warning "Manifest signature verification skipped: host keyring not found at /etc/blacklist/release-pubkey.gpg"
+        return 0
+    fi
+
+    if [ ! -f "${SCRIPT_DIR}/MANIFEST.sha256.asc" ]; then
+        if [ "${REQUIRE_SIGNATURE}" = true ]; then
+            log_error "Required detached signature not found: MANIFEST.sha256.asc"
+        fi
+        log_warning "Manifest signature verification skipped: MANIFEST.sha256.asc not found"
+        return 0
+    fi
+
+    if ! (cd "${SCRIPT_DIR}" && gpgv --keyring /etc/blacklist/release-pubkey.gpg MANIFEST.sha256.asc MANIFEST.sha256); then
+        log_error "Bundle manifest signature verification failed"
+    fi
+
+    log_success "Bundle manifest signature verified"
+}
+
 install_docker_offline() {
     log_step "Offline Docker Installation"
     
@@ -223,6 +250,7 @@ preflight_verify() {
     log_step "Preflight Checks"
 
     verify_manifest
+    verify_manifest_signature
 
     if [ ! -d "${IMAGES_DIR}" ]; then
         log_error "images/ directory not found"
@@ -752,6 +780,7 @@ show_help() {
     echo "  --verify-only  Verify the bundle layout, image checksums, and security posture, then exit (read-only)"
     echo "  --stop-all-containers  Stop every running container on the host before deploying"
     echo "  --skip-posture-check  Deploy even if the security posture check fails (emergency use; logs a warning)"
+    echo "  --require-signature  Require MANIFEST.sha256.asc verification with the host release keyring"
     echo "  --help, -h     Show this help"
     echo ""
 }
@@ -768,6 +797,7 @@ main() {
             --verify-only) verify_only=true ;;
             --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
             --skip-posture-check) SKIP_POSTURE_CHECK=true ;;
+            --require-signature) REQUIRE_SIGNATURE=true ;;
             --help|-h) show_help; exit 0 ;;
             *) log_warning "Unknown option: $arg" ;;
         esac
