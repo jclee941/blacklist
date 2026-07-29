@@ -402,7 +402,7 @@ class BlacklistService(BlacklistCollectorMixin):
             response = requests.post(
                 f"{config.COLLECTOR_URL}/api/force-collection/REGTECH",
                 json={"force": force},
-                timeout=60,
+                timeout=config.COLLECTOR_COLLECTION_TIMEOUT,
                 **config.COLLECTOR_AUTH_REQUEST_KWARGS,
             )
 

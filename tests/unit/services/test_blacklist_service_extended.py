@@ -112,6 +112,7 @@ class TestBlacklistServiceExtended:
         with patch("core.services.blacklist_service.requests", mock_requests):
             result = run_async(svc._collect_regtech_data(force=True))
         assert result["success"] is True
+        assert mock_requests.post.call_args.kwargs["timeout"] == 360
 
     def test_collect_regtech_data_non_200(self):
         svc, _, _ = self._make_service()
