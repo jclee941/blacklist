@@ -405,7 +405,10 @@ load_images() {
         local load_output
         if load_output=$(gunzip -c "${img_path}" | docker load 2>&1); then
             local loaded_image
-            loaded_image=$(echo "$load_output" | grep -oP 'Loaded image: \K.*' | head -1)
+            loaded_image=$(printf '%s\n' "$load_output" | sed -n 's/^Loaded image: //p' | head -n 1)
+            if [ -z "${loaded_image}" ]; then
+                log_error "Unable to determine the loaded image tag for ${name}"
+            fi
             log_success "${name} (${loaded_image})"
         else
             log_error "Failed to load ${name}"

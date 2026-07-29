@@ -187,3 +187,33 @@ def test_rollback_file_is_not_written() -> None:
 
     # Then: it does not advertise a dead recovery artifact by writing one.
     assert ".rollback-images" not in installer_source
+
+
+def test_loaded_image_parsing_avoids_pcre() -> None:
+    # Given: realistic docker load output with a layer line that is not an image result.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+    load_body = installer_function("load_images")
+    docker_output = "\n".join(
+        (
+            "Loaded layer: sha256:decoy",
+            "Loaded image: blacklist-app:4.1.0",
+            "",
+        )
+    )
+
+    # When: the installer's POSIX sed expression parses the output.
+    assert "grep -oP" not in installer_source
+    expression_match = re.search(r"sed -n '([^']+)'", load_body)
+    assert expression_match is not None, load_body
+    result = subprocess.run(
+        ["sed", "-n", expression_match.group(1)],
+        input=docker_output,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    # Then: only the loaded image name is returned and an empty result remains fatal.
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["blacklist-app:4.1.0"]
+    assert 'if [ -z "${loaded_image}" ]; then' in load_body
