@@ -48,13 +48,27 @@ services:
       - 0.0.0.0
       - --requirepass
       - ${REDIS_PASSWORD}
+      - --port
+      - "0"
+      - --tls-port
+      - "6379"
+      - --tls-cert-file
+      - /run/blacklist/tls/tls.crt
+      - --tls-key-file
+      - /run/blacklist/tls/tls.key
+      - --tls-ca-cert-file
+      - /run/blacklist/ca.crt
+      - --tls-auth-clients
+      - "no"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       TZ: Asia/Seoul
     volumes:
       - blacklist-redis-data:/data
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/redis:/run/blacklist/tls:ro
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
     healthcheck:
-      test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" ping']
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli --tls --cacert /run/blacklist/ca.crt -h blacklist-redis ping | grep -qx PONG']
       interval: 30s
       timeout: 10s
       retries: 3

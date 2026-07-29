@@ -9,6 +9,7 @@ BASE_SOURCE = (ROOT / "deploy" / "base.yml").read_text(encoding="utf-8")
 POSTGRES_DOCKERFILE = (ROOT / "postgres" / "Dockerfile").read_text(encoding="utf-8")
 POSTGRES_TLS_ENTRYPOINT = ROOT / "postgres" / "tls-entrypoint.sh"
 POSTGRES_TLS_CONFIG = ROOT / "postgres" / "configure-tls.sh"
+REDIS_DOCKERFILE = (ROOT / "deploy" / "redis" / "Dockerfile").read_text(encoding="utf-8")
 
 
 def service_block(service_name: str) -> str:
@@ -52,3 +53,30 @@ def test_postgres_rejects_plaintext_on_fresh_and_existing_databases() -> None:
     assert "hostnossl all all ::/0 reject" in tls_config
     assert "ENTRYPOINT [\"tls-entrypoint.sh\"]" in POSTGRES_DOCKERFILE
     assert "/docker-entrypoint-initdb.d/00-configure-tls.sh" in POSTGRES_DOCKERFILE
+
+
+def test_redis_server_exposes_only_tls() -> None:
+    redis = service_block("blacklist-redis")
+
+    assert "--port" in redis
+    assert re.search(r"(?m)^      - ['\"]?0['\"]?$", redis)
+    assert "--tls-port" in redis
+    assert re.search(r"(?m)^      - ['\"]?6379['\"]?$", redis)
+    assert "--tls-cert-file" in redis
+    assert "/run/blacklist/tls/tls.crt" in redis
+    assert "--tls-key-file" in redis
+    assert "/run/blacklist/tls/tls.key" in redis
+    assert "--tls-ca-cert-file" in redis
+    assert "/run/blacklist/ca.crt" in redis
+    assert "--tls-auth-clients" in redis
+    assert "${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/redis:/run/blacklist/tls:ro" in redis
+
+
+def test_redis_healthcheck_verifies_the_server_certificate() -> None:
+    redis = service_block("blacklist-redis")
+
+    assert "redis-cli --tls" in redis
+    assert "--cacert /run/blacklist/ca.crt" in redis
+    assert "-h blacklist-redis" in redis
+    assert "REDISCLI_AUTH=" in redis
+    assert "redis-cli ping" not in REDIS_DOCKERFILE
