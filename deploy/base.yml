@@ -117,6 +117,10 @@ services:
       COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
+      # Generated on the TARGET host by install.sh and never shipped in the bundle.
+      # Without these the app falls back to a login it can never satisfy.
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       TZ: Asia/Seoul
     volumes:
       - blacklist-logs:/app/logs

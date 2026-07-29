@@ -62,3 +62,22 @@ def test_release_notes_have_no_false_loopback_claim() -> None:
     # When: the old isolation claim is checked.
     # Then: the notes don't describe the collector as container-internal loopback.
     assert "container-internal loopback" not in release_notes
+
+
+def test_admin_credentials_reach_the_app_container() -> None:
+    # Given: install.sh generates ADMIN_USERNAME/ADMIN_PASSWORD on the target host.
+    base = (Path(__file__).parents[2] / "deploy" / "base.yml").read_text(encoding="utf-8")
+    # Then: compose must forward them, or the app never sees the generated values
+    # and falls back to a login it can never satisfy.
+    assert "ADMIN_USERNAME: ${ADMIN_USERNAME:?" in base
+    assert "ADMIN_PASSWORD: ${ADMIN_PASSWORD:?" in base
+
+
+def test_admin_credentials_are_not_hardcoded_in_compose() -> None:
+    # Given: the bundle is byte-identical for every customer.
+    base = (Path(__file__).parents[2] / "deploy" / "base.yml").read_text(encoding="utf-8")
+    # Then: only variable references may appear, never literal values.
+    for line in base.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("ADMIN_USERNAME:", "ADMIN_PASSWORD:")):
+            assert "${" in stripped, stripped

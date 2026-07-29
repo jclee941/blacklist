@@ -27,6 +27,10 @@ STUB_SECRETS = {
     "ENCRYPTION_SALT": "local-encryption-salt-0123456789",
     "POSTGRES_PASSWORD": "local-postgres-password-0123456789",
     "REDIS_PASSWORD": "local-redis-password-0123456789",
+    "COLLECTOR_AUTH_TOKEN": "local-collector-auth-token-0123456789",
+    "ADMIN_USERNAME": "admin",
+    "ADMIN_PASSWORD": "local-admin-password-0123456789",
+    "BLACKLIST_VERSION": "0.0.0-test",
 }
 HOST_NETWORK_COMPOSE = """services:
   blacklist-collector:
