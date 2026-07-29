@@ -14,6 +14,10 @@ PRE_REDIS_REQUIRED_SECRETS = {
     "ENCRYPTION_SALT": "local-encryption-salt-0123456789",
     "POSTGRES_PASSWORD": "local-postgres-password-0123456789",
 }
+REQUIRED_SECRETS_WITHOUT_COLLECTOR = {
+    **PRE_REDIS_REQUIRED_SECRETS,
+    "REDIS_PASSWORD": "local-redis-password-0123456789",
+}
 
 
 def run_secret_check(tmp_path: Path, env_file: Path) -> subprocess.CompletedProcess[str]:
@@ -73,6 +77,22 @@ def test_redis_password_is_a_required_secret(tmp_path: Path) -> None:
     # Then: installation is blocked and the missing Redis password is named.
     assert result.returncode != 0, result.stdout + result.stderr
     assert "REDIS_PASSWORD" in result.stdout + result.stderr
+
+
+def test_collector_auth_token_is_a_required_secret(tmp_path: Path) -> None:
+    # Given: an environment file holding every other required secret but no collector token.
+    env_file = tmp_path / ".env"
+    original = "\n".join(
+        f'{key}="{value}"' for key, value in sorted(REQUIRED_SECRETS_WITHOUT_COLLECTOR.items())
+    ) + "\n"
+    _ = env_file.write_text(original, encoding="utf-8")
+
+    # When: bootstrap secret validation runs against that file.
+    result = run_secret_check(tmp_path, env_file)
+
+    # Then: installation is blocked and the missing collector token is named.
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "COLLECTOR_AUTH_TOKEN" in result.stdout + result.stderr
 
 
 def test_env_file_defaults_outside_bundle() -> None:
