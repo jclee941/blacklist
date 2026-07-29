@@ -152,8 +152,6 @@ class CollectionScheduler:
         max_pages: int | None = 1,
     ) -> Dict[str, Any]:
         """REGTECH 데이터 수집"""
-        if max_pages is None:
-            return execute_regtech_collection(username, password)
         return execute_regtech_collection(username, password, max_pages=max_pages)
 
     def _record_failure(self, error_message: str):

@@ -263,7 +263,7 @@ def run_collection(scheduler: SchedulerProtocol) -> None:
         scheduler._record_failure(str(exc))
 
 
-def collect_regtech_data(username: str, password: str, max_pages: int | None = None) -> Dict[str, Any]:
+def collect_regtech_data(username: str, password: str, max_pages: int | None = 1) -> Dict[str, Any]:
     """Authenticate, collect REGTECH data, save it, and record history."""
     start_time = datetime.now()
     try:
