@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -180,3 +181,21 @@ def test_build_command_tags_the_resolved_version() -> None:
     assert "blacklist-app:7.3.1" in command
     assert "APP_VERSION=7.3.1" in " ".join(command)
     assert "GIT_COMMIT=abc1234" in " ".join(command)
+
+
+def test_bundle_ships_every_compose_bind_mount_source(tmp_path: Path) -> None:
+    # Given: base.yml bind-mounts deployment assets by relative path.
+    builder = load_builder()
+    deploy = REPO_ROOT / "deploy"
+    base = (deploy / "base.yml").read_text(encoding="utf-8")
+    relative_sources = set(re.findall(r"-\s+\./([\w./-]+):", base))
+    assert relative_sources, "expected at least one relative bind mount in base.yml"
+
+    bundle = tmp_path / "bundle"
+    builder.assemble(REPO_ROOT, bundle, "9.9.9")
+
+    # Then: every one must exist in the bundle. A missing source makes Docker
+    # silently create an empty DIRECTORY at that path, and the container fails
+    # at runtime instead of at packaging time.
+    for source in sorted(relative_sources):
+        assert (bundle / source).is_file(), f"{source} is not shipped in the bundle"

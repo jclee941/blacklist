@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import shutil
 import subprocess
 import sys
@@ -196,6 +197,21 @@ def assemble(repo_root: Path, bundle_dir: Path, version: str) -> None:
     _ = shutil.copy2(deploy / "base.yml", bundle_dir / "base.yml")
     _ = shutil.copy2(deploy / "install.sh", bundle_dir / "install.sh")
     (bundle_dir / "install.sh").chmod(0o755)
+
+    # Every relative bind-mount source in base.yml must ship. When a source is
+    # absent Docker silently creates an empty DIRECTORY at that path, so the
+    # container fails at runtime rather than here. Derive the list from the
+    # compose file so a newly added asset cannot be forgotten.
+    base_yml = (deploy / "base.yml").read_text(encoding="utf-8")
+    for source in sorted(set(re.findall(r"-\s+\./([\w./-]+):", base_yml))):
+        origin = deploy / source
+        if not origin.is_file():
+            raise BundleError(
+                f"base.yml bind-mounts ./{source} but deploy/{source} does not exist"
+            )
+        destination = bundle_dir / source
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        _ = shutil.copy2(origin, destination)
 
     prereqs = deploy / "prereqs"
     if prereqs.is_dir():
