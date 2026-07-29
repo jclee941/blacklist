@@ -120,21 +120,22 @@ def export_images(images_dir: Path, version: str) -> None:
             if save.returncode != 0 or gzip_proc.returncode != 0:
                 raise BundleError(f"Failed to export {reference}")
 
-def missing_prereqs(prereqs_dir: Path) -> list[str]:
-    """Report offline prerequisites the installer needs but the bundle lacks.
+def prereq_gaps(prereqs_dir: Path) -> list[str]:
+    """Report a half-shipped offline Docker payload.
 
-    `install_docker_offline()` extracts `prereqs/docker-*.tgz` and copies the
-    compose binary as root on a host with no Docker. Without them the bundle
-    silently cannot bootstrap a bare target.
+    Targets are assumed to already have Docker, so omitting the payload entirely
+    is a deliberate, complete choice. Shipping only part of it is not: with the
+    tarball present but the compose binary absent, `install_docker_offline()`
+    extracts into /usr/bin as root and only then fails, leaving the host
+    partially modified.
     """
-    missing: list[str] = []
-    if not any(prereqs_dir.glob("docker-*.tgz")):
-        missing.append("docker-*.tgz")
-    if not (prereqs_dir / "docker-compose-linux-x86_64").is_file():
-        missing.append("docker-compose-linux-x86_64")
-    if not (prereqs_dir / "docker.service").is_file():
-        missing.append("docker.service")
-    return missing
+    payload = {
+        "docker-*.tgz": any(prereqs_dir.glob("docker-*.tgz")),
+        "docker-compose-linux-x86_64": (prereqs_dir / "docker-compose-linux-x86_64").is_file(),
+    }
+    if not any(payload.values()):
+        return []
+    return [name for name, present in payload.items() if not present]
 
 
 def assemble(repo_root: Path, bundle_dir: Path, version: str) -> None:
@@ -199,10 +200,10 @@ def build(repo_root: Path, output_dir: Path, *, skip_images: bool) -> Path:
     write_image_checksums(bundle_dir / "images")
     write_manifest(bundle_dir)
 
-    for item in missing_prereqs(bundle_dir / "prereqs"):
+    for item in prereq_gaps(bundle_dir / "prereqs"):
         print(
-            f"warning: prereqs/{item} is absent; this bundle cannot install Docker "
-            "on a host that does not already have it",
+            f"warning: prereqs/{item} is missing while the rest of the offline Docker "
+            "payload is present; a partial payload fails mid-install as root",
             file=sys.stderr,
         )
 

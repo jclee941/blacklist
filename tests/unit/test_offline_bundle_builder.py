@@ -115,23 +115,35 @@ def test_installer_version_is_stamped_before_the_manifest(tmp_path: Path) -> Non
     assert recorded["install.sh"] == hashlib.sha256(installer.read_bytes()).hexdigest()
 
 
-def test_incomplete_prereqs_are_reported(tmp_path: Path) -> None:
-    # Given: install_docker_offline() extracts prereqs/docker-*.tgz and copies the
-    # compose binary as root on a host that has no Docker yet.
+def test_absent_prereqs_are_not_a_defect(tmp_path: Path) -> None:
+    # Given: the target host is assumed to already have Docker, so the offline
+    # Docker installer payload is deliberately not shipped.
     builder = load_builder()
     prereqs = tmp_path / "prereqs"
     prereqs.mkdir()
     _ = (prereqs / "docker.service").write_text("[Unit]\n", encoding="utf-8")
 
-    missing = builder.missing_prereqs(prereqs)
-
-    # Then: shipping without them yields a bundle that cannot bootstrap a bare
-    # host, which must not pass silently.
-    assert "docker-*.tgz" in missing
-    assert "docker-compose-linux-x86_64" in missing
+    # Then: a bundle without them is complete, not broken.
+    assert builder.prereq_gaps(prereqs) == []
 
 
-def test_complete_prereqs_report_nothing_missing(tmp_path: Path) -> None:
+def test_partial_prereqs_are_reported(tmp_path: Path) -> None:
+    # Given: a bundle that ships SOME of the offline Docker payload.
+    builder = load_builder()
+    prereqs = tmp_path / "prereqs"
+    prereqs.mkdir()
+    _ = (prereqs / "docker.service").write_text("[Unit]\n", encoding="utf-8")
+    _ = (prereqs / "docker-29.2.1.tgz").write_bytes(b"tarball")
+
+    gaps = builder.prereq_gaps(prereqs)
+
+    # Then: the half-shipped state is a real defect. install_docker_offline()
+    # would extract the tarball as root and then fail on the missing binary,
+    # leaving the host partially modified.
+    assert gaps == ["docker-compose-linux-x86_64"]
+
+
+def test_complete_prereqs_report_no_gaps(tmp_path: Path) -> None:
     builder = load_builder()
     prereqs = tmp_path / "prereqs"
     prereqs.mkdir()
@@ -139,4 +151,4 @@ def test_complete_prereqs_report_nothing_missing(tmp_path: Path) -> None:
     _ = (prereqs / "docker-29.2.1.tgz").write_bytes(b"tarball")
     _ = (prereqs / "docker-compose-linux-x86_64").write_bytes(b"binary")
 
-    assert builder.missing_prereqs(prereqs) == []
+    assert builder.prereq_gaps(prereqs) == []
