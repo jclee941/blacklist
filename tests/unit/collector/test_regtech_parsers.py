@@ -215,6 +215,7 @@ class TestParseHtmlResponse:
         </table>
         """
         result = parse_html_response(html)
+        assert result is not None
         assert len(result) == 1
         assert result[0]["ip_address"] == "8.8.8.8"
         assert result[0]["country"] == "US"
@@ -229,6 +230,7 @@ class TestParseHtmlResponse:
         </table>
         """
         result = parse_html_response(html)
+        assert result is not None
         assert len(result) == 0
 
     def test_multiple_rows(self):
@@ -239,14 +241,31 @@ class TestParseHtmlResponse:
         </table>
         """
         result = parse_html_response(html)
+        assert result is not None
         assert len(result) == 2
 
-    def test_empty_html(self):
+    def test_empty_html_is_invalid(self):
         result = parse_html_response("")
+        assert result is None
+
+    def test_login_page_is_invalid(self):
+        result = parse_html_response('<html><body><form id="login"><input name="username"></form></body></html>')
+        assert result is None
+
+    def test_empty_table_is_confirmed_empty(self):
+        result = parse_html_response("<html><body><table><tr><th>IP</th></tr></table></body></html>")
         assert result == []
 
-    def test_no_table(self):
-        result = parse_html_response("<html><body>No data</body></html>")
+    def test_explicit_no_data_row_is_confirmed_empty(self):
+        html = """
+        <table>
+            <tr><th>IP</th><th>국가</th><th>등록사유</th><th>등록일</th><th>해제일</th><th>조회수</th></tr>
+            <tr><td colspan="6">데이터가 없습니다.</td></tr>
+        </table>
+        """
+
+        result = parse_html_response(html)
+
         assert result == []
 
     def test_row_with_too_few_cells(self):
@@ -256,7 +275,7 @@ class TestParseHtmlResponse:
         </table>
         """
         result = parse_html_response(html)
-        assert len(result) == 0
+        assert result is None
 
     def test_reason_with_link(self):
         html = """
@@ -270,6 +289,7 @@ class TestParseHtmlResponse:
         </table>
         """
         result = parse_html_response(html)
+        assert result is not None
         assert len(result) == 1
         assert result[0]["reason"] == "Linked Reason"
 
@@ -285,6 +305,7 @@ class TestParseHtmlResponse:
         </table>
         """
         result = parse_html_response(html)
+        assert result is not None
         assert len(result) == 1
         assert result[0]["reason"] == "REGTECH Suspicious IP"
 
@@ -295,6 +316,7 @@ class TestParseHtmlResponse:
         </table>
         """
         result = parse_html_response(html)
+        assert result is not None
         assert len(result) == 1
         assert "raw_data" in result[0]
         assert "row_data" in result[0]["raw_data"]

@@ -89,7 +89,7 @@ def normalize_country_code(country_value: Any) -> Optional[str]:
     return country_mapping.get(country_str, country_str[:2] if len(country_str) >= 2 else None)
 
 
-def extract_country_info(cell_texts: List[str]) -> Optional[str]:
+def extract_country_info(cell_texts: Optional[List[str]]) -> Optional[str]:
     """HTML 테이블 행에서 국가 정보 추출"""
     if not cell_texts:
         return None
@@ -143,13 +143,31 @@ def determine_confidence(item: Dict[str, Any]) -> int:
     return max(10, min(100, confidence))
 
 
-def parse_html_response(html_content: str) -> List[Dict[str, Any]]:
+def parse_html_response(html_content: str) -> Optional[List[Dict[str, Any]]]:
     """HTML 응답에서 블랙리스트 IP 데이터 추출"""
     try:
         soup = BeautifulSoup(html_content, "html.parser")
         collected_data = []
 
-        rows = soup.find_all("tr")
+        tables = soup.find_all("table")
+        if not tables:
+            logger.error("❌ REGTECH HTML response has no data table")
+            return None
+
+        for table in tables:
+            headers = tuple(header.get_text(strip=True) for header in table.find_all("th"))
+            table_data_rows = [row for row in table.find_all("tr") if row.find_all("td")]
+            if headers == ("IP", "국가", "등록사유", "등록일", "해제일", "조회수") and len(table_data_rows) == 1:
+                cells = table_data_rows[0].find_all("td")
+                if len(cells) == 1 and cells[0].get_text(strip=True) == "데이터가 없습니다.":
+                    return []
+
+        rows = [row for table in tables for row in table.find_all("tr")]
+        data_rows = [row for row in rows if row.find_all("td")]
+        if data_rows and not any(len(row.find_all("td")) >= 4 for row in data_rows):
+            logger.error("❌ REGTECH HTML data table has no valid row structure")
+            return None
+
         logger.info(f"🔍 Total {len(rows)} table rows found")
 
         for row in rows:
@@ -205,4 +223,4 @@ def parse_html_response(html_content: str) -> List[Dict[str, Any]]:
 
     except Exception as e:
         logger.error(f"❌ HTML parse fatal error: {e}")
-        return []
+        return None

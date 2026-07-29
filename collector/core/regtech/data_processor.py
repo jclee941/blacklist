@@ -276,7 +276,7 @@ class RegtechDataProcessorMixin:
         logger.warning(f"❌ 날짜 파싱 실패: '{date_str}' - 지원되지 않는 형식")
         return None
 
-    def _parse_html_response(self, html_content: str) -> List[Dict[str, Any]]:
+    def _parse_html_response(self, html_content: str) -> Optional[List[Dict[str, Any]]]:
         from core.regtech_parsers import parse_html_response
 
         return parse_html_response(html_content)
