@@ -8,11 +8,15 @@ from pathlib import Path
 
 INSTALLER = Path(__file__).parents[2] / "deploy" / "install.sh"
 REQUIRED_ENV_KEYS = {
+    "ADMIN_PASSWORD",
+    "ADMIN_USERNAME",
+    "COLLECTOR_AUTH_TOKEN",
     "CREDENTIAL_MASTER_KEY",
     "SECRET_KEY",
     "CREDENTIAL_ENCRYPTION_KEY",
     "ENCRYPTION_SALT",
     "POSTGRES_PASSWORD",
+    "REDIS_PASSWORD",
 }
 
 
@@ -83,8 +87,8 @@ def test_generates_target_local_secrets_when_env_is_absent(tmp_path: Path) -> No
     assert result.returncode == 0, result.stdout + result.stderr
     generated_values = parse_env(env_file)
     assert REQUIRED_ENV_KEYS <= generated_values.keys()
-    assert "ADMIN_USERNAME" not in generated_values
-    assert "ADMIN_PASSWORD" not in generated_values
+    assert generated_values["ADMIN_USERNAME"] == "admin"
+    assert generated_values["ADMIN_PASSWORD"]
     assert all(not value.startswith("op://") for value in generated_values.values())
     assert os.stat(env_file).st_mode & 0o777 == 0o600
 
@@ -143,6 +147,8 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
             'POSTGRES_PASSWORD="local-postgres-password-0123456789"',
             'REDIS_PASSWORD="local-redis-password-0123456789"',
             'COLLECTOR_AUTH_TOKEN="local-collector-auth-token-0123456789"',
+            'ADMIN_USERNAME="admin"',
+            'ADMIN_PASSWORD="local-admin-password-0123456789"',
         )
     ) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")

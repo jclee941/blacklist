@@ -128,6 +128,28 @@ def test_generated_env_contains_a_collector_token(tmp_path: Path) -> None:
     assert first_token != second_token
 
 
+def test_generated_env_contains_unique_high_entropy_admin_passwords(tmp_path: Path) -> None:
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    first_env_file, first_environment = prepare_bundle(first_dir)
+    second_env_file, second_environment = prepare_bundle(second_dir)
+
+    first_result = run_installer(first_dir, first_environment, "--check-secrets")
+    second_result = run_installer(second_dir, second_environment, "--check-secrets")
+
+    assert first_result.returncode == 0, first_result.stdout + first_result.stderr
+    assert second_result.returncode == 0, second_result.stdout + second_result.stderr
+    first_values = parse_env(first_env_file)
+    second_values = parse_env(second_env_file)
+    assert first_values["ADMIN_USERNAME"] == "admin"
+    assert second_values["ADMIN_USERNAME"] == "admin"
+    first_password = first_values["ADMIN_PASSWORD"]
+    second_password = second_values["ADMIN_PASSWORD"]
+    assert re.fullmatch(r"[0-9a-f]{64}", first_password)
+    assert re.fullmatch(r"[0-9a-f]{64}", second_password)
+    assert first_password != second_password
+
+
 def test_health_regex_rejects_error_payload() -> None:
     # Given: the literal response pattern used by the installer's published health probe.
     health_body = installer_function("health_checks")

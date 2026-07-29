@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 INSTALLER = Path(__file__).parents[2] / "deploy" / "install.sh"
+ENV_EXAMPLE = Path(__file__).parents[2] / "deploy" / ".env.example"
 PRE_REDIS_REQUIRED_SECRETS = {
     "CREDENTIAL_MASTER_KEY": "local-credential-master-key-0123456789",
     "SECRET_KEY": "local-secret-key-0123456789",
@@ -18,6 +22,24 @@ REQUIRED_SECRETS_WITHOUT_COLLECTOR = {
     **PRE_REDIS_REQUIRED_SECRETS,
     "REDIS_PASSWORD": "local-redis-password-0123456789",
 }
+REQUIRED_SECRETS = {
+    **REQUIRED_SECRETS_WITHOUT_COLLECTOR,
+    "COLLECTOR_AUTH_TOKEN": "local-collector-auth-token-0123456789",
+    "ADMIN_USERNAME": "admin",
+    "ADMIN_PASSWORD": "local-admin-password-0123456789",
+}
+
+
+def write_manifest(bundle_dir: Path) -> None:
+    manifest = bundle_dir / "MANIFEST.sha256"
+    manifest.unlink(missing_ok=True)
+    lines = [
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  "
+        + path.relative_to(bundle_dir).as_posix()
+        for path in sorted(bundle_dir.rglob("*"))
+        if path.is_file()
+    ]
+    _ = manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def run_secret_check(tmp_path: Path, env_file: Path) -> subprocess.CompletedProcess[str]:
@@ -45,6 +67,7 @@ esac
     environment = os.environ.copy()
     environment["PATH"] = f"{bin_dir}{os.pathsep}{environment['PATH']}"
     environment["BLACKLIST_ENV_FILE"] = str(env_file)
+    write_manifest(tmp_path)
     return subprocess.run(
         ["bash", str(installer), "--check-secrets"],
         cwd=tmp_path,
@@ -93,6 +116,27 @@ def test_collector_auth_token_is_a_required_secret(tmp_path: Path) -> None:
     # Then: installation is blocked and the missing collector token is named.
     assert result.returncode != 0, result.stdout + result.stderr
     assert "COLLECTOR_AUTH_TOKEN" in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("missing_key", ["ADMIN_USERNAME", "ADMIN_PASSWORD"])
+def test_admin_credentials_are_required_secrets(tmp_path: Path, missing_key: str) -> None:
+    env_file = tmp_path / ".env"
+    body = "\n".join(
+        f'{key}="{value}"' for key, value in sorted(REQUIRED_SECRETS.items()) if key != missing_key
+    )
+    _ = env_file.write_text(body + "\n", encoding="utf-8")
+
+    result = run_secret_check(tmp_path, env_file)
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert missing_key in result.stdout + result.stderr
+
+
+def test_env_example_contains_only_admin_placeholders() -> None:
+    lines = ENV_EXAMPLE.read_text(encoding="utf-8").splitlines()
+
+    assert lines.count("ADMIN_USERNAME=") == 1
+    assert lines.count("ADMIN_PASSWORD=") == 1
 
 
 def test_env_file_defaults_outside_bundle() -> None:

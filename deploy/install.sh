@@ -27,6 +27,8 @@ readonly PUBLISHED_FRONTEND_PORT=443
 readonly HEALTH_WAIT_TIMEOUT_SECONDS=180
 readonly HEALTH_POLL_INTERVAL_SECONDS=5
 readonly REQUIRED_SECRET_KEYS=(
+    "ADMIN_USERNAME"
+    "ADMIN_PASSWORD"
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
     "COLLECTOR_AUTH_TOKEN"
@@ -498,7 +500,7 @@ deployment_state_exists() {
 generate_env_file() {
     local env_file="$1"
     local temp_file
-    local fernet_key secret_key collector_auth_token master_key encryption_salt pg_password redis_password
+    local fernet_key secret_key collector_auth_token master_key encryption_salt pg_password redis_password admin_password
 
     temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to create private environment file."
     chmod 600 "${temp_file}" || log_error "Unable to protect generated environment file."
@@ -510,6 +512,7 @@ generate_env_file() {
     encryption_salt=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
     redis_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    admin_password=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
 
     if ! cat > "${temp_file}" << EOF
 # Blacklist Platform Secrets (auto-generated)
@@ -517,6 +520,8 @@ generate_env_file() {
 
 COMPOSE_PROJECT_NAME=blacklist
 BLACKLIST_VERSION=${VERSION}
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=${admin_password}
 CREDENTIAL_MASTER_KEY=${master_key}
 SECRET_KEY=${secret_key}
 COLLECTOR_AUTH_TOKEN=${collector_auth_token}
