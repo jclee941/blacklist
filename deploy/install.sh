@@ -43,6 +43,10 @@ readonly DEPLOYMENT_VOLUME_NAMES=(
 )
 readonly VARIABLE_REFERENCE_PREFIX="\${"
 
+require_root() {
+    [ "$(id -u)" -eq 0 ] || log_error "Root privileges are required to install; re-run as root (current EUID: $(id -u))."
+}
+
 install_docker_offline() {
     log_step "Offline Docker Installation"
     
@@ -563,6 +567,8 @@ main() {
         log_success "Bundle verification completed (no changes were made)"
         return 0
     fi
+
+    require_root
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
