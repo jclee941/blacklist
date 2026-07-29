@@ -217,3 +217,31 @@ def test_loaded_image_parsing_avoids_pcre() -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == ["blacklist-app:4.1.0"]
     assert 'if [ -z "${loaded_image}" ]; then' in load_body
+
+
+def test_health_wait_polls_instead_of_sleeping() -> None:
+    # Given: the installer must allow more than the app's 90-second start period.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+
+    # When: deployment readiness handling is inspected.
+    assert "sleep 30" not in installer_source
+    assert "\nwait_for_health() {" in installer_source
+    wait_body = installer_function("wait_for_health")
+    deploy_body = installer_function("deploy_services")
+    timeout_match = re.search(r"readonly HEALTH_WAIT_TIMEOUT_SECONDS=(\d+)", installer_source)
+    assert timeout_match is not None, installer_source
+
+    # Then: all five services use Docker health with a sufficient bounded deadline.
+    assert int(timeout_match.group(1)) >= 180
+    assert "docker inspect -f '{{.State.Health.Status}}'" in wait_body
+    assert 'wait_for_health "${containers[@]}"' in deploy_body
+    assert "<no value>" in wait_body
+    assert 'log_info "${container}: last status ${last_status[' in wait_body
+    for container in (
+        "blacklist-app",
+        "blacklist-collector",
+        "blacklist-frontend",
+        "blacklist-postgres",
+        "blacklist-redis",
+    ):
+        assert container in deploy_body

@@ -24,6 +24,8 @@ SKIP_POSTURE_CHECK=false
 REQUIRE_SIGNATURE=false
 POSTURE_COMPOSE_FILES=()
 readonly PUBLISHED_FRONTEND_PORT=443
+readonly HEALTH_WAIT_TIMEOUT_SECONDS=180
+readonly HEALTH_POLL_INTERVAL_SECONDS=5
 readonly REQUIRED_SECRET_KEYS=(
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
@@ -614,13 +616,74 @@ stop_all_running_containers() {
     log_success "All running containers stopped"
 }
 
+wait_for_health() {
+    local containers=("$@")
+    local pending=("${containers[@]}")
+    local deadline=$((SECONDS + HEALTH_WAIT_TIMEOUT_SECONDS))
+    local terminal_failure=false
+    local container status
+    declare -A last_status=()
+
+    log_info "Waiting up to ${HEALTH_WAIT_TIMEOUT_SECONDS}s for container health..."
+    while [ "${#pending[@]}" -gt 0 ] && [ "${SECONDS}" -le "${deadline}" ]; do
+        local remaining=()
+        terminal_failure=false
+
+        for container in "${pending[@]}"; do
+            if ! status=$(docker inspect -f '{{.State.Health.Status}}' "${container}" 2>/dev/null); then
+                status="missing"
+            elif [ -z "${status}" ]; then
+                status="<no value>"
+            fi
+            last_status["${container}"]="${status}"
+
+            case "${status}" in
+                healthy)
+                    log_success "${container}: healthy"
+                    ;;
+                starting)
+                    remaining+=("${container}")
+                    ;;
+                *)
+                    terminal_failure=true
+                    ;;
+            esac
+        done
+
+        if [ "${terminal_failure}" = true ]; then
+            for container in "${containers[@]}"; do
+                log_info "${container}: last status ${last_status["${container}"]:-not checked}"
+            done
+            log_error "Container health check failed"
+        fi
+
+        pending=("${remaining[@]}")
+        if [ "${#pending[@]}" -eq 0 ]; then
+            return 0
+        fi
+        sleep "${HEALTH_POLL_INTERVAL_SECONDS}"
+    done
+
+    for container in "${containers[@]}"; do
+        log_info "${container}: last status ${last_status["${container}"]:-not checked}"
+    done
+    log_error "Timed out waiting for container health"
+}
+
 deploy_services() {
     log_step "Deploy Services"
 
     cd "${SCRIPT_DIR}"
 
-    local containers="blacklist-app blacklist-collector blacklist-frontend blacklist-postgres blacklist-redis"
-    for c in $containers; do
+    local containers=(
+        "blacklist-app"
+        "blacklist-collector"
+        "blacklist-frontend"
+        "blacklist-postgres"
+        "blacklist-redis"
+    )
+    local c
+    for c in "${containers[@]}"; do
         if docker ps -aq -f "name=^${c}$" | grep -q .; then
             log_info "Removing existing container: ${c}..."
             docker rm -f "$c" 2>/dev/null || true
@@ -637,8 +700,7 @@ deploy_services() {
     fi
     printf '%s\n' "${compose_output}"
 
-    log_info "Waiting for services to initialize (30s)..."
-    sleep 30
+    wait_for_health "${containers[@]}"
 
     log_success "Services started"
 }
