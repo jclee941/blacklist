@@ -64,7 +64,28 @@ def write_checksum_file(images_dir: Path, listed_names: tuple[str, ...]) -> None
     _ = (images_dir / "checksums.sha256").write_text("".join(lines), encoding="utf-8")
 
 
+def write_manifest(bundle_dir: Path) -> None:
+    """Regenerate MANIFEST.sha256 from the bundle's CURRENT contents.
+
+    The shipped 4.1.0 manifest covers images/** including checksums.sha256, so a
+    manifest captured before a test tampers with those files would fail first and
+    the checksum layer under test would never run. Regenerating here models a
+    well-formed bundle whose manifest matches its own contents, which is the
+    precondition for exercising verify_checksums().
+    """
+    manifest = bundle_dir / "MANIFEST.sha256"
+    manifest.unlink(missing_ok=True)
+    lines = [
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  "
+        f"{path.relative_to(bundle_dir).as_posix()}"
+        for path in sorted(bundle_dir.rglob("*"))
+        if path.is_file()
+    ]
+    _ = manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def run_verification(tmp_path: Path, environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    write_manifest(tmp_path)
     return subprocess.run(
         ["bash", str(tmp_path / "install.sh"), "--verify-only", "--skip-posture-check"],
         cwd=tmp_path,

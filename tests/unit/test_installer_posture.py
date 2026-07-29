@@ -53,7 +53,7 @@ JWT_ADR_DRIFT_COMPOSE = """services:
   blacklist-collector:
     image: blacklist-collector:latest
     environment:
-      DISABLE_JWT_AUTH: "false"
+      DISABLE_JWT_AUTH: "true"
 """
 
 
@@ -121,11 +121,30 @@ def prepare_released_bundle(tmp_path: Path) -> dict[str, str]:
     return environment
 
 
+def write_manifest(bundle_dir: Path) -> None:
+    """Regenerate MANIFEST.sha256 from the bundle's CURRENT contents.
+
+    Manifest verification runs before the posture gate, so a scratch bundle whose
+    manifest does not match would be rejected for integrity reasons and the
+    posture invariant under test would never be reached.
+    """
+    manifest = bundle_dir / "MANIFEST.sha256"
+    manifest.unlink(missing_ok=True)
+    lines = [
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  "
+        f"{path.relative_to(bundle_dir).as_posix()}"
+        for path in sorted(bundle_dir.rglob("*"))
+        if path.is_file()
+    ]
+    _ = manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def run_posture_gate(
     tmp_path: Path,
     environment: dict[str, str],
     *arguments: str,
 ) -> subprocess.CompletedProcess[str]:
+    write_manifest(tmp_path)
     return subprocess.run(
         ["bash", str(tmp_path / "install.sh"), "--verify-only", *arguments],
         cwd=tmp_path,
@@ -253,13 +272,15 @@ def test_skip_posture_check_is_a_loud_escape_hatch(tmp_path: Path) -> None:
 
 
 def test_jwt_flag_flip_against_the_adr_is_rejected(tmp_path: Path) -> None:
-    # Given: a bundle claiming the collector token enforcement that ADR-0002 defers.
+    # Given: a bundle that disables collector auth even though ADR-0002 now records
+    # Decision: enforce, i.e. the collector really does verify a bearer token.
     environment = prepare_bundle(tmp_path, JWT_ADR_DRIFT_COMPOSE)
 
     # When: the installer verifies the effective configuration.
     result = run_posture_gate(tmp_path, environment)
 
-    # Then: drift from the recorded decision is refused instead of shipped as security theatre.
+    # Then: drift from the recorded decision is refused, because silently disabling
+    # enforcement would reopen the collector control API.
     output = result.stdout + result.stderr
     assert result.returncode != 0, output
     assert "blacklist-collector" in output, output
