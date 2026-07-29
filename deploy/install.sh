@@ -20,6 +20,8 @@ IMAGES_DIR="${SCRIPT_DIR}/images"
 VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
 ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
 STOP_ALL_CONTAINERS=false
+SKIP_POSTURE_CHECK=false
+POSTURE_COMPOSE_FILES=()
 readonly REQUIRED_SECRET_KEYS=(
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
@@ -43,6 +45,58 @@ readonly DEPLOYMENT_VOLUME_NAMES=(
     "blacklist_blacklist-app-data"
 )
 readonly VARIABLE_REFERENCE_PREFIX="\${"
+readonly POSTURE_COMPOSE_CANDIDATES=(
+    "docker-compose.yml"
+    "docker-compose.override.yml"
+)
+readonly JWT_DEFERRAL_ADR="docs/decisions/0002-collector-authentication-enforcement.md"
+readonly POSTURE_CHECK_PY='
+import json
+import shlex
+import sys
+
+ALLOWED_PUBLISHED_PORTS = {"blacklist-frontend": {"443"}}
+JWT_ADR_SERVICE = "blacklist-collector"
+JWT_DISABLED_VALUES = {"true", "1", "yes"}
+
+adr_decision = sys.argv[1] if len(sys.argv) > 1 else "defer"
+services = json.load(sys.stdin).get("services") or {}
+findings = []
+
+for name in sorted(services):
+    service = services[name] or {}
+
+    if service.get("network_mode") == "host":
+        findings.append(name + ": network_mode: host is forbidden; every service must stay on the internal bridge network (C-04)")
+
+    for port in service.get("ports") or []:
+        published = str(port.get("published") or "")
+        target = str(port.get("target") or "")
+        if published not in ALLOWED_PUBLISHED_PORTS.get(name, frozenset()):
+            findings.append(name + ": publishes host port " + (published or "ephemeral->" + target) + "; only blacklist-frontend may publish 443 (C-04, ADR-0001)")
+
+    if name == "blacklist-redis":
+        command = service.get("command") or []
+        if isinstance(command, str):
+            command = shlex.split(command)
+        command = [str(part) for part in command]
+        if "--requirepass" not in command:
+            findings.append(name + ": redis command lacks --requirepass; a passwordless Redis is forbidden (C-04)")
+        else:
+            position = command.index("--requirepass") + 1
+            if position >= len(command) or not command[position].strip():
+                findings.append(name + ": --requirepass resolved to an empty value; REDIS_PASSWORD is unset or empty in the environment file (C-04)")
+
+    if name == JWT_ADR_SERVICE and adr_decision == "defer":
+        flag = (service.get("environment") or {}).get("DISABLE_JWT_AUTH")
+        if flag is not None and str(flag).strip().lower() not in JWT_DISABLED_VALUES:
+            findings.append(name + ": DISABLE_JWT_AUTH=" + str(flag) + " contradicts ADR-0002 (Decision: defer); collector token enforcement does not exist yet (C-05)")
+
+for finding in findings:
+    print(finding)
+
+sys.exit(1 if findings else 0)
+'
 
 require_root() {
     [ "$(id -u)" -eq 0 ] || log_error "Root privileges are required to install; re-run as root (current EUID: $(id -u))."
@@ -478,6 +532,76 @@ validate_compose_config() {
     log_success "Compose configuration"
 }
 
+collect_posture_compose_files() {
+    POSTURE_COMPOSE_FILES=()
+    local candidate
+    for candidate in "${POSTURE_COMPOSE_CANDIDATES[@]}"; do
+        if [ -f "${SCRIPT_DIR}/${candidate}" ]; then
+            POSTURE_COMPOSE_FILES+=(-f "${candidate}")
+        fi
+    done
+
+    [ "${#POSTURE_COMPOSE_FILES[@]}" -gt 0 ]
+}
+
+render_effective_config() {
+    (cd "${SCRIPT_DIR}" && docker compose --env-file "${ENV_FILE}" "${POSTURE_COMPOSE_FILES[@]}" config "$@")
+}
+
+# ADR-0002 governs the collector flag only; its Decision line is the binding baseline.
+jwt_adr_decision() {
+    local adr_file="${SCRIPT_DIR}/../${JWT_DEFERRAL_ADR}"
+    local decision=""
+
+    if [ -f "${adr_file}" ]; then
+        decision=$(grep -m1 -E '^Decision:' "${adr_file}" | sed -E 's/^Decision:[[:space:]]*//' | tr -d '[:space:]') || true
+    fi
+
+    printf '%s' "${decision:-defer}"
+}
+
+verify_security_posture() {
+    log_step "Verify Security Posture"
+
+    if [ "${SKIP_POSTURE_CHECK}" = true ]; then
+        log_warning "Security posture check skipped (--skip-posture-check): host networking, published ports, Redis password enforcement, and ADR drift are NOT verified."
+        return 0
+    fi
+
+    if ! command -v python3 > /dev/null 2>&1; then
+        log_error "python3 is required to verify the security posture; install python3 or re-run with --skip-posture-check to accept the risk explicitly."
+    fi
+
+    if [ ! -f "${ENV_FILE}" ]; then
+        log_error "Environment file ${ENV_FILE} not found; run --check-secrets first so the effective configuration can be rendered."
+    fi
+
+    if ! collect_posture_compose_files; then
+        log_error "No Compose file found in ${SCRIPT_DIR}; refusing to verify an unrenderable configuration."
+    fi
+
+    local rendered
+    if ! rendered=$(render_effective_config --format json 2> /dev/null); then
+        render_effective_config --quiet || true
+        log_error "Unable to render the effective Compose configuration for the security posture check."
+    fi
+
+    local findings
+    if findings=$(printf '%s' "${rendered}" | python3 -c "${POSTURE_CHECK_PY}" "$(jwt_adr_decision)"); then
+        log_success "Security posture verified (internal networking, published ports, Redis password, ADR-0002 flag)"
+        return 0
+    fi
+
+    local finding
+    while IFS= read -r finding; do
+        if [ -n "${finding}" ]; then
+            echo -e "${RED}[FAIL]${NC} ${finding}"
+        fi
+    done <<< "${findings}"
+
+    log_error "Security posture check failed; refusing to deploy this configuration."
+}
+
 health_checks() {
     log_step "Health Checks"
 
@@ -537,8 +661,9 @@ show_help() {
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
     echo "  --check-secrets Generate or validate .env, then exit"
-    echo "  --verify-only  Verify the bundle layout and image checksums, then exit (read-only)"
+    echo "  --verify-only  Verify the bundle layout, image checksums, and security posture, then exit (read-only)"
     echo "  --stop-all-containers  Stop every running container on the host before deploying"
+    echo "  --skip-posture-check  Deploy even if the security posture check fails (emergency use; logs a warning)"
     echo "  --help, -h     Show this help"
     echo ""
 }
@@ -554,6 +679,7 @@ main() {
             --check-secrets) check_secrets=true ;;
             --verify-only) verify_only=true ;;
             --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
+            --skip-posture-check) SKIP_POSTURE_CHECK=true ;;
             --help|-h) show_help; exit 0 ;;
             *) log_warning "Unknown option: $arg" ;;
         esac
@@ -567,6 +693,7 @@ main() {
     if [ "$verify_only" = true ]; then
         preflight_verify
         verify_checksums
+        verify_security_posture
         log_success "Bundle verification completed (no changes were made)"
         return 0
     fi
@@ -590,6 +717,7 @@ main() {
 
     setup_secrets
     validate_compose_config
+    verify_security_posture
     if [ "$STOP_ALL_CONTAINERS" = true ]; then
         stop_all_running_containers
     else
