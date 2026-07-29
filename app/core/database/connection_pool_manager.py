@@ -76,15 +76,9 @@ class SmartConnectionManager:
             try:
                 params = self.connection_params.copy()
                 params["host"] = host
+                params["connect_timeout"] = 3
 
-                conn = psycopg2.connect(
-                    host=params["host"],
-                    port=params["port"],
-                    database=params["database"],
-                    user=params["user"],
-                    password=params["password"],
-                    connect_timeout=3,  # 빠른 타임아웃
-                )
+                conn = psycopg2.connect(**params)
 
                 # 연결 성공 시 오류 카운터 리셋
                 self._error_count = 0

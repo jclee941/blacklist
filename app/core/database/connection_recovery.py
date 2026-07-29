@@ -28,17 +28,11 @@ class PostgreSQLConnectionManager:
             try:
                 params = self.connection_params.copy()
                 params["host"] = host
+                params["connect_timeout"] = 5
 
                 logger.info(f"PostgreSQL 연결 시도: {host}:{params['port']}")
 
-                conn = psycopg2.connect(
-                    host=params["host"],
-                    port=params["port"],
-                    database=params["database"],
-                    user=params["user"],
-                    password=params["password"],
-                    connect_timeout=5,  # 5초 타임아웃
-                )
+                conn = psycopg2.connect(**params)
 
                 logger.info(f"PostgreSQL 연결 성공: {host}")
                 return conn
