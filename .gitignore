@@ -109,3 +109,6 @@ ssl/
 # Release workflow artifacts
 # ============================================================================
 deploy/images/checksums.sha256
+
+# Offline release bundles (built locally, never committed)
+release/
