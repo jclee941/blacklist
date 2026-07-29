@@ -145,6 +145,23 @@ def test_installer_generates_local_ca_and_service_sans(tmp_path: Path) -> None:
         assert f"DNS:{service_name}" in certificate.stdout
 
 
+def test_generate_tls_only_runs_the_reusable_tls_setup(tmp_path: Path) -> None:
+    tls_dir = tmp_path / "tls"
+
+    result = subprocess.run(
+        ["bash", str(INSTALLER), "--generate-tls-only"],
+        capture_output=True,
+        check=False,
+        env=installer_environment(tls_dir),
+        text=True,
+    )
+
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert "Generated target-local CA and service certificates" in output
+    assert (tls_dir / "ca" / "ca.crt").is_file()
+
+
 def test_installer_protects_private_keys_and_directories(tmp_path: Path) -> None:
     result = run_tls_setup(tmp_path)
 

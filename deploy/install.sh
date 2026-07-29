@@ -1005,6 +1005,7 @@ show_help() {
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
     echo "  --check-secrets Generate or validate .env, then exit"
+    echo "  --generate-tls-only  Generate or validate internal TLS material, then exit"
     echo "  --verify-only  Verify the bundle layout, image checksums, and security posture, then exit (read-only)"
     echo "  --stop-all-containers  Stop every running container on the host before deploying"
     echo "  --skip-posture-check  Deploy even if the security posture check fails (emergency use; logs a warning)"
@@ -1016,12 +1017,14 @@ show_help() {
 main() {
     local skip_load=false
     local check_secrets=false
+    local generate_tls_only=false
     local verify_only=false
 
     for arg in "$@"; do
         case $arg in
             --skip-load) skip_load=true ;;
             --check-secrets) check_secrets=true ;;
+            --generate-tls-only) generate_tls_only=true ;;
             --verify-only) verify_only=true ;;
             --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
             --skip-posture-check) SKIP_POSTURE_CHECK=true ;;
@@ -1030,6 +1033,11 @@ main() {
             *) log_warning "Unknown option: $arg" ;;
         esac
     done
+
+    if [ "$generate_tls_only" = true ]; then
+        setup_internal_tls
+        return 0
+    fi
 
     if [ "$check_secrets" = true ]; then
         setup_secrets

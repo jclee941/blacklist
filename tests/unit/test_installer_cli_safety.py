@@ -97,8 +97,9 @@ def test_help_lists_new_flags(tmp_path: Path) -> None:
     # When: help is requested.
     result = run_installer(tmp_path, "--help")
 
-    # Then: both newly added operator controls are documented.
+    # Then: the non-destructive and host-control entry points are documented.
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "--generate-tls-only" in result.stdout
     assert "--verify-only" in result.stdout
     assert "--stop-all-containers" in result.stdout
 
