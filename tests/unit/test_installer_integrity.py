@@ -162,3 +162,41 @@ def test_dual_filename_tolerance_is_removed() -> None:
     assert bare_preflight_lookup not in installer_source
     assert bare_load_path not in installer_source
     assert installer_source.count('"${IMAGES_DIR}/blacklist-${img}"') >= 2
+
+
+def test_disk_check_targets_the_docker_data_dir() -> None:
+    # Given: the installer shipped with the offline bundle.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+
+    # When: the disk-capacity check is inspected.
+
+    # Then: DockerRootDir selects the filesystem passed to df.
+    assert "docker info --format '{{.DockerRootDir}}'" in installer_source
+    assert 'df -BG "${disk_target}"' in installer_source
+
+
+def test_disk_check_survives_unparsable_output(tmp_path: Path) -> None:
+    # Given: Docker is installed but returns no data directory from docker info.
+    images_dir, environment = prepare_bundle(tmp_path)
+    write_checksum_file(images_dir, BUNDLE_IMAGES)
+    docker_log = tmp_path / "docker.log"
+    docker = tmp_path / "bin" / "docker"
+    _ = docker.write_text(
+        """#!/bin/sh
+printf '%s\n' "$*" >> "${TEST_DOCKER_LOG}"
+exit 0
+""",
+        encoding="utf-8",
+    )
+    _ = docker.chmod(0o755)
+    environment["TEST_DOCKER_LOG"] = str(docker_log)
+
+    # When: the read-only bundle verification runs.
+    result = run_verification(tmp_path, environment)
+
+    # Then: it falls back without reaching an invalid integer comparison.
+    output = result.stdout + result.stderr
+    performed = docker_log.read_text(encoding="utf-8") if docker_log.exists() else ""
+    assert result.returncode == 0, output
+    assert "integer expression expected" not in output, output
+    assert "info --format {{.DockerRootDir}}" in performed, performed

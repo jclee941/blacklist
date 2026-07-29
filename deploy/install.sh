@@ -183,12 +183,25 @@ preflight_verify() {
     fi
     log_success "checksums.sha256"
 
+    local disk_target="/var/lib"
+    local docker_root_dir=""
+    if command -v docker > /dev/null 2>&1; then
+        if docker_root_dir=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null) && [ -n "${docker_root_dir}" ]; then
+            disk_target="${docker_root_dir}"
+        fi
+    fi
+
     local available_gb
-    available_gb=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
+    if ! available_gb=$(df -BG "${disk_target}" 2>/dev/null | awk 'NR == 2 {sub(/G$/, "", $4); print $4}'); then
+        log_error "Unable to determine available disk space on ${disk_target}"
+    fi
+    if ! [[ "${available_gb}" =~ ^[0-9]+$ ]]; then
+        log_error "Unable to parse available disk space on ${disk_target}"
+    fi
     if [ "${available_gb}" -lt 3 ]; then
-        log_warning "Low disk space: ${available_gb}GB (recommend 3GB+)"
+        log_error "Insufficient disk space on ${disk_target}: ${available_gb}GB available (3GB required)"
     else
-        log_success "Disk space: ${available_gb}GB"
+        log_success "Disk space on ${disk_target}: ${available_gb}GB"
     fi
 
     for port in 443 2542 5432 6379 8545; do
