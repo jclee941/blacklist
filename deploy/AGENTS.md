@@ -29,7 +29,10 @@ base.yml (source of truth)
 
 ## CONVENTIONS
 
-- `network_mode: host` for all services.
+- All services attach to the `blacklist-net` bridge and address peers by Compose service name.
+- `base.yml` and both extending Compose files declare `blacklist-net` at the top level.
+- Published-port inventory: only `blacklist-frontend` publishes host port `443` to container port `3000`; PostgreSQL, Redis, collector, and Flask publish no host ports.
+- Redis requires `REDIS_PASSWORD`; its health check plus the app and collector environments receive the same secret.
 - Health checks mandatory on every service.
 - `VERSION` + tag consistency enforced by release pipeline.
 - `make build` requires clean working tree.

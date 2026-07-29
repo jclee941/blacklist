@@ -6,10 +6,11 @@ Provides login/logout/me endpoints for JWT-based authentication.
 
 import logging
 
-from flask import Blueprint, jsonify, request, g, current_app
+from flask import Blueprint, jsonify, request, current_app
 
 from core.auth.decorators import public
 from core.config import config
+from core.exceptions.auth_exceptions import AuthenticationError
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,6 @@ def login():
             }
         ), 400
 
-    # Validate against configured admin credentials
     settings_service = current_app.extensions.get("settings_service")
     if not settings_service:
         logger.error("settings_service not available for authentication")
@@ -78,7 +78,6 @@ def login():
             }
         ), 500
 
-    # Check credentials against app settings
     try:
         admin_username = settings_service.get_setting("admin_username", config.ADMIN_USERNAME)
         admin_password = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
@@ -88,30 +87,69 @@ def login():
         admin_username = config.ADMIN_USERNAME
         admin_password = config.ADMIN_PASSWORD
 
-    if username != admin_username or password != admin_password:
+    credentials_configured = bool(
+        admin_username and admin_username.strip() and admin_password and admin_password.strip()
+    )
+    if not credentials_configured:
+        logger.error("Administrator login is disabled: configure ADMIN_USERNAME and ADMIN_PASSWORD")
+    elif username != admin_username or password != admin_password:
         logger.warning(f"Failed login attempt for user: {username}")
+    else:
+        jwt_service = current_app.extensions["jwt_service"]
+        token = jwt_service.encode_token(user_id=username, role="admin")
+
+        logger.info(f"User '{username}' logged in successfully")
         return jsonify(
             {
-                "type": "about:blank",
-                "title": "Unauthorized",
-                "status": 401,
-                "detail": "Invalid username or password",
-                "code": "AUTH_INVALID_CREDENTIALS",
+                "token": token,
+                "expires_in": 28800,
+                "user": {"id": username, "role": "admin"},
             }
-        ), 401
+        ), 200
 
-    # Generate JWT token
-    jwt_service = current_app.extensions["jwt_service"]
-    token = jwt_service.encode_token(user_id=username, role="admin")
-
-    logger.info(f"User '{username}' logged in successfully")
     return jsonify(
         {
-            "token": token,
-            "expires_in": 28800,
-            "user": {"id": username, "role": "admin"},
+            "type": "about:blank",
+            "title": "Unauthorized",
+            "status": 401,
+            "detail": "Invalid username or password",
+            "code": "AUTH_INVALID_CREDENTIALS",
         }
-    ), 200
+    ), 401
+
+
+def _resolve_bearer_identity():
+    """Return the identity carried by the request's bearer token, or None.
+
+    These endpoints previously read ``g.current_user``, which is only populated
+    by a before_request hook that this application never registers, so every
+    call raised AttributeError and returned 500. Resolving the token here keeps
+    the endpoints working without turning on global JWT enforcement.
+    """
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return None
+
+    jwt_service = current_app.extensions.get("jwt_service")
+    if jwt_service is None:
+        return None
+
+    try:
+        return jwt_service.validate_token(header[7:])
+    except AuthenticationError:
+        return None
+
+
+def _unauthorized():
+    return jsonify(
+        {
+            "type": "about:blank",
+            "title": "Unauthorized",
+            "status": 401,
+            "detail": "A valid bearer token is required",
+            "code": "AUTH_TOKEN_REQUIRED",
+        }
+    ), 401
 
 
 @auth_bp.route("/me", methods=["GET"])
@@ -119,9 +157,12 @@ def me():
     """Return current authenticated user info.
 
     Returns:
-        {"id": "...", "role": "...", "iat": ..., "exp": ...}
+        {"sub": "...", "role": "...", "iat": ..., "exp": ...}
     """
-    return jsonify(g.current_user), 200
+    identity = _resolve_bearer_identity()
+    if identity is None:
+        return _unauthorized()
+    return jsonify(identity), 200
 
 
 @auth_bp.route("/verify", methods=["GET"])
@@ -131,4 +172,7 @@ def verify():
     Returns:
         {"valid": true, "user": {...}}
     """
-    return jsonify({"valid": True, "user": g.current_user}), 200
+    identity = _resolve_bearer_identity()
+    if identity is None:
+        return _unauthorized()
+    return jsonify({"valid": True, "user": identity}), 200

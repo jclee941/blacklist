@@ -1,4 +1,5 @@
 #!/bin/bash
+# noqa: SIZE_OK - Customers run this as one integrity-verified executable; splitting sourced files enlarges the installer attack surface.
 set -euo pipefail
 
 readonly RED='\033[0;31m'
@@ -18,12 +19,42 @@ log_step() { echo -e "\n${CYAN}===${NC} ${BOLD}$1${NC}\n"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGES_DIR="${SCRIPT_DIR}/images"
 VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
+ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
+TLS_DIR="${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}"
+STOP_ALL_CONTAINERS=false
+SKIP_POSTURE_CHECK=false
+REQUIRE_SIGNATURE=false
+ADMIN_CREDENTIALS_GENERATED=false
+POSTURE_COMPOSE_FILES=()
+readonly PUBLISHED_FRONTEND_PORT=443
+readonly HEALTH_WAIT_TIMEOUT_SECONDS=180
+readonly HEALTH_POLL_INTERVAL_SECONDS=5
+readonly TLS_ROOT_UID="${BLACKLIST_TLS_ROOT_UID:-0}"
+readonly TLS_ROOT_GID="${BLACKLIST_TLS_ROOT_GID:-0}"
+readonly -a TLS_SERVICE_NAMES=("app" "collector" "postgres" "redis")
+readonly -a TLS_SERVICE_DNS_NAMES=("blacklist-app" "blacklist-collector" "blacklist-postgres" "blacklist-redis")
+readonly -a TLS_SERVICE_UIDS=(
+    "${BLACKLIST_APP_UID:-999}"
+    "${BLACKLIST_COLLECTOR_UID:-0}"
+    "${BLACKLIST_POSTGRES_UID:-70}"
+    "${BLACKLIST_REDIS_UID:-999}"
+)
+readonly -a TLS_SERVICE_GIDS=(
+    "${BLACKLIST_APP_GID:-999}"
+    "${BLACKLIST_COLLECTOR_GID:-0}"
+    "${BLACKLIST_POSTGRES_GID:-70}"
+    "${BLACKLIST_REDIS_GID:-1000}"
+)
 readonly REQUIRED_SECRET_KEYS=(
+    "ADMIN_USERNAME"
+    "ADMIN_PASSWORD"
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
+    "COLLECTOR_AUTH_TOKEN"
     "CREDENTIAL_ENCRYPTION_KEY"
     "ENCRYPTION_SALT"
     "POSTGRES_PASSWORD"
+    "REDIS_PASSWORD"
 )
 readonly DEPLOYMENT_VOLUME_NAMES=(
     "blacklist-pgdata"
@@ -40,6 +71,162 @@ readonly DEPLOYMENT_VOLUME_NAMES=(
     "blacklist_blacklist-app-data"
 )
 readonly VARIABLE_REFERENCE_PREFIX="\${"
+readonly POSTURE_COMPOSE_CANDIDATES=(
+    "docker-compose.yml"
+    "docker-compose.override.yml"
+)
+readonly JWT_DEFERRAL_ADR="docs/decisions/0002-collector-authentication-enforcement.md"
+readonly POSTURE_CHECK_PY='
+import json
+import shlex
+import sys
+
+ALLOWED_PUBLISHED_PORTS = {"blacklist-frontend": {"443"}}
+JWT_ADR_SERVICE = "blacklist-collector"
+JWT_DISABLED_VALUES = {"true", "1", "yes"}
+
+adr_decision = sys.argv[1] if len(sys.argv) > 1 else "defer"
+services = json.load(sys.stdin).get("services") or {}
+findings = []
+
+for name in sorted(services):
+    service = services[name] or {}
+
+    if service.get("network_mode") == "host":
+        findings.append(name + ": network_mode: host is forbidden; every service must stay on the internal bridge network (C-04)")
+
+    for port in service.get("ports") or []:
+        published = str(port.get("published") or "")
+        target = str(port.get("target") or "")
+        if published not in ALLOWED_PUBLISHED_PORTS.get(name, frozenset()):
+            findings.append(name + ": publishes host port " + (published or "ephemeral->" + target) + "; only blacklist-frontend may publish 443 (C-04, ADR-0001)")
+
+    if name == "blacklist-redis":
+        command = service.get("command") or []
+        if isinstance(command, str):
+            command = shlex.split(command)
+        command = [str(part) for part in command]
+        if "--requirepass" not in command:
+            findings.append(name + ": redis command lacks --requirepass; a passwordless Redis is forbidden (C-04)")
+        else:
+            position = command.index("--requirepass") + 1
+            if position >= len(command) or not command[position].strip():
+                findings.append(name + ": --requirepass resolved to an empty value; REDIS_PASSWORD is unset or empty in the environment file (C-04)")
+
+    # The collector flag must MATCH ADR-0002 in both directions. Under Decision: defer
+    # enforcement does not exist, so claiming it is on is a false security posture;
+    # under Decision: enforce the collector really does verify a bearer token, so
+    # turning the flag back on silently reopens the control API (C-05).
+    if name == JWT_ADR_SERVICE:
+        flag = (service.get("environment") or {}).get("DISABLE_JWT_AUTH")
+        if flag is not None:
+            disabled = str(flag).strip().lower() in JWT_DISABLED_VALUES
+            if adr_decision == "defer" and not disabled:
+                findings.append(name + ": DISABLE_JWT_AUTH=" + str(flag) + " contradicts ADR-0002 (Decision: defer); collector token enforcement does not exist yet (C-05)")
+            elif adr_decision == "enforce" and disabled:
+                findings.append(name + ": DISABLE_JWT_AUTH=" + str(flag) + " contradicts ADR-0002 (Decision: enforce); this reopens the collector control API (C-05)")
+
+for finding in findings:
+    print(finding)
+
+sys.exit(1 if findings else 0)
+'
+
+require_root() {
+    [ "$(id -u)" -eq 0 ] || log_error "Root privileges are required to install; re-run as root (current EUID: $(id -u))."
+}
+
+normalize_manifest_records() {
+    sed -E 's/^([[:xdigit:]]{64})[[:space:]]+(\*)?(\.\/)?/\1  /' "${SCRIPT_DIR}/MANIFEST.sha256"
+}
+
+verify_manifest_entry() {
+    local relative_path="${1#./}"
+    relative_path="${relative_path#\*}"
+
+    local expected_hash=""
+    local listed_hash listed_path
+    while read -r listed_hash listed_path; do
+        if [ "${listed_path}" = "${relative_path}" ]; then
+            expected_hash="${listed_hash}"
+            break
+        fi
+    done < <(normalize_manifest_records)
+
+    if ! [[ "${expected_hash}" =~ ^[[:xdigit:]]{64}$ ]]; then
+        log_error "Manifest entry missing or malformed: ${relative_path}"
+    fi
+
+    local actual_hash
+    if ! actual_hash=$(sha256sum "${SCRIPT_DIR}/${relative_path}" 2>/dev/null | awk '{print $1}'); then
+        log_error "Manifest-listed file not found: ${relative_path}"
+    fi
+    if [ "${expected_hash,,}" != "${actual_hash}" ]; then
+        log_error "Manifest verification failed for ${relative_path}"
+    fi
+}
+
+verify_manifest() {
+    log_step "Verify Bundle Manifest (SHA256)"
+
+    local manifest_file="${SCRIPT_DIR}/MANIFEST.sha256"
+    if [ ! -f "${manifest_file}" ]; then
+        log_error "Bundle manifest not found: MANIFEST.sha256"
+    fi
+
+    local entry_count
+    entry_count=$(awk 'NF { count++ } END { print count + 0 }' "${manifest_file}")
+    if [ "${entry_count}" -eq 0 ]; then
+        log_error "Bundle manifest contains no verifiable entries: MANIFEST.sha256"
+    fi
+
+    if ! (cd "${SCRIPT_DIR}" && normalize_manifest_records | sha256sum -c --strict -); then
+        log_error "Bundle manifest verification failed"
+    fi
+
+    local docker_tgz=""
+    if [ -d "${SCRIPT_DIR}/prereqs" ]; then
+        docker_tgz=$(find "${SCRIPT_DIR}/prereqs" -maxdepth 1 -type f -name 'docker-*.tgz' -print -quit)
+    fi
+    if [ -n "${docker_tgz}" ]; then
+        verify_manifest_entry "${docker_tgz#"${SCRIPT_DIR}/"}"
+    fi
+
+    local privileged_file
+    for privileged_file in prereqs/docker.service prereqs/docker-compose-linux-x86_64; do
+        if [ -f "${SCRIPT_DIR}/${privileged_file}" ]; then
+            verify_manifest_entry "${privileged_file}"
+        fi
+    done
+
+    log_success "Bundle manifest verified"
+}
+
+verify_manifest_signature() {
+    log_step "Verify Bundle Manifest Signature"
+
+    if [ ! -f /etc/blacklist/release-pubkey.gpg ]; then
+        if [ "${REQUIRE_SIGNATURE}" = true ]; then
+            log_error "Required release keyring not found: /etc/blacklist/release-pubkey.gpg"
+        fi
+        log_warning "Manifest signature verification skipped: host keyring not found at /etc/blacklist/release-pubkey.gpg"
+        return 0
+    fi
+
+    if [ ! -f "${SCRIPT_DIR}/MANIFEST.sha256.asc" ]; then
+        if [ "${REQUIRE_SIGNATURE}" = true ]; then
+            log_error "Required detached signature not found: MANIFEST.sha256.asc"
+        fi
+        log_warning "Manifest signature verification skipped: MANIFEST.sha256.asc not found"
+        return 0
+    fi
+
+    if ! (cd "${SCRIPT_DIR}" && gpgv --keyring /etc/blacklist/release-pubkey.gpg MANIFEST.sha256.asc MANIFEST.sha256); then
+        log_error "Bundle manifest signature verification failed"
+    fi
+
+    log_success "Bundle manifest signature verified"
+}
 
 install_docker_offline() {
     log_step "Offline Docker Installation"
@@ -50,20 +237,20 @@ install_docker_offline() {
     fi
 
     log_info "Installing Docker Engine..."
-    # Find docker tarball
     local docker_tgz
     docker_tgz=$(find "${prereqs_dir}" -name "docker-*.tgz" | head -n 1)
     if [ -z "$docker_tgz" ]; then
         log_error "Docker binary tarball not found in prereqs/"
     fi
+    local docker_relative="${docker_tgz#"${SCRIPT_DIR}/"}"
     
-    # Extract to /usr/bin
+    verify_manifest_entry "${docker_relative}"
     if ! tar -xzf "$docker_tgz" -C /usr/bin --strip-components=1; then
         log_error "Failed to extract Docker binaries"
     fi
     
-    # Setup service
     if [ -f "${prereqs_dir}/docker.service" ]; then
+        verify_manifest_entry "prereqs/docker.service"
         cp "${prereqs_dir}/docker.service" /etc/systemd/system/
         systemctl daemon-reload
         systemctl enable --now docker
@@ -83,24 +270,16 @@ install_docker_compose() {
     fi
     
     mkdir -p /usr/libexec/docker/cli-plugins
+    verify_manifest_entry "prereqs/docker-compose-linux-x86_64"
     cp "$compose_bin" /usr/libexec/docker/cli-plugins/docker-compose
     chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 }
 
-preflight_checks() {
+preflight_verify() {
     log_step "Preflight Checks"
 
-    if ! command -v docker &> /dev/null; then
-        log_warning "Docker not found. Attempting offline installation..."
-        install_docker_offline
-    fi
-    log_success "Docker $(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
-
-    if ! docker compose version &> /dev/null; then
-         log_warning "Docker Compose not found. Attempting offline installation..."
-         install_docker_compose
-    fi
-    log_success "Docker Compose $(docker compose version --short)"
+    verify_manifest
+    verify_manifest_signature
 
     if [ ! -d "${IMAGES_DIR}" ]; then
         log_error "images/ directory not found"
@@ -114,13 +293,13 @@ preflight_checks() {
         "redis.tar.gz"
     )
 
+    local image_path
     for img in "${required_images[@]}"; do
-        if [ -f "${IMAGES_DIR}/${img}" ]; then
-            log_success "${img} ($(du -h "${IMAGES_DIR}/${img}" | cut -f1))"
-        elif [ -f "${IMAGES_DIR}/blacklist-${img}" ]; then
-            log_success "blacklist-${img} ($(du -h "${IMAGES_DIR}/blacklist-${img}" | cut -f1))"
+        image_path="${IMAGES_DIR}/blacklist-${img}"
+        if [ -f "${image_path}" ]; then
+            log_success "blacklist-${img} ($(du -h "${image_path}" | cut -f1))"
         else
-            log_error "${img} not found"
+            log_error "blacklist-${img} not found"
         fi
     done
 
@@ -129,70 +308,103 @@ preflight_checks() {
     fi
     log_success "docker-compose.yml"
 
-    # Support both checksum filenames (legacy: SHA256SUMS, current: checksums.sha256)
-    local CHECKSUM_FILE=""
-    if [ -f "${IMAGES_DIR}/checksums.sha256" ]; then
-        CHECKSUM_FILE="checksums.sha256"
-        log_success "checksums.sha256"
-    elif [ -f "${IMAGES_DIR}/SHA256SUMS" ]; then
-        CHECKSUM_FILE="SHA256SUMS"
-        log_success "SHA256SUMS"
-    else
-        log_warning "Checksum file not found (integrity check will be skipped)"
+    if [ ! -f "${IMAGES_DIR}/checksums.sha256" ]; then
+        log_error "Checksum file not found: images/checksums.sha256"
+    fi
+    log_success "checksums.sha256"
+
+    local disk_target="/var/lib"
+    local docker_root_dir=""
+    if command -v docker > /dev/null 2>&1; then
+        if docker_root_dir=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null) && [ -n "${docker_root_dir}" ]; then
+            disk_target="${docker_root_dir}"
+        fi
     fi
 
     local available_gb
-    available_gb=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
+    if ! available_gb=$(df -BG "${disk_target}" 2>/dev/null | awk 'NR == 2 {sub(/G$/, "", $4); print $4}'); then
+        log_error "Unable to determine available disk space on ${disk_target}"
+    fi
+    if ! [[ "${available_gb}" =~ ^[0-9]+$ ]]; then
+        log_error "Unable to parse available disk space on ${disk_target}"
+    fi
     if [ "${available_gb}" -lt 3 ]; then
-        log_warning "Low disk space: ${available_gb}GB (recommend 3GB+)"
+        log_error "Insufficient disk space on ${disk_target}: ${available_gb}GB available (3GB required)"
     else
-        log_success "Disk space: ${available_gb}GB"
+        log_success "Disk space on ${disk_target}: ${available_gb}GB"
     fi
 
-    for port in 443 2542 5432 6379 8545; do
-        if ss -tuln 2>/dev/null | grep -q ":${port} "; then
-            log_warning "Port ${port} in use"
-        fi
-    done
+}
+
+preflight_checks() {
+    preflight_verify
+
+    if ! command -v docker &> /dev/null; then
+        log_warning "Docker not found. Attempting offline installation..."
+        install_docker_offline
+    fi
+    log_success "Docker $(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+
+    if ! docker compose version &> /dev/null; then
+         log_warning "Docker Compose not found. Attempting offline installation..."
+         install_docker_compose
+    fi
+    log_success "Docker Compose $(docker compose version --short)"
+}
+
+verify_published_port_available() {
+    log_step "Verify Published Port Availability"
+
+    local listeners
+    if ! listeners=$(ss -H -ltn "sport = :${PUBLISHED_FRONTEND_PORT}" 2>/dev/null); then
+        log_error "Unable to inspect published port ${PUBLISHED_FRONTEND_PORT}"
+    fi
+    if [ -n "${listeners}" ]; then
+        log_error "Published frontend port ${PUBLISHED_FRONTEND_PORT} is already in use"
+    fi
+
+    log_success "Published frontend port ${PUBLISHED_FRONTEND_PORT} is available"
 }
 
 verify_checksums() {
     log_step "Verify Image Integrity (SHA256)"
 
-    local CHECKSUM_FILE=""
-    if [ -f "${IMAGES_DIR}/checksums.sha256" ]; then
-        CHECKSUM_FILE="checksums.sha256"
-    elif [ -f "${IMAGES_DIR}/SHA256SUMS" ]; then
-        CHECKSUM_FILE="SHA256SUMS"
+    local checksum_file="${IMAGES_DIR}/checksums.sha256"
+    if [ ! -f "${checksum_file}" ]; then
+        log_error "Checksum file not found: images/checksums.sha256"
     fi
 
-    if [ -z "$CHECKSUM_FILE" ]; then
-        log_warning "Checksum file not found, skipping verification"
-        return 0
-    fi
-
-    cd "${IMAGES_DIR}"
-    if sha256sum -c "$CHECKSUM_FILE" --status 2>/dev/null; then
-        log_success "All checksums verified"
-    else
-        log_info "Verifying individual files..."
-        local failed=0
-        while IFS='  ' read -r expected_hash filename; do
-            if [ -f "$filename" ]; then
-                actual_hash=$(sha256sum "$filename" | awk '{print $1}')
-                if [ "$expected_hash" = "$actual_hash" ]; then
-                    log_success "${filename}: OK"
-                else
-                    echo -e "${RED}[FAIL]${NC} ${filename}: CHECKSUM MISMATCH"
-                    failed=1
-                fi
-            fi
-        done < "$CHECKSUM_FILE"
-        if [ "$failed" -eq 1 ]; then
-            log_error "Integrity check failed. Re-download the release package."
+    local checked=0
+    local failed=0
+    local expected_hash filename actual_hash
+    while read -r expected_hash filename; do
+        if [ -z "${expected_hash}" ] && [ -z "${filename}" ]; then
+            continue
         fi
+
+        filename="${filename#./}"
+        filename="${filename#\*}"
+        if [ ! -f "${IMAGES_DIR}/${filename}" ]; then
+            log_error "Checksum-listed image not found: ${filename}"
+        fi
+
+        checked=$((checked + 1))
+        actual_hash=$(sha256sum "${IMAGES_DIR}/${filename}" | awk '{print $1}')
+        if [ "${expected_hash}" = "${actual_hash}" ]; then
+            log_success "${filename}: OK"
+        else
+            echo -e "${RED}[FAIL]${NC} ${filename}: CHECKSUM MISMATCH"
+            failed=1
+        fi
+    done < "${checksum_file}"
+
+    if [ "${checked}" -eq 0 ]; then
+        log_error "Checksum file contains no verifiable entries: images/checksums.sha256"
     fi
-    cd "${SCRIPT_DIR}"
+    if [ "${failed}" -eq 1 ]; then
+        log_error "Integrity check failed. Re-download the release package."
+    fi
+    log_success "All checksums verified"
 }
 
 load_images() {
@@ -208,22 +420,16 @@ load_images() {
 
     for img in "${images[@]}"; do
         local name="${img%.tar.gz}"
-        local img_path="${IMAGES_DIR}/${img}"
-        # Support both app.tar.gz and blacklist-app.tar.gz naming
-        if [ ! -f "${img_path}" ] && [ -f "${IMAGES_DIR}/blacklist-${img}" ]; then
-            img_path="${IMAGES_DIR}/blacklist-${img}"
-        fi
+        local img_path="${IMAGES_DIR}/blacklist-${img}"
         log_info "Loading ${name}..."
         local load_output
         if load_output=$(gunzip -c "${img_path}" | docker load 2>&1); then
-            # Extract loaded image name:tag (e.g. "blacklist-app:3.5.41") and tag as :latest
             local loaded_image
-            loaded_image=$(echo "$load_output" | grep -oP 'Loaded image: \K.*' | head -1)
-            if [ -n "$loaded_image" ]; then
-                local repo="${loaded_image%%:*}"
-                docker tag "$loaded_image" "${repo}:latest" 2>/dev/null || true
+            loaded_image=$(printf '%s\n' "$load_output" | sed -n 's/^Loaded image: //p' | head -n 1)
+            if [ -z "${loaded_image}" ]; then
+                log_error "Unable to determine the loaded image tag for ${name}"
             fi
-            log_success "${name}"
+            log_success "${name} (${loaded_image})"
         else
             log_error "Failed to load ${name}"
         fi
@@ -310,27 +516,35 @@ deployment_state_exists() {
 generate_env_file() {
     local env_file="$1"
     local temp_file
-    local fernet_key secret_key master_key encryption_salt pg_password
+    local fernet_key secret_key collector_auth_token master_key encryption_salt pg_password redis_password admin_password
 
     temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to create private environment file."
     chmod 600 "${temp_file}" || log_error "Unable to protect generated environment file."
 
     fernet_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
     secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    collector_auth_token=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     encryption_salt=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    redis_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    admin_password=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
 
     if ! cat > "${temp_file}" << EOF
 # Blacklist Platform Secrets (auto-generated)
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 COMPOSE_PROJECT_NAME=blacklist
+BLACKLIST_VERSION=${VERSION}
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=${admin_password}
 CREDENTIAL_MASTER_KEY=${master_key}
 SECRET_KEY=${secret_key}
+COLLECTOR_AUTH_TOKEN=${collector_auth_token}
 CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
 ENCRYPTION_SALT=${encryption_salt}
 POSTGRES_PASSWORD=${pg_password}
+REDIS_PASSWORD=${redis_password}
 EOF
     then
         rm -f "${temp_file}"
@@ -343,24 +557,57 @@ EOF
     fi
 }
 
+# BLACKLIST_VERSION selects the image tag every compose file resolves. It is NOT a
+# secret, and setup_secrets() deliberately never rewrites an existing environment
+# file, so an upgrade would otherwise keep the previous release's tag and silently
+# redeploy the old images. Re-sync it on every run instead.
+sync_deployment_version() {
+    local env_file="$1"
+    local temp_file
+
+    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage the environment file update."
+    chmod 600 "${temp_file}" || log_error "Unable to protect the staged environment file."
+
+    if ! { grep -v '^BLACKLIST_VERSION=' "${env_file}" || true; } > "${temp_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to read the existing environment file: ${env_file}"
+    fi
+
+    if ! printf 'BLACKLIST_VERSION=%s\n' "${VERSION}" >> "${temp_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to record the deployment version."
+    fi
+
+    if ! mv "${temp_file}" "${env_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to update the environment file: ${env_file}"
+    fi
+
+    chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
+}
+
 setup_secrets() {
     log_step "Setup Environment Secrets"
 
     umask 077
 
-    local env_file="${SCRIPT_DIR}/.env"
+    install -d -m 700 "$(dirname "${ENV_FILE}")" || log_error "Unable to create the secret directory for ${ENV_FILE}."
+
+    local env_file="${ENV_FILE}"
     if [ -f "${env_file}" ]; then
         chmod 600 "${env_file}" || log_error "Unable to protect existing environment file."
     else
         if deployment_state_exists; then
-            log_error "Existing deployment state detected; refusing to generate new secrets. Restore the original .env."
+            log_error "Existing deployment state detected; refusing to generate new secrets. Restore the original ${env_file}."
         fi
 
         log_info "Generating secrets..."
         generate_env_file "${env_file}"
         chmod 600 "${env_file}" || log_error "Unable to protect generated environment file."
-        log_success "Secrets generated (.env)"
+        ADMIN_CREDENTIALS_GENERATED=true
+        log_success "Secrets generated (${env_file})"
     fi
+
 
     local invalid_keys=()
     local key value
@@ -382,11 +629,130 @@ setup_secrets() {
     done
 
     if [ "${#invalid_keys[@]}" -gt 0 ]; then
-        log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in .env."
+        log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in ${env_file}."
     fi
 
-    log_success ".env secret validation passed"
-    log_warning "Back up .env securely; upgrades require the same encryption keys"
+    log_success "Secret validation passed (${env_file})"
+    sync_deployment_version "${env_file}"
+    log_info "Deployment version pinned to ${VERSION}"
+    log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
+}
+
+tls_material_complete() {
+    local path
+    local required_paths=("ca/ca.crt" "ca/ca.key")
+    local service_name
+    for service_name in "${TLS_SERVICE_NAMES[@]}"; do
+        required_paths+=("${service_name}/tls.crt" "${service_name}/tls.key")
+    done
+
+    for path in "${required_paths[@]}"; do
+        [ -f "${TLS_DIR}/${path}" ] || return 1
+    done
+}
+
+protect_tls_material() {
+    chown -R "${TLS_ROOT_UID}:${TLS_ROOT_GID}" "${TLS_DIR}" || log_error "Unable to set TLS root ownership."
+    chmod 700 "${TLS_DIR}" "${TLS_DIR}/ca" || log_error "Unable to protect TLS directories."
+    chmod 600 "${TLS_DIR}/ca/ca.key" || log_error "Unable to protect the local CA private key."
+    chmod 644 "${TLS_DIR}/ca/ca.crt" || log_error "Unable to make the local CA certificate readable."
+
+    local index service_dir
+    for index in "${!TLS_SERVICE_NAMES[@]}"; do
+        service_dir="${TLS_DIR}/${TLS_SERVICE_NAMES[$index]}"
+        chown -R "${TLS_SERVICE_UIDS[$index]}:${TLS_SERVICE_GIDS[$index]}" "${service_dir}" ||
+            log_error "Unable to set TLS ownership for ${TLS_SERVICE_NAMES[$index]}."
+        chmod 700 "${service_dir}" || log_error "Unable to protect ${TLS_SERVICE_NAMES[$index]} TLS directory."
+        chmod 600 "${service_dir}/tls.key" || log_error "Unable to protect ${TLS_SERVICE_NAMES[$index]} private key."
+        chmod 644 "${service_dir}/tls.crt" || log_error "Unable to make ${TLS_SERVICE_NAMES[$index]} certificate readable."
+    done
+}
+
+generate_service_certificate() {
+    local output_dir="$1"
+    local service_name="$2"
+    local dns_name="$3"
+    local extension_file="${output_dir}/${service_name}/extensions.cnf"
+    local request_file="${output_dir}/${service_name}/tls.csr"
+
+    cat > "${extension_file}" << EOF
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:${dns_name}
+EOF
+
+    openssl req -new -nodes -newkey rsa:2048 \
+        -keyout "${output_dir}/${service_name}/tls.key" \
+        -out "${request_file}" \
+        -subj "/CN=${dns_name}/O=Blacklist/C=KR" > /dev/null 2>&1 ||
+        log_error "Unable to generate the ${service_name} private key."
+    openssl x509 -req -sha256 -days 825 \
+        -in "${request_file}" \
+        -CA "${output_dir}/ca/ca.crt" \
+        -CAkey "${output_dir}/ca/ca.key" \
+        -CAcreateserial \
+        -extfile "${extension_file}" \
+        -out "${output_dir}/${service_name}/tls.crt" > /dev/null 2>&1 ||
+        log_error "Unable to sign the ${service_name} certificate."
+    rm -f "${request_file}" "${extension_file}"
+}
+
+setup_internal_tls() {
+    log_step "Setup Internal Transport Certificates"
+    umask 077
+
+    install -d -m 700 "$(dirname "${TLS_DIR}")" || log_error "Unable to create the TLS parent directory."
+    if [ -d "${TLS_DIR}" ]; then
+        if tls_material_complete; then
+            protect_tls_material
+            log_success "Internal TLS material validated (${TLS_DIR})"
+            return 0
+        fi
+        if [ -n "$(find "${TLS_DIR}" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+            log_error "Incomplete TLS material found in ${TLS_DIR}; restore the complete target-local PKI backup."
+        fi
+        rmdir "${TLS_DIR}" || log_error "Unable to replace the empty TLS directory."
+    fi
+
+    local staging_dir
+    staging_dir=$(mktemp -d "${TLS_DIR}.tmp.XXXXXX") || log_error "Unable to stage internal TLS material."
+    install -d -m 700 "${staging_dir}/ca" || log_error "Unable to stage the local CA directory."
+
+    openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 3650 \
+        -keyout "${staging_dir}/ca/ca.key" \
+        -out "${staging_dir}/ca/ca.crt" \
+        -subj "/CN=Blacklist Internal CA/O=Blacklist/C=KR" > /dev/null 2>&1 ||
+        log_error "Unable to generate the local certificate authority."
+
+    local index service_name
+    for index in "${!TLS_SERVICE_NAMES[@]}"; do
+        service_name="${TLS_SERVICE_NAMES[$index]}"
+        install -d -m 700 "${staging_dir}/${service_name}" || log_error "Unable to stage ${service_name} TLS material."
+        generate_service_certificate "${staging_dir}" "${service_name}" "${TLS_SERVICE_DNS_NAMES[$index]}"
+    done
+    rm -f "${staging_dir}/ca/ca.srl"
+
+    mv "${staging_dir}" "${TLS_DIR}" || log_error "Unable to install target-local TLS material."
+    protect_tls_material
+    log_success "Generated target-local CA and service certificates (${TLS_DIR})"
+}
+
+show_initial_admin_password() {
+    if [ "${ADMIN_CREDENTIALS_GENERATED}" != true ]; then
+        return 0
+    fi
+
+    if ! read_required_secret_value "${ENV_FILE}" "ADMIN_PASSWORD"; then
+        log_error "Unable to read the generated administrator password from ${ENV_FILE}."
+    fi
+    local admin_password="${DOTENV_NORMALIZED_VALUE}"
+
+    log_step "First-Run Administrator Credentials"
+    log_warning "This administrator password is shown only once."
+    log_warning "Store it in your password manager and change it after the first login."
+    printf '  Admin username: admin\n'
+    printf '  Admin password: %s\n' "${admin_password}"
 }
 
 stop_all_running_containers() {
@@ -421,75 +787,192 @@ stop_all_running_containers() {
     log_success "All running containers stopped"
 }
 
+wait_for_health() {
+    local containers=("$@")
+    local pending=("${containers[@]}")
+    local deadline=$((SECONDS + HEALTH_WAIT_TIMEOUT_SECONDS))
+    local terminal_failure=false
+    local container status
+    declare -A last_status=()
+
+    log_info "Waiting up to ${HEALTH_WAIT_TIMEOUT_SECONDS}s for container health..."
+    while [ "${#pending[@]}" -gt 0 ] && [ "${SECONDS}" -le "${deadline}" ]; do
+        local remaining=()
+        terminal_failure=false
+
+        for container in "${pending[@]}"; do
+            if ! status=$(docker inspect -f '{{.State.Health.Status}}' "${container}" 2>/dev/null); then
+                status="missing"
+            elif [ -z "${status}" ]; then
+                status="<no value>"
+            fi
+            last_status["${container}"]="${status}"
+
+            case "${status}" in
+                healthy)
+                    log_success "${container}: healthy"
+                    ;;
+                starting)
+                    remaining+=("${container}")
+                    ;;
+                *)
+                    terminal_failure=true
+                    ;;
+            esac
+        done
+
+        if [ "${terminal_failure}" = true ]; then
+            for container in "${containers[@]}"; do
+                log_info "${container}: last status ${last_status["${container}"]:-not checked}"
+            done
+            log_error "Container health check failed"
+        fi
+
+        pending=("${remaining[@]}")
+        if [ "${#pending[@]}" -eq 0 ]; then
+            return 0
+        fi
+        sleep "${HEALTH_POLL_INTERVAL_SECONDS}"
+    done
+
+    for container in "${containers[@]}"; do
+        log_info "${container}: last status ${last_status["${container}"]:-not checked}"
+    done
+    log_error "Timed out waiting for container health"
+}
+
 deploy_services() {
     log_step "Deploy Services"
 
     cd "${SCRIPT_DIR}"
 
-    # Backup current image tags for rollback
-    local backup_file="${SCRIPT_DIR}/.rollback-images"
-    if docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -q '^blacklist-'; then
-        docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep '^blacklist-' | grep -v '<none>' > "${backup_file}" || true
-        log_info "Current image tags saved to .rollback-images"
-    fi
-
-    local containers="blacklist-app blacklist-collector blacklist-frontend blacklist-postgres blacklist-redis"
-    for c in $containers; do
+    local containers=(
+        "blacklist-app"
+        "blacklist-collector"
+        "blacklist-frontend"
+        "blacklist-postgres"
+        "blacklist-redis"
+    )
+    local c
+    for c in "${containers[@]}"; do
         if docker ps -aq -f "name=^${c}$" | grep -q .; then
             log_info "Removing existing container: ${c}..."
             docker rm -f "$c" 2>/dev/null || true
         fi
     done
 
+    verify_published_port_available
+
     log_info "Starting services..."
     local compose_output
-    if ! compose_output=$(docker compose up -d --pull never 2>&1); then
+    if ! compose_output=$(docker compose --env-file "${ENV_FILE}" up -d --pull never 2>&1); then
         printf '%s\n' "${compose_output}"
         log_error "Failed to start Blacklist services"
     fi
     printf '%s\n' "${compose_output}"
 
-    log_info "Waiting for services to initialize (30s)..."
-    sleep 30
+    wait_for_health "${containers[@]}"
 
     log_success "Services started"
 }
 
 validate_compose_config() {
     log_step "Validate Compose Configuration"
-    if ! (cd "${SCRIPT_DIR}" && docker compose config --quiet); then
+    if ! (cd "${SCRIPT_DIR}" && docker compose --env-file "${ENV_FILE}" config --quiet); then
         log_error "Compose configuration validation failed"
     fi
     log_success "Compose configuration"
 }
 
-health_checks() {
-    log_step "Health Checks"
-
-    if ! docker compose ps --format "table {{.Name}}\t{{.Status}}"; then
-        log_error "Failed to read service status"
-    fi
-
-    local endpoints=(
-        "http://localhost:2542/health|API"
-        "http://localhost:8545/health|Collector"
-    )
-
-    echo ""
-    for ep in "${endpoints[@]}"; do
-        local url="${ep%|*}"
-        local name="${ep#*|}"
-        if curl -s "${url}" 2>/dev/null | grep -q "healthy\|status"; then
-            log_success "${name}: healthy"
-        else
-            log_error "${name}: not responding"
+collect_posture_compose_files() {
+    POSTURE_COMPOSE_FILES=()
+    local candidate
+    for candidate in "${POSTURE_COMPOSE_CANDIDATES[@]}"; do
+        if [ -f "${SCRIPT_DIR}/${candidate}" ]; then
+            POSTURE_COMPOSE_FILES+=(-f "${candidate}")
         fi
     done
 
-    if curl -sk "https://localhost:443" > /dev/null 2>&1; then
-        log_success "Frontend: accessible"
+    [ "${#POSTURE_COMPOSE_FILES[@]}" -gt 0 ]
+}
+
+render_effective_config() {
+    (cd "${SCRIPT_DIR}" && docker compose --env-file "${ENV_FILE}" "${POSTURE_COMPOSE_FILES[@]}" config "$@")
+}
+
+# ADR-0002 governs the collector flag only; its Decision line is the binding baseline.
+jwt_adr_decision() {
+    local adr_file="${SCRIPT_DIR}/../${JWT_DEFERRAL_ADR}"
+    local decision=""
+
+    if [ -f "${adr_file}" ]; then
+        decision=$(grep -m1 -E '^Decision:' "${adr_file}" | sed -E 's/^Decision:[[:space:]]*//' | tr -d '[:space:]') || true
+    fi
+
+    # The shipped offline bundle does NOT contain docs/decisions/, so this fallback is
+    # the value used by every real install. It must track ADR-0002's current decision:
+    # enforcement is implemented (collector verifies a bearer token on its control
+    # routes), so the baseline is "enforce". Leaving it at "defer" would make the gate
+    # reject every production deployment, because base.yml now ships
+    # DISABLE_JWT_AUTH="false".
+    printf '%s' "${decision:-enforce}"
+}
+
+verify_security_posture() {
+    log_step "Verify Security Posture"
+
+    if [ "${SKIP_POSTURE_CHECK}" = true ]; then
+        log_warning "Security posture check skipped (--skip-posture-check): host networking, published ports, Redis password enforcement, and ADR drift are NOT verified."
+        return 0
+    fi
+
+    if ! command -v python3 > /dev/null 2>&1; then
+        log_error "python3 is required to verify the security posture; install python3 or re-run with --skip-posture-check to accept the risk explicitly."
+    fi
+
+    if [ ! -f "${ENV_FILE}" ]; then
+        log_error "Environment file ${ENV_FILE} not found; run --check-secrets first so the effective configuration can be rendered."
+    fi
+
+    if ! collect_posture_compose_files; then
+        log_error "No Compose file found in ${SCRIPT_DIR}; refusing to verify an unrenderable configuration."
+    fi
+
+    local rendered
+    if ! rendered=$(render_effective_config --format json 2> /dev/null); then
+        render_effective_config --quiet || true
+        log_error "Unable to render the effective Compose configuration for the security posture check."
+    fi
+
+    local findings
+    if findings=$(printf '%s' "${rendered}" | python3 -c "${POSTURE_CHECK_PY}" "$(jwt_adr_decision)"); then
+        log_success "Security posture verified (internal networking, published ports, Redis password, ADR-0002 flag)"
+        return 0
+    fi
+
+    local finding
+    while IFS= read -r finding; do
+        if [ -n "${finding}" ]; then
+            echo -e "${RED}[FAIL]${NC} ${finding}"
+        fi
+    done <<< "${findings}"
+
+    log_error "Security posture check failed; refusing to deploy this configuration."
+}
+
+health_checks() {
+    log_step "Health Checks"
+
+    if ! docker compose --env-file "${ENV_FILE}" ps --format "table {{.Name}}\t{{.Status}}"; then
+        log_error "Failed to read service status"
+    fi
+
+    echo ""
+    if curl -sk "https://localhost:${PUBLISHED_FRONTEND_PORT}/health" 2>/dev/null |
+        grep -Eq '"status"[[:space:]]*:[[:space:]]*"healthy"'; then
+        log_success "Frontend: healthy"
     else
-        log_error "Frontend: not responding"
+        log_error "Frontend: unhealthy or not responding"
     fi
 }
 
@@ -503,8 +986,6 @@ post_install() {
     echo ""
     echo "Access Points:"
     echo "  Frontend:  https://localhost:443"
-    echo "  API:       http://localhost:2542/api/health"
-    echo "  Collector: http://localhost:8545/health"
     echo ""
     echo "Management:"
     echo "  Status:    docker compose ps"
@@ -522,6 +1003,11 @@ show_help() {
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
     echo "  --check-secrets Generate or validate .env, then exit"
+    echo "  --generate-tls-only  Generate or validate internal TLS material, then exit"
+    echo "  --verify-only  Verify the bundle layout, image checksums, and security posture, then exit (read-only)"
+    echo "  --stop-all-containers  Stop every running container on the host before deploying"
+    echo "  --skip-posture-check  Deploy even if the security posture check fails (emergency use; logs a warning)"
+    echo "  --require-signature  Require MANIFEST.sha256.asc verification with the host release keyring"
     echo "  --help, -h     Show this help"
     echo ""
 }
@@ -529,20 +1015,44 @@ show_help() {
 main() {
     local skip_load=false
     local check_secrets=false
+    local generate_tls_only=false
+    local verify_only=false
 
     for arg in "$@"; do
         case $arg in
             --skip-load) skip_load=true ;;
             --check-secrets) check_secrets=true ;;
+            --generate-tls-only) generate_tls_only=true ;;
+            --verify-only) verify_only=true ;;
+            --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
+            --skip-posture-check) SKIP_POSTURE_CHECK=true ;;
+            --require-signature) REQUIRE_SIGNATURE=true ;;
             --help|-h) show_help; exit 0 ;;
             *) log_warning "Unknown option: $arg" ;;
         esac
     done
 
-    if [ "$check_secrets" = true ]; then
-        setup_secrets
+    if [ "$generate_tls_only" = true ]; then
+        setup_internal_tls
         return 0
     fi
+
+    if [ "$check_secrets" = true ]; then
+        setup_secrets
+        show_initial_admin_password
+        return 0
+    fi
+
+    if [ "$verify_only" = true ]; then
+        preflight_verify
+        verify_published_port_available
+        verify_checksums
+        verify_security_posture
+        log_success "Bundle verification completed (no changes were made)"
+        return 0
+    fi
+
+    require_root
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
@@ -560,14 +1070,21 @@ main() {
     fi
 
     setup_secrets
+    setup_internal_tls
     validate_compose_config
-    stop_all_running_containers
+    verify_security_posture
+    if [ "$STOP_ALL_CONTAINERS" = true ]; then
+        stop_all_running_containers
+    else
+        log_info "Leaving unrelated containers running (use --stop-all-containers to stop every container on this host)"
+    fi
 
     deploy_services
     health_checks
     post_install
 
     log_success "Installation completed!"
+    show_initial_admin_password
 }
 
 main "$@"

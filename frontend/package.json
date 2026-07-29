@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -50,7 +50,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.14",
-    "typescript": "^7.0.2"
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
@@ -59,7 +59,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",
-    "@vitejs/plugin-react": "^6.0.4",
+    "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.3",
     "eslint-config-next": "^15.5.21",

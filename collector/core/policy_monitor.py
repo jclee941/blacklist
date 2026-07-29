@@ -55,6 +55,8 @@ class REGTECHPolicyMonitor:
             database=self.config.get("postgres_db", "blacklist"),
             user=self.config.get("postgres_user", "postgres"),
             password=self.config.get("postgres_password", "postgres"),
+            sslmode="verify-full",
+            sslrootcert=self.config.get("postgres_sslrootcert", "/run/blacklist/ca.crt"),
             cursor_factory=RealDictCursor,
         )
 

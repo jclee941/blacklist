@@ -123,18 +123,17 @@ class DatabaseService(DatabaseQueryMixin):
     def _initialize_connection_pool(self):
         """연결 풀 초기화 - 고성능 설정"""
         try:
+            connection_params = CollectorConfig.get_postgres_connection_params()
+            connection_params.update(
+                {
+                    "connect_timeout": 10,
+                    "application_name": "blacklist_collector_optimized",
+                }
+            )
             self.pool = SimpleConnectionPool(
                 minconn=2,
                 maxconn=20,
-                host=CollectorConfig.POSTGRES_HOST,
-                port=CollectorConfig.POSTGRES_PORT,
-                database=CollectorConfig.POSTGRES_DB,
-                user=CollectorConfig.POSTGRES_USER,
-                password=CollectorConfig.POSTGRES_PASSWORD,
-                **{
-                    "connect_timeout": 10,
-                    "application_name": "blacklist_collector_optimized",
-                },
+                **connection_params,
             )
             logger.info("✅ 고성능 데이터베이스 연결 풀 초기화 완료")
         except Exception as e:

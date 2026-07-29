@@ -17,7 +17,11 @@ def register_collection_panel_runtime_routes(bp, csrf):
         """수집기 실시간 상태 조회"""
         try:
             try:
-                response = requests.get(f"{config.COLLECTOR_URL}/status", timeout=2)
+                response = requests.get(
+                    f"{config.COLLECTOR_URL}/status",
+                    timeout=2,
+                    **config.COLLECTOR_AUTH_REQUEST_KWARGS,
+                )
                 collector_data = response.json()
                 collectors = collector_data.get("collectors", {})
 
@@ -70,7 +74,11 @@ def register_collection_panel_runtime_routes(bp, csrf):
     def get_live_logs():
         """실시간 수집 로그 조회 (from collector's memory buffer)"""
         try:
-            response = requests.get(f"{config.COLLECTOR_URL}/logs", timeout=2)
+            response = requests.get(
+                f"{config.COLLECTOR_URL}/logs",
+                timeout=2,
+                **config.COLLECTOR_AUTH_REQUEST_KWARGS,
+            )
             data = response.json()
             if not data or "logs" not in data:
                 return jsonify({"success": False, "error": "로그 데이터 없음", "logs": []})

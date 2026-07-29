@@ -50,6 +50,7 @@ class BlacklistService(BlacklistCollectorMixin):
                 decode_responses=True,
                 socket_connect_timeout=2,
                 socket_timeout=2,
+                **config.get_redis_auth_params(),
             )
             # Redis 연결 테스트
             self.redis_client.ping()
@@ -402,6 +403,7 @@ class BlacklistService(BlacklistCollectorMixin):
                 f"{config.COLLECTOR_URL}/api/force-collection/REGTECH",
                 json={"force": force},
                 timeout=60,
+                **config.COLLECTOR_AUTH_REQUEST_KWARGS,
             )
 
             if response.status_code == 200:

@@ -350,14 +350,36 @@ jobs:
           for f in *.tar.gz; do
             gunzip -c "$f" | docker load
           done
+      - name: Build datastore images
+        run: |
+          docker build --build-arg APP_VERSION=ci -t blacklist-postgres:ci postgres
+          docker build --build-arg APP_VERSION=ci -f deploy/redis/Dockerfile -t blacklist-redis:ci .
+      - name: Prepare CI deployment environment
+        run: |
+          CI_ENV_FILE="$RUNNER_TEMP/blacklist-ci.env"
+          BLACKLIST_TLS_DIR="$RUNNER_TEMP/blacklist-ci-tls"
+          printf 'CI_ENV_FILE=%s\nBLACKLIST_TLS_DIR=%s\n' "$CI_ENV_FILE" "$BLACKLIST_TLS_DIR" >> "$GITHUB_ENV"
+          cat > "$CI_ENV_FILE" <<EOF
+          POSTGRES_PASSWORD=ci-postgres-password
+          REDIS_PASSWORD=ci-redis-password
+          SECRET_KEY=my-secret-key-123
+          CREDENTIAL_MASTER_KEY=ci-master-key
+          CREDENTIAL_ENCRYPTION_KEY=ci-encryption-key
+          ENCRYPTION_SALT=ci-encryption-salt
+          COLLECTOR_AUTH_TOKEN=test-auth-bootstrap-secret
+          ADMIN_USERNAME=admin
+          ADMIN_PASSWORD=blacklist-dev-password
+          BLACKLIST_TLS_DIR=$RUNNER_TEMP/blacklist-ci-tls
+          EOF
+          sudo env BLACKLIST_TLS_DIR="$BLACKLIST_TLS_DIR" bash deploy/install.sh --generate-tls-only
       - name: Start services
         run: |
-          docker compose -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 120 || {
+          docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml up -d --wait --wait-timeout 240 || {
             echo '::group::Collector logs'
-            docker compose -f .github/docker-compose.ci.yml logs collector
+            docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml logs blacklist-collector
             echo '::endgroup::'
             echo '::group::App logs'
-            docker compose -f .github/docker-compose.ci.yml logs app
+            docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml logs blacklist-app
             echo '::endgroup::'
             exit 1
           }
@@ -381,7 +403,7 @@ jobs:
           WEBKIT_ENABLED: "true"
       - name: Collect logs
         if: failure()
-        run: docker compose -f .github/docker-compose.ci.yml logs --no-color > docker-logs.txt 2>&1
+        run: docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml logs --no-color > docker-logs.txt 2>&1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
@@ -391,7 +413,10 @@ jobs:
             frontend/test-results/
           retention-days: 7
       - if: always()
-        run: docker compose -f .github/docker-compose.ci.yml down -v
+        run: |
+          docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml down -v
+          sudo rm -rf "$BLACKLIST_TLS_DIR"
+          rm -f "$CI_ENV_FILE"
 
   coverage-report:
     needs: [test-frontend, test-backend, test-collector]

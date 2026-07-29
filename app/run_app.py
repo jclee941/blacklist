@@ -10,20 +10,11 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Set up proper Python path for containerized environment
-app_root = Path(__file__).parent  # /app (where this script is located)
-src_root = app_root  # /app (since build context is src/)
-
-# Add path to ensure module resolution works in container
-sys.path.insert(0, str(app_root))
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 def get_flask_app():
-    """
-    Import Flask application using app factory pattern with Phase 1.3 security
-    """
     try:
-        # Use app factory pattern from core.app (includes Phase 1.3 security)
         from core.app import create_app
 
         app = create_app()
@@ -34,9 +25,20 @@ def get_flask_app():
         sys.exit(1)
 
 
-# Get Flask application instance
 app = get_flask_app()
 
-if __name__ == "__main__":
+
+def run_server() -> None:
     port = int(os.environ.get("PORT", 2542))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    certificate = os.environ.get("INTERNAL_TLS_CERT", "/run/blacklist/tls/tls.crt")
+    private_key = os.environ.get("INTERNAL_TLS_KEY", "/run/blacklist/tls/tls.key")
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=False,
+        ssl_context=(certificate, private_key),
+    )
+
+
+if __name__ == "__main__":
+    run_server()

@@ -158,7 +158,11 @@ class RegtechConfigService:
             # Phase 2: 수집 컨테이너 헬스체크
             logger.info("🏥 Phase 2: 수집 컨테이너 상태 확인")
             try:
-                health_response = requests.get(f"{config.COLLECTOR_URL}/health", timeout=10)
+                health_response = requests.get(
+                    f"{config.COLLECTOR_URL}/health",
+                    timeout=10,
+                    **config.COLLECTOR_AUTH_REQUEST_KWARGS,
+                )
 
                 if health_response.status_code == 200:
                     health_data = health_response.json()

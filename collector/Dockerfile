@@ -71,6 +71,6 @@ RUN mkdir -p /app/logs
 EXPOSE 8545
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8545/health || exit 1
+    CMD curl -f --cacert /run/blacklist/ca.crt https://blacklist-collector:8545/health || exit 1
 
 CMD ["python", "-m", "collector.run_collector"]

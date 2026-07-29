@@ -1,8 +1,6 @@
 """
 Redis caching utility functions with metrics integration
 공통 캐시 작업 유틸리티
-
-Updated: 2025-11-21 (Cache Metrics Integration - MEDIUM PRIORITY #8)
 """
 
 import json
@@ -37,6 +35,7 @@ def get_redis_client() -> Optional[redis.Redis]:
             decode_responses=True,
             socket_connect_timeout=2,
             socket_timeout=2,
+            **config.get_redis_auth_params(),
         )
         client.ping()
         logger.info("Redis cache client created successfully")
@@ -74,8 +73,6 @@ def _deserialize_value(raw: str) -> Any:
 
 
 class CacheManager:
-    """Redis 캐시 매니저 클래스"""
-
     def __init__(self, ttl: int = 300, key_prefix: str = ""):
         self.redis_client = get_redis_client()
         self.ttl = ttl

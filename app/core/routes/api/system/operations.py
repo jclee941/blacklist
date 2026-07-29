@@ -62,7 +62,7 @@ def get_system_logs():
         common.logger.error(f"System logs error: {e}", exc_info=True)
         raise common.internal_server_error_cls(
             message="Failed to read system logs",
-            details={"log_file": "/app/logs/collector.log", "error_type": type(e).__name__},
+            cause=type(e).__name__,
         )
 
 
@@ -89,7 +89,7 @@ def get_auth_status():
     """
     try:
         regtech_config_service = common.current_app.extensions["regtech_config_service"]
-        credentials = regtech_config_service.get_credentials()
+        credentials = regtech_config_service.get_regtech_credentials()
         has_credentials = bool(credentials and credentials.get("regtech_id"))
 
         return common.jsonify(
@@ -108,7 +108,7 @@ def get_auth_status():
         common.logger.error(f"Auth status error: {e}", exc_info=True)
         raise common.internal_server_error_cls(
             message="Failed to retrieve authentication status",
-            details={"error_type": type(e).__name__},
+            cause=type(e).__name__,
         )
 
 

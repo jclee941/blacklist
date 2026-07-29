@@ -22,14 +22,14 @@ class TestAppConfigDefaults:
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.COLLECTOR_URL == "http://blacklist-collector:8545"
+        assert cfg.COLLECTOR_URL == "https://blacklist-collector:8545"
 
     @patch.dict(os.environ, {}, clear=True)
     def test_blacklist_api_url_default(self):
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.BLACKLIST_API_URL == "http://blacklist-app:2542/api"
+        assert cfg.BLACKLIST_API_URL == "https://blacklist-app:2542/api"
 
     @patch.dict(os.environ, {}, clear=True)
     def test_regtech_base_url_default(self):
@@ -69,8 +69,8 @@ class TestAppConfigDefaults:
         from app.core.config import AppConfig
 
         cfg = AppConfig()
-        assert cfg.ADMIN_USERNAME == "__SET_ADMIN_USERNAME__"
-        assert cfg.ADMIN_PASSWORD == "__SET_ADMIN_PASSWORD__"
+        assert cfg.ADMIN_USERNAME is None
+        assert cfg.ADMIN_PASSWORD is None
 
     @patch.dict(os.environ, {}, clear=True)
     def test_app_port_default(self):
@@ -300,6 +300,16 @@ class TestAppConfigPostgres:
             assert params["user"] == "myuser"
             assert params["password"] == "mypass"
 
+    def test_get_postgres_params_requires_verified_tls(self):
+        env = {"INTERNAL_CA_CERT": "/probe/ca.crt"}
+        with patch.dict(os.environ, env, clear=True):
+            from app.core.config import AppConfig
+
+            params = AppConfig().get_postgres_params()
+
+        assert params["sslmode"] == "verify-full"
+        assert params["sslrootcert"] == "/probe/ca.crt"
+
     def test_get_postgres_params_from_database_url(self):
         env = {"DATABASE_URL": "postgresql://urluser:urlpass@urlhost:5434/urldb"}
         with patch.dict(os.environ, env, clear=True):
@@ -359,7 +369,9 @@ class TestAppConfigPostgres:
             from app.core.config import AppConfig
 
             cfg = AppConfig()
-            assert cfg.get_postgres_dsn() == "postgresql://u:p@h:5432/db"
+            assert cfg.get_postgres_dsn() == (
+                "postgresql://u:p@h:5432/db?sslmode=verify-full&sslrootcert=%2Frun%2Fblacklist%2Fca.crt"
+            )
 
     def test_get_postgres_dsn_constructed(self):
         env = {
@@ -374,7 +386,10 @@ class TestAppConfigPostgres:
 
             cfg = AppConfig()
             dsn = cfg.get_postgres_dsn()
-            assert dsn == "postgresql://myuser:mypass@myhost:5432/mydb"
+            assert dsn == (
+                "postgresql://myuser:mypass@myhost:5432/mydb"
+                "?sslmode=verify-full&sslrootcert=%2Frun%2Fblacklist%2Fca.crt"
+            )
 
     def test_get_postgres_params_url_missing_parts_use_defaults(self):
         env = {"DATABASE_URL": "postgresql:///mydb"}
@@ -399,7 +414,10 @@ class TestAppConfigRedis:
             from app.core.config import AppConfig
 
             cfg = AppConfig()
-            assert cfg.REDIS_URL == "redis://redis-host:6380"
+            assert cfg.REDIS_URL == (
+                "rediss://redis-host:6380"
+                "?ssl_ca_certs=%2Frun%2Fblacklist%2Fca.crt&ssl_cert_reqs=required"
+            )
 
     def test_get_redis_params(self):
         env = {"REDIS_HOST": "redis-host", "REDIS_PORT": "6380"}
@@ -410,6 +428,17 @@ class TestAppConfigRedis:
             params = cfg.get_redis_params()
             assert params["host"] == "redis-host"
             assert params["port"] == 6380
+
+    def test_get_redis_params_requires_verified_tls(self):
+        env = {"INTERNAL_CA_CERT": "/probe/ca.crt"}
+        with patch.dict(os.environ, env, clear=True):
+            from app.core.config import AppConfig
+
+            params = AppConfig().get_redis_params()
+
+        assert params["ssl"] is True
+        assert params["ssl_cert_reqs"] == "required"
+        assert params["ssl_ca_certs"] == "/probe/ca.crt"
 
 
 @pytest.mark.unit

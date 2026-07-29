@@ -1,20 +1,16 @@
-"""
-Health Server for Multi-Collector Scheduler
-Provides HTTP health endpoint at :8545/health
-"""
-
 from datetime import datetime
 from typing import Any, TypedDict
-from flask import Flask, jsonify
+from flask import Flask, Response, jsonify
 import threading
 import logging
-import importlib
+import os
 from collections import deque
+from werkzeug.serving import make_server
 from .core.database import DatabaseService
+from .core.control_auth import register_control_auth
 
 logger = logging.getLogger(__name__)
 
-# Global log buffer for recent logs (circular buffer)
 LOG_BUFFER: deque[dict[str, Any]] = deque(maxlen=100)
 
 
@@ -28,8 +24,6 @@ class CollectorStatus(TypedDict):
 
 
 class LogBufferHandler(logging.Handler):
-    """Custom log handler that stores logs in memory buffer"""
-
     def emit(self, record):
         try:
             log_entry = {
@@ -45,20 +39,22 @@ class LogBufferHandler(logging.Handler):
             self.handleError(record)
 
 
-class HealthServer:
-    """Simple health check server for multi-collector"""
+def _failure_response(error: str, status: int) -> tuple[Response, int]:
+    return jsonify({"success": False, "error": error, "timestamp": datetime.now().isoformat()}), status
 
+
+class HealthServer:
     def __init__(self, collectors_ref, scheduler_ref=None, port=8545):
         self.app = Flask(__name__)
-        self.collectors = collectors_ref  # Reference to collectors dict
-        self.scheduler = scheduler_ref  # Reference to scheduler instance
+        self.collectors = collectors_ref
+        self.scheduler = scheduler_ref
         self.port = port
         self.thread = None
 
         # Cached DatabaseService instance (avoid re-creating on every request)
         self._db = DatabaseService()
+        register_control_auth(self.app)
 
-        # Setup routes
         @self.app.route("/health", methods=["GET"])
         def health():
             return jsonify(
@@ -80,7 +76,6 @@ class HealthServer:
 
         @self.app.route("/logs", methods=["GET"])
         def logs():
-            """Get recent logs from memory buffer"""
             return jsonify(
                 {
                     "logs": list(LOG_BUFFER),
@@ -91,7 +86,6 @@ class HealthServer:
 
         @self.app.route("/trigger", methods=["POST"])
         def trigger_collection():
-            """Trigger manual collection for the REGTECH source."""
             try:
                 from flask import request as flask_request
 
@@ -121,17 +115,10 @@ class HealthServer:
 
             except Exception as e:
                 logger.error(f"Manual trigger error: {e}")
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": str(e),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                ), 500
+                return _failure_response(str(e), 500)
 
         @self.app.route("/api/test-auth/<source>", methods=["POST"])
         def test_authentication(source):
-            """Test authentication for a specific source"""
             try:
                 source_upper = source.upper()
 
@@ -168,15 +155,11 @@ class HealthServer:
                         }
                     ), 400
 
-                # Test authentication
                 logger.info(f"Testing authentication for {source_upper} with user: {username}")
 
-                auth_result = False
-                if source_upper == "REGTECH":
-                    from .core.regtech_collector import RegtechCollector
+                from .core.regtech_collector import RegtechCollector
 
-                    collector = RegtechCollector()
-                    auth_result = collector.authenticate(username, password)
+                auth_result = RegtechCollector().authenticate(username, password)
 
                 test_timestamp = datetime.now()
                 test_message = "인증 성공" if auth_result else "인증 실패"
@@ -203,17 +186,11 @@ class HealthServer:
 
             except Exception as e:
                 logger.error(f"Error testing authentication for {source}: {e}")
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": str(e),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )  # 200 OK - 예외도 테스트 결과로 처리
+                # Authentication failures are a completed test result, not an API failure.
+                return _failure_response(str(e), 200)
 
         @self.app.route("/api/force-collection/<source>", methods=["POST"])
         def force_collection(source):
-            """Force immediate collection for a specific source"""
             try:
                 source_upper = source.upper()
 
@@ -255,16 +232,9 @@ class HealthServer:
 
             except Exception as e:
                 logger.error(f"Error forcing collection for {source}: {e}")
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": str(e),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                ), 500
+                return _failure_response(str(e), 500)
 
     def _get_collector_status(self) -> dict[str, CollectorStatus]:
-        """Get current collector status from scheduler stats"""
         status: dict[str, CollectorStatus] = {}
 
         regtech_creds = self._db.get_collection_credentials("REGTECH")
@@ -309,22 +279,24 @@ class HealthServer:
         return status
 
     def start(self):
-        """Start health server in background thread"""
         self.thread = threading.Thread(target=self._run_server, daemon=True)
         self.thread.start()
         logger.info(f"Health server started on port {self.port}")
 
     def _run_server(self):
-        """Run Flask server with waitress"""
-        waitress = importlib.import_module("waitress")
-        waitress.serve(self.app, host="127.0.0.1", port=self.port, _quiet=True)
+        certificate = os.environ.get("INTERNAL_TLS_CERT", "/run/blacklist/tls/tls.crt")
+        private_key = os.environ.get("INTERNAL_TLS_KEY", "/run/blacklist/tls/tls.key")
+        server = make_server(
+            "0.0.0.0",
+            self.port,
+            self.app,
+            ssl_context=(certificate, private_key),
+        )
+        server.serve_forever()
 
 
 def start_health_server():
-    """Start health server helper"""
     from .scheduler import scheduler
 
-    # Scheduler has collection_stats, we can use that or just pass empty for now
-    # Ideally, we should pass real collector status references
     server = HealthServer(collectors_ref={}, scheduler_ref=scheduler)
     server._run_server()

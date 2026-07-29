@@ -92,6 +92,25 @@ class TestGetDbConnection:
         assert conn is mock_conn
 
     @patch("core.database.connection.psycopg2")
+    def test_forwards_tls_verification(self, mock_psycopg2):
+        params = {
+            "host": "blacklist-postgres",
+            "port": 5432,
+            "database": "test",
+            "user": "test",
+            "password": "test",
+            "sslmode": "verify-full",
+            "sslrootcert": "/run/blacklist/ca.crt",
+        }
+        with patch("core.database.connection._get_connection_params", return_value=params):
+            from core.database.connection import get_db_connection
+
+            get_db_connection()
+
+        assert mock_psycopg2.connect.call_args.kwargs["sslmode"] == "verify-full"
+        assert mock_psycopg2.connect.call_args.kwargs["sslrootcert"] == "/run/blacklist/ca.crt"
+
+    @patch("core.database.connection.psycopg2")
     def test_connection_failure(self, mock_psycopg2):
         mock_psycopg2.connect.side_effect = Exception("connection refused")
         with patch(

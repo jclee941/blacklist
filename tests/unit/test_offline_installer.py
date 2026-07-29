@@ -8,11 +8,15 @@ from pathlib import Path
 
 INSTALLER = Path(__file__).parents[2] / "deploy" / "install.sh"
 REQUIRED_ENV_KEYS = {
+    "ADMIN_PASSWORD",
+    "ADMIN_USERNAME",
+    "COLLECTOR_AUTH_TOKEN",
     "CREDENTIAL_MASTER_KEY",
     "SECRET_KEY",
     "CREDENTIAL_ENCRYPTION_KEY",
     "ENCRYPTION_SALT",
     "POSTGRES_PASSWORD",
+    "REDIS_PASSWORD",
 }
 
 
@@ -53,6 +57,7 @@ esac
     environment["PATH"] = f"{bin_dir}{os.pathsep}{environment['PATH']}"
     environment["TEST_DOCKER_PS_OUTPUT"] = docker_ps_output
     environment["TEST_DOCKER_VOLUME_NAMES"] = " ".join(docker_volume_names)
+    environment["BLACKLIST_ENV_FILE"] = str(tmp_path / ".env")
     return subprocess.run(
         ["bash", str(installer), "--check-secrets"],
         cwd=tmp_path,
@@ -82,8 +87,8 @@ def test_generates_target_local_secrets_when_env_is_absent(tmp_path: Path) -> No
     assert result.returncode == 0, result.stdout + result.stderr
     generated_values = parse_env(env_file)
     assert REQUIRED_ENV_KEYS <= generated_values.keys()
-    assert "ADMIN_USERNAME" not in generated_values
-    assert "ADMIN_PASSWORD" not in generated_values
+    assert generated_values["ADMIN_USERNAME"] == "admin"
+    assert generated_values["ADMIN_PASSWORD"]
     assert all(not value.startswith("op://") for value in generated_values.values())
     assert os.stat(env_file).st_mode & 0o777 == 0o600
 
@@ -140,6 +145,10 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
             'CREDENTIAL_ENCRYPTION_KEY="local-credential-encryption-key-0123456789"',
             "ENCRYPTION_SALT='local-encryption-salt-0123456789'",
             'POSTGRES_PASSWORD="local-postgres-password-0123456789"',
+            'REDIS_PASSWORD="local-redis-password-0123456789"',
+            'COLLECTOR_AUTH_TOKEN="local-collector-auth-token-0123456789"',
+            'ADMIN_USERNAME="admin"',
+            'ADMIN_PASSWORD="local-admin-password-0123456789"',
         )
     ) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")
@@ -147,9 +156,18 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
     # When: bootstrap secret validation runs during an upgrade.
     result = run_secret_check(tmp_path)
 
-    # Then: the existing encryption material remains byte-for-byte unchanged.
+    # Then: every existing secret survives verbatim. Byte-identity is no longer the
+    # right assertion because the installer re-pins the non-secret BLACKLIST_VERSION
+    # on each run; assert the actual intent instead, and that no secret was added,
+    # dropped, or rewritten.
+    body = env_file.read_text(encoding="utf-8")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert env_file.read_text(encoding="utf-8") == original
+    for line in original.splitlines():
+        assert line in body, line
+    surviving_secrets = [
+        line for line in body.splitlines() if not line.startswith("BLACKLIST_VERSION=")
+    ]
+    assert surviving_secrets == original.splitlines()
     assert os.stat(env_file).st_mode & 0o777 == 0o600
 
 
@@ -214,7 +232,7 @@ def test_starts_compose_without_pulling_images() -> None:
     installer_source = INSTALLER.read_text(encoding="utf-8")
 
     # When: the Compose startup command is inspected.
-    startup_command = "docker compose up -d --pull never"
+    startup_command = 'docker compose --env-file "${ENV_FILE}" up -d --pull never'
 
     # Then: startup is constrained to the images loaded from the release bundle.
     assert startup_command in installer_source

@@ -5,18 +5,24 @@ Collection Status Manager
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Set
+from typing import Dict, Any, Set, TypedDict
+
+import requests
 from flask import current_app
 
 logger = logging.getLogger(__name__)
 
 
-class CollectionStatusManager:
-    """수집 상태 관리 클래스"""
+class CollectionState(TypedDict):
+    running: bool
+    last_run: str | None
+    last_error: str | None
 
+
+class CollectionStatusManager:
     def __init__(self):
         self.active_collections: Set[str] = set()
-        self.collection_status = {
+        self.collection_status: dict[str, CollectionState] = {
             "regtech": {"running": False, "last_run": None, "last_error": None},
         }
 
@@ -27,10 +33,8 @@ class CollectionStatusManager:
     def get_collection_status(self) -> Dict[str, Any]:
         """현재 수집 상태 조회"""
         try:
-            # 데이터베이스에서 통계 정보 조회
             stats = self._get_database_stats()
 
-            # 수집 서비스 상태
             status = {
                 "collection_enabled": True,
                 "active_collections": list(self.active_collections),
@@ -39,7 +43,6 @@ class CollectionStatusManager:
                 **stats,
             }
 
-            # 컬렉터 컨테이너 상태 체크
             collector_status = self._check_collector_container()
             status["collector_container"] = collector_status
 
@@ -85,11 +88,13 @@ class CollectionStatusManager:
     def _check_collector_container(self) -> Dict[str, Any]:
         """컬렉터 컨테이너 상태 체크"""
         try:
-            import requests
-
             from ...config import config
 
-            response = requests.get(f"{config.COLLECTOR_URL}/health", timeout=5)
+            response = requests.get(
+                f"{config.COLLECTOR_URL}/health",
+                timeout=5,
+                **config.COLLECTOR_AUTH_REQUEST_KWARGS,
+            )
 
             if response.status_code == 200:
                 return {
@@ -184,23 +189,5 @@ class CollectionStatusManager:
             self.collection_status[collection_type]["running"] = False
             self.active_collections.discard(collection_type)
 
-    def _check_and_create_collection_alerts(self, collection_status: Dict[str, Any]):
-        """수집 상태 알림 생성"""
-        try:
-            # 오류가 있는 수집 서비스 체크
-            for service_name, status in collection_status.get("collection_status", {}).items():
-                if status.get("last_error"):
-                    logger.warning(f"Collection service {service_name} has error: {status['last_error']}")
 
-            # 컬렉터 컨테이너 상태 체크
-            collector_status = collection_status.get("collector_container", {})
-            if collector_status.get("status") != "healthy":
-                error_msg = collector_status.get("error", "Unknown error")
-                logger.warning(f"Collector container is {collector_status.get('status')}: {error_msg}")
-
-        except Exception as e:
-            logger.error(f"Failed to check collection alerts: {e}")
-
-
-# Singleton instance
 status_manager = CollectionStatusManager()

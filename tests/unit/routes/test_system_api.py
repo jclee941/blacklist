@@ -245,7 +245,7 @@ class TestAuthStatus:
 
     def test_auth_status_configured(self):
         mock_svc = MagicMock()
-        mock_svc.get_credentials.return_value = {"regtech_id": "user123"}
+        mock_svc.get_regtech_credentials.return_value = {"regtech_id": "user123"}
         self.app.extensions["regtech_config_service"] = mock_svc
 
         resp = self.client.get("/api/auth/status")
@@ -256,7 +256,7 @@ class TestAuthStatus:
 
     def test_auth_status_not_configured(self):
         mock_svc = MagicMock()
-        mock_svc.get_credentials.return_value = {}
+        mock_svc.get_regtech_credentials.return_value = {}
         self.app.extensions["regtech_config_service"] = mock_svc
 
         resp = self.client.get("/api/auth/status")
@@ -266,7 +266,7 @@ class TestAuthStatus:
 
     def test_auth_status_none_credentials(self):
         mock_svc = MagicMock()
-        mock_svc.get_credentials.return_value = None
+        mock_svc.get_regtech_credentials.return_value = None
         self.app.extensions["regtech_config_service"] = mock_svc
 
         resp = self.client.get("/api/auth/status")
@@ -276,7 +276,7 @@ class TestAuthStatus:
 
     def test_auth_status_service_error(self):
         mock_svc = MagicMock()
-        mock_svc.get_credentials.side_effect = Exception("broken")
+        mock_svc.get_regtech_credentials.side_effect = Exception("broken")
         self.app.extensions["regtech_config_service"] = mock_svc
 
         resp = self.client.get("/api/auth/status")

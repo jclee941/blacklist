@@ -38,12 +38,12 @@ class HealthServerHarness(HealthServer):
         self._run_server()
 
 
-class WaitressFake:
+class ServerFake:
     def __init__(self) -> None:
-        self.calls: list[tuple[object, str, int, bool]] = []
+        self.served = False
 
-    def serve(self, app: object, *, host: str, port: int, _quiet: bool) -> None:
-        self.calls.append((app, host, port, _quiet))
+    def serve_forever(self) -> None:
+        self.served = True
 
 
 def test_collector_status_uses_database_run_totals(
@@ -62,15 +62,26 @@ def test_collector_status_uses_database_run_totals(
     assert status["next_run"] == "2026-07-29T00:00:00"
 
 
-def test_health_server_binds_to_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
-    waitress = WaitressFake()
+def test_health_server_serves_tls_on_the_container_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    server_fake = ServerFake()
+    calls: list[tuple[str, int, object, tuple[str, str]]] = []
 
-    def import_module(_name: str) -> WaitressFake:
-        return waitress
+    def make_server(
+        host: str,
+        port: int,
+        app: object,
+        *,
+        ssl_context: tuple[str, str],
+    ) -> ServerFake:
+        calls.append((host, port, app, ssl_context))
+        return server_fake
 
-    monkeypatch.setattr("collector.health_server.importlib.import_module", import_module)
+    monkeypatch.setattr("collector.health_server.make_server", make_server)
+    monkeypatch.setenv("INTERNAL_TLS_CERT", "/probe/tls.crt")
+    monkeypatch.setenv("INTERNAL_TLS_KEY", "/probe/tls.key")
     server = HealthServerHarness(collectors_ref={}, port=8545)
 
     server.run_server()
 
-    assert waitress.calls == [(server.app, "127.0.0.1", 8545, True)]
+    assert calls == [("0.0.0.0", 8545, server.app, ("/probe/tls.crt", "/probe/tls.key"))]
+    assert server_fake.served is True

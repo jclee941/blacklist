@@ -1,100 +1,20 @@
-# CI-only compose for E2E tests
-# Uses bridge networking (production uses network_mode: host)
-# Images are pre-built and loaded from CI artifacts (tagged :ci)
-
 services:
-  postgres:
-    image: postgres:15
-    volumes:
-      - ../postgres/initdb:/docker-entrypoint-initdb.d
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: blacklist
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+  blacklist-postgres:
+    image: blacklist-postgres:ci
 
-  redis:
-    image: redis:7-alpine
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+  blacklist-redis:
+    image: blacklist-redis:ci
 
-  app:
+  blacklist-collector:
+    image: blacklist-collector:ci
+
+  blacklist-app:
     image: blacklist-app:ci
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/blacklist
-      REDIS_URL: redis://redis:6379/0
-      FLASK_ENV: testing
-      SECRET_KEY: ci-test-secret-key
-      CREDENTIAL_MASTER_KEY: ci-test-credential-master-key
-      ENCRYPTION_SALT: ci-test-encryption-salt
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: blacklist-dev-password
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:2542/health || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 15
-      start_period: 10s
 
-  collector:
-    image: blacklist-collector:ci
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/blacklist
-      REDIS_URL: redis://redis:6379/0
-      CREDENTIAL_MASTER_KEY: ci-test-credential-master-key
-      ENCRYPTION_SALT: ci-test-encryption-salt
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8545/health || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 15
-      start_period: 10s
-
-  frontend:
+  blacklist-frontend:
     image: blacklist-frontend:ci
-    ports:
-      - "3443:443"
-    depends_on:
-      app:
-        condition: service_healthy
-    environment:
-      NEXT_PUBLIC_API_URL: http://app:2542
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          'node -e "const https = require(''https''); const req = https.get(''https://localhost:443'', {rejectUnauthorized: false}, res => { process.exit(res.statusCode < 400 ? 0 : 1) }); req.on(''error'', () => process.exit(1)); req.setTimeout(2000, () => { req.destroy(); process.exit(1) });"',
-        ]
-      interval: 5s
-      timeout: 3s
-      retries: 15
-      start_period: 15s
+    ports: !override
+      - "3443:3000"

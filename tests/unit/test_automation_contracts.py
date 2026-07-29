@@ -1,3 +1,4 @@
+# noqa: SIZE_OK - synthetic repository fixtures and contract case tables are kept together
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,8 @@ API_URL: https://localhost:3443
 BASE_URL: https://localhost:3443
 E2E_USERNAME: admin
 E2E_PASSWORD: blacklist-dev-password
+BLACKLIST_TLS_DIR=$RUNNER_TEMP/blacklist-ci-tls
+docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml up
 jobs:
   e2e:
     timeout-minutes: 60
@@ -37,6 +40,7 @@ jobs:
         ".github/workflows/release.yml": """
 Release notes file not found
 if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
+scripts/build_offline_bundle.py
 jobs:
   validate:
     permissions:
@@ -69,8 +73,13 @@ CI_WORKFLOW=\"CI\"
 gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
 """,
         ".github/docker-compose.ci.yml": """
-ports:
-      - \"3443:443\"
+services:
+  blacklist-postgres:
+    image: blacklist-postgres:ci
+  blacklist-redis:
+    image: blacklist-redis:ci
+ports: !override
+      - \"3443:3000\"
 ADMIN_USERNAME: admin
 ADMIN_PASSWORD: blacklist-dev-password
 """,
@@ -94,6 +103,31 @@ docs/manual/*
 !docs/manual/blacklist-*-release-notes.md
 """,
     }
+
+
+def run_validator(tmp_path: Path, files: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    for relative_path, content in files.items():
+        fixture_path = tmp_path / relative_path
+        fixture_path.parent.mkdir(parents=True, exist_ok=True)
+        _ = fixture_path.write_text(content, encoding="utf-8")
+
+    validator_path = tmp_path / ".github" / "scripts" / VALIDATOR_PATH.name
+    validator_path.parent.mkdir(parents=True, exist_ok=True)
+    _ = validator_path.write_text(VALIDATOR_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+
+    return subprocess.run(
+        [sys.executable, str(validator_path)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
+    result = run_validator(tmp_path, valid_contract_files())
+
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize(
@@ -146,6 +180,46 @@ docs/manual/*
         ),
         (
             ".github/workflows/ci.yml",
+            'docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml up',
+            "CI E2E does not compose deploy/base.yml with the CI override",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "BLACKLIST_TLS_DIR=$RUNNER_TEMP/blacklist-ci-tls",
+            "CI E2E stack does not set BLACKLIST_TLS_DIR",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "API_URL: https://localhost:3443",
+            "E2E API calls bypass the frontend proxy",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "BASE_URL: https://localhost:3443",
+            "E2E browser target bypasses the frontend proxy",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "E2E_USERNAME: admin",
+            "CI does not provide the E2E username",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "E2E_PASSWORD: blacklist-dev-password",
+            "CI does not provide the E2E password",
+        ),
+        (
+            ".github/docker-compose.ci.yml",
+            "ADMIN_USERNAME: admin",
+            "CI app username does not match E2E credentials",
+        ),
+        (
+            ".github/docker-compose.ci.yml",
+            "ADMIN_PASSWORD: blacklist-dev-password",
+            "CI app password does not match E2E credentials",
+        ),
+        (
+            ".github/workflows/ci.yml",
             "    timeout-minutes: 60",
             "CI E2E timeout is too short for the full browser matrix",
         ),
@@ -169,22 +243,32 @@ def test_validator_rejects_missing_automation_contract(
 ) -> None:
     files = valid_contract_files()
     files[path] = files[path].replace(required_text, "")
-    for relative_path, content in files.items():
-        fixture_path = tmp_path / relative_path
-        fixture_path.parent.mkdir(parents=True, exist_ok=True)
-        _ = fixture_path.write_text(content, encoding="utf-8")
-
-    validator_path = tmp_path / ".github" / "scripts" / VALIDATOR_PATH.name
-    validator_path.parent.mkdir(parents=True, exist_ok=True)
-    _ = validator_path.write_text(VALIDATOR_PATH.read_text(encoding="utf-8"), encoding="utf-8")
-
-    result = subprocess.run(
-        [sys.executable, str(validator_path)],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = run_validator(tmp_path, files)
 
     assert result.returncode != 0
     assert message in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("deployment_text", "parallel_text"),
+    (
+        ("  blacklist-postgres:", "  postgres:"),
+        ("  blacklist-redis:", "  redis:"),
+        ("image: blacklist-postgres:ci", "image: postgres:15"),
+        ("image: blacklist-redis:ci", "image: redis:7-alpine"),
+    ),
+)
+def test_validator_rejects_parallel_ci_datastore_definition(
+    tmp_path: Path,
+    deployment_text: str,
+    parallel_text: str,
+) -> None:
+    files = valid_contract_files()
+    files[".github/docker-compose.ci.yml"] = files[".github/docker-compose.ci.yml"].replace(
+        deployment_text,
+        parallel_text,
+    )
+    result = run_validator(tmp_path, files)
+
+    assert result.returncode != 0
+    assert "CI compose duplicates PostgreSQL or Redis instead of overriding deployment services" in result.stderr

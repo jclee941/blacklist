@@ -100,7 +100,7 @@ def create_app():
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        storage_uri=f"{config.REDIS_URL}/1",
+        storage_uri=config.get_redis_url(database=1),
         storage_options={"socket_connect_timeout": 2},
         default_limits=["200 per day", "50 per hour"],  # Global rate limits
         strategy="fixed-window",
@@ -431,7 +431,7 @@ def create_app():
 
         try:
             url = f"{config.COLLECTOR_URL}/health"
-            resp = requests.get(url, timeout=5)
+            resp = requests.get(url, timeout=5, **config.COLLECTOR_AUTH_REQUEST_KWARGS)
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("status") == "healthy":

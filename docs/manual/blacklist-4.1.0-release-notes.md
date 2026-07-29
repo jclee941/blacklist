@@ -39,7 +39,7 @@
 - App과 Collector 이미지가 Python 3.11에서 빌드되도록 NumPy 의존성 범위를 수정했습니다.
 - 모든 릴리즈 이미지에서 개인 maintainer 메타데이터를 제거했습니다.
 - 설치 전에 데이터베이스 비밀번호와 자격증명 암호화 키를 필수로 검증합니다.
-- Collector 제어 서버를 컨테이너 내부 loopback 주소로 제한했습니다.
+- Collector를 내부 브리지 네트워크에 연결하고 host port를 공개하지 않았습니다. `POST /trigger`, `POST /api/test-auth/<source>`, `POST /api/force-collection/<source>` 제어 요청에는 app과 Collector가 공유하는 Bearer token 인증을 적용했습니다. Docker healthcheck가 사용하는 `GET /health`와 읽기 전용 `GET /status`, `GET /logs`는 의도적으로 인증 없이 유지합니다.
 
 ## 설치 시 중요 사항
 
@@ -53,7 +53,7 @@
 - 아카이브 체크섬, 패키지 매니페스트, 이미지 5종 체크섬 검증을 통과했습니다.
 - Compose 설정 검증을 통과했습니다.
 - 설치 프로그램 구문 검사와 ShellCheck를 통과했습니다.
-- 자격증명과 Collector fail-closed 변경 범위의 Python 테스트를 통과했습니다.
+- 자격증명과 Collector 제어 API 인증의 401 거부, 유효 token 허용, healthcheck 공개, 비상 해제 flag 동작을 검증하는 Python 테스트를 통과했습니다.
 - Frontend 단위 테스트 436개와 production build를 통과했습니다.
 - Chromium에서 Collection 화면의 자격증명 저장 흐름을 확인했습니다.
 - 통제된 Docker 모의 환경에서 전체 설치 흐름을 실행해 모든 실행 중인 컨테이너를

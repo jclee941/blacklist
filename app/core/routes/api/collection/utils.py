@@ -55,9 +55,14 @@ def call_collector_api(
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             if method == "GET":
-                response = requests.get(url, timeout=timeout or 10)
+                response = requests.get(url, timeout=timeout or 10, **config.COLLECTOR_AUTH_REQUEST_KWARGS)
             elif method == "POST":
-                response = requests.post(url, json=data, timeout=timeout or 30)
+                response = requests.post(
+                    url,
+                    json=data,
+                    timeout=timeout or 30,
+                    **config.COLLECTOR_AUTH_REQUEST_KWARGS,
+                )
             else:
                 return {"success": False, "error": f"Unsupported method: {method}"}
 
