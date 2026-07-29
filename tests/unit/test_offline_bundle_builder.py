@@ -199,3 +199,18 @@ def test_bundle_ships_every_compose_bind_mount_source(tmp_path: Path) -> None:
     # at runtime instead of at packaging time.
     for source in sorted(relative_sources):
         assert (bundle / source).is_file(), f"{source} is not shipped in the bundle"
+
+
+def test_bundle_ships_release_notes_for_the_declared_version(tmp_path: Path) -> None:
+    # Given: operators upgrading an air-gapped site read RELEASE_NOTES.md from the
+    # bundle. assemble() copies it only when a version-matched file exists, so a
+    # missing one is silently omitted rather than reported.
+    builder = load_builder()
+    version = builder.resolve_version(REPO_ROOT)
+    notes = REPO_ROOT / "docs" / "manual" / f"blacklist-{version}-release-notes.md"
+    assert notes.is_file(), f"{notes} is missing for VERSION {version}"
+
+    bundle = tmp_path / "bundle"
+    builder.assemble(REPO_ROOT, bundle, version)
+
+    assert (bundle / "RELEASE_NOTES.md").is_file()
