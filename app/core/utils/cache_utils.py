@@ -37,6 +37,7 @@ def get_redis_client() -> Optional[redis.Redis]:
             decode_responses=True,
             socket_connect_timeout=2,
             socket_timeout=2,
+            **config.get_redis_auth_params(),
         )
         client.ping()
         logger.info("Redis cache client created successfully")

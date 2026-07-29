@@ -7,8 +7,14 @@ Centralized Configuration — Single source of truth for all environment variabl
 """
 
 import os
-from typing import Any, Optional
-from urllib.parse import urlparse
+from typing import Any, Optional, TypedDict
+from urllib.parse import quote, urlparse
+
+
+class RedisAuthParams(TypedDict, total=False):
+    """Redis auth kwargs. Absent when no password is set — password="" is not the same as omitting it."""
+
+    password: str
 
 
 class AppConfig:
@@ -91,14 +97,28 @@ class AppConfig:
         return int(os.getenv("REDIS_PORT", "6379"))
 
     @property
+    def REDIS_PASSWORD(self) -> str:
+        return os.getenv("REDIS_PASSWORD", "")
+
+    @property
     def REDIS_URL(self) -> str:
+        if self.REDIS_PASSWORD:
+            return f"redis://:{quote(self.REDIS_PASSWORD, safe='')}@{self.REDIS_HOST}:{self.REDIS_PORT}"
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
+    def get_redis_auth_params(self) -> RedisAuthParams:
+        if not self.REDIS_PASSWORD:
+            return {}
+        return {"password": self.REDIS_PASSWORD}
+
     def get_redis_params(self) -> dict[str, int | str]:
-        return {
+        params: dict[str, int | str] = {
             "host": self.REDIS_HOST,
             "port": self.REDIS_PORT,
         }
+        if self.REDIS_PASSWORD:
+            params["password"] = self.REDIS_PASSWORD
+        return params
 
     @property
     def RATE_LIMIT_WHITELIST(self) -> list[str]:
