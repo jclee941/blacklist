@@ -147,6 +147,21 @@ class TestCallCollectorApi:
 
     @patch("core.routes.api.collection.utils.COLLECTOR_SERVICE_URL", "https://test:8545")
     @patch("core.routes.api.collection.utils.time.sleep")
+    @patch("core.routes.api.collection.utils.requests.post")
+    def test_post_timeout_is_not_retried(self, mock_post, mock_sleep):
+        from core.routes.api.collection.utils import call_collector_api
+
+        mock_post.side_effect = requests.exceptions.Timeout("timed out")
+
+        result = call_collector_api("/api/force-collection/REGTECH", method="POST")
+
+        assert result["success"] is False
+        assert result["error"] == "Cannot connect to collector service"
+        assert mock_post.call_count == 1
+        mock_sleep.assert_not_called()
+
+    @patch("core.routes.api.collection.utils.COLLECTOR_SERVICE_URL", "https://test:8545")
+    @patch("core.routes.api.collection.utils.time.sleep")
     @patch("core.routes.api.collection.utils.requests.get")
     def test_retry_backoff_uses_exponential_delays(self, mock_get, mock_sleep):
         from core.routes.api.collection.utils import call_collector_api

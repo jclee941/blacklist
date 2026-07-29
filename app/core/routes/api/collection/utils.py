@@ -51,8 +51,12 @@ def call_collector_api(
     """Call collector service API"""
     url = f"{COLLECTOR_SERVICE_URL}{endpoint}"
     last_error: Optional[Exception] = None
+    if method not in ("GET", "POST"):
+        return {"success": False, "error": f"Unsupported method: {method}"}
 
-    for attempt in range(1, MAX_RETRIES + 1):
+    max_attempts = MAX_RETRIES if method == "GET" else 1
+
+    for attempt in range(1, max_attempts + 1):
         try:
             if method == "GET":
                 response = requests.get(url, timeout=timeout or 10, **config.COLLECTOR_AUTH_REQUEST_KWARGS)
@@ -63,9 +67,6 @@ def call_collector_api(
                     timeout=timeout or 30,
                     **config.COLLECTOR_AUTH_REQUEST_KWARGS,
                 )
-            else:
-                return {"success": False, "error": f"Unsupported method: {method}"}
-
             if response.status_code == 200:
                 return response.json()
             else:
@@ -77,20 +78,20 @@ def call_collector_api(
 
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             last_error = e
-            if attempt < MAX_RETRIES:
+            if attempt < max_attempts:
                 delay = BACKOFF_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
                     "Collector %s %s attempt %d/%d failed: %s — retrying in %.1fs",
                     method,
                     endpoint,
                     attempt,
-                    MAX_RETRIES,
+                    max_attempts,
                     e,
                     delay,
                 )
                 time.sleep(delay)
             else:
-                logger.error("Collector %s %s failed after %d attempts: %s", method, endpoint, MAX_RETRIES, e)
+                logger.error("Collector %s %s failed after %d attempts: %s", method, endpoint, max_attempts, e)
         except Exception as e:
             logger.error("Collector API call failed for %s %s: %s", method, endpoint, e)
             return {"success": False, "error": str(e)}
