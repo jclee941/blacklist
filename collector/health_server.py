@@ -291,6 +291,7 @@ class HealthServer:
             self.port,
             self.app,
             ssl_context=(certificate, private_key),
+            threaded=True,
         )
         server.serve_forever()
 

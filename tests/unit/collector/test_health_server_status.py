@@ -64,7 +64,7 @@ def test_collector_status_uses_database_run_totals(
 
 def test_health_server_serves_tls_on_the_container_network(monkeypatch: pytest.MonkeyPatch) -> None:
     server_fake = ServerFake()
-    calls: list[tuple[str, int, object, tuple[str, str]]] = []
+    calls: list[tuple[str, int, object, tuple[str, str], bool]] = []
 
     def make_server(
         host: str,
@@ -72,8 +72,9 @@ def test_health_server_serves_tls_on_the_container_network(monkeypatch: pytest.M
         app: object,
         *,
         ssl_context: tuple[str, str],
+        threaded: bool,
     ) -> ServerFake:
-        calls.append((host, port, app, ssl_context))
+        calls.append((host, port, app, ssl_context, threaded))
         return server_fake
 
     monkeypatch.setattr("collector.health_server.make_server", make_server)
@@ -83,5 +84,5 @@ def test_health_server_serves_tls_on_the_container_network(monkeypatch: pytest.M
 
     server.run_server()
 
-    assert calls == [("0.0.0.0", 8545, server.app, ("/probe/tls.crt", "/probe/tls.key"))]
+    assert calls == [("0.0.0.0", 8545, server.app, ("/probe/tls.crt", "/probe/tls.key"), True)]
     assert server_fake.served is True
