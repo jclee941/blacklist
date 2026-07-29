@@ -53,6 +53,7 @@ esac
     environment["PATH"] = f"{bin_dir}{os.pathsep}{environment['PATH']}"
     environment["TEST_DOCKER_PS_OUTPUT"] = docker_ps_output
     environment["TEST_DOCKER_VOLUME_NAMES"] = " ".join(docker_volume_names)
+    environment["BLACKLIST_ENV_FILE"] = str(tmp_path / ".env")
     return subprocess.run(
         ["bash", str(installer), "--check-secrets"],
         cwd=tmp_path,
@@ -215,7 +216,7 @@ def test_starts_compose_without_pulling_images() -> None:
     installer_source = INSTALLER.read_text(encoding="utf-8")
 
     # When: the Compose startup command is inspected.
-    startup_command = "docker compose up -d --pull never"
+    startup_command = 'docker compose --env-file "${ENV_FILE}" up -d --pull never'
 
     # Then: startup is constrained to the images loaded from the release bundle.
     assert startup_command in installer_source

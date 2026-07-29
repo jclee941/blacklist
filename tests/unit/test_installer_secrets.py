@@ -51,6 +51,14 @@ esac
     )
 
 
+def parse_env(env_file: Path) -> dict[str, str]:
+    return dict(
+        line.split("=", 1)
+        for line in env_file.read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#")
+    )
+
+
 def test_redis_password_is_a_required_secret(tmp_path: Path) -> None:
     # Given: an environment file holding every previously required secret but no Redis password.
     env_file = tmp_path / ".env"
@@ -65,3 +73,31 @@ def test_redis_password_is_a_required_secret(tmp_path: Path) -> None:
     # Then: installation is blocked and the missing Redis password is named.
     assert result.returncode != 0, result.stdout + result.stderr
     assert "REDIS_PASSWORD" in result.stdout + result.stderr
+
+
+def test_env_file_defaults_outside_bundle() -> None:
+    # Given: the installer script as shipped inside the extracted release bundle.
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+
+    # When: the environment file location is resolved.
+    resolved_env_file = '"${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"'
+
+    # Then: generated secrets land outside the bundle and stay operator-overridable.
+    assert resolved_env_file in installer_source
+    assert '"${SCRIPT_DIR}/.env"' not in installer_source
+
+
+def test_env_file_override_is_honoured(tmp_path: Path) -> None:
+    # Given: an operator-controlled secret location outside the extracted bundle.
+    env_file = tmp_path / "etc" / "blacklist" / ".env"
+
+    # When: bootstrap secret setup runs with that location configured.
+    result = run_secret_check(tmp_path, env_file)
+
+    # Then: the configured file holds the generated secrets and the bundle stays clean.
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert env_file.exists(), "installer ignored BLACKLIST_ENV_FILE"
+    generated_values = parse_env(env_file)
+    assert "REDIS_PASSWORD" in generated_values
+    assert os.stat(env_file).st_mode & 0o777 == 0o600
+    assert not (tmp_path / ".env").exists()

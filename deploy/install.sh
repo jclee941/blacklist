@@ -18,6 +18,7 @@ log_step() { echo -e "\n${CYAN}===${NC} ${BOLD}$1${NC}\n"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGES_DIR="${SCRIPT_DIR}/images"
 VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
+ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
 readonly REQUIRED_SECRET_KEYS=(
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
@@ -351,18 +352,20 @@ setup_secrets() {
 
     umask 077
 
-    local env_file="${SCRIPT_DIR}/.env"
+    install -d -m 700 "$(dirname "${ENV_FILE}")" || log_error "Unable to create the secret directory for ${ENV_FILE}."
+
+    local env_file="${ENV_FILE}"
     if [ -f "${env_file}" ]; then
         chmod 600 "${env_file}" || log_error "Unable to protect existing environment file."
     else
         if deployment_state_exists; then
-            log_error "Existing deployment state detected; refusing to generate new secrets. Restore the original .env."
+            log_error "Existing deployment state detected; refusing to generate new secrets. Restore the original ${env_file}."
         fi
 
         log_info "Generating secrets..."
         generate_env_file "${env_file}"
         chmod 600 "${env_file}" || log_error "Unable to protect generated environment file."
-        log_success "Secrets generated (.env)"
+        log_success "Secrets generated (${env_file})"
     fi
 
     local invalid_keys=()
@@ -385,11 +388,11 @@ setup_secrets() {
     done
 
     if [ "${#invalid_keys[@]}" -gt 0 ]; then
-        log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in .env."
+        log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in ${env_file}."
     fi
 
-    log_success ".env secret validation passed"
-    log_warning "Back up .env securely; upgrades require the same encryption keys"
+    log_success "Secret validation passed (${env_file})"
+    log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
 }
 
 stop_all_running_containers() {
@@ -446,7 +449,7 @@ deploy_services() {
 
     log_info "Starting services..."
     local compose_output
-    if ! compose_output=$(docker compose up -d --pull never 2>&1); then
+    if ! compose_output=$(docker compose --env-file "${ENV_FILE}" up -d --pull never 2>&1); then
         printf '%s\n' "${compose_output}"
         log_error "Failed to start Blacklist services"
     fi
@@ -460,7 +463,7 @@ deploy_services() {
 
 validate_compose_config() {
     log_step "Validate Compose Configuration"
-    if ! (cd "${SCRIPT_DIR}" && docker compose config --quiet); then
+    if ! (cd "${SCRIPT_DIR}" && docker compose --env-file "${ENV_FILE}" config --quiet); then
         log_error "Compose configuration validation failed"
     fi
     log_success "Compose configuration"
@@ -469,7 +472,7 @@ validate_compose_config() {
 health_checks() {
     log_step "Health Checks"
 
-    if ! docker compose ps --format "table {{.Name}}\t{{.Status}}"; then
+    if ! docker compose --env-file "${ENV_FILE}" ps --format "table {{.Name}}\t{{.Status}}"; then
         log_error "Failed to read service status"
     fi
 
