@@ -19,6 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGES_DIR="${SCRIPT_DIR}/images"
 VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
 ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
+TLS_DIR="${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}"
 STOP_ALL_CONTAINERS=false
 SKIP_POSTURE_CHECK=false
 REQUIRE_SIGNATURE=false
@@ -27,6 +28,22 @@ POSTURE_COMPOSE_FILES=()
 readonly PUBLISHED_FRONTEND_PORT=443
 readonly HEALTH_WAIT_TIMEOUT_SECONDS=180
 readonly HEALTH_POLL_INTERVAL_SECONDS=5
+readonly TLS_ROOT_UID="${BLACKLIST_TLS_ROOT_UID:-0}"
+readonly TLS_ROOT_GID="${BLACKLIST_TLS_ROOT_GID:-0}"
+readonly -a TLS_SERVICE_NAMES=("app" "collector" "postgres" "redis")
+readonly -a TLS_SERVICE_DNS_NAMES=("blacklist-app" "blacklist-collector" "blacklist-postgres" "blacklist-redis")
+readonly -a TLS_SERVICE_UIDS=(
+    "${BLACKLIST_APP_UID:-999}"
+    "${BLACKLIST_COLLECTOR_UID:-0}"
+    "${BLACKLIST_POSTGRES_UID:-70}"
+    "${BLACKLIST_REDIS_UID:-999}"
+)
+readonly -a TLS_SERVICE_GIDS=(
+    "${BLACKLIST_APP_GID:-999}"
+    "${BLACKLIST_COLLECTOR_GID:-0}"
+    "${BLACKLIST_POSTGRES_GID:-70}"
+    "${BLACKLIST_REDIS_GID:-1000}"
+)
 readonly REQUIRED_SECRET_KEYS=(
     "ADMIN_USERNAME"
     "ADMIN_PASSWORD"
@@ -623,6 +640,106 @@ setup_secrets() {
     log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
 }
 
+tls_material_complete() {
+    local path
+    local required_paths=("ca/ca.crt" "ca/ca.key")
+    local service_name
+    for service_name in "${TLS_SERVICE_NAMES[@]}"; do
+        required_paths+=("${service_name}/tls.crt" "${service_name}/tls.key")
+    done
+
+    for path in "${required_paths[@]}"; do
+        [ -f "${TLS_DIR}/${path}" ] || return 1
+    done
+}
+
+protect_tls_material() {
+    chown -R "${TLS_ROOT_UID}:${TLS_ROOT_GID}" "${TLS_DIR}" || log_error "Unable to set TLS root ownership."
+    chmod 700 "${TLS_DIR}" "${TLS_DIR}/ca" || log_error "Unable to protect TLS directories."
+    chmod 600 "${TLS_DIR}/ca/ca.key" || log_error "Unable to protect the local CA private key."
+    chmod 644 "${TLS_DIR}/ca/ca.crt" || log_error "Unable to make the local CA certificate readable."
+
+    local index service_dir
+    for index in "${!TLS_SERVICE_NAMES[@]}"; do
+        service_dir="${TLS_DIR}/${TLS_SERVICE_NAMES[$index]}"
+        chown -R "${TLS_SERVICE_UIDS[$index]}:${TLS_SERVICE_GIDS[$index]}" "${service_dir}" ||
+            log_error "Unable to set TLS ownership for ${TLS_SERVICE_NAMES[$index]}."
+        chmod 700 "${service_dir}" || log_error "Unable to protect ${TLS_SERVICE_NAMES[$index]} TLS directory."
+        chmod 600 "${service_dir}/tls.key" || log_error "Unable to protect ${TLS_SERVICE_NAMES[$index]} private key."
+        chmod 644 "${service_dir}/tls.crt" || log_error "Unable to make ${TLS_SERVICE_NAMES[$index]} certificate readable."
+    done
+}
+
+generate_service_certificate() {
+    local output_dir="$1"
+    local service_name="$2"
+    local dns_name="$3"
+    local extension_file="${output_dir}/${service_name}/extensions.cnf"
+    local request_file="${output_dir}/${service_name}/tls.csr"
+
+    cat > "${extension_file}" << EOF
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:${dns_name}
+EOF
+
+    openssl req -new -nodes -newkey rsa:2048 \
+        -keyout "${output_dir}/${service_name}/tls.key" \
+        -out "${request_file}" \
+        -subj "/CN=${dns_name}/O=Blacklist/C=KR" > /dev/null 2>&1 ||
+        log_error "Unable to generate the ${service_name} private key."
+    openssl x509 -req -sha256 -days 825 \
+        -in "${request_file}" \
+        -CA "${output_dir}/ca/ca.crt" \
+        -CAkey "${output_dir}/ca/ca.key" \
+        -CAcreateserial \
+        -extfile "${extension_file}" \
+        -out "${output_dir}/${service_name}/tls.crt" > /dev/null 2>&1 ||
+        log_error "Unable to sign the ${service_name} certificate."
+    rm -f "${request_file}" "${extension_file}"
+}
+
+setup_internal_tls() {
+    log_step "Setup Internal Transport Certificates"
+    umask 077
+
+    install -d -m 700 "$(dirname "${TLS_DIR}")" || log_error "Unable to create the TLS parent directory."
+    if [ -d "${TLS_DIR}" ]; then
+        if tls_material_complete; then
+            protect_tls_material
+            log_success "Internal TLS material validated (${TLS_DIR})"
+            return 0
+        fi
+        if [ -n "$(find "${TLS_DIR}" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+            log_error "Incomplete TLS material found in ${TLS_DIR}; restore the complete target-local PKI backup."
+        fi
+        rmdir "${TLS_DIR}" || log_error "Unable to replace the empty TLS directory."
+    fi
+
+    local staging_dir
+    staging_dir=$(mktemp -d "${TLS_DIR}.tmp.XXXXXX") || log_error "Unable to stage internal TLS material."
+    install -d -m 700 "${staging_dir}/ca" || log_error "Unable to stage the local CA directory."
+
+    openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 3650 \
+        -keyout "${staging_dir}/ca/ca.key" \
+        -out "${staging_dir}/ca/ca.crt" \
+        -subj "/CN=Blacklist Internal CA/O=Blacklist/C=KR" > /dev/null 2>&1 ||
+        log_error "Unable to generate the local certificate authority."
+
+    local index service_name
+    for index in "${!TLS_SERVICE_NAMES[@]}"; do
+        service_name="${TLS_SERVICE_NAMES[$index]}"
+        install -d -m 700 "${staging_dir}/${service_name}" || log_error "Unable to stage ${service_name} TLS material."
+        generate_service_certificate "${staging_dir}" "${service_name}" "${TLS_SERVICE_DNS_NAMES[$index]}"
+    done
+    rm -f "${staging_dir}/ca/ca.srl"
+
+    mv "${staging_dir}" "${TLS_DIR}" || log_error "Unable to install target-local TLS material."
+    protect_tls_material
+    log_success "Generated target-local CA and service certificates (${TLS_DIR})"
+}
+
 show_initial_admin_password() {
     if [ "${ADMIN_CREDENTIALS_GENERATED}" != true ]; then
         return 0
@@ -949,6 +1066,7 @@ main() {
     fi
 
     setup_secrets
+    setup_internal_tls
     validate_compose_config
     verify_security_posture
     if [ "$STOP_ALL_CONTAINERS" = true ]; then
