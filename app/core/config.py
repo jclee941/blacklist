@@ -23,6 +23,10 @@ class AppConfig(DatastoreConfig):
         return os.environ.get("COLLECTOR_URL", "https://blacklist-collector:8545")
 
     @property
+    def COLLECTOR_COLLECTION_TIMEOUT(self) -> int:
+        return int(os.getenv("COLLECTOR_COLLECTION_TIMEOUT", "360"))
+
+    @property
     def COLLECTOR_AUTH_TOKEN(self) -> str:
         return os.getenv("COLLECTOR_AUTH_TOKEN", "")
 

@@ -25,6 +25,12 @@ class TestAppConfigDefaults:
         assert cfg.COLLECTOR_URL == "https://blacklist-collector:8545"
 
     @patch.dict(os.environ, {}, clear=True)
+    def test_collector_collection_timeout_default(self):
+        cfg = AppConfig()
+
+        assert cfg.COLLECTOR_COLLECTION_TIMEOUT == 360
+
+    @patch.dict(os.environ, {}, clear=True)
     def test_blacklist_api_url_default(self):
         from app.core.config import AppConfig
 
@@ -148,6 +154,12 @@ class TestAppConfigEnvOverrides:
 
             cfg = AppConfig()
             assert cfg.COLLECTOR_URL == "http://collector:9999"
+
+    def test_collector_collection_timeout_override(self):
+        with patch.dict(os.environ, {"COLLECTOR_COLLECTION_TIMEOUT": "480"}):
+            cfg = AppConfig()
+
+            assert cfg.COLLECTOR_COLLECTION_TIMEOUT == 480
 
     def test_postgres_host_override(self):
         with patch.dict(os.environ, {"POSTGRES_HOST": "db.example.com"}):
