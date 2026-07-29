@@ -89,20 +89,8 @@ install_docker_compose() {
     chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 }
 
-preflight_checks() {
+preflight_verify() {
     log_step "Preflight Checks"
-
-    if ! command -v docker &> /dev/null; then
-        log_warning "Docker not found. Attempting offline installation..."
-        install_docker_offline
-    fi
-    log_success "Docker $(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
-
-    if ! docker compose version &> /dev/null; then
-         log_warning "Docker Compose not found. Attempting offline installation..."
-         install_docker_compose
-    fi
-    log_success "Docker Compose $(docker compose version --short)"
 
     if [ ! -d "${IMAGES_DIR}" ]; then
         log_error "images/ directory not found"
@@ -156,6 +144,22 @@ preflight_checks() {
             log_warning "Port ${port} in use"
         fi
     done
+}
+
+preflight_checks() {
+    preflight_verify
+
+    if ! command -v docker &> /dev/null; then
+        log_warning "Docker not found. Attempting offline installation..."
+        install_docker_offline
+    fi
+    log_success "Docker $(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+
+    if ! docker compose version &> /dev/null; then
+         log_warning "Docker Compose not found. Attempting offline installation..."
+         install_docker_compose
+    fi
+    log_success "Docker Compose $(docker compose version --short)"
 }
 
 verify_checksums() {
@@ -528,6 +532,7 @@ show_help() {
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
     echo "  --check-secrets Generate or validate .env, then exit"
+    echo "  --verify-only  Verify the bundle layout and image checksums, then exit (read-only)"
     echo "  --help, -h     Show this help"
     echo ""
 }
@@ -535,11 +540,13 @@ show_help() {
 main() {
     local skip_load=false
     local check_secrets=false
+    local verify_only=false
 
     for arg in "$@"; do
         case $arg in
             --skip-load) skip_load=true ;;
             --check-secrets) check_secrets=true ;;
+            --verify-only) verify_only=true ;;
             --help|-h) show_help; exit 0 ;;
             *) log_warning "Unknown option: $arg" ;;
         esac
@@ -547,6 +554,13 @@ main() {
 
     if [ "$check_secrets" = true ]; then
         setup_secrets
+        return 0
+    fi
+
+    if [ "$verify_only" = true ]; then
+        preflight_verify
+        verify_checksums
+        log_success "Bundle verification completed (no changes were made)"
         return 0
     fi
 
