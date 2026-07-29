@@ -11,6 +11,7 @@
 | C-05 | 브랜치 조치 완료 | ADR-0002에 따라 Collector 제어 API에 공유 Bearer token 인증을 적용하고 app의 모든 Collector 요청에 자격증명을 연결했습니다. 실제 운영 효과는 새 번들 배포와 설치 프로그램의 token 생성 변경 적용 후 발생합니다. |
 | C-06 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
 | C-07 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
+| M-02 | 브랜치 조치 완료 | `d7f61b5`, `499d3ae`, `de80d3d`, `76ee990`, `6fc8e06`, `7028ec6`, `b7d27c8`이 target-local PKI, TLS-only 서버, 인증서 검증 클라이언트를 적용했습니다. 실제 운영 효과는 새 번들 재배포 후 발생합니다. |
 | M-04 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
 | M-05 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
 | M-06 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
@@ -22,6 +23,14 @@
 모든 서비스는 하나의 Docker bridge 네트워크인 `blacklist-net`에 연결됩니다. Host에 공개되는 포트는 frontend의 `443:3000`뿐입니다. PostgreSQL, Redis, Collector, Flask는 host port를 공개하지 않습니다.
 
 서비스 간 연결은 포트 공개가 아니라 Compose 서비스 DNS 이름을 사용합니다. 예를 들어 app은 `blacklist-collector`, Collector와 app은 `blacklist-postgres` 및 `blacklist-redis`를 사용합니다. 이 구성은 C-04의 host network 노출을 제거하는 보상 통제입니다.
+
+## 내부 전송 암호화
+
+설치 프로그램은 target host의 `/etc/blacklist/tls`에 로컬 CA와 `app`, `collector`, `postgres`, `redis` 서비스 인증서를 생성합니다. CA 개인키와 서비스 개인키는 번들, 이미지, 저장소에 포함되지 않습니다. 기존 인증서 세트가 완전하면 재설치 시 그대로 사용하고 권한만 다시 강제합니다. 일부 파일만 남은 불완전한 세트는 자동 재생성하지 않고 배포를 중단합니다.
+
+PostgreSQL은 `sslmode=verify-full`, Redis는 CA 검증이 활성화된 `rediss://`, app과 Collector HTTP API는 HTTPS를 사용합니다. 각 클라이언트는 `/run/blacklist/ca.crt`를 신뢰 기준으로 사용하며 Compose 서비스 DNS 이름과 인증서 SAN이 일치해야 합니다. PostgreSQL과 Redis는 평문 연결을 수락하지 않습니다. Flask와 Collector도 서비스 인증서가 없는 평문 HTTP 리스너를 제공하지 않습니다.
+
+인증서 디렉터리와 개인키를 환경 파일과 함께 안전하게 백업하십시오. 현재 설치 프로그램은 자동 만료 갱신을 수행하지 않습니다. 인증서 교체가 필요하면 유지보수 창에 스택을 중지하고 `/etc/blacklist/tls` 전체를 하나의 단위로 백업한 뒤 다른 위치로 이동하고 설치 프로그램을 다시 실행합니다. 새 CA와 모든 서비스 인증서를 함께 생성한 후 컨테이너를 재생성하고 아래 검증을 완료해야 합니다. 개별 서비스 인증서나 CA만 교체하면 신뢰 체인이 불일치하므로 금지합니다.
 
 ## Redis 암호
 
@@ -80,7 +89,7 @@ iptables -A INPUT -p tcp --dport 8545 ! -i lo -j DROP
 
 ## 남은 위험
 
-내부 서비스 트래픽은 `SSL_ENABLED: "false"`이며, M-02는 해결되지 않았습니다. 이 선택은 bridge 네트워크가 외부에 공개되지 않는다는 전제에서만 허용할 수 있습니다.
+M-02의 내부 평문 전송은 브랜치에서 제거했습니다. 다만 target-local CA의 백업, 만료 감시, 계획된 전체 PKI 교체는 운영 책임으로 남습니다.
 
 Collector의 `POST /trigger`, `POST /api/test-auth/<source>`, `POST /api/force-collection/<source>` 제어 경로는 `COLLECTOR_AUTH_TOKEN` 기반 Bearer 인증을 요구합니다. `GET /health`, `GET /status`, `GET /logs`는 Docker healthcheck와 읽기 전용 운영 조회를 위해 인증 없이 유지합니다.
 
@@ -105,3 +114,36 @@ ss -tuln
 ```
 
 frontend의 `443`만 host 공개 포트인지도 함께 확인하십시오.
+
+설치된 스택에서 인증서 검증이 포함된 연결이 성공하는지 확인합니다.
+
+```bash
+docker compose exec -T blacklist-app \
+  curl --fail --cacert /run/blacklist/ca.crt \
+  https://blacklist-collector:8545/health
+
+docker compose exec -T blacklist-collector \
+  curl --fail --cacert /run/blacklist/ca.crt \
+  https://blacklist-app:2542/health
+
+docker compose exec -T blacklist-postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" PGSSLMODE=verify-full \
+   PGSSLROOTCERT=/run/blacklist/ca.crt \
+   psql -h blacklist-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1"'
+
+docker compose exec -T blacklist-redis sh -c \
+  'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --tls \
+   --cacert /run/blacklist/ca.crt -h blacklist-redis ping'
+```
+
+다음 평문 연결은 모두 실패해야 합니다. 하나라도 성공하면 배포를 승인하지 마십시오.
+
+```bash
+! docker compose exec -T blacklist-app curl --fail http://blacklist-collector:8545/health
+! docker compose exec -T blacklist-collector curl --fail http://blacklist-app:2542/health
+! docker compose exec -T blacklist-postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" PGSSLMODE=disable \
+   psql -h blacklist-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1"'
+! docker compose exec -T blacklist-redis sh -c \
+  'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli -h blacklist-redis ping'
+```
