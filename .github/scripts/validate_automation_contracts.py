@@ -93,6 +93,14 @@ def main() -> None:
             ("ADMIN_PASSWORD: blacklist-dev-password" in ci_compose, "CI app password does not match E2E credentials"),
             ("FROM node:24-alpine AS builder" in frontend_dockerfile, "frontend build image does not use Node 24"),
             ("FROM node:24-alpine AS runner" in frontend_dockerfile, "frontend runtime image does not use Node 24"),
+            (
+                "scripts/build_offline_bundle.py" in release,
+                "release packaging does not use the bundle builder, so it can drift from what install.sh requires",
+            ),
+            (
+                "sha256sum -- ./*.tar.gz > checksums.sha256" not in release,
+                "release still hand-rolls the bundle instead of using the builder",
+            ),
             ("RELEASE_NOTES_FILE=" in release_script, "release script does not define its release note asset"),
             ("Release notes file not found" in release_script, "release script does not validate release notes"),
             (
