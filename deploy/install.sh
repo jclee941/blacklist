@@ -163,13 +163,13 @@ preflight_verify() {
         "redis.tar.gz"
     )
 
+    local image_path
     for img in "${required_images[@]}"; do
-        if [ -f "${IMAGES_DIR}/${img}" ]; then
-            log_success "${img} ($(du -h "${IMAGES_DIR}/${img}" | cut -f1))"
-        elif [ -f "${IMAGES_DIR}/blacklist-${img}" ]; then
-            log_success "blacklist-${img} ($(du -h "${IMAGES_DIR}/blacklist-${img}" | cut -f1))"
+        image_path="${IMAGES_DIR}/blacklist-${img}"
+        if [ -f "${image_path}" ]; then
+            log_success "blacklist-${img} ($(du -h "${image_path}" | cut -f1))"
         else
-            log_error "${img} not found"
+            log_error "blacklist-${img} not found"
         fi
     done
 
@@ -178,17 +178,10 @@ preflight_verify() {
     fi
     log_success "docker-compose.yml"
 
-    # Support both checksum filenames (legacy: SHA256SUMS, current: checksums.sha256)
-    local CHECKSUM_FILE=""
-    if [ -f "${IMAGES_DIR}/checksums.sha256" ]; then
-        CHECKSUM_FILE="checksums.sha256"
-        log_success "checksums.sha256"
-    elif [ -f "${IMAGES_DIR}/SHA256SUMS" ]; then
-        CHECKSUM_FILE="SHA256SUMS"
-        log_success "SHA256SUMS"
-    else
-        log_warning "Checksum file not found (integrity check will be skipped)"
+    if [ ! -f "${IMAGES_DIR}/checksums.sha256" ]; then
+        log_error "Checksum file not found: images/checksums.sha256"
     fi
+    log_success "checksums.sha256"
 
     local available_gb
     available_gb=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
@@ -224,40 +217,42 @@ preflight_checks() {
 verify_checksums() {
     log_step "Verify Image Integrity (SHA256)"
 
-    local CHECKSUM_FILE=""
-    if [ -f "${IMAGES_DIR}/checksums.sha256" ]; then
-        CHECKSUM_FILE="checksums.sha256"
-    elif [ -f "${IMAGES_DIR}/SHA256SUMS" ]; then
-        CHECKSUM_FILE="SHA256SUMS"
+    local checksum_file="${IMAGES_DIR}/checksums.sha256"
+    if [ ! -f "${checksum_file}" ]; then
+        log_error "Checksum file not found: images/checksums.sha256"
     fi
 
-    if [ -z "$CHECKSUM_FILE" ]; then
-        log_warning "Checksum file not found, skipping verification"
-        return 0
-    fi
-
-    cd "${IMAGES_DIR}"
-    if sha256sum -c "$CHECKSUM_FILE" --status 2>/dev/null; then
-        log_success "All checksums verified"
-    else
-        log_info "Verifying individual files..."
-        local failed=0
-        while IFS='  ' read -r expected_hash filename; do
-            if [ -f "$filename" ]; then
-                actual_hash=$(sha256sum "$filename" | awk '{print $1}')
-                if [ "$expected_hash" = "$actual_hash" ]; then
-                    log_success "${filename}: OK"
-                else
-                    echo -e "${RED}[FAIL]${NC} ${filename}: CHECKSUM MISMATCH"
-                    failed=1
-                fi
-            fi
-        done < "$CHECKSUM_FILE"
-        if [ "$failed" -eq 1 ]; then
-            log_error "Integrity check failed. Re-download the release package."
+    local checked=0
+    local failed=0
+    local expected_hash filename actual_hash
+    while read -r expected_hash filename; do
+        if [ -z "${expected_hash}" ] && [ -z "${filename}" ]; then
+            continue
         fi
+
+        filename="${filename#./}"
+        filename="${filename#\*}"
+        if [ ! -f "${IMAGES_DIR}/${filename}" ]; then
+            log_error "Checksum-listed image not found: ${filename}"
+        fi
+
+        checked=$((checked + 1))
+        actual_hash=$(sha256sum "${IMAGES_DIR}/${filename}" | awk '{print $1}')
+        if [ "${expected_hash}" = "${actual_hash}" ]; then
+            log_success "${filename}: OK"
+        else
+            echo -e "${RED}[FAIL]${NC} ${filename}: CHECKSUM MISMATCH"
+            failed=1
+        fi
+    done < "${checksum_file}"
+
+    if [ "${checked}" -eq 0 ]; then
+        log_error "Checksum file contains no verifiable entries: images/checksums.sha256"
     fi
-    cd "${SCRIPT_DIR}"
+    if [ "${failed}" -eq 1 ]; then
+        log_error "Integrity check failed. Re-download the release package."
+    fi
+    log_success "All checksums verified"
 }
 
 load_images() {
@@ -273,11 +268,7 @@ load_images() {
 
     for img in "${images[@]}"; do
         local name="${img%.tar.gz}"
-        local img_path="${IMAGES_DIR}/${img}"
-        # Support both app.tar.gz and blacklist-app.tar.gz naming
-        if [ ! -f "${img_path}" ] && [ -f "${IMAGES_DIR}/blacklist-${img}" ]; then
-            img_path="${IMAGES_DIR}/blacklist-${img}"
-        fi
+        local img_path="${IMAGES_DIR}/blacklist-${img}"
         log_info "Loading ${name}..."
         local load_output
         if load_output=$(gunzip -c "${img_path}" | docker load 2>&1); then
