@@ -11,6 +11,7 @@ import logging
 import importlib
 from collections import deque
 from .core.database import DatabaseService
+from .core.control_auth import register_control_auth
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class HealthServer:
 
         # Cached DatabaseService instance (avoid re-creating on every request)
         self._db = DatabaseService()
+        register_control_auth(self.app)
 
         # Setup routes
         @self.app.route("/health", methods=["GET"])
