@@ -89,10 +89,18 @@ for name in sorted(services):
             if position >= len(command) or not command[position].strip():
                 findings.append(name + ": --requirepass resolved to an empty value; REDIS_PASSWORD is unset or empty in the environment file (C-04)")
 
-    if name == JWT_ADR_SERVICE and adr_decision == "defer":
+    # The collector flag must MATCH ADR-0002 in both directions. Under Decision: defer
+    # enforcement does not exist, so claiming it is on is a false security posture;
+    # under Decision: enforce the collector really does verify a bearer token, so
+    # turning the flag back on silently reopens the control API (C-05).
+    if name == JWT_ADR_SERVICE:
         flag = (service.get("environment") or {}).get("DISABLE_JWT_AUTH")
-        if flag is not None and str(flag).strip().lower() not in JWT_DISABLED_VALUES:
-            findings.append(name + ": DISABLE_JWT_AUTH=" + str(flag) + " contradicts ADR-0002 (Decision: defer); collector token enforcement does not exist yet (C-05)")
+        if flag is not None:
+            disabled = str(flag).strip().lower() in JWT_DISABLED_VALUES
+            if adr_decision == "defer" and not disabled:
+                findings.append(name + ": DISABLE_JWT_AUTH=" + str(flag) + " contradicts ADR-0002 (Decision: defer); collector token enforcement does not exist yet (C-05)")
+            elif adr_decision == "enforce" and disabled:
+                findings.append(name + ": DISABLE_JWT_AUTH=" + str(flag) + " contradicts ADR-0002 (Decision: enforce); this reopens the collector control API (C-05)")
 
 for finding in findings:
     print(finding)
@@ -673,7 +681,13 @@ jwt_adr_decision() {
         decision=$(grep -m1 -E '^Decision:' "${adr_file}" | sed -E 's/^Decision:[[:space:]]*//' | tr -d '[:space:]') || true
     fi
 
-    printf '%s' "${decision:-defer}"
+    # The shipped offline bundle does NOT contain docs/decisions/, so this fallback is
+    # the value used by every real install. It must track ADR-0002's current decision:
+    # enforcement is implemented (collector verifies a bearer token on its control
+    # routes), so the baseline is "enforce". Leaving it at "defer" would make the gate
+    # reject every production deployment, because base.yml now ships
+    # DISABLE_JWT_AUTH="false".
+    printf '%s' "${decision:-enforce}"
 }
 
 verify_security_posture() {
