@@ -2,6 +2,7 @@
 
 from unittest.mock import patch, MagicMock
 from flask import Flask
+from flask.testing import FlaskClient
 
 
 def create_app():
@@ -19,9 +20,8 @@ def create_app():
 class TestTriggerRegtechCollection:
     """POST /api/collection/regtech/trigger"""
 
-    def setup_method(self):
-        self.app = create_app()
-        self.client = self.app.test_client()
+    app: Flask = create_app()
+    client: FlaskClient = app.test_client()
 
     @patch("requests.post")
     def test_trigger_success(self, mock_post):
@@ -39,6 +39,7 @@ class TestTriggerRegtechCollection:
         data = resp.get_json()
         assert data["success"] is True
         assert "timestamp" in data
+        assert mock_post.call_args.kwargs["timeout"] == 360
 
     @patch("requests.post")
     def test_trigger_collector_error(self, mock_post):

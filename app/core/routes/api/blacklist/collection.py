@@ -29,7 +29,7 @@ def trigger_regtech_collection():
         # 컬렉터 서비스 호출 (내부 네트워크)
         collector_response = requests.post(
             config.COLLECTOR_URL + "/api/force-collection/REGTECH",
-            timeout=30,
+            timeout=config.COLLECTOR_COLLECTION_TIMEOUT,
             json={
                 "source": "regtech_api_trigger",
                 "start_date": data.get("start_date"),
