@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | C-01 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
 | C-04 | 진행 중 | `8dbc596`, `f58b8b1`, `7217b76`이 브리지 네트워크, Redis 인증, frontend 포트 공개를 변경했습니다. |
-| C-05 | 진행 중 | ADR-0002는 Collector JWT 적용을 보류했고, 이 문서는 그 보상 통제와 한계를 기록합니다. |
+| C-05 | 브랜치 조치 완료 | ADR-0002에 따라 Collector 제어 API에 공유 Bearer token 인증을 적용하고 app의 모든 Collector 요청에 자격증명을 연결했습니다. 실제 운영 효과는 새 번들 배포와 설치 프로그램의 token 생성 변경 적용 후 발생합니다. |
 | C-06 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
 | C-07 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
 | M-04 | 진행 중 | 해당 ID를 직접 닫는 커밋 제목은 확인되지 않았습니다. 이 문서는 완료를 주장하지 않습니다. |
@@ -67,7 +67,9 @@ iptables -A INPUT -p tcp --dport 8545 ! -i lo -j DROP
 
 내부 서비스 트래픽은 `SSL_ENABLED: "false"`이며, M-02는 해결되지 않았습니다. 이 선택은 bridge 네트워크가 외부에 공개되지 않는다는 전제에서만 허용할 수 있습니다.
 
-Collector JWT 강제 적용도 보류 상태입니다. ADR-0002에 따라 Collector에는 요청 JWT 검증 코드가 없고 app 측 호출도 Authorization header를 보내지 않습니다. `DISABLE_JWT_AUTH`를 `false`로 바꾸는 것만으로는 보호가 생기지 않습니다.
+Collector의 `POST /trigger`, `POST /api/test-auth/<source>`, `POST /api/force-collection/<source>` 제어 경로는 `COLLECTOR_AUTH_TOKEN` 기반 Bearer 인증을 요구합니다. `GET /health`, `GET /status`, `GET /logs`는 Docker healthcheck와 읽기 전용 운영 조회를 위해 인증 없이 유지합니다.
+
+app과 Collector에는 동일한 `COLLECTOR_AUTH_TOKEN`이 필요합니다. 현재 Compose의 빈 기본값은 인증 강제 상태에서 모든 제어 요청을 401로 거부하는 fail-closed 동작을 만들지만, 설치 프로그램이 token을 생성하는 한 줄이 적용되기 전에는 정상 제어 요청도 사용할 수 없습니다. `DISABLE_JWT_AUTH=true`를 사용하면 제어 API가 다시 인증 없이 열리므로 긴급 상황에서만 제한적으로 사용하고 즉시 원복해야 합니다.
 
 ## 롤백
 
