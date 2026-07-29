@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import os
 import shutil
 import subprocess
@@ -12,11 +13,11 @@ import pytest
 DEPLOY_DIR = Path(__file__).parents[2] / "deploy"
 INSTALLER = DEPLOY_DIR / "install.sh"
 BUNDLE_IMAGES = (
-    "app.tar.gz",
-    "collector.tar.gz",
-    "frontend.tar.gz",
-    "postgres.tar.gz",
-    "redis.tar.gz",
+    "blacklist-app.tar.gz",
+    "blacklist-collector.tar.gz",
+    "blacklist-frontend.tar.gz",
+    "blacklist-postgres.tar.gz",
+    "blacklist-redis.tar.gz",
 )
 STUB_SECRETS = {
     "COMPOSE_PROJECT_NAME": "blacklist",
@@ -95,8 +96,16 @@ def prepare_bundle(
 
     images_dir = tmp_path / "images"
     images_dir.mkdir()
+    # Mirror the shipped 4.1.0 bundle: blacklist-prefixed names plus a bare-filename
+    # checksums.sha256, which the fail-closed integrity check now requires.
+    checksum_lines: list[str] = []
     for image_name in BUNDLE_IMAGES:
-        _ = (images_dir / image_name).write_bytes(gzip.compress(b"fake-image-archive"))
+        payload = gzip.compress(b"fake-image-archive")
+        _ = (images_dir / image_name).write_bytes(payload)
+        checksum_lines.append(f"{hashlib.sha256(payload).hexdigest()}  {image_name}")
+    _ = (images_dir / "checksums.sha256").write_text(
+        "\n".join(checksum_lines) + "\n", encoding="utf-8"
+    )
 
     _ = (tmp_path / "docker-compose.yml").write_text(compose_text, encoding="utf-8")
 
