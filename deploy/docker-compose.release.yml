@@ -3,31 +3,31 @@ services:
     extends:
       file: base.yml
       service: blacklist-postgres
-    image: blacklist-postgres:latest
+    image: blacklist-postgres:${BLACKLIST_VERSION:?BLACKLIST_VERSION must be set; it is written into the env file by install.sh}
 
   blacklist-redis:
     extends:
       file: base.yml
       service: blacklist-redis
-    image: blacklist-redis:latest
+    image: blacklist-redis:${BLACKLIST_VERSION:?BLACKLIST_VERSION must be set; it is written into the env file by install.sh}
 
   blacklist-collector:
     extends:
       file: base.yml
       service: blacklist-collector
-    image: blacklist-collector:latest
+    image: blacklist-collector:${BLACKLIST_VERSION:?BLACKLIST_VERSION must be set; it is written into the env file by install.sh}
 
   blacklist-app:
     extends:
       file: base.yml
       service: blacklist-app
-    image: blacklist-app:latest
+    image: blacklist-app:${BLACKLIST_VERSION:?BLACKLIST_VERSION must be set; it is written into the env file by install.sh}
 
   blacklist-frontend:
     extends:
       file: base.yml
       service: blacklist-frontend
-    image: blacklist-frontend:latest
+    image: blacklist-frontend:${BLACKLIST_VERSION:?BLACKLIST_VERSION must be set; it is written into the env file by install.sh}
 
 volumes:
   blacklist-pgdata:
