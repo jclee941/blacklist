@@ -13,6 +13,7 @@ import pytest
 # Throwaway literals only. The specials (@ : /) prove URL encoding is applied.
 PROBE_PASSWORD = "pr@be:pass/word"
 ENCODED_PROBE_PASSWORD = "pr%40be%3Apass%2Fword"
+TLS_QUERY = "ssl_ca_certs=%2Frun%2Fblacklist%2Fca.crt&ssl_cert_reqs=required"
 
 
 @pytest.mark.unit
@@ -35,7 +36,7 @@ class TestRedisPasswordConfig:
 
         url = AppConfig().REDIS_URL
 
-        assert url == f"redis://:{ENCODED_PROBE_PASSWORD}@redis-host:6380"
+        assert url == f"rediss://:{ENCODED_PROBE_PASSWORD}@redis-host:6380?{TLS_QUERY}"
         # A real client must recover the literal password from the encoded URL.
         client = redis.Redis.from_url(url)
         assert client.connection_pool.connection_kwargs["password"] == PROBE_PASSWORD
@@ -46,10 +47,10 @@ class TestRedisPasswordConfig:
         monkeypatch.delenv("REDIS_PASSWORD", raising=False)
         from core.config import AppConfig
 
-        assert AppConfig().REDIS_URL == "redis://redis-host:6380"
+        assert AppConfig().REDIS_URL == f"rediss://redis-host:6380?{TLS_QUERY}"
 
         monkeypatch.setenv("REDIS_PASSWORD", "")
-        assert AppConfig().REDIS_URL == "redis://redis-host:6380"
+        assert AppConfig().REDIS_URL == f"rediss://redis-host:6380?{TLS_QUERY}"
 
 
 @pytest.mark.unit
@@ -64,6 +65,17 @@ class TestRedisClientAuthentication:
             get_redis_client()
 
         assert mock_redis.call_args.kwargs["password"] == PROBE_PASSWORD
+
+    def test_cache_client_verifies_tls(self, monkeypatch):
+        monkeypatch.setenv("INTERNAL_CA_CERT", "/probe/ca.crt")
+        from core.utils.cache_utils import get_redis_client
+
+        with patch("core.utils.cache_utils.redis.Redis") as mock_redis:
+            get_redis_client()
+
+        assert mock_redis.call_args.kwargs["ssl"] is True
+        assert mock_redis.call_args.kwargs["ssl_cert_reqs"] == "required"
+        assert mock_redis.call_args.kwargs["ssl_ca_certs"] == "/probe/ca.crt"
 
     def test_cache_client_omits_password_when_absent(self, monkeypatch):
         monkeypatch.delenv("REDIS_PASSWORD", raising=False)
@@ -82,6 +94,17 @@ class TestRedisClientAuthentication:
             BlacklistService()
 
         assert mock_redis.call_args.kwargs["password"] == PROBE_PASSWORD
+
+    def test_blacklist_service_client_verifies_tls(self, monkeypatch):
+        monkeypatch.setenv("INTERNAL_CA_CERT", "/probe/ca.crt")
+        from core.services.blacklist_service import BlacklistService
+
+        with patch("core.services.blacklist_service.redis.Redis") as mock_redis:
+            BlacklistService()
+
+        assert mock_redis.call_args.kwargs["ssl"] is True
+        assert mock_redis.call_args.kwargs["ssl_cert_reqs"] == "required"
+        assert mock_redis.call_args.kwargs["ssl_ca_certs"] == "/probe/ca.crt"
 
     def test_blacklist_service_client_omits_password_when_absent(self, monkeypatch):
         monkeypatch.delenv("REDIS_PASSWORD", raising=False)
@@ -104,4 +127,4 @@ class TestRedisClientAuthentication:
             create_app()
 
         storage_uri = mock_limiter.call_args.kwargs["storage_uri"]
-        assert storage_uri == f"redis://:{ENCODED_PROBE_PASSWORD}@redis-host:6380/1"
+        assert storage_uri == f"rediss://:{ENCODED_PROBE_PASSWORD}@redis-host:6380/1?{TLS_QUERY}"

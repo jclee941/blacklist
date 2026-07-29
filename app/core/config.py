@@ -8,13 +8,16 @@ Centralized Configuration — Single source of truth for all environment variabl
 
 import os
 from typing import Any, Optional, TypedDict
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlsplit, urlunsplit
 
 
-class RedisAuthParams(TypedDict, total=False):
-    """Redis auth kwargs. Absent when no password is set — password="" is not the same as omitting it."""
+class RedisSecurityParams(TypedDict, total=False):
+    """Redis transport and optional authentication parameters."""
 
     password: str
+    ssl: bool
+    ssl_ca_certs: str
+    ssl_cert_reqs: str
 
 
 class CollectorAuthRequestKwargs(TypedDict, total=False):
@@ -22,6 +25,10 @@ class CollectorAuthRequestKwargs(TypedDict, total=False):
 
 
 class AppConfig:
+    @property
+    def INTERNAL_CA_CERT(self) -> str:
+        return os.getenv("INTERNAL_CA_CERT", "/run/blacklist/ca.crt")
+
     @property
     def COLLECTOR_URL(self) -> str:
         return os.environ.get("COLLECTOR_URL", "http://blacklist-collector:8545")
@@ -86,6 +93,8 @@ class AppConfig:
                 "database": parsed.path.lstrip("/") or "blacklist",
                 "user": parsed.username or "postgres",
                 "password": parsed.password or self.POSTGRES_PASSWORD,
+                "sslmode": "verify-full",
+                "sslrootcert": self.INTERNAL_CA_CERT,
             }
         return {
             "host": self.POSTGRES_HOST,
@@ -93,15 +102,19 @@ class AppConfig:
             "database": self.POSTGRES_DB,
             "user": self.POSTGRES_USER,
             "password": self.POSTGRES_PASSWORD,
+            "sslmode": "verify-full",
+            "sslrootcert": self.INTERNAL_CA_CERT,
         }
 
     def get_postgres_dsn(self) -> str:
-        if self.POSTGRES_URL:
-            return self.POSTGRES_URL
-        return (
+        dsn = self.POSTGRES_URL or (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+        parsed = urlsplit(dsn)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query.update({"sslmode": "verify-full", "sslrootcert": self.INTERNAL_CA_CERT})
+        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
 
     @property
     def REDIS_HOST(self) -> str:
@@ -117,19 +130,33 @@ class AppConfig:
 
     @property
     def REDIS_URL(self) -> str:
+        return self.get_redis_url()
+
+    def get_redis_url(self, database: int | None = None) -> str:
+        query = urlencode({"ssl_ca_certs": self.INTERNAL_CA_CERT, "ssl_cert_reqs": "required"})
+        path = "" if database is None else f"/{database}"
         if self.REDIS_PASSWORD:
-            return f"redis://:{quote(self.REDIS_PASSWORD, safe='')}@{self.REDIS_HOST}:{self.REDIS_PORT}"
-        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
+            return f"rediss://:{quote(self.REDIS_PASSWORD, safe='')}@{self.REDIS_HOST}:{self.REDIS_PORT}{path}?{query}"
+        return f"rediss://{self.REDIS_HOST}:{self.REDIS_PORT}{path}?{query}"
 
-    def get_redis_auth_params(self) -> RedisAuthParams:
+    def get_redis_auth_params(self) -> RedisSecurityParams:
+        params: RedisSecurityParams = {
+            "ssl": True,
+            "ssl_ca_certs": self.INTERNAL_CA_CERT,
+            "ssl_cert_reqs": "required",
+        }
         if not self.REDIS_PASSWORD:
-            return {}
-        return {"password": self.REDIS_PASSWORD}
+            return params
+        params["password"] = self.REDIS_PASSWORD
+        return params
 
-    def get_redis_params(self) -> dict[str, int | str]:
-        params: dict[str, int | str] = {
+    def get_redis_params(self) -> dict[str, bool | int | str]:
+        params: dict[str, bool | int | str] = {
             "host": self.REDIS_HOST,
             "port": self.REDIS_PORT,
+            "ssl": True,
+            "ssl_ca_certs": self.INTERNAL_CA_CERT,
+            "ssl_cert_reqs": "required",
         }
         if self.REDIS_PASSWORD:
             params["password"] = self.REDIS_PASSWORD

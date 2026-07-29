@@ -100,7 +100,7 @@ def create_app():
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        storage_uri=f"{config.REDIS_URL}/1",
+        storage_uri=config.get_redis_url(database=1),
         storage_options={"socket_connect_timeout": 2},
         default_limits=["200 per day", "50 per hour"],  # Global rate limits
         strategy="fixed-window",

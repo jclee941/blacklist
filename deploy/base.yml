@@ -136,6 +136,7 @@ services:
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      INTERNAL_CA_CERT: /run/blacklist/ca.crt
       COLLECTOR_URL: http://blacklist-collector:8545
       BLACKLIST_API_URL: http://blacklist-app:2542/api
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
@@ -152,6 +153,7 @@ services:
       - blacklist-logs:/app/logs
       - blacklist-uploads:/app/uploads
       - blacklist-app-data:/app/data
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:2542/health"]
       interval: 30s
