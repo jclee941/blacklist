@@ -27,8 +27,14 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: blacklist-collector:latest
+    # Dev-only: REGTECH blocks this network's egress IP, so requests are sent
+    # through a WARP proxy running on the developer's host. On the bridge network
+    # 127.0.0.1 would resolve to the container itself, so the host gateway alias is
+    # required. Set WARP_PROXY_URL= (empty) to disable when no proxy is running.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      WARP_PROXY_URL: http://127.0.0.1:40000
+      WARP_PROXY_URL: ${WARP_PROXY_URL-http://host.docker.internal:40000}
 
   blacklist-app:
     extends:
