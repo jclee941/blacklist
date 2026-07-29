@@ -29,6 +29,15 @@ esac
 FAKE_SS = """#!/bin/sh
 exit 0
 """
+NON_ADMIN_SECRET_KEYS = (
+    "CREDENTIAL_MASTER_KEY",
+    "SECRET_KEY",
+    "CREDENTIAL_ENCRYPTION_KEY",
+    "ENCRYPTION_SALT",
+    "POSTGRES_PASSWORD",
+    "REDIS_PASSWORD",
+    "COLLECTOR_AUTH_TOKEN",
+)
 
 
 def prepare_bundle(tmp_path: Path) -> tuple[Path, dict[str, str]]:
@@ -148,6 +157,33 @@ def test_generated_env_contains_unique_high_entropy_admin_passwords(tmp_path: Pa
     assert re.fullmatch(r"[0-9a-f]{64}", first_password)
     assert re.fullmatch(r"[0-9a-f]{64}", second_password)
     assert first_password != second_password
+
+
+def test_admin_password_is_displayed_once_without_other_secrets(tmp_path: Path) -> None:
+    bundle_dir = tmp_path / "bundle"
+    env_file, environment = prepare_bundle(bundle_dir)
+
+    first_result = run_installer(bundle_dir, environment, "--check-secrets")
+    generated_values = parse_env(env_file)
+    second_result = run_installer(bundle_dir, environment, "--check-secrets")
+
+    assert first_result.returncode == 0, first_result.stdout + first_result.stderr
+    assert second_result.returncode == 0, second_result.stdout + second_result.stderr
+    admin_password = generated_values["ADMIN_PASSWORD"]
+    assert admin_password in first_result.stdout
+    assert admin_password not in second_result.stdout
+    assert all(generated_values[key] not in first_result.stdout for key in NON_ADMIN_SECRET_KEYS)
+
+
+def test_initial_admin_password_is_shown_after_health_checks() -> None:
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+    main_body = installer_source.split("\nmain() {", 1)[1]
+
+    health_index = main_body.rfind("health_checks")
+    completion_index = main_body.rfind('log_success "Installation completed!"')
+    password_index = main_body.rfind("show_initial_admin_password")
+
+    assert health_index < completion_index < password_index
 
 
 def test_health_regex_rejects_error_payload() -> None:

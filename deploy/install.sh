@@ -22,6 +22,7 @@ ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
 STOP_ALL_CONTAINERS=false
 SKIP_POSTURE_CHECK=false
 REQUIRE_SIGNATURE=false
+ADMIN_CREDENTIALS_GENERATED=false
 POSTURE_COMPOSE_FILES=()
 readonly PUBLISHED_FRONTEND_PORT=443
 readonly HEALTH_WAIT_TIMEOUT_SECONDS=180
@@ -588,6 +589,7 @@ setup_secrets() {
         log_info "Generating secrets..."
         generate_env_file "${env_file}"
         chmod 600 "${env_file}" || log_error "Unable to protect generated environment file."
+        ADMIN_CREDENTIALS_GENERATED=true
         log_success "Secrets generated (${env_file})"
     fi
 
@@ -619,6 +621,23 @@ setup_secrets() {
     sync_deployment_version "${env_file}"
     log_info "Deployment version pinned to ${VERSION}"
     log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
+}
+
+show_initial_admin_password() {
+    if [ "${ADMIN_CREDENTIALS_GENERATED}" != true ]; then
+        return 0
+    fi
+
+    if ! read_required_secret_value "${ENV_FILE}" "ADMIN_PASSWORD"; then
+        log_error "Unable to read the generated administrator password from ${ENV_FILE}."
+    fi
+    local admin_password="${DOTENV_NORMALIZED_VALUE}"
+
+    log_step "First-Run Administrator Credentials"
+    log_warning "This administrator password is shown only once."
+    log_warning "Store it in your password manager and change it after the first login."
+    printf '  Admin username: admin\n'
+    printf '  Admin password: %s\n' "${admin_password}"
 }
 
 stop_all_running_containers() {
@@ -899,6 +918,7 @@ main() {
 
     if [ "$check_secrets" = true ]; then
         setup_secrets
+        show_initial_admin_password
         return 0
     fi
 
@@ -942,6 +962,7 @@ main() {
     post_install
 
     log_success "Installation completed!"
+    show_initial_admin_password
 }
 
 main "$@"
