@@ -105,7 +105,7 @@ def proxy_trigger_collection(source: str):
             url,
             json=data,
             headers=headers,
-            timeout=120,
+            timeout=config.COLLECTOR_COLLECTION_TIMEOUT,
             verify=config.INTERNAL_CA_CERT,
         )
         try:
