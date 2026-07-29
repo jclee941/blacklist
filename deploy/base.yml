@@ -15,10 +15,22 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       TZ: Asia/Seoul
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/run/blacklist/tls/tls.crt
+      - -c
+      - ssl_key_file=/run/blacklist/tls/tls.key
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
     volumes:
       - blacklist-pgdata:/var/lib/postgresql/data
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/postgres:/run/blacklist/tls:ro
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d blacklist"]
+      test: ["CMD-SHELL", 'PGPASSWORD="$$POSTGRES_PASSWORD" PGSSLMODE=verify-full PGSSLROOTCERT=/run/blacklist/ca.crt psql -h blacklist-postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -tAc "SELECT 1" | grep -qx 1']
       interval: 30s
       timeout: 10s
       retries: 3
