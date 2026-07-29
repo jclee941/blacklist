@@ -24,6 +24,7 @@ readonly REQUIRED_SECRET_KEYS=(
     "CREDENTIAL_ENCRYPTION_KEY"
     "ENCRYPTION_SALT"
     "POSTGRES_PASSWORD"
+    "REDIS_PASSWORD"
 )
 readonly DEPLOYMENT_VOLUME_NAMES=(
     "blacklist-pgdata"
@@ -310,7 +311,7 @@ deployment_state_exists() {
 generate_env_file() {
     local env_file="$1"
     local temp_file
-    local fernet_key secret_key master_key encryption_salt pg_password
+    local fernet_key secret_key master_key encryption_salt pg_password redis_password
 
     temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to create private environment file."
     chmod 600 "${temp_file}" || log_error "Unable to protect generated environment file."
@@ -320,6 +321,7 @@ generate_env_file() {
     master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     encryption_salt=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    redis_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
 
     if ! cat > "${temp_file}" << EOF
 # Blacklist Platform Secrets (auto-generated)
@@ -331,6 +333,7 @@ SECRET_KEY=${secret_key}
 CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
 ENCRYPTION_SALT=${encryption_salt}
 POSTGRES_PASSWORD=${pg_password}
+REDIS_PASSWORD=${redis_password}
 EOF
     then
         rm -f "${temp_file}"

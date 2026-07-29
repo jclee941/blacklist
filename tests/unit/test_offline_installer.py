@@ -140,6 +140,7 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
             'CREDENTIAL_ENCRYPTION_KEY="local-credential-encryption-key-0123456789"',
             "ENCRYPTION_SALT='local-encryption-salt-0123456789'",
             'POSTGRES_PASSWORD="local-postgres-password-0123456789"',
+            'REDIS_PASSWORD="local-redis-password-0123456789"',
         )
     ) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")
