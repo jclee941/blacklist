@@ -74,6 +74,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
+      # ADR-0002 (0002-collector-authentication-enforcement) defers JWT enforcement; bridge-network isolation is the real control.
       DISABLE_JWT_AUTH: "true"
       TZ: Asia/Seoul
     volumes:
