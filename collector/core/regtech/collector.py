@@ -9,6 +9,7 @@ Refactored: 2026-02-08 — Split into regtech/ package
 """
 
 import json
+import hashlib
 import logging
 import os
 import subprocess
@@ -109,7 +110,9 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
         collection_start = time.time()
 
-        excel_enabled = os.getenv("DISABLE_EXCEL_COLLECTION", "false").lower() != "true"
+        excel_enabled = (
+            effective_max_pages is not None and os.getenv("DISABLE_EXCEL_COLLECTION", "false").lower() != "true"
+        )
 
         collected_data = []
         date_strategies = self._generate_date_strategies(start_date, end_date)
@@ -158,6 +161,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
                         )
 
                 strategy_data = []
+                seen_page_signatures: set[bytes] = set()
                 page_num = 1
                 while effective_max_pages is None or page_num <= effective_max_pages:
                     page_data = None
@@ -184,6 +188,17 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
                     if not page_data:
                         logger.info(f"📄 전략 {strategy_name} 페이지 {page_num}: 데이터 없음")
                         break
+
+                    page_signature = hashlib.sha256(
+                        json.dumps(page_data, sort_keys=True, default=str).encode("utf-8")
+                    ).digest()
+                    if page_signature in seen_page_signatures:
+                        raise RegtechPageCollectionError(
+                            strategy=strategy_name,
+                            page_num=page_num,
+                            attempts=1,
+                        )
+                    seen_page_signatures.add(page_signature)
 
                     strategy_data.extend(page_data)
                     logger.info(f"📄 전략 {strategy_name} 페이지 {page_num}: {len(page_data)}개 IP 수집")
@@ -229,14 +244,16 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
         if not end_date:
             end_date = today.strftime("%Y-%m-%d")
 
+        if start_date:
+            strategies.append(("사용자 지정", start_date, end_date))
+            logger.info("📋 생성된 날짜 전략: %s", [strategy[0] for strategy in strategies])
+            return strategies
+
         recent_start = (today - timedelta(days=1)).strftime("%Y-%m-%d")
         strategies.append(("최근 1일 일일", recent_start, end_date))
 
         quarter_start = (today - relativedelta(months=3)).strftime("%Y-%m-%d")
         strategies.append(("최근 3개월 분기", quarter_start, end_date))
-
-        if start_date:
-            strategies.insert(0, ("사용자 지정", start_date, end_date))
 
         logger.info(f"📋 생성된 날짜 전략: {[s[0] for s in strategies]}")
         return strategies
@@ -396,12 +413,16 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
             except Exception as e:
                 logger.error(f"❌ 응답 객체 생성 실패: {e}")
-                return []
+                return None
 
             logger.info("📊 응답 처리 시작...")
 
             if response.status_code == 200:
                 page_data = self._parse_response_data(response)
+
+                if page_data is None:
+                    self.rate_limiter.on_failure()
+                    return None
 
                 self._data_cache[cache_key] = (time.time(), page_data)
 
@@ -414,7 +435,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
                 self.rate_limiter.on_failure(error_code=response.status_code)
 
-                return []
+                return None
 
         except (OSError, subprocess.SubprocessError) as exc:
             logger.error(
@@ -429,9 +450,9 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
 
             self.rate_limiter.on_failure()
 
-            return []
+            return None
 
-    def _parse_response_data(self, response) -> List[Dict[str, Any]]:
+    def _parse_response_data(self, response) -> Optional[List[Dict[str, Any]]]:
         try:
             json_data = response.json()
 
@@ -456,7 +477,7 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
             return self._parse_html_response(response.text)
         except Exception as e:
             logger.error(f"❌ 응답 파싱 실패: {e}")
-            return []
+            return None
 
     def get_session_info(self) -> Dict[str, Any]:
         return {

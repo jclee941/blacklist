@@ -111,3 +111,19 @@ def test_page_timeout_returns_retryable_outcome(monkeypatch: pytest.MonkeyPatch)
     is_retryable_failure = collector.collect_single_page(page_num=1, page_size=50)
 
     assert is_retryable_failure
+
+
+def test_page_parse_failure_returns_retryable_outcome(monkeypatch: pytest.MonkeyPatch) -> None:
+    def run_curl(command: list[str], **_kwargs: bool | int) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, returncode=0, stdout="{}", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", run_curl)
+    monkeypatch.setattr(archive_manager, "archive_content", lambda *_args, **_kwargs: None)
+    collector = RegtechCollectorHarness()
+    monkeypatch.setattr(collector, "_parse_response_data", lambda _response: None)
+    monkeypatch.setattr(collector.rate_limiter, "wait_if_needed", lambda: True)
+    monkeypatch.setattr(collector.rate_limiter, "on_failure", lambda *_args, **_kwargs: None)
+
+    is_retryable_failure = collector.collect_single_page(page_num=1, page_size=50)
+
+    assert is_retryable_failure

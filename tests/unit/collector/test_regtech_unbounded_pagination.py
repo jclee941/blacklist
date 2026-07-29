@@ -1,6 +1,6 @@
 import pytest
 
-from collector.core.regtech.collector import REGTECH_PAGE_SIZE, RegtechCollector
+from collector.core.regtech.collector import REGTECH_PAGE_SIZE, RegtechCollector, RegtechPageCollectionError
 
 
 def test_unbounded_collection_continues_past_page_fifty(
@@ -51,3 +51,63 @@ def test_unbounded_collection_continues_past_page_fifty(
 
     assert requests == list(range(1, 57))
     assert len(result) == 55
+
+
+def test_explicit_date_range_uses_only_the_requested_window() -> None:
+    collector = RegtechCollector()
+
+    strategies = collector._generate_date_strategies("2026-04-30", "2026-07-29")
+
+    assert strategies == [("사용자 지정", "2026-04-30", "2026-07-29")]
+
+
+def test_unbounded_collection_skips_excel_and_stops_on_first_empty_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    collector = RegtechCollector()
+    excel_requests: list[tuple[str, str]] = []
+    page_requests: list[int] = []
+    monkeypatch.delenv("DISABLE_EXCEL_COLLECTION", raising=False)
+    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
+    monkeypatch.setattr(
+        collector,
+        "_download_excel_data",
+        lambda start, end: excel_requests.append((start, end)) or [{"ip_address": "192.0.2.1"}],
+    )
+    monkeypatch.setattr(
+        collector,
+        "_collect_single_page",
+        lambda page, _size, _start, _end: page_requests.append(page) or [],
+    )
+    monkeypatch.setattr(collector, "_record_collection_performance", lambda *_args: None)
+    monkeypatch.setattr(collector, "_post_process_collected_data", lambda data: data)
+
+    result = collector.collect_blacklist_data(
+        page_size=REGTECH_PAGE_SIZE,
+        start_date="2026-04-30",
+        end_date="2026-07-29",
+        max_pages=None,
+    )
+
+    assert result == []
+    assert excel_requests == []
+    assert page_requests == [1]
+
+
+def test_unbounded_collection_rejects_a_repeated_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    collector = RegtechCollector()
+    monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
+    monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
+    monkeypatch.setattr(
+        collector,
+        "_generate_date_strategies",
+        lambda _start, _end: [("90일", "2026-04-30", "2026-07-29")],
+    )
+    monkeypatch.setattr(
+        collector,
+        "_collect_single_page",
+        lambda _page, _size, _start, _end: [{"ip_address": "192.0.2.1"}],
+    )
+
+    with pytest.raises(RegtechPageCollectionError):
+        _ = collector.collect_blacklist_data(max_pages=None)
