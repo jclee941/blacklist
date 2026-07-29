@@ -93,6 +93,7 @@ services:
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      INTERNAL_CA_CERT: /run/blacklist/ca.crt
       HEALTH_CHECK_PORT: 8545
       BLACKLIST_API_URL: http://blacklist-app:2542
       COLLECTION_INTERVAL: 86400
@@ -107,6 +108,7 @@ services:
     volumes:
       - blacklist-collector-data:/app/data
       - blacklist-logs:/app/logs
+      - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8545/health"]
       interval: 30s

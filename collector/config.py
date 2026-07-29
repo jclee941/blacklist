@@ -8,6 +8,7 @@ import os
 from typing import Dict, Any
 import psycopg2
 import logging
+from urllib.parse import quote
 
 from .exceptions import CredentialDecryptionError, MissingMasterKeyError
 
@@ -23,6 +24,7 @@ class CollectorConfig:
     POSTGRES_DB = os.getenv("POSTGRES_DB", "blacklist")
     POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
+    INTERNAL_CA_CERT = os.getenv("INTERNAL_CA_CERT", "/run/blacklist/ca.crt")
 
     # Redis 설정
     REDIS_HOST = os.getenv("REDIS_HOST", "blacklist-redis")
@@ -51,11 +53,7 @@ class CollectorConfig:
 
         try:
             conn = psycopg2.connect(
-                host=cls.POSTGRES_HOST,
-                port=cls.POSTGRES_PORT,
-                database=cls.POSTGRES_DB,
-                user=cls.POSTGRES_USER,
-                password=cls.POSTGRES_PASSWORD,
+                **cls.get_postgres_connection_params(),
             )
             cur = conn.cursor()
 
@@ -216,8 +214,21 @@ class CollectorConfig:
         return (
             f"postgresql://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}@"
             f"{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}"
-            f"?application_name=blacklist_collector_optimized"
+            f"?application_name=blacklist_collector_optimized&sslmode=verify-full"
+            f"&sslrootcert={quote(cls.INTERNAL_CA_CERT, safe='')}"
         )
+
+    @classmethod
+    def get_postgres_connection_params(cls) -> Dict[str, Any]:
+        return {
+            "host": cls.POSTGRES_HOST,
+            "port": cls.POSTGRES_PORT,
+            "database": cls.POSTGRES_DB,
+            "user": cls.POSTGRES_USER,
+            "password": cls.POSTGRES_PASSWORD,
+            "sslmode": "verify-full",
+            "sslrootcert": cls.INTERNAL_CA_CERT,
+        }
 
     @classmethod
     def get_redis_connection_params(cls) -> Dict[str, Any]:
@@ -230,6 +241,9 @@ class CollectorConfig:
             "socket_keepalive_options": {},
             "connection_pool_max_connections": 20,
             "retry_on_timeout": True,
+            "ssl": True,
+            "ssl_ca_certs": cls.INTERNAL_CA_CERT,
+            "ssl_cert_reqs": "required",
         }
         if cls.REDIS_PASSWORD:
             params["password"] = cls.REDIS_PASSWORD
@@ -267,6 +281,7 @@ class CollectorConfig:
             "postgres_port": cls.POSTGRES_PORT,
             "postgres_db": cls.POSTGRES_DB,
             "postgres_user": cls.POSTGRES_USER,
+            "postgres_sslrootcert": cls.INTERNAL_CA_CERT,
             "redis_host": cls.REDIS_HOST,
             "redis_port": cls.REDIS_PORT,
             "regtech_base_url": cls.REGTECH_BASE_URL,

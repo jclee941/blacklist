@@ -80,3 +80,13 @@ def test_redis_healthcheck_verifies_the_server_certificate() -> None:
     assert "-h blacklist-redis" in redis
     assert "REDISCLI_AUTH=" in redis
     assert "redis-cli ping" not in REDIS_DOCKERFILE
+
+
+def test_collector_clients_receive_the_internal_ca() -> None:
+    collector = service_block("blacklist-collector")
+
+    assert "INTERNAL_CA_CERT: /run/blacklist/ca.crt" in collector
+    assert (
+        "${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro"
+        in collector
+    )
