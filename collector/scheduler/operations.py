@@ -6,8 +6,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Protocol
 
-from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
-
 from .dependencies import db_service, regtech_collector
 
 
@@ -21,7 +19,12 @@ class SchedulerProtocol(Protocol):
     def _adjust_interval_success(self) -> None: ...
     def _adjust_interval_failure(self) -> None: ...
     def _record_failure(self, error_message: str) -> None: ...
-    def _collect_regtech_data(self, username: str, password: str, max_pages: int = 1) -> Dict[str, Any]: ...
+    def _collect_regtech_data(
+        self,
+        username: str,
+        password: str,
+        max_pages: int | None = 1,
+    ) -> Dict[str, Any]: ...
 
 
 def load_initial_stats(collection_stats: Dict[str, Any]) -> None:
@@ -260,7 +263,7 @@ def run_collection(scheduler: SchedulerProtocol) -> None:
         scheduler._record_failure(str(exc))
 
 
-def collect_regtech_data(username: str, password: str, max_pages: int = 1) -> Dict[str, Any]:
+def collect_regtech_data(username: str, password: str, max_pages: int | None = None) -> Dict[str, Any]:
     """Authenticate, collect REGTECH data, save it, and record history."""
     start_time = datetime.now()
     try:
@@ -273,8 +276,8 @@ def collect_regtech_data(username: str, password: str, max_pages: int = 1) -> Di
             start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
             logger.info("🚀 REGTECH 스케줄 수집 (1일: %s ~ %s)", start_date, end_date)
         else:
-            start_date = (today - relativedelta(months=3)).strftime("%Y-%m-%d")
-            logger.info("🚀 REGTECH 수동 수집 (3개월: %s ~ %s)", start_date, end_date)
+            start_date = (today - timedelta(days=90)).strftime("%Y-%m-%d")
+            logger.info("🚀 REGTECH 수동 수집 (90일: %s ~ %s)", start_date, end_date)
 
         collected_data = regtech_collector.collect_blacklist_data(
             page_size=REGTECH_PAGE_SIZE,
@@ -320,7 +323,7 @@ def collect_regtech_data(username: str, password: str, max_pages: int = 1) -> Di
 def run_manual_collection(scheduler: SchedulerProtocol) -> None:
     """Run the full manual REGTECH collection."""
     try:
-        logger.info("📊 Starting manual full collection (50 pages)")
+        logger.info("📊 Starting manual full collection (last 90 days, unbounded pages)")
         credentials = db_service.get_collection_credentials("REGTECH")
         if not credentials:
             logger.error("❌ No REGTECH credentials found in database")
@@ -333,7 +336,7 @@ def run_manual_collection(scheduler: SchedulerProtocol) -> None:
             return
 
         logger.info("🔑 Using REGTECH credentials from database: %s", regtech_id)
-        result = scheduler._collect_regtech_data(regtech_id, regtech_pw, max_pages=50)
+        result = scheduler._collect_regtech_data(regtech_id, regtech_pw, max_pages=None)
         if result["success"]:
             logger.info("✅ Manual full collection completed: %s IPs", result["collected_count"])
             return

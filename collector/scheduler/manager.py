@@ -14,7 +14,7 @@ import schedule
 from .dependencies import CollectorConfig, db_service
 from .operations import (
     cleanup_expired_ips,
-    collect_regtech_data,
+    collect_regtech_data as execute_regtech_collection,
     load_initial_stats,
     run_adaptive_collection,
     run_collection,
@@ -145,9 +145,16 @@ class CollectionScheduler:
         """수집 작업 실행"""
         run_collection(self)
 
-    def _collect_regtech_data(self, username: str, password: str, max_pages: int = 1) -> Dict[str, Any]:
+    def _collect_regtech_data(
+        self,
+        username: str,
+        password: str,
+        max_pages: int | None = 1,
+    ) -> Dict[str, Any]:
         """REGTECH 데이터 수집"""
-        return collect_regtech_data(username, password, max_pages=max_pages)
+        if max_pages is None:
+            return execute_regtech_collection(username, password)
+        return execute_regtech_collection(username, password, max_pages=max_pages)
 
     def _record_failure(self, error_message: str):
         """실패 기록"""
@@ -182,7 +189,7 @@ class CollectionScheduler:
         return None
 
     def trigger_manual_collection(self) -> Dict[str, Any]:
-        """수동 수집 트리거 (전체 수집 - 50페이지)"""
+        """수동 수집 트리거 (최근 90일 전체 수집)."""
         try:
             logger.info("🔄 Manual collection triggered (전체 수집 모드)")
             collection_thread = threading.Thread(target=self._run_manual_collection, daemon=True)
@@ -193,7 +200,7 @@ class CollectionScheduler:
             return {"success": False, "error": str(exc)}
 
     def _run_manual_collection(self):
-        """수동 수집 작업 실행 (전체 수집 - 50페이지)"""
+        """수동 수집 작업 실행 (최근 90일 전체 수집)."""
         run_manual_collection(self)
 
     def force_collection(self, source: str) -> Dict[str, Any]:
@@ -225,7 +232,7 @@ class CollectionScheduler:
 
             logger.info("🔑 Using %s credentials from database: %s", source, username)
             if source == "REGTECH":
-                return self._collect_regtech_data(username, password, max_pages=50)
+                return self._collect_regtech_data(username, password, max_pages=None)
 
             return {"success": False, "error": f"Unknown source: {source}", "collected_count": 0}
         except Exception as exc:
