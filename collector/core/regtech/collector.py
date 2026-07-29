@@ -189,8 +189,22 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin):
                         logger.info(f"📄 전략 {strategy_name} 페이지 {page_num}: 데이터 없음")
                         break
 
+                    stable_page_data = [
+                        {
+                            key: item.get(key)
+                            for key in (
+                                "ip_address",
+                                "source",
+                                "reason",
+                                "country",
+                                "detection_date",
+                                "removal_date",
+                            )
+                        }
+                        for item in page_data
+                    ]
                     page_signature = hashlib.sha256(
-                        json.dumps(page_data, sort_keys=True, default=str).encode("utf-8")
+                        json.dumps(stable_page_data, sort_keys=True, default=str).encode("utf-8")
                     ).digest()
                     if page_signature in seen_page_signatures:
                         raise RegtechPageCollectionError(

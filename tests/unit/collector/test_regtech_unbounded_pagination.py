@@ -94,7 +94,9 @@ def test_unbounded_collection_skips_excel_and_stops_on_first_empty_page(
     assert page_requests == [1]
 
 
-def test_unbounded_collection_rejects_a_repeated_page(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_collection_rejects_repeated_records_with_new_collection_timestamps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     collector = RegtechCollector()
     monkeypatch.setenv("DISABLE_EXCEL_COLLECTION", "true")
     monkeypatch.setattr(collector, "_ensure_authenticated", lambda: True)
@@ -106,8 +108,15 @@ def test_unbounded_collection_rejects_a_repeated_page(monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         collector,
         "_collect_single_page",
-        lambda _page, _size, _start, _end: [{"ip_address": "192.0.2.1"}],
+        lambda page, _size, _start, _end: [
+            {
+                "ip_address": "192.0.2.1",
+                "collected_at": f"2026-07-30T00:00:0{page}",
+                "last_seen": f"2026-07-30T00:00:0{page}",
+                "raw_data": {"collection_timestamp": f"2026-07-30T00:00:0{page}"},
+            }
+        ],
     )
 
     with pytest.raises(RegtechPageCollectionError):
-        _ = collector.collect_blacklist_data(max_pages=None)
+        _ = collector.collect_blacklist_data(max_pages=3)
