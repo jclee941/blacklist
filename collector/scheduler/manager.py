@@ -52,6 +52,7 @@ class CollectionScheduler:
             "REGTECH": "_collect_regtech_data",
         }
         self._active_collections: set[str] = set()
+        self._active_collections_lock = threading.Lock()
         self._load_initial_stats()
 
     def _load_initial_stats(self):
@@ -203,11 +204,11 @@ class CollectionScheduler:
 
     def force_collection(self, source: str) -> Dict[str, Any]:
         """Force immediate collection for a specific source."""
-        if source in self._active_collections:
-            logger.warning("⚠️ %s collection already in progress, skipping duplicate request", source)
-            return {"success": False, "error": f"{source} 수집이 이미 진행 중입니다", "collected_count": 0}
-
-        self._active_collections.add(source)
+        with self._active_collections_lock:
+            if source in self._active_collections:
+                logger.warning("⚠️ %s collection already in progress, skipping duplicate request", source)
+                return {"success": False, "error": f"{source} 수집이 이미 진행 중입니다", "collected_count": 0}
+            self._active_collections.add(source)
         try:
             logger.info("🔄 Force collection triggered for %s", source)
             credentials = db_service.get_collection_credentials(source)
@@ -237,7 +238,8 @@ class CollectionScheduler:
             logger.error("❌ Force collection error for %s: %s", source, exc)
             return {"success": False, "error": str(exc), "collected_count": 0}
         finally:
-            self._active_collections.discard(source)
+            with self._active_collections_lock:
+                self._active_collections.discard(source)
 
 
 scheduler = CollectionScheduler()

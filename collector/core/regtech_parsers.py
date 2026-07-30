@@ -218,6 +218,10 @@ def parse_html_response(html_content: str) -> Optional[List[Dict[str, Any]]]:
             except Exception as row_err:
                 logger.warning(f"⚠️ Row parse error: {row_err}")
 
+        if not collected_data:
+            logger.error("❌ REGTECH HTML data table contains no valid IP rows")
+            return None
+
         logger.info(f"📄 HTML parse complete: {len(collected_data)} IPs extracted")
         return collected_data
 

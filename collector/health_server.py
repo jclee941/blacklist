@@ -105,6 +105,9 @@ class HealthServer:
 
                 result = self.scheduler.force_collection(source)
 
+                if not result.get("success"):
+                    return _failure_response(result.get("error", "Collection failed"), 500)
+
                 return jsonify(
                     {
                         "success": True,

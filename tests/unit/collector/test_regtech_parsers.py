@@ -223,15 +223,14 @@ class TestParseHtmlResponse:
         assert result[0]["detection_date"] == "2026-01-01"
         assert result[0]["removal_date"] == "2026-06-01"
 
-    def test_private_ip_excluded(self):
+    def test_table_with_only_invalid_ips_is_invalid(self):
         html = """
         <table>
-            <tr><td>192.168.1.1</td><td>KR</td><td>test</td><td>2026-01-01</td></tr>
+            <tr><td>not-an-ip</td><td>KR</td><td>test</td><td>2026-01-01</td></tr>
         </table>
         """
         result = parse_html_response(html)
-        assert result is not None
-        assert len(result) == 0
+        assert result is None
 
     def test_multiple_rows(self):
         html = """
@@ -252,9 +251,9 @@ class TestParseHtmlResponse:
         result = parse_html_response('<html><body><form id="login"><input name="username"></form></body></html>')
         assert result is None
 
-    def test_empty_table_is_confirmed_empty(self):
+    def test_empty_table_is_invalid(self):
         result = parse_html_response("<html><body><table><tr><th>IP</th></tr></table></body></html>")
-        assert result == []
+        assert result is None
 
     def test_explicit_no_data_row_is_confirmed_empty(self):
         html = """

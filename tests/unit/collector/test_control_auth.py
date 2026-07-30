@@ -115,6 +115,28 @@ def test_control_endpoint_accepts_valid_bearer_token(
     assert scheduler.sources == ["REGTECH"]
 
 
+def test_trigger_propagates_collection_failure(
+    server: tuple[HealthServer, SchedulerFake],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    health_server, scheduler = server
+    monkeypatch.setattr(
+        scheduler,
+        "force_collection",
+        lambda _source: {"success": False, "error": "page 17 failed"},
+    )
+
+    response = health_server.app.test_client().post(
+        "/trigger",
+        json={"source": "REGTECH"},
+        headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json()["success"] is False
+    assert response.get_json()["error"] == "page 17 failed"
+
+
 @pytest.mark.parametrize("path", ["/health", "/status", "/logs"])
 def test_read_only_endpoint_remains_open_without_token(
     server: tuple[HealthServer, SchedulerFake],

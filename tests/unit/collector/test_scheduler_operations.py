@@ -1,3 +1,4 @@
+import threading
 from datetime import date
 
 import pytest
@@ -120,6 +121,57 @@ def test_force_collection_requests_unbounded_pages(monkeypatch: pytest.MonkeyPat
 
     assert result["success"] is True
     assert requested_max_pages == [None]
+
+
+def test_force_collection_admission_is_atomic(monkeypatch: pytest.MonkeyPatch) -> None:
+    class CoordinatedSet(set[str]):
+        def __init__(self) -> None:
+            super().__init__()
+            self.membership_barrier = threading.Barrier(2)
+
+        def __contains__(self, source: object) -> bool:
+            present = super().__contains__(source)
+            try:
+                self.membership_barrier.wait(timeout=0.1)
+            except threading.BrokenBarrierError:
+                pass
+            return present
+
+    monkeypatch.setattr(manager, "db_service", CredentialsDatabaseFake())
+    scheduler = CollectionScheduler()
+    scheduler._active_collections = CoordinatedSet()
+    collection_started = threading.Event()
+    release_collection = threading.Event()
+    result_ready = threading.Event()
+    collection_calls: list[int] = []
+    results: list[dict[str, bool | int | str]] = []
+
+    def collect(_username: str, _password: str, max_pages: int | None = 1) -> dict[str, bool | int]:
+        _ = max_pages
+        collection_calls.append(1)
+        collection_started.set()
+        assert release_collection.wait(timeout=1)
+        return {"success": True, "collected_count": 0}
+
+    def force() -> None:
+        results.append(scheduler.force_collection("REGTECH"))
+        result_ready.set()
+
+    monkeypatch.setattr(scheduler, "_collect_regtech_data", collect)
+    threads = [threading.Thread(target=force), threading.Thread(target=force)]
+    for thread in threads:
+        thread.start()
+
+    assert collection_started.wait(timeout=1)
+    duplicate_returned_before_collection_finished = result_ready.wait(timeout=0.5)
+    release_collection.set()
+    for thread in threads:
+        thread.join(timeout=1)
+
+    assert duplicate_returned_before_collection_finished is True
+    assert len(collection_calls) == 1
+    assert sum(result["success"] is True for result in results) == 1
+    assert sum(result["success"] is False for result in results) == 1
 
 
 def test_daily_collection_stops_when_credentials_are_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
