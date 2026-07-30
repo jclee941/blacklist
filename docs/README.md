@@ -26,7 +26,7 @@ This is the documentation entry point for the current Blacklist application. The
 | PostgreSQL | Persistent storage | `5432` |
 | Redis | Supporting state | `6379` |
 
-JWT token APIs exist, but global JWT enforcement is disabled in the current Flask application. See `app/core/routes/api/auth_routes.py` and `app/core/auth/middleware.py` before making or documenting authentication changes.
+JWT token APIs and global JWT enforcement protect dashboard and application APIs by default. Login, health, metrics, static assets, and explicitly `@public` routes remain unauthenticated. See `app/core/routes/api/auth_routes.py` and `app/core/auth/middleware.py` before making or documenting authentication changes.
 
 ## CI And Releases
 

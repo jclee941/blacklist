@@ -13,7 +13,7 @@ Centralized Axios API client (`api.ts`, 277L). Single source of truth for all HT
 | Instance        | Timeout | Use Case                           |
 | --------------- | ------- | ---------------------------------- |
 | `api`           | 60s     | default API calls                  |
-| `collectionApi` | 300s    | long-running collection operations |
+| `collectionApi` | 420s    | long-running collection operations |
 
 ## AUTH
 
@@ -21,6 +21,7 @@ Centralized Axios API client (`api.ts`, 277L). Single source of truth for all HT
 - Auto-attached via Axios request interceptor.
 - Login: `POST /api/auth/login`
 - Verify: `GET /api/auth/verify`
+- Protected 401 responses clear the token and notify `AuthGate`.
 
 ## BASE URL
 
@@ -36,7 +37,7 @@ Relative `/api/*` → Next.js rewrites to Flask `:2542` (configured in `next.con
 
 | Symbol          | Type     | Location    | Refs | Role                                                |
 | --------------- | -------- | ----------- | ---- | --------------------------------------------------- |
-| `collectionApi` | instance | `api.ts:33` | high | long-running collection Axios client (300s timeout) |
+| `collectionApi` | instance | `api.ts:34` | high | long-running collection Axios client (420s timeout) |
 | `api`           | instance | `api.ts:*`  | high | default Axios client (60s timeout)                  |
 | `getToken`      | function | `api.ts:7`  | high | JWT from localStorage                               |
 | `login`         | function | `api.ts:63` | med  | POST /api/auth/login                                |

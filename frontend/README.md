@@ -49,7 +49,7 @@ When `BASE_URL` isn't set, Playwright starts `npm run dev` at `http://localhost:
 
 ## Authentication
 
-The backend exposes JWT token endpoints, and the API client includes auth helpers. Global JWT enforcement is disabled in the current Flask application, so frontend work must not assume every API route requires a bearer token. Don't store credentials or token secrets in tracked frontend configuration.
+The backend enforces JWT authentication on dashboard and protected API routes. The application shell verifies the token before rendering protected pages, `/login` remains public, and API 401 responses clear the expired session. Don't store credentials or token secrets in tracked frontend configuration.
 
 ## Deployment
 

@@ -34,7 +34,7 @@ The normal service ports are Flask `2542`, Next.js `2543`, collector `8545`, Pos
 
 ## Authentication
 
-`/api/auth/login`, `/api/auth/me`, and `/api/auth/verify` provide JWT token APIs. The JWT middleware exists, but global JWT enforcement is currently disabled. Do not describe the application as globally JWT-protected unless that behavior is changed and verified. Keep credentials and signing secrets in environment variables or the settings store, never in source or documentation examples.
+`/api/auth/login`, `/api/auth/me`, and `/api/auth/verify` provide JWT token APIs. Global JWT enforcement protects dashboard and application APIs by default; login, health, metrics, static assets, and explicitly `@public` feeds remain open. `DISABLE_JWT_AUTH=true` is an explicit development escape hatch. Keep credentials and signing secrets in environment variables or the settings store, never in source or documentation examples.
 
 ## Development And Verification
 

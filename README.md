@@ -37,7 +37,7 @@ The frontend development server is available on `http://localhost:2543`; Flask i
 
 ## Authentication
 
-JWT token APIs are available at `/api/auth/login`, `/api/auth/me`, and `/api/auth/verify`. Global JWT enforcement is currently disabled, so token support must not be treated as blanket protection for every application route. Configure credentials and signing material with environment variables or the settings store.
+JWT token APIs are available at `/api/auth/login`, `/api/auth/me`, and `/api/auth/verify`. Dashboard and protected API routes require a valid administrator JWT by default; login, health, metrics, static assets, and explicitly public feeds remain open. Configure credentials and signing material with environment variables or the settings store. `DISABLE_JWT_AUTH=true` is reserved for explicit development use.
 
 ## Development
 

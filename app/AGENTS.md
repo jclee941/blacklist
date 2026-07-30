@@ -15,7 +15,7 @@ app/
 │   ├── services/           # application services and ServiceFactory DI
 │   ├── routes/api/         # REST JSON (RFC 7807 errors)
 │   ├── routes/web/         # Jinja2 legacy Korean admin
-│   ├── auth/               # JWT (DISABLED at app.py:155)
+│   ├── auth/               # JWT middleware and token lifecycle
 │   ├── database/           # psycopg2 connection managers
 │   ├── monitoring/         # Prometheus metrics
 │   ├── exceptions/         # typed error hierarchy
@@ -61,5 +61,5 @@ Service-level symbols in `core/services/AGENTS.md`.
 
 ## NOTES
 
-- Global JWT enforcement is disabled; token endpoints remain available.
+- Global JWT enforcement is enabled by default; public routes use `@public`.
 - Middleware chain: `csrf_protect_web_only` → `generate_request_id` → `add_security_headers` → `compress_response`.
