@@ -53,6 +53,7 @@ def test_datastores_publish_no_ports() -> None:
 def test_redis_requires_a_password() -> None:
     # Given: the Redis service definition.
     redis_service = _service_block("blacklist-redis")
+    required_reference = "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
 
     # When: its startup command is inspected.
     # Then: Redis requires the generated deployment password.
@@ -60,7 +61,8 @@ def test_redis_requires_a_password() -> None:
     assert "--bind" in redis_service
     assert "0.0.0.0" in redis_service
     assert "--requirepass" in redis_service
-    assert "${REDIS_PASSWORD}" in redis_service
+    assert redis_service.count(required_reference) == 2
+    assert BASE_SOURCE.count(required_reference) == 4
 
 
 def test_frontend_publishes_only_the_https_port() -> None:

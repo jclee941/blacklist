@@ -47,7 +47,7 @@ services:
       - --bind
       - 0.0.0.0
       - --requirepass
-      - ${REDIS_PASSWORD}
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       - --port
       - "0"
       - --tls-port
@@ -61,7 +61,7 @@ services:
       - --tls-auth-clients
       - "no"
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       TZ: Asia/Seoul
     volumes:
       - blacklist-redis-data:/data
@@ -92,7 +92,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       INTERNAL_CA_CERT: /run/blacklist/ca.crt
       INTERNAL_TLS_CERT: /run/blacklist/tls/tls.crt
       INTERNAL_TLS_KEY: /run/blacklist/tls/tls.key
@@ -139,7 +139,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       INTERNAL_CA_CERT: /run/blacklist/ca.crt
       INTERNAL_TLS_CERT: /run/blacklist/tls/tls.crt
       INTERNAL_TLS_KEY: /run/blacklist/tls/tls.key
