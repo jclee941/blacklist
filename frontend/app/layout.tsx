@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from 'next';
 import './globals.css';
 import NavBar from '@/components/NavBar';
+import { AuthGate } from '@/components/AuthGate';
 
 export const metadata: Metadata = {
   title: 'Blacklist Management Platform',
@@ -8,16 +9,11 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
       <body className="bg-gray-50">
-        <NavBar />
-        {children}
+        <AuthGate navigation={<NavBar />}>{children}</AuthGate>
       </body>
     </html>
   );

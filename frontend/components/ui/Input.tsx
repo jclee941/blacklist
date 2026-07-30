@@ -15,14 +15,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
-            {label}
-            {required && <span className="text-red-500 ml-0.5">*</span>}
-          </label>
+          <div className="mb-1 flex items-center">
+            <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">
+              {label}
+            </label>
+            {required && (
+              <span className="text-red-500 ml-0.5" aria-hidden="true">
+                *
+              </span>
+            )}
+          </div>
         )}
         <input
           ref={ref}
           id={inputId}
+          required={required}
+          aria-required={required || undefined}
           className={`
             block w-full rounded-lg border px-3 py-2 text-sm
             focus:outline-none focus:ring-2 focus:ring-offset-0

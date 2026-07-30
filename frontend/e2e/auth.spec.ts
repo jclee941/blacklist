@@ -3,17 +3,22 @@ import { getE2ECredentials } from './auth.fixtures';
 
 test.describe.configure({ mode: 'parallel' });
 
+const SENTINEL_CREDENTIALS = {
+  username: '__SET_ADMIN_USERNAME__',
+  password: '__SET_ADMIN_PASSWORD__',
+} as const;
+
 async function loginViaApi(page: Page) {
   const response = await page.request.post('/api/auth/login', {
     data: getE2ECredentials(),
   });
-  expect(response.ok()).toBeTruthy();
+  expect(response.status()).toBe(200);
   const body = await response.json();
   const token = body.data?.token ?? body.token;
   expect(token).toBeTruthy();
-  await page.goto('/');
+  await page.goto('/login');
   await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
-  await page.reload();
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   return token;
 }
@@ -23,7 +28,7 @@ test.describe('인증 - API 로그인', () => {
     const response = await page.request.post(`/api/auth/login`, {
       data: getE2ECredentials(),
     });
-    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
     const body = await response.json();
     const token = body.data?.token ?? body.token;
     expect(token).toBeTruthy();
@@ -34,14 +39,22 @@ test.describe('인증 - API 로그인', () => {
     const response = await page.request.post(`/api/auth/login`, {
       data: { username: 'wrong', password: 'wrong' },
     });
-    expect(response.ok()).toBeFalsy();
+    expect(response.status()).toBe(401);
   });
 
   test('빈 자격증명으로 로그인 실패', async ({ page }) => {
     const response = await page.request.post(`/api/auth/login`, {
       data: { username: '', password: '' },
     });
-    expect(response.ok()).toBeFalsy();
+    expect(response.status()).toBe(400);
+  });
+
+  test('공개된 센티널 자격증명으로 로그인 실패', async ({ page }) => {
+    const response = await page.request.post('/api/auth/login', {
+      data: SENTINEL_CREDENTIALS,
+    });
+
+    expect(response.status()).toBe(401);
   });
 });
 
@@ -51,33 +64,40 @@ test.describe('인증 - 토큰 기반 접근', () => {
     const response = await page.request.get(`/api/auth/verify`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    // Verify token is accepted (not rejected as unauthorized)
-    expect(response.status()).not.toBe(401);
+    expect(response.status()).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ valid: true });
   });
 
   test('토큰 없이 보호된 API 접근 실패', async ({ page }) => {
-    const response = await page.request.get(`/api/auth/me`);
-    expect([401, 500]).toContain(response.status());
+    const identityResponse = await page.request.get(`/api/auth/me`);
+    const dashboardResponse = await page.request.get('/api/web-stats');
+
+    expect(identityResponse.status()).toBe(401);
+    expect(dashboardResponse.status()).toBe(401);
   });
 
   test('잘못된 토큰으로 API 접근 실패', async ({ page }) => {
     const response = await page.request.get(`/api/auth/me`, {
       headers: { Authorization: 'Bearer invalid-token-12345' },
     });
-    expect([401, 500]).toContain(response.status());
+    expect(response.status()).toBe(401);
   });
 
   test('토큰 검증 API 정상 동작', async ({ page }) => {
-    await loginViaApi(page);
-    const response = await page.request.get(`/api/health`);
-    expect(response.ok()).toBeTruthy();
+    const token = await loginViaApi(page);
+    const response = await page.request.get(`/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(response.status()).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ role: 'admin' });
   });
 });
 
 test.describe('인증 - 공개 엔드포인트', () => {
   test('헬스체크 엔드포인트 토큰 불필요', async ({ page }) => {
-    const response = await page.request.get(`/api/health`);
-    expect(response.ok()).toBeTruthy();
+    const response = await page.request.get('/health');
+    expect(response.status()).toBe(200);
   });
 
   test('FortiGate threat-feed 공개 접근', async ({ page }) => {
@@ -87,6 +107,26 @@ test.describe('인증 - 공개 엔드포인트', () => {
 });
 
 test.describe('인증 - 토큰 지속성', () => {
+  test('미인증 사용자를 로그인 페이지로 이동', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test('로그인 화면에서 인증 후 대시보드로 이동', async ({ page }) => {
+    const credentials = getE2ECredentials();
+    await page.goto('/login');
+
+    await page.getByLabel('관리자 아이디').fill(credentials.username);
+    await page.getByLabel('비밀번호').fill(credentials.password);
+    await page.getByRole('button', { name: '로그인' }).click();
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('blacklist_auth_token')))
+      .not.toBeNull();
+  });
+
   test('localStorage에 토큰 저장 후 페이지 이동 유지', async ({ page }) => {
     await page.goto('/');
     const token = await loginViaApi(page);
@@ -104,8 +144,10 @@ test.describe('인증 - 토큰 지속성', () => {
     await page.waitForLoadState('networkidle');
 
     await page.evaluate(() => localStorage.removeItem('blacklist_auth_token'));
+    await page.reload();
 
     const response = await page.request.get(`/api/auth/me`);
-    expect([401, 500]).toContain(response.status());
+    expect(response.status()).toBe(401);
+    await expect(page).toHaveURL(/\/login$/);
   });
 });

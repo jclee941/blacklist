@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import axios from 'axios';
 
 type ApiPayload = { success: boolean; data?: unknown; token?: string; error?: string };
 
@@ -37,11 +38,14 @@ vi.mock('axios', () => {
   return {
     default: {
       create,
+      isAxiosError: (error: unknown) =>
+        typeof error === 'object' && error !== null && 'response' in error,
     },
   };
 });
 
 import {
+  AUTH_UNAUTHORIZED_EVENT,
   addIP,
   deleteIP,
   exportBlacklistRaw,
@@ -80,6 +84,15 @@ import {
 } from '@/lib/api';
 
 const responseErrorHandler = mocks.apiInstance.interceptors.response.use.mock.calls[0]?.[1];
+
+describe('collection API configuration', () => {
+  it('allows the backend collection timeout plus response headroom', () => {
+    expect(vi.mocked(axios.create)).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ timeout: 420_000 })
+    );
+  });
+});
 
 describe('lib/api', () => {
   beforeEach(() => {
@@ -188,14 +201,17 @@ describe('lib/api', () => {
       expect(config.headers.Authorization).toBeUndefined();
     });
 
-    it('does not redirect internal deployments after a 401 response', async () => {
+    it('clears the token and notifies the application after a protected 401 response', async () => {
       const error = { response: { status: 401 }, config: { url: '/web-stats' } };
+      const unauthorizedListener = vi.fn();
       setToken('expired-token');
-
-      window.history.replaceState(null, '', '/login');
+      window.addEventListener(AUTH_UNAUTHORIZED_EVENT, unauthorizedListener);
 
       await expect(responseErrorHandler(error)).rejects.toBe(error);
-      expect(getToken()).toBe('expired-token');
+      expect(getToken()).toBeNull();
+      expect(unauthorizedListener).toHaveBeenCalledTimes(1);
+
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, unauthorizedListener);
     });
 
     it('keeps the stored token for a failed login response', async () => {

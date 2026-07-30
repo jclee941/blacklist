@@ -4,6 +4,7 @@ import type { CredentialPayload, IPPayload } from '@/types';
 // JWT token management
 const TOKEN_KEY = 'blacklist_auth_token';
 const LOGIN_ENDPOINT = '/auth/login';
+export const AUTH_UNAUTHORIZED_EVENT = 'blacklist:auth-unauthorized';
 
 export const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -33,7 +34,7 @@ const api = axios.create({
 // 수집 API 전용 인스턴스
 export const collectionApi = axios.create({
   baseURL: '/api',
-  timeout: 300000,
+  timeout: 420_000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -51,14 +52,22 @@ const attachToken = (config: import('axios').InternalAxiosRequestConfig) => {
 api.interceptors.request.use(attachToken);
 collectionApi.interceptors.request.use(attachToken);
 
-api.interceptors.response.use(
-  (response) => response,
-  (error: unknown) => Promise.reject(error)
-);
-collectionApi.interceptors.response.use(
-  (response) => response,
-  (error: unknown) => Promise.reject(error)
-);
+const handleResponseError = (error: unknown): Promise<never> => {
+  if (
+    axios.isAxiosError(error) &&
+    error.response?.status === 401 &&
+    error.config?.url !== LOGIN_ENDPOINT
+  ) {
+    removeToken();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+    }
+  }
+  return Promise.reject(error);
+};
+
+api.interceptors.response.use((response) => response, handleResponseError);
+collectionApi.interceptors.response.use((response) => response, handleResponseError);
 
 // 인증 API
 export const login = async (username: string, password: string) => {
