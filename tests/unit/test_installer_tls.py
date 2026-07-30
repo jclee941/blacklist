@@ -18,6 +18,9 @@ BUNDLE_IMAGES = (
     "blacklist-postgres.tar.gz",
     "blacklist-redis.tar.gz",
 )
+FAKE_SS = """#!/bin/sh
+exit 0
+"""
 STUB_SECRETS = {
     "COMPOSE_PROJECT_NAME": "blacklist",
     "CREDENTIAL_MASTER_KEY": "local-credential-master-key-0123456789",
@@ -118,6 +121,12 @@ def prepare_verify_bundle(tmp_path: Path) -> tuple[dict[str, str], Path]:
     )
     tls_dir = tmp_path / "etc" / "blacklist" / "tls"
     environment = installer_environment(tls_dir)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    ss = bin_dir / "ss"
+    _ = ss.write_text(FAKE_SS, encoding="utf-8")
+    _ = ss.chmod(0o755)
+    environment["PATH"] = f"{bin_dir}{os.pathsep}{environment['PATH']}"
     environment["BLACKLIST_ENV_FILE"] = str(env_file)
     write_manifest(tmp_path)
     return environment, tls_dir

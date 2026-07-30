@@ -19,6 +19,9 @@ BUNDLE_IMAGES = (
     "blacklist-postgres.tar.gz",
     "blacklist-redis.tar.gz",
 )
+FAKE_SS = """#!/bin/sh
+exit 0
+"""
 STUB_SECRETS = {
     "COMPOSE_PROJECT_NAME": "blacklist",
     "CREDENTIAL_MASTER_KEY": "local-credential-master-key-0123456789",
@@ -83,9 +86,7 @@ def compose_with_published_port(service: str, port: str) -> str:
 def write_env_file(tmp_path: Path, omitted_keys: tuple[str, ...]) -> Path:
     env_file = tmp_path / "etc" / ".env"
     env_file.parent.mkdir(parents=True, exist_ok=True)
-    body = "\n".join(
-        f"{key}={value}" for key, value in STUB_SECRETS.items() if key not in omitted_keys
-    )
+    body = "\n".join(f"{key}={value}" for key, value in STUB_SECRETS.items() if key not in omitted_keys)
     _ = env_file.write_text(body + "\n", encoding="utf-8")
     return env_file
 
@@ -107,13 +108,17 @@ def prepare_bundle(
         payload = gzip.compress(b"fake-image-archive")
         _ = (images_dir / image_name).write_bytes(payload)
         checksum_lines.append(f"{hashlib.sha256(payload).hexdigest()}  {image_name}")
-    _ = (images_dir / "checksums.sha256").write_text(
-        "\n".join(checksum_lines) + "\n", encoding="utf-8"
-    )
+    _ = (images_dir / "checksums.sha256").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
 
     _ = (tmp_path / "docker-compose.yml").write_text(compose_text, encoding="utf-8")
 
     environment = os.environ.copy()
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    ss = bin_dir / "ss"
+    _ = ss.write_text(FAKE_SS, encoding="utf-8")
+    _ = ss.chmod(0o755)
+    environment["PATH"] = f"{bin_dir}{os.pathsep}{environment['PATH']}"
     environment["BLACKLIST_ENV_FILE"] = str(write_env_file(tmp_path, omitted_keys))
     return environment
 
@@ -135,8 +140,7 @@ def write_manifest(bundle_dir: Path) -> None:
     manifest = bundle_dir / "MANIFEST.sha256"
     manifest.unlink(missing_ok=True)
     lines = [
-        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  "
-        f"{path.relative_to(bundle_dir).as_posix()}"
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(bundle_dir).as_posix()}"
         for path in sorted(bundle_dir.rglob("*"))
         if path.is_file()
     ]
@@ -259,7 +263,6 @@ def test_posture_gate_runs_before_deploy() -> None:
     assert validate_index < posture_index < deploy_index, main_body
 
 
-
 def test_skip_posture_check_is_a_loud_escape_hatch(tmp_path: Path) -> None:
     # Given: a violating bundle an operator must still deploy during an incident.
     environment = prepare_bundle(tmp_path, HOST_NETWORK_COMPOSE)
@@ -272,7 +275,6 @@ def test_skip_posture_check_is_a_loud_escape_hatch(tmp_path: Path) -> None:
     assert result.returncode == 0, output
     assert "[WARN]" in output, output
     assert "security posture check skipped" in output.lower(), output
-
 
 
 def test_jwt_flag_flip_against_the_adr_is_rejected(tmp_path: Path) -> None:
