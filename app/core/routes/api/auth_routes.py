@@ -119,13 +119,6 @@ def login():
 
 
 def _resolve_bearer_identity():
-    """Return the identity carried by the request's bearer token, or None.
-
-    These endpoints previously read ``g.current_user``, which is only populated
-    by a before_request hook that this application never registers, so every
-    call raised AttributeError and returned 500. Resolving the token here keeps
-    the endpoints working without turning on global JWT enforcement.
-    """
     header = request.headers.get("Authorization", "")
     if not header.startswith("Bearer "):
         return None

@@ -175,15 +175,27 @@ class TestCreateApp:
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app.threading.Thread")
-    def test_internal_deployment_does_not_register_jwt_middleware(self, _thread, _init):
+    def test_app_registers_jwt_middleware(self, _thread, _init):
         from core.app import create_app
 
         app = create_app()
         before_request_functions = app.before_request_funcs.get(None, ())
 
-        assert all(
-            function.__name__ != "jwt_required_hook" for function in before_request_functions
+        assert any(
+            function.__name__ == "jwt_required_hook" for function in before_request_functions
         )
+
+    @patch("core.services.service_factory.initialize_services", return_value={})
+    @patch("core.app.threading.Thread")
+    def test_protected_api_requires_bearer_token(self, _thread, _init):
+        from core.app import create_app
+
+        with patch.dict("os.environ", {"DISABLE_JWT_AUTH": "false"}):
+            app = create_app()
+            response = app.test_client().get("/api/web-stats")
+
+        assert response.status_code == 401
+        assert response.get_json()["code"] == "AUTH_TOKEN_MISSING"
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app.threading.Thread")
