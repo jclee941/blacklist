@@ -24,7 +24,7 @@ sys.modules.setdefault("core.regtech_collector", MagicMock())
 if "core.database" not in sys.modules:
     sys.modules["core.database"] = mock_db_module
 
-from collector.scheduler import CollectionScheduler
+from collector.scheduler import CollectionScheduler  # noqa: E402
 
 
 @pytest.fixture

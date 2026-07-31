@@ -1,6 +1,6 @@
 # COLLECTOR CORE KNOWLEDGE BASE
 
-**Version:** `4.1.0`
+**Version:** `5.0.0`
 
 ## OVERVIEW
 
@@ -19,7 +19,8 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 
 ## SUBPACKAGES
 
-- `regtech/` — REGTECH authentication and collection pipeline.
+- `regtech/` — REGTECH pipeline: auth + collection orchestration + page fetch + HTML/JSON parsing + normalization + date strategies + error types (mixin composition).
+- `rate_limiter.py` — token-bucket + adaptive limiter; `REGTECH_RATE_*` env knobs with WAF-safe defaults.
 - `multi_source/` — asynchronous multi-source feed aggregation.
 - `database/` — persistence and credential boundaries.
 - `fortigate/` — FortiGate connection and collection helpers.

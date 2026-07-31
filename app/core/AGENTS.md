@@ -2,7 +2,7 @@
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
 **Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Branch:** master | **Version:** 5.0.0
 
 ## OVERVIEW
 
@@ -13,6 +13,9 @@ Core backend package shared by app factory, routes, services, auth, DB, monitori
 ```text
 app/core/
 ├── app.py              # Flask app factory + middleware wiring (hotspot)
+├── app_lifecycle.py    # startup/shutdown lifecycle wiring
+├── app_logging.py      # logging setup + in-memory MemoryHandler
+├── config.py           # AppConfig env mapping and defaults
 ├── config.py           # AppConfig env mapping and defaults
 ├── routes/             # API + legacy web route layers
 ├── services/           # ServiceFactory-managed DI services

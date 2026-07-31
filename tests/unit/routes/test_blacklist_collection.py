@@ -1,5 +1,3 @@
-"""Tests for app/core/routes/api/blacklist/collection.py — REGTECH collection trigger via collector."""
-
 from unittest.mock import patch, MagicMock
 from flask import Flask
 from flask.testing import FlaskClient
@@ -18,8 +16,6 @@ def create_app():
 
 
 class TestTriggerRegtechCollection:
-    """POST /api/collection/regtech/trigger"""
-
     app: Flask = create_app()
     client: FlaskClient = app.test_client()
 

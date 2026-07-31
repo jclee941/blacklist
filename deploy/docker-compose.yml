@@ -40,11 +40,9 @@ services:
     # Verify with:
     #   docker run --rm --add-host=host.docker.internal:host-gateway alpine \
     #     wget -qO- http://host.docker.internal:40000/
-    # Set WARP_PROXY_URL= (empty) to disable when no proxy is running.
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    environment:
-      WARP_PROXY_URL: ${WARP_PROXY_URL-http://host.docker.internal:40000}
+    # install.sh records WARP_ENABLED and WARP_PROXY_URL after checking whether
+    # port 40000 is reachable from the Docker bridge. Direct development runs
+    # can set the same values explicitly.
 
   blacklist-app:
     extends:

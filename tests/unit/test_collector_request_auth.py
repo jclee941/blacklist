@@ -9,12 +9,12 @@ from core.config import config
 AUTH_TOKEN = "test-app-to-collector-token"
 REPOSITORY_ROOT = Path(__file__).parents[2]
 COLLECTOR_CALLER_PATHS = (
-    "app/core/app.py",
+    "app/core/app_lifecycle.py",
     "app/core/routes/proxy_routes.py",
     "app/core/routes/api/blacklist/collection.py",
     "app/core/routes/api/collection/utils.py",
     "app/core/routes/web/collection_panel_runtime_routes.py",
-    "app/core/services/blacklist_service.py",
+    "app/core/services/blacklist_service_collection.py",
     "app/core/services/blacklist_service_sync.py",
     "app/core/services/collection/collection_status.py",
     "app/core/services/regtech_config_service.py",

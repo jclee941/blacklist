@@ -162,11 +162,8 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
     # dropped, or rewritten.
     body = env_file.read_text(encoding="utf-8")
     assert result.returncode == 0, result.stdout + result.stderr
-    for line in original.splitlines():
-        assert line in body, line
-    surviving_secrets = [
-        line for line in body.splitlines() if not line.startswith("BLACKLIST_VERSION=")
-    ]
+    runtime_settings = ("BLACKLIST_VERSION=", "WARP_ENABLED=", "WARP_PROXY_URL=")
+    surviving_secrets = [line for line in body.splitlines() if not line.startswith(runtime_settings)]
     assert surviving_secrets == original.splitlines()
     assert os.stat(env_file).st_mode & 0o777 == 0o600
 

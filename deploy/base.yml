@@ -79,6 +79,8 @@ services:
     restart: unless-stopped
     networks:
       - blacklist-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       blacklist-postgres:
         condition: service_healthy
@@ -104,6 +106,13 @@ services:
       COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
+      WARP_ENABLED: ${WARP_ENABLED:-false}
+      WARP_PROXY_URL: ${WARP_PROXY_URL:-}
+      REGTECH_RATE_INITIAL: ${REGTECH_RATE_INITIAL:-}
+      REGTECH_RATE_MIN: ${REGTECH_RATE_MIN:-}
+      REGTECH_RATE_MAX: ${REGTECH_RATE_MAX:-}
+      REGTECH_RATE_BURST: ${REGTECH_RATE_BURST:-}
+      REGTECH_BLOCK_THRESHOLD: ${REGTECH_BLOCK_THRESHOLD:-}
       # ADR-0002 (0002-collector-authentication-enforcement) enforces bearer authentication on collector control routes.
       DISABLE_JWT_AUTH: "false"
       TZ: Asia/Seoul

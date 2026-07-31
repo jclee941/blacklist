@@ -1,20 +1,20 @@
 # Blacklist Frontend
 
-**Version:** `4.1.0`
+**Version:** `5.0.0`
 
 The frontend is the Next.js 15 and React 19 dashboard for Blacklist. It uses the App Router, TypeScript, Tailwind CSS v4, React Query, and the shared API client in `lib/api.ts`.
 
 ## Layout
 
-| Path                  | Purpose                                 |
-| --------------------- | --------------------------------------- |
-| `app/`                | Dashboard pages and route-level UI      |
-| `components/`         | Shared application and UI components    |
-| `lib/api.ts`          | Required boundary for browser API calls |
-| `hooks/` and `types/` | Shared hooks and TypeScript types       |
-| `__tests__/`          | Vitest tests                            |
-| `e2e/`                | Playwright end-to-end tests             |
-| `next.config.ts`      | Standalone output and Flask proxy rules |
+| Path             | Purpose                                 |
+| ---------------- | --------------------------------------- |
+| `app/`           | Dashboard pages and route-level UI      |
+| `components/`    | Shared application and UI components    |
+| `lib/api.ts`     | Required boundary for browser API calls |
+| `types/`         | Shared TypeScript types                 |
+| `__tests__/`     | Vitest tests                            |
+| `e2e/`           | Playwright end-to-end tests             |
+| `next.config.ts` | Standalone output and Flask proxy rules |
 
 ## Run Locally
 

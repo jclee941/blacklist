@@ -86,6 +86,8 @@ docs/*
 !docs/manual/
 docs/manual/*
 !docs/manual/blacklist-*-release-notes.md
+!docs/manual/blacklist-offline-*.md
+!docs/manual/blacklist-operations-guide.md
 !docs/manual/security-remediation-*.md
 
 # Analysis documents (never track)

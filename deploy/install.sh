@@ -545,6 +545,8 @@ CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
 ENCRYPTION_SALT=${encryption_salt}
 POSTGRES_PASSWORD=${pg_password}
 REDIS_PASSWORD=${redis_password}
+WARP_ENABLED=false
+WARP_PROXY_URL=
 EOF
     then
         rm -f "${temp_file}"
@@ -584,6 +586,60 @@ sync_deployment_version() {
     fi
 
     chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
+}
+
+warp_proxy_available() {
+    command -v warp-cli > /dev/null 2>&1 || return 1
+
+    local _state _recv_q _send_q local_address _peer_address
+    while read -r _state _recv_q _send_q local_address _peer_address; do
+        case "${local_address}" in
+            127.*:40000|\[::1\]:40000|::1:40000)
+                ;;
+            *:40000)
+                return 0
+                ;;
+        esac
+    done < <(ss -H -ltn "sport = :40000" 2>/dev/null || true)
+
+    return 1
+}
+
+sync_warp_settings() {
+    local env_file="$1"
+    local temp_file warp_enabled=false warp_proxy_url=""
+
+    if warp_proxy_available; then
+        warp_enabled=true
+        warp_proxy_url="http://host.docker.internal:40000"
+    fi
+
+    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage WARP settings."
+    chmod 600 "${temp_file}" || log_error "Unable to protect staged WARP settings."
+
+    while IFS= read -r line || [ -n "${line}" ]; do
+        case "${line}" in
+            WARP_ENABLED=*|WARP_PROXY_URL=*)
+                ;;
+            *)
+                printf '%s\n' "${line}" >> "${temp_file}" || log_error "Unable to stage WARP settings."
+                ;;
+        esac
+    done < "${env_file}"
+
+    {
+        printf 'WARP_ENABLED=%s\n' "${warp_enabled}"
+        printf 'WARP_PROXY_URL=%s\n' "${warp_proxy_url}"
+    } >> "${temp_file}" || log_error "Unable to record WARP settings."
+
+    mv "${temp_file}" "${env_file}" || log_error "Unable to update WARP settings in ${env_file}."
+    chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
+
+    if [ "${warp_enabled}" = true ]; then
+        log_info "Reachable host WARP proxy detected; collector proxy enabled"
+    else
+        log_info "No reachable host WARP proxy detected; collector proxy disabled"
+    fi
 }
 
 setup_secrets() {
@@ -635,6 +691,7 @@ setup_secrets() {
     log_success "Secret validation passed (${env_file})"
     sync_deployment_version "${env_file}"
     log_info "Deployment version pinned to ${VERSION}"
+    sync_warp_settings "${env_file}"
     log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
 }
 

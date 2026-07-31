@@ -3,8 +3,32 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
+from typing import Final
 
 from .integrity import BundleError
+
+
+OPERATOR_DOCUMENTS: Final[tuple[tuple[str, str], ...]] = (
+    ("blacklist-offline-package-guide.md", "README.md"),
+    ("blacklist-user-guide.md", "blacklist-user-guide.md"),
+    ("blacklist-user-guide.pdf", "blacklist-user-guide.pdf"),
+    ("blacklist-admin-guide.md", "blacklist-admin-guide.md"),
+    ("blacklist-admin-guide.pdf", "blacklist-admin-guide.pdf"),
+    ("blacklist-offline-deployment-guide.pdf", "blacklist-offline-deployment-guide.pdf"),
+    ("blacklist-offline-installation-guide.md", "blacklist-offline-installation-guide.md"),
+    ("blacklist-operations-guide.md", "blacklist-operations-guide.md"),
+    ("security-remediation-2026-07-28.md", "security-remediation-2026-07-28.md"),
+    ("security-remediation-checklist.md", "security-remediation-checklist.md"),
+    ("security-remediation-validation-report.md", "security-remediation-validation-report.md"),
+    ("screenshots/login.png", "screenshots/login.png"),
+    ("screenshots/dashboard.png", "screenshots/dashboard.png"),
+    ("screenshots/ip-management.png", "screenshots/ip-management.png"),
+    ("screenshots/collection.png", "screenshots/collection.png"),
+    ("screenshots/analytics.png", "screenshots/analytics.png"),
+    ("screenshots/fortinet.png", "screenshots/fortinet.png"),
+    ("screenshots/cloudflare.png", "screenshots/cloudflare.png"),
+    ("screenshots/database.png", "screenshots/database.png"),
+)
 
 
 def prereq_gaps(prereqs_dir: Path) -> list[str]:
@@ -19,7 +43,6 @@ def prereq_gaps(prereqs_dir: Path) -> list[str]:
 
 
 def assemble(repo_root: Path, bundle_dir: Path, version: str) -> None:
-    """Copy the deployment surface into the bundle."""
     deploy = repo_root / "deploy"
     bundle_dir.mkdir(parents=True, exist_ok=True)
     _ = shutil.copy2(deploy / "docker-compose.release.yml", bundle_dir / "docker-compose.yml")
@@ -29,7 +52,8 @@ def assemble(repo_root: Path, bundle_dir: Path, version: str) -> None:
 
     # Derive bind-mount sources so Docker cannot silently create missing paths.
     base_yml = (deploy / "base.yml").read_text(encoding="utf-8")
-    for source in sorted(set(re.findall(r"-\s+\./([\w./-]+):", base_yml))):
+    bind_mount_sources: set[str] = set(re.findall(r"-\s+\./([\w./-]+):", base_yml))
+    for source in sorted(bind_mount_sources):
         origin = deploy / source
         if not origin.is_file():
             raise BundleError(f"base.yml bind-mounts ./{source} but deploy/{source} does not exist")
@@ -45,9 +69,15 @@ def assemble(repo_root: Path, bundle_dir: Path, version: str) -> None:
     if notes.is_file():
         _ = shutil.copy2(notes, bundle_dir / "RELEASE_NOTES.md")
 
-    guide = repo_root / "docs" / "manual" / "blacklist-offline-deployment-guide.pdf"
-    if guide.is_file():
-        (bundle_dir / "docs").mkdir(exist_ok=True)
-        _ = shutil.copy2(guide, bundle_dir / "docs" / guide.name)
+    manual_dir = repo_root / "docs" / "manual"
+    bundle_docs = bundle_dir / "docs"
+    bundle_docs.mkdir(exist_ok=True)
+    for source_name, destination_name in OPERATOR_DOCUMENTS:
+        source = manual_dir / source_name
+        if not source.is_file():
+            raise BundleError(f"required operator document is missing: docs/manual/{source_name}")
+        destination = bundle_docs / destination_name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        _ = shutil.copy2(source, destination)
 
     _ = (bundle_dir / "VERSION").write_text(f"{version}\n", encoding="utf-8")

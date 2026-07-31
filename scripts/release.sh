@@ -39,7 +39,7 @@ BUMP_TYPE="${1:-patch}"
 DRY_RUN="${2:-false}"
 VERSION_FILE="VERSION"
 CHANGELOG_FILE="CHANGELOG.md"
-REPO_URL="$(git remote get-url origin 2>/dev/null | sed 's/\.git$//' | sed 's|git@github.com:|https://github.com/|')"
+REPO_URL="$(git remote get-url origin 2>/dev/null | sed -e 's/\.git$//' -e 's|git@github.com:|https://github.com/|')"
 
 # --- Validate ---
 info "Validating release preconditions..."
@@ -64,7 +64,7 @@ fi
 if [[ ! -f "$VERSION_FILE" ]]; then
   error "VERSION file not found"
 fi
-CURRENT_VERSION=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+CURRENT_VERSION=$(tr -d '[:space:]' < "$VERSION_FILE")
 
 # Parse semver
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
@@ -172,21 +172,6 @@ else
   COMMIT_RANGE="HEAD"
   info "All commits (no previous tag found):"
 fi
-
-# Categorize commits by conventional commit prefix
-declare -A CATEGORIES
-CATEGORIES=(
-  [feat]="Added"
-  [fix]="Fixed"
-  [refactor]="Changed"
-  [perf]="Changed"
-  [style]="Changed"
-  [docs]="Documentation"
-  [test]="Testing"
-  [chore]="Maintenance"
-  [ci]="CI/CD"
-  [build]="CI/CD"
-)
 
 # Collect commits
 ADDED=""

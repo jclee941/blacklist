@@ -1,31 +1,33 @@
 # Blacklist
 
 **Repository:** [jclee941/blacklist](https://github.com/jclee941/blacklist)
-**Current version:** `4.1.0`
+**Current version:** `5.0.0`
 
 Blacklist is a containerized platform for collecting, managing, and distributing IP blacklist data. It combines a Flask API, an isolated collector service, a Next.js dashboard, PostgreSQL, and Redis.
 
 ## Services
 
-| Service | Technology | Default port | Purpose |
+| Service | Technology | Listener | Purpose |
 | --- | --- | --- | --- |
-| App | Flask, Python 3.11 | `2542` | REST API, blacklist management, Fortinet integration, settings, and monitoring |
-| Frontend | Next.js 15, React 19 | `2543` | Dashboard and browser proxy for the Flask API |
-| Collector | Python 3.11 | `8545` | Scheduled and manual blacklist source collection |
-| PostgreSQL | PostgreSQL 15 | `5432` | Persistent data |
-| Redis | Redis 7 | `6379` | Supporting cache and service state |
+| App | Flask, Python 3.11 | internal `2542` | REST API, blacklist management, Fortinet integration, settings, and monitoring |
+| Frontend | Next.js 15, React 19 | container `3000`, host `443` | Dashboard and browser proxy for the Flask API |
+| Collector | Python 3.11 | internal `8545` | Scheduled and manual blacklist source collection |
+| PostgreSQL | PostgreSQL 15 | internal `5432` | Persistent data |
+| Redis | Redis 7 | internal `6379` | Supporting cache and service state |
 
 ## Quick Start
 
-Requirements: Docker, Docker Compose v2, GNU Make, and Python 3.11 for local Python work.
+Requirements: Docker and Docker Compose v2. Copy `deploy/.env.example` to `deploy/.env` and populate its required secrets before starting the stack.
 
 ```bash
 cp deploy/.env.example deploy/.env
-make dev
-make health
+# Edit deploy/.env and set the required credentials and encryption secrets.
+docker compose --project-directory deploy --env-file deploy/.env -f deploy/docker-compose.yml config --quiet
+docker compose --project-directory deploy --env-file deploy/.env -f deploy/docker-compose.yml up --build -d
+curl --fail http://localhost:443/health
 ```
 
-The frontend development server is available on `http://localhost:2543`; Flask is available on `http://localhost:2542`.
+The packaged frontend is the external endpoint on host port `443` and serves plain HTTP; Flask, the collector, PostgreSQL, and Redis listen internally on `2542`, `8545`, `5432`, and `6379`. For standalone frontend development, run `cd frontend && npm run dev`; it listens on `http://localhost:2543`.
 
 ## Architecture
 

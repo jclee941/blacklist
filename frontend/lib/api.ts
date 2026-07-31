@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { CredentialPayload, IPPayload } from '@/types';
 
-// JWT token management
 const TOKEN_KEY = 'blacklist_auth_token';
 const LOGIN_ENDPOINT = '/auth/login';
 export const AUTH_UNAUTHORIZED_EVENT = 'blacklist:auth-unauthorized';
@@ -31,7 +30,6 @@ const api = axios.create({
   },
 });
 
-// 수집 API 전용 인스턴스
 export const collectionApi = axios.create({
   baseURL: '/api',
   timeout: 420_000,
@@ -40,7 +38,6 @@ export const collectionApi = axios.create({
   },
 });
 
-// Request interceptor: attach JWT token
 const attachToken = (config: import('axios').InternalAxiosRequestConfig) => {
   const token = getToken();
   if (token) {
@@ -69,7 +66,6 @@ const handleResponseError = (error: unknown): Promise<never> => {
 api.interceptors.response.use((response) => response, handleResponseError);
 collectionApi.interceptors.response.use((response) => response, handleResponseError);
 
-// 인증 API
 export const login = async (username: string, password: string) => {
   const { data } = await api.post(LOGIN_ENDPOINT, { username, password });
   if (data.token) {
@@ -87,101 +83,85 @@ export const verifyToken = async () => {
   return data;
 };
 
-// 통계 API
 export const getStats = async () => {
   const { data } = await api.get('/web-stats');
   return data;
 };
 
-// 시스템 상태 API (Dashboard)
 export const getSystemStatus = async () => {
   const { data } = await api.get('/connection/status');
   return data;
 };
 
-// 화이트리스트 조회 API
 export const getWhitelist = async (params?: string) => {
   const url = params ? `/ip-management/whitelist?${params}` : '/ip-management/whitelist';
   const { data } = await api.get(url);
   return data;
 };
 
-// 수집 상태 API
 export const getCollectionStatus = async () => {
   const { data } = await api.get('/proxy/collection/status');
   return data;
 };
 
-// IP 검색 API
 export const searchIP = async (ip: string) => {
   const { data } = await api.get(`/search/${ip}`);
   return data;
 };
 
-// 수집 내역 API
 export const getCollectionHistory = async (params?: string) => {
   const url = params ? `/proxy/collection/history?${params}` : '/proxy/collection/history';
   const { data } = await api.get(url);
   return data;
 };
 
-// 수집 통계 API
 export const getCollectionStatistics = async () => {
   const { data } = await api.get('/proxy/collection/statistics');
   return data;
 };
 
-// 블랙리스트 목록 조회 API
 export const getBlacklist = async (params?: string) => {
   const url = params ? `/ip-management/blacklist?${params}` : '/ip-management/blacklist';
   const { data } = await api.get(url);
   return data;
 };
 
-// 블랙리스트 통계 API
 export const getBlacklistStats = async () => {
   const { data } = await api.get('/collection/statistics');
   return data;
 };
 
-// 인증정보 조회 API
 export const getCredential = async (source: string) => {
   const { data } = await api.get(`/proxy/collection/credentials/${source}`);
   return data;
 };
 
-// 인증정보 수정 API
 export const updateCredential = async (source: string, credentialData: CredentialPayload) => {
   const { data } = await api.put(`/proxy/collection/credentials/${source}`, credentialData);
   return data;
 };
 
-// 인증정보 연결 테스트 API
 export const testCredential = async (source: string) => {
   const { data } = await api.post(`/proxy/collection/credentials/${source}/test`);
   return data;
 };
 
-// 데이터베이스 테이블 목록 API
 export const getDatabaseTables = async () => {
   const { data } = await api.get('/database/tables');
   return data;
 };
 
-// 데이터베이스 스키마 조회 API
 export const getDatabaseSchema = async () => {
   const { data } = await api.get('/schema');
   return data;
 };
 
-// Fortinet 로그 조회 API
 export const getFortinetPullLogs = async (params?: string) => {
   const url = params ? `/fortinet/pull-logs?${params}` : '/fortinet/pull-logs';
   const { data } = await api.get(url);
   return data;
 };
 
-// Fortinet 차단 목록 조회 API
 export const getFortinetBlocklist = async (): Promise<{
   data:
     | string
@@ -203,13 +183,11 @@ export const getUnifiedIPs = async (params?: string) => {
   return data;
 };
 
-// IP 추가 API
 export const addIP = async (type: 'whitelist' | 'blacklist', payload: IPPayload) => {
   const { data } = await api.post(`/ip-management/${type}`, payload);
   return data;
 };
 
-// IP 수정 API
 export const updateIP = async (
   type: 'whitelist' | 'blacklist',
   id: number,
@@ -219,22 +197,19 @@ export const updateIP = async (
   return data;
 };
 
-// IP 삭제 API
 export const deleteIP = async (type: 'whitelist' | 'blacklist', id: number) => {
   const { data } = await api.delete(`/ip-management/${type}/${id}`);
   return data;
 };
 
-// Raw 데이터 내보내기 API
 export const exportBlacklistRaw = async (params?: string) => {
   const url = params ? `/blacklist/export-raw?${params}` : '/blacklist/export-raw';
   const response = await api.get(url, {
-    responseType: 'blob', // 파일 다운로드를 위해 blob으로 설정
+    responseType: 'blob',
   });
-  return response.data; // Blob 반환
+  return response.data;
 };
 
-// 수집 트리거 API
 export const triggerCollection = async (startDate: string, endDate: string) => {
   const { data } = await collectionApi.post('/proxy/collection/trigger/regtech', {
     start_date: startDate,
@@ -243,7 +218,6 @@ export const triggerCollection = async (startDate: string, endDate: string) => {
   return data;
 };
 
-// 서비스별 수집 트리거 API
 export const triggerCollectionService = async (
   serviceName: string,
   options?: { force?: boolean }
@@ -255,13 +229,11 @@ export const triggerCollectionService = async (
   return data;
 };
 
-// 일별 탐지 통계 API
 export const getDailyDetectionStats = async (days: number = 30) => {
   const { data } = await api.get(`/analytics/detection-timeline?days=${days}`);
   return data;
 };
 
-// 설정 API
 export const getSettingsGrouped = async () => {
   const { data } = await api.get('/settings/grouped');
   return data;
@@ -272,7 +244,6 @@ export const updateSettingsBatch = async (settings: { key: string; value: string
   return data;
 };
 
-// Cloudflare credential management
 export const getCloudflareCredentials = async () => {
   const { data } = await api.get('/proxy/collection/credentials/cloudflare');
   return data;

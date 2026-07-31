@@ -33,7 +33,7 @@ dev: ## Start development environment with hot reload (rebuilds changed images)
 	@echo "🚀 Starting development environment..."
 	@$(COMPOSE_CMD) up -d --build
 	@echo "✅ Development environment started (hot reload enabled)"
-	@echo "🌐 Application: http://localhost:${PORT:-2542}"
+	@echo "🌐 Application: https://localhost:443"
 	@echo "💡 Code changes auto-reload via volume mounts"
 
 dev-no-build: ## Start without rebuild (faster, use existing images)
@@ -120,7 +120,7 @@ health: ## Check health of all services
 	@$(COMPOSE_CMD) ps
 	@echo ""
 	@echo "🌐 Testing application health:"
-	@curl -s http://localhost:${PORT:-2542}/health | python3 -m json.tool || echo "❌ Application not responding"
+	@curl --fail --silent --show-error --insecure https://localhost:443/health | python3 -m json.tool
 
 # Testing
 test: ## Run backend, collector, integration, and frontend unit tests

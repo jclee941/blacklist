@@ -2,7 +2,7 @@
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
 **Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Branch:** master | **Version:** 5.0.0
 
 ## OVERVIEW
 
@@ -20,13 +20,17 @@
 
 ## KEY FILES
 
-| File                           | LOC | Role                                   |
-| ------------------------------ | --- | -------------------------------------- |
-| `blacklist_service.py`         | 534 | core CRUD + scoring (complexity 39.43) |
-| `collection_service.py`        | 596 | collection orchestration               |
-| `database_service.py`          | 460 | raw SQL query execution                |
-| `secure_credential_service.py` | 624 | AES-256-GCM credential storage         |
-| `service_factory.py`           | 278 | DI container, init ordering            |
+| File                           | Role                                                          |
+| ------------------------------ | ------------------------------------------------------------- |
+| `blacklist_service.py`         | core service: cache, queries, whitelist, stats (mixin host)   |
+| `blacklist_service_collection.py` | collection/sync mixin (extracted)                            |
+| `blacklist_service_health.py`  | health/stats mixin (extracted)                                |
+| `blacklist_service_sync.py`    | collector sync + bulk upsert                                  |
+| `collection_service.py`        | collection orchestration                                      |
+| `database_service.py`          | raw SQL query execution                                       |
+| `secure_credential_service.py` | AES-256-GCM credential storage                                |
+| `settings_service.py`          | system_settings CRUD + cache (DB-over-env precedence for admin credentials) |
+| `service_factory.py`           | DI container, init ordering                                   |
 
 ## CONVENTIONS
 

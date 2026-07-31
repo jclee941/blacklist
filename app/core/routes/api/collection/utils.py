@@ -1,8 +1,3 @@
-"""
-Collection API Utilities
-Shared helper functions for Collection routes
-"""
-
 import logging
 import time
 import requests
@@ -18,7 +13,6 @@ BACKOFF_BASE_DELAY = 1.0
 
 
 def interval_seconds_to_string(seconds: int) -> str:
-    """Convert interval seconds to UI-friendly string"""
     if seconds == 3600:
         return "hourly"
     elif seconds == 86400:
@@ -26,11 +20,10 @@ def interval_seconds_to_string(seconds: int) -> str:
     elif seconds == 604800:
         return "weekly"
     else:
-        return "daily"  # default
+        return "daily"
 
 
 def interval_string_to_seconds(interval_str: str) -> int:
-    """Convert UI interval string to seconds"""
     if interval_str == "hourly":
         return 3600
     elif interval_str == "daily":
@@ -38,7 +31,7 @@ def interval_string_to_seconds(interval_str: str) -> int:
     elif interval_str == "weekly":
         return 604800
     else:
-        return 86400  # default to daily
+        return 86400
 
 
 def call_collector_api(
@@ -48,7 +41,6 @@ def call_collector_api(
     *,
     timeout: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Call collector service API"""
     url = f"{COLLECTOR_SERVICE_URL}{endpoint}"
     last_error: Optional[Exception] = None
     if method not in ("GET", "POST"):
@@ -60,7 +52,7 @@ def call_collector_api(
         try:
             if method == "GET":
                 response = requests.get(url, timeout=timeout or 10, **config.COLLECTOR_AUTH_REQUEST_KWARGS)
-            elif method == "POST":
+            else:
                 response = requests.post(
                     url,
                     json=data,

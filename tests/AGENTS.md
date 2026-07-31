@@ -1,6 +1,6 @@
 # TESTS KNOWLEDGE BASE
 
-**Version:** `4.1.0`
+**Version:** `5.0.0`
 
 ## OVERVIEW
 
@@ -25,6 +25,10 @@ tests/
 ## CONFIG
 
 - `pyproject.toml`: 5 markers (`unit`, `integration`, `security`, `db`, `api`).
+- Default `pytest tests/unit` **ignores `tests/unit/collector`** (`addopts`); run collector tests via `make test-collector-unit` (`PYTHONPATH=collector`, `-o 'pythonpath=["collector"]'`).
+- No `conftest.py` — inline fixtures with `yield` cleanup.
+- Coverage: `--cov-fail-under=80`.
+- Shared case-data modules (no tests inside): `unit/services/blacklist_service_extended_cases.py`, `frontend/__tests__/lib/api-*.cases.ts`.
 - No `conftest.py` — inline fixtures with `yield` cleanup.
 - Coverage: `--cov-fail-under=80`.
 

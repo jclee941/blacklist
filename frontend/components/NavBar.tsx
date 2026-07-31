@@ -1,12 +1,21 @@
 'use client';
 
-import { Activity, Menu, X } from 'lucide-react';
+import { Activity, LogOut, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+
+import { logout } from '@/lib/api';
 
 export default function NavBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { replace } = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    replace('/login');
+  };
 
   const menuItems = [
     { href: '/', label: '대시보드' },
@@ -48,6 +57,15 @@ export default function NavBar() {
               <Activity className="h-4 w-4 text-green-500" aria-hidden="true" />
               <span className="text-xs">정상</span>
             </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="p-2 rounded-md text-gray-300 hover:bg-gray-800 hover:text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              aria-label="로그아웃"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -93,6 +111,15 @@ export default function NavBar() {
               <Activity className="h-4 w-4 text-green-500" aria-hidden="true" />
               <span className="text-sm">시스템 정상</span>
             </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              <span>로그아웃</span>
+            </button>
           </div>
         </div>
       )}

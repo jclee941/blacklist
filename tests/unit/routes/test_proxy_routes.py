@@ -1,5 +1,3 @@
-"""Tests for app/core/routes/proxy_routes.py — API proxy forwarding to backend and collector."""
-
 from unittest.mock import MagicMock, patch
 
 import requests as real_requests
@@ -17,8 +15,6 @@ def create_app() -> Flask:
 
 
 class TestForwardToBackend:
-    """Tests for the forward_to_backend helper via proxy endpoints."""
-
     app: Flask = create_app()
     client: FlaskClient = app.test_client()
 
@@ -186,8 +182,6 @@ class TestForwardToBackend:
 
 
 class TestTriggerProxy:
-    """POST /api/proxy/collection/trigger/<source> — forwards to collector service."""
-
     app: Flask = create_app()
     client: FlaskClient = app.test_client()
 

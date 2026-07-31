@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Collection Triggering
-Routes: /collection/regtech/trigger
-"""
-
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 import logging
@@ -20,13 +14,11 @@ blacklist_collection_bp = Blueprint("blacklist_collection", __name__)
 @blacklist_collection_bp.route("/collection/regtech/trigger", methods=["POST"])
 @rate_limit("5 per hour")  # Resource-intensive operation
 def trigger_regtech_collection():
-    """REGTECH 수집 트리거 - 날짜 범위 지원"""
     try:
         import requests
 
         data = request.get_json() or {}
 
-        # 컬렉터 서비스 호출 (내부 네트워크)
         collector_response = requests.post(
             config.COLLECTOR_URL + "/api/force-collection/REGTECH",
             timeout=config.COLLECTOR_COLLECTION_TIMEOUT,
@@ -46,14 +38,13 @@ def trigger_regtech_collection():
                     "timestamp": datetime.now().isoformat(),
                 }
             )
-        else:
-            return jsonify(
-                {
-                    "success": False,
-                    "error": f"컬렉터 서비스 오류: {collector_response.status_code}",
-                    "timestamp": datetime.now().isoformat(),
-                }
-            ), 502
+        return jsonify(
+            {
+                "success": False,
+                "error": f"컬렉터 서비스 오류: {collector_response.status_code}",
+                "timestamp": datetime.now().isoformat(),
+            }
+        ), 502
 
     except Exception as e:
         logger.error(f"REGTECH collection trigger failed: {e}")

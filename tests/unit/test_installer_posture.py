@@ -259,7 +259,6 @@ def test_posture_gate_runs_before_deploy() -> None:
 
     # Then: a violating configuration is refused before any service is started.
     assert validate_index != -1, main_body
-    assert deploy_index != -1, main_body
     assert validate_index < posture_index < deploy_index, main_body
 
 

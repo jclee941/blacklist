@@ -137,6 +137,17 @@ test.describe('인증 - 토큰 지속성', () => {
     expect(storedToken).toBe(token);
   });
 
+  test('로그아웃 시 토큰 삭제 후 로그인 화면으로 이동', async ({ page }) => {
+    await loginViaApi(page);
+
+    await page.getByRole('button', { name: '로그아웃' }).click();
+
+    await expect(page).toHaveURL(/\/login$/);
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('blacklist_auth_token')))
+      .toBeNull();
+  });
+
   test('토큰 삭제 후 보호된 페이지 접근시 인증 필요', async ({ page }) => {
     await page.goto('/');
     await loginViaApi(page);

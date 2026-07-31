@@ -2,7 +2,7 @@
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
 **Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Branch:** master | **Version:** 5.0.0
 
 ## OVERVIEW
 
@@ -21,12 +21,15 @@ frontend/
 │   ├── analytics/            # analytics page (273L)
 │   ├── database/             # DB admin page
 │   ├── fortinet/             # Fortinet management
-│   └── settings/             # settings page (421L)
+│   ├── fortinet/             # Fortinet management
+│   ├── cloudflare/           # Cloudflare integration page
+│   ├── login/                # public login page
+│   └── settings/             # settings page
 ├── components/ui/            # 9 shared components
 ├── lib/                      # API client (centralized Axios)
 ├── hooks/                    # shared React hooks
 ├── types/                    # TypeScript type definitions
-├── e2e/                      # Playwright E2E tests
+├── e2e/                      # Playwright E2E tests (+ regression/, helpers/capture-guide-screenshots.mjs)
 ├── __tests__/                # Vitest unit tests
 ├── next.config.ts            # API rewrites /api/* → :2542, standalone output
 └── playwright.config.ts      # E2E configuration

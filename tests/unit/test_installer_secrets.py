@@ -34,15 +34,19 @@ def write_manifest(bundle_dir: Path) -> None:
     manifest = bundle_dir / "MANIFEST.sha256"
     manifest.unlink(missing_ok=True)
     lines = [
-        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  "
-        + path.relative_to(bundle_dir).as_posix()
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  " + path.relative_to(bundle_dir).as_posix()
         for path in sorted(bundle_dir.rglob("*"))
         if path.is_file()
     ]
     _ = manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def run_secret_check(tmp_path: Path, env_file: Path) -> subprocess.CompletedProcess[str]:
+def run_secret_check(
+    tmp_path: Path,
+    env_file: Path,
+    *,
+    warp_listener: str = "",
+) -> subprocess.CompletedProcess[str]:
     installer = tmp_path / "install.sh"
     _ = shutil.copy2(INSTALLER, installer)
 
@@ -63,6 +67,12 @@ esac
         encoding="utf-8",
     )
     _ = docker.chmod(0o755)
+    warp_cli = bin_dir / "warp-cli"
+    _ = warp_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    _ = warp_cli.chmod(0o755)
+    ss = bin_dir / "ss"
+    _ = ss.write_text(f"#!/bin/sh\nprintf '%s' '{warp_listener}'\n", encoding="utf-8")
+    _ = ss.chmod(0o755)
 
     environment = os.environ.copy()
     environment["PATH"] = f"{bin_dir}{os.pathsep}{environment['PATH']}"
@@ -89,9 +99,7 @@ def parse_env(env_file: Path) -> dict[str, str]:
 def test_redis_password_is_a_required_secret(tmp_path: Path) -> None:
     # Given: an environment file holding every previously required secret but no Redis password.
     env_file = tmp_path / ".env"
-    original = "\n".join(
-        f'{key}="{value}"' for key, value in sorted(PRE_REDIS_REQUIRED_SECRETS.items())
-    ) + "\n"
+    original = "\n".join(f'{key}="{value}"' for key, value in sorted(PRE_REDIS_REQUIRED_SECRETS.items())) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")
 
     # When: bootstrap secret validation runs against that file.
@@ -105,9 +113,7 @@ def test_redis_password_is_a_required_secret(tmp_path: Path) -> None:
 def test_collector_auth_token_is_a_required_secret(tmp_path: Path) -> None:
     # Given: an environment file holding every other required secret but no collector token.
     env_file = tmp_path / ".env"
-    original = "\n".join(
-        f'{key}="{value}"' for key, value in sorted(REQUIRED_SECRETS_WITHOUT_COLLECTOR.items())
-    ) + "\n"
+    original = "\n".join(f'{key}="{value}"' for key, value in sorted(REQUIRED_SECRETS_WITHOUT_COLLECTOR.items())) + "\n"
     _ = env_file.write_text(original, encoding="utf-8")
 
     # When: bootstrap secret validation runs against that file.
@@ -121,9 +127,7 @@ def test_collector_auth_token_is_a_required_secret(tmp_path: Path) -> None:
 @pytest.mark.parametrize("missing_key", ["ADMIN_USERNAME", "ADMIN_PASSWORD"])
 def test_admin_credentials_are_required_secrets(tmp_path: Path, missing_key: str) -> None:
     env_file = tmp_path / ".env"
-    body = "\n".join(
-        f'{key}="{value}"' for key, value in sorted(REQUIRED_SECRETS.items()) if key != missing_key
-    )
+    body = "\n".join(f'{key}="{value}"' for key, value in sorted(REQUIRED_SECRETS.items()) if key != missing_key)
     _ = env_file.write_text(body + "\n", encoding="utf-8")
 
     result = run_secret_check(tmp_path, env_file)
@@ -165,3 +169,33 @@ def test_env_file_override_is_honoured(tmp_path: Path) -> None:
     assert "REDIS_PASSWORD" in generated_values
     assert os.stat(env_file).st_mode & 0o777 == 0o600
     assert not (tmp_path / ".env").exists()
+
+
+def test_warp_is_disabled_when_proxy_is_not_bridge_reachable(tmp_path: Path) -> None:
+    env_file = tmp_path / "etc" / "blacklist" / ".env"
+
+    result = run_secret_check(
+        tmp_path,
+        env_file,
+        warp_listener="LISTEN 0 1024 127.0.0.1:40000 0.0.0.0:*\n",
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    generated_values = parse_env(env_file)
+    assert generated_values["WARP_ENABLED"] == "false"
+    assert generated_values["WARP_PROXY_URL"] == ""
+
+
+def test_warp_is_enabled_when_proxy_is_bridge_reachable(tmp_path: Path) -> None:
+    env_file = tmp_path / "etc" / "blacklist" / ".env"
+
+    result = run_secret_check(
+        tmp_path,
+        env_file,
+        warp_listener="LISTEN 0 1024 0.0.0.0:40000 0.0.0.0:*\n",
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    generated_values = parse_env(env_file)
+    assert generated_values["WARP_ENABLED"] == "true"
+    assert generated_values["WARP_PROXY_URL"] == "http://host.docker.internal:40000"

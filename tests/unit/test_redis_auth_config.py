@@ -18,8 +18,6 @@ TLS_QUERY = "ssl_ca_certs=%2Frun%2Fblacklist%2Fca.crt&ssl_cert_reqs=required"
 
 @pytest.mark.unit
 class TestRedisPasswordConfig:
-    """Verify AppConfig exposes and encodes the Redis password."""
-
     def test_redis_password_is_read_from_environment(self, monkeypatch):
         monkeypatch.setenv("REDIS_PASSWORD", PROBE_PASSWORD)
         from core.config import AppConfig
@@ -55,8 +53,6 @@ class TestRedisPasswordConfig:
 
 @pytest.mark.unit
 class TestRedisClientAuthentication:
-    """Verify every app-side Redis client forwards the password."""
-
     def test_cache_client_authenticates(self, monkeypatch):
         monkeypatch.setenv("REDIS_PASSWORD", PROBE_PASSWORD)
         from core.utils.cache_utils import get_redis_client
@@ -121,7 +117,7 @@ class TestRedisClientAuthentication:
         monkeypatch.setenv("REDIS_PASSWORD", PROBE_PASSWORD)
         from core.app import create_app
 
-        with patch("core.app.Limiter") as mock_limiter, patch("core.app.threading.Thread"), patch(
+        with patch("core.app.Limiter") as mock_limiter, patch("core.app_lifecycle.threading.Thread"), patch(
             "core.services.service_factory.initialize_services", return_value={}
         ):
             create_app()

@@ -1,67 +1,29 @@
 #!/usr/bin/env python3
-"""
-Flask Application - PostgreSQL Connection and Collection Management
-"""
-
 import io
 import logging
 import secrets
-import threading
-import time
 import uuid
 import gzip
-from datetime import datetime
 from pathlib import Path
 
-import psycopg2
-from flask import Flask, jsonify, request, g
+from flask import Flask, request, g
 from flask.json.provider import DefaultJSONProvider
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 
+from core.app_lifecycle import register_health_route, start_delayed_background_tasks
+from core.app_logging import MemoryHandler
 from .config import config
 
-
-# Custom MemoryHandler for capturing logs
-class MemoryHandler(logging.Handler):
-    def __init__(self, capacity):
-        super().__init__()
-        self.capacity = capacity
-        self.buffer = []
-
-    def emit(self, record):
-        self.buffer.append(self.format(record))
-        if len(self.buffer) > self.capacity:
-            self.buffer.pop(0)
-
-    def get_logs(self):
-        return self.buffer.copy()
-
-
-# Initialize logger outside create_app to avoid re-initialization
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-memory_handler = MemoryHandler(capacity=1000)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-memory_handler.setFormatter(formatter)
-logger.addHandler(memory_handler)
-
-_background_tasks_lock = threading.Lock()
-_background_tasks_started = False
+__all__ = ["MemoryHandler", "create_app"]
 
 
 def create_app():
-    """Create Flask application instance"""
-    # Set templates directory to templates (build context is src/)
-    app_root = Path(__file__).parent.parent  # /app
-    templates_dir = app_root / "templates"  # /app/templates
+    app_root = Path(__file__).parent.parent
+    templates_dir = app_root / "templates"
 
     app = Flask(__name__, template_folder=str(templates_dir))
-
-    # ========================================================================
-    # Security Configuration (Phase 1.3: CSRF & Rate Limiting)
-    # ========================================================================
 
     # Secret key for session management and CSRF protection
     flask_secret = config.FLASK_SECRET_KEY or config.SECRET_KEY
@@ -73,7 +35,6 @@ def create_app():
         flask_secret = secrets.token_hex(32)
     app.config["SECRET_KEY"] = flask_secret
 
-    # CSRF Protection Configuration
     app.config["WTF_CSRF_CHECK_DEFAULT"] = False
 
     class UTF8JSONProvider(DefaultJSONProvider):
@@ -96,18 +57,16 @@ def create_app():
 
     app.logger.info("✅ CSRF protection enabled (web routes only, /api/* exempt)")
 
-    # Rate Limiting Configuration (Redis-backed for distributed systems)
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
         storage_uri=config.get_redis_url(database=1),
         storage_options={"socket_connect_timeout": 2},
-        default_limits=["200 per day", "50 per hour"],  # Global rate limits
+        default_limits=["200 per day", "50 per hour"],
         strategy="fixed-window",
-        headers_enabled=True,  # Add X-RateLimit headers to responses
+        headers_enabled=True,
     )
 
-    # Custom rate limits for specific API endpoints
     @limiter.request_filter
     def ip_whitelist_rate_limit():
         """Exempt internal health checks from rate limiting"""
@@ -122,9 +81,6 @@ def create_app():
     # Make limiter accessible for route-specific decorators
     app.extensions["limiter"] = limiter
 
-    # ========================================================================
-    # Service Dependency Injection (Phase 2: Service Container Pattern)
-    # ========================================================================
     try:
         from core.services.service_factory import initialize_services
 
@@ -139,13 +95,9 @@ def create_app():
         app.logger.exception("❌ Service initialization failed")
         raise
 
-    # Enable Gzip compression
     app.config["COMPRESS_ALGORITHM"] = "gzip"
     app.config["COMPRESS_LEVEL"] = 6
 
-    # ========================================================================
-    # JWT Authentication (Phase 1.1: Token-based API Auth)
-    # ========================================================================
     from .auth.decorators import public
     from .auth.jwt_service import JWTService
     from .auth.middleware import jwt_required_hook
@@ -156,16 +108,12 @@ def create_app():
 
     app.logger.info("✅ JWT authentication enabled")
 
-    # Request ID middleware
     @app.before_request
     def generate_request_id():
-        """Generate unique request ID for tracing"""
         g.request_id = str(uuid.uuid4())
 
-    # Security headers middleware
     @app.after_request
     def add_security_headers(response):
-        """Add security headers to all responses"""
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
@@ -198,10 +146,8 @@ def create_app():
 
         return response
 
-    # Enable Gzip compression for responses
     @app.after_request
     def compress_response(response):
-        """Compress response if client supports it"""
         if "gzip" not in request.headers.get("Accept-Encoding", "").lower():
             return response
 
@@ -224,11 +170,6 @@ def create_app():
 
         return response
 
-    # ========================================================================
-    # API Routes Registration (Consolidated)
-    # ========================================================================
-
-    # 1. Register Modular Blacklist API Routes
     try:
         from core.routes.api.blacklist import register_blacklist_routes
 
@@ -237,7 +178,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Blacklist API failed: {e}")
 
-    # 2. Register Auth API Routes
     try:
         from core.routes.api.auth_routes import auth_bp
 
@@ -247,7 +187,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Auth API failed: {e}")
 
-    # 2. Register Modular Fortinet API Routes
     try:
         from core.routes.api.fortinet import register_fortinet_routes
 
@@ -256,7 +195,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Fortinet API failed: {e}")
 
-    # 3. Register Modular Collection API Routes
     try:
         from core.routes.api.collection import register_collection_routes
 
@@ -265,7 +203,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Collection API failed: {e}")
 
-    # 4. Register Unified API Blueprint (contains system, monitoring, etc.)
     try:
         from core.routes.api import api_bp
         from core.routes.api.ip_management import ip_management_legacy_bp
@@ -280,7 +217,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Unified API Blueprint failed: {e}")
 
-    # 3. Register Web UI Blueprints
     try:
         from .routes.web.settings import settings_bp
 
@@ -325,7 +261,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Collection panel routes failed: {e}")
 
-    # 4. Register Compatibility/Legacy Blueprints if not already handled
     try:
         from .routes.proxy_routes import proxy_bp
 
@@ -334,7 +269,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"❌ Proxy API routes failed: {e}")
 
-    # Register error handlers
     try:
         from .errors.handlers import register_error_handlers
 
@@ -342,7 +276,6 @@ def create_app():
     except Exception as e:
         app.logger.error(f"Error handler registration failed: {e}")
 
-    # Setup Prometheus Metrics
     try:
         from .monitoring.metrics import setup_metrics, metrics_view
 
@@ -352,111 +285,8 @@ def create_app():
     except ImportError as e:
         app.logger.warning(f"⚠️ Prometheus metrics not available: {e}")
 
-    @app.route("/health")
-    @public
-    def health_check():
-        """Health check endpoint"""
-        try:
-            conn = psycopg2.connect(**config.get_postgres_params())
-            cursor = conn.cursor()
-            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-            tables = [row[0] for row in cursor.fetchall()]
-            try:
-                cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
-                row = cursor.fetchone()
-                ip_count = row[0] if row else 0
-            except psycopg2.Error:
-                ip_count = 0
-            cursor.close()
-            conn.close()
-            return jsonify(
-                {
-                    "status": "healthy",
-                    "timestamp": datetime.now().isoformat(),
-                    "database": {
-                        "connection": "successful",
-                        "tables": tables,
-                        "blacklist_ips_count": ip_count,
-                    },
-                    "message": "✅ PostgreSQL connection successful!",
-                }
-            ), 200
-        except Exception as e:
-            return jsonify(
-                {
-                    "status": "unhealthy",
-                    "timestamp": datetime.now().isoformat(),
-                    "error": str(e),
-                }
-            ), 500
-
-    def start_background_tasks():
-        """Start background tasks"""
-        try:
-            db_service = app.extensions.get("db_service")
-            expiry_service = app.extensions.get("expiry_service")
-            if db_service and expiry_service:
-                expiry_service.check_and_deactivate_expired_ips()
-
-            if config.DISABLE_AUTO_COLLECTION:
-                return
-
-            scheduler_service = app.extensions.get("scheduler_service")
-            if not db_service or not scheduler_service:
-                return
-
-            conn = db_service.get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT username, password, enabled FROM collection_credentials WHERE service_name = 'REGTECH'"
-            )
-            result = cursor.fetchone()
-            cursor.close()
-            db_service.return_connection(conn)
-
-            if result and result[2] and result[0] and result[1]:
-                scheduler_service.start()
-        except Exception as e:
-            app.logger.error(f"Background task start failed: {e}")
-
-    def check_collector_health():
-        """Non-blocking collector health check on startup."""
-        try:
-            import requests
-        except ImportError:
-            app.logger.warning("requests library not available — skipping collector health check")
-            return
-
-        try:
-            url = f"{config.COLLECTOR_URL}/health"
-            resp = requests.get(url, timeout=5, **config.COLLECTOR_AUTH_REQUEST_KWARGS)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("status") == "healthy":
-                    app.logger.info("Collector service is healthy at %s", url)
-                else:
-                    app.logger.warning("Collector service returned unhealthy status: %s", data.get("status"))
-            else:
-                app.logger.warning("Collector service returned HTTP %d at %s", resp.status_code, url)
-        except requests.exceptions.ConnectionError:
-            app.logger.warning(
-                "Collector service unreachable at %s — collection features may be unavailable",
-                config.COLLECTOR_URL,
-            )
-        except Exception as e:
-            app.logger.warning("Could not verify collector health: %s", e)
-
-    def delayed_background_start():
-        time.sleep(5)
-        with app.app_context():
-            check_collector_health()
-            start_background_tasks()
-
-    global _background_tasks_started
-    with _background_tasks_lock:
-        if not _background_tasks_started:
-            threading.Thread(target=delayed_background_start, daemon=True).start()
-            _background_tasks_started = True
+    register_health_route(app)
+    start_delayed_background_tasks(app)
 
     return app
 

@@ -75,12 +75,10 @@ def prepare_bundle(tmp_path: Path) -> tuple[Path, dict[str, str]]:
 
 
 def write_manifest(bundle_dir: Path) -> None:
-    """Regenerate MANIFEST.sha256 from the bundle's CURRENT contents."""
     manifest = bundle_dir / "MANIFEST.sha256"
     manifest.unlink(missing_ok=True)
     lines = [
-        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  "
-        + path.relative_to(bundle_dir).as_posix()
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  " + path.relative_to(bundle_dir).as_posix()
         for path in sorted(bundle_dir.rglob("*"))
         if path.is_file()
     ]
@@ -235,6 +233,22 @@ def test_images_are_not_retagged_latest() -> None:
     # Then: no image is aliased to latest and Compose receives the bundle version.
     assert 'docker tag "$loaded_image" "${repo}:latest"' not in installer_source
     assert "BLACKLIST_VERSION=${VERSION}" in generated_env_body
+
+
+def test_generated_environment_defaults_warp_to_disabled() -> None:
+    generated_env_body = installer_function("generate_env_file")
+
+    assert "WARP_ENABLED=false" in generated_env_body
+    assert "WARP_PROXY_URL=" in generated_env_body
+
+
+def test_warp_settings_are_synced_during_secret_setup() -> None:
+    setup_body = installer_function("setup_secrets")
+    sync_body = installer_function("sync_warp_settings")
+
+    assert 'sync_warp_settings "${env_file}"' in setup_body
+    assert "WARP_ENABLED=%s" in sync_body
+    assert "WARP_PROXY_URL=%s" in sync_body
 
 
 def test_rollback_file_is_not_written() -> None:

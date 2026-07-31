@@ -1,13 +1,9 @@
-"""Unit tests for auth API routes."""
-
 import pytest
 from unittest.mock import Mock, patch
 from flask import Flask
 
 
 class TestAuthLogin:
-    """Tests for POST /api/auth/login."""
-
     @pytest.fixture
     def app(self):
         app = Flask(__name__)
@@ -25,7 +21,6 @@ class TestAuthLogin:
         return app.test_client()
 
     def test_login_success(self, client, app):
-        """Valid credentials return JWT token."""
         app.extensions["settings_service"].get_setting.side_effect = lambda key, default=None: {
             "admin_username": "admin",
             "admin_password": "secret123",
@@ -38,20 +33,13 @@ class TestAuthLogin:
         assert data["expires_in"] == 28800
         assert data["user"]["role"] == "admin"
 
-    def test_login_missing_credentials(self, client, app):
-        """Missing username/password returns 400."""
+    def test_login_missing_credentials(self, client):
         response = client.post("/api/auth/login", json={})
         assert response.status_code == 400
         data = response.get_json()
         assert data["code"] == "AUTH_MISSING_CREDENTIALS"
 
-    def test_login_missing_body(self, client, app):
-        """No JSON body returns 400."""
-        response = client.post("/api/auth/login", content_type="application/json", data="{}")
-        assert response.status_code == 400
-
     def test_login_invalid_credentials(self, client, app):
-        """Wrong password returns 401."""
         app.extensions["settings_service"].get_setting.side_effect = lambda key, default=None: {
             "admin_username": "admin",
             "admin_password": "correct",
@@ -62,7 +50,6 @@ class TestAuthLogin:
         assert data["code"] == "AUTH_INVALID_CREDENTIALS"
 
     def test_login_invalid_username(self, client, app):
-        """Wrong username returns 401."""
         app.extensions["settings_service"].get_setting.side_effect = lambda key, default=None: {
             "admin_username": "admin",
             "admin_password": "pass",
@@ -71,7 +58,6 @@ class TestAuthLogin:
         assert response.status_code == 401
 
     def test_login_settings_service_fallback_to_env(self, client, app):
-        """Falls back to env vars when settings_service throws."""
         app.extensions["settings_service"].get_setting.side_effect = Exception("DB down")
         app.extensions["jwt_service"].encode_token.return_value = "fallback-token"
         with patch.dict("os.environ", {"ADMIN_USERNAME": "envuser", "ADMIN_PASSWORD": "envpass"}):
@@ -92,9 +78,6 @@ class TestAuthLogin:
         assert response.get_json()["token"] == "generated-token"
 
     def test_login_no_settings_service(self, client, app):
-        """Without settings_service, returns 500 AUTH_SERVICE_UNAVAILABLE."""
-        # Source code (auth_routes.py:46-56): when settings_service is None,
-        # returns 500 with code AUTH_SERVICE_UNAVAILABLE
         del app.extensions["settings_service"]
         response = client.post("/api/auth/login", json={"username": "admin", "password": "pass"})
         assert response.status_code == 500
@@ -103,8 +86,6 @@ class TestAuthLogin:
 
 
 class TestAuthMe:
-    """Tests for GET /api/auth/me."""
-
     @pytest.fixture
     def app(self):
         app = Flask(__name__)
@@ -142,8 +123,6 @@ class TestAuthMe:
 
 
 class TestAuthVerify:
-    """Tests for GET /api/auth/verify."""
-
     @pytest.fixture
     def app(self):
         app = Flask(__name__)

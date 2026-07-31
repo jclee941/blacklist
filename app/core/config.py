@@ -1,15 +1,7 @@
-"""
-Centralized Configuration — Single source of truth for all environment variables.
-
-    from core.config import config
-    url = config.COLLECTOR_URL
-    db_params = config.get_postgres_params()
-"""
-
 import os
 from typing import TypedDict
 
-from core.datastore_config import DatastoreConfig
+from .datastore_config import DatastoreConfig
 
 
 class CollectorAuthRequestKwargs(TypedDict, total=False):

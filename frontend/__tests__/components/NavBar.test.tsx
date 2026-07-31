@@ -1,7 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { createElement } from 'react';
 import NavBar from '../../components/NavBar';
+
+const { mockLogout, mockReplace } = vi.hoisted(() => ({
+  mockLogout: vi.fn(),
+  mockReplace: vi.fn(),
+}));
 
 // Mock Next.js modules
 vi.mock('next/link', () => ({
@@ -29,11 +34,37 @@ vi.mock('next/image', () => ({
     }),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+}));
+
+vi.mock('@/lib/api', () => ({
+  logout: mockLogout,
+}));
+
 describe('NavBar Component', () => {
-  it('does not render administrator session controls', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('ends the session and returns to login from the desktop navigation', () => {
     render(<NavBar />);
 
-    expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '로그아웃' }));
+
+    expect(mockLogout).toHaveBeenCalledOnce();
+    expect(mockReplace).toHaveBeenCalledWith('/login');
+  });
+
+  it('ends the session and returns to login from the mobile navigation', () => {
+    render(<NavBar />);
+
+    fireEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
+    const logoutButtons = screen.getAllByRole('button', { name: '로그아웃' });
+    fireEvent.click(logoutButtons[logoutButtons.length - 1]);
+
+    expect(mockLogout).toHaveBeenCalledOnce();
+    expect(mockReplace).toHaveBeenCalledWith('/login');
   });
 
   it('renders logo correctly', () => {

@@ -11,6 +11,8 @@ app/
 ├── run_app.py              # entry point, PORT=2542
 ├── core/
 │   ├── app.py              # factory + middleware
+│   ├── app_lifecycle.py    # startup/shutdown wiring (extracted from app.py)
+│   ├── app_logging.py      # logging setup + MemoryHandler (extracted from app.py)
 │   ├── config.py           # AppConfig environment mapping
 │   ├── services/           # application services and ServiceFactory DI
 │   ├── routes/api/         # REST JSON (RFC 7807 errors)

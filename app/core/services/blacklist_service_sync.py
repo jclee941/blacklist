@@ -1,5 +1,6 @@
 import sys
 import structlog
+import requests
 from typing import Any, Dict, Protocol
 
 from ..config import config
@@ -19,10 +20,8 @@ class SupportsBlacklistCollector(Protocol):
 class BlacklistCollectorMixin:
     def sync_with_collector(self: SupportsBlacklistCollector) -> Dict[str, Any]:
         try:
-            blacklist_service_module = sys.modules.get("core.services.blacklist_service") or sys.modules.get(
-                "app.core.services.blacklist_service"
-            )
-            requests_module = blacklist_service_module.requests if blacklist_service_module else __import__("requests")
+            facade_module = sys.modules.get(type(self).__module__)
+            requests_module = getattr(facade_module, "requests", requests) if facade_module else requests
 
             try:
                 health_response = requests_module.get(
@@ -74,10 +73,8 @@ class BlacklistCollectorMixin:
 
     def force_data_refresh(self: SupportsBlacklistCollector) -> Dict[str, Any]:
         try:
-            blacklist_service_module = sys.modules.get("core.services.blacklist_service") or sys.modules.get(
-                "app.core.services.blacklist_service"
-            )
-            requests_module = blacklist_service_module.requests if blacklist_service_module else __import__("requests")
+            facade_module = sys.modules.get(type(self).__module__)
+            requests_module = getattr(facade_module, "requests", requests) if facade_module else requests
 
             try:
                 data_response = requests_module.get(

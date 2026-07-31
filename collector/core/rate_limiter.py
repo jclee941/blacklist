@@ -4,6 +4,7 @@ Token Bucket 알고리즘 기반 API 요청 제한
 외부 API 차단 방지를 위한 지능형 레이트 리미터
 """
 
+import os
 import time
 import logging
 from threading import Lock
@@ -46,21 +47,18 @@ class RateLimiter:
         self.backoff_factor = backoff_factor
         self.max_backoff = max_backoff
 
-        # Token bucket 상태
-        self.tokens = float(burst_size)  # 초기 토큰 = 버스트 크기
+        self.tokens = float(burst_size)
         self.last_refill = time.time()
         self.lock = Lock()
 
-        # Backoff 상태
         self.failure_count = 0
         self.current_backoff = 0.0
         self.last_request_time = 0.0
 
-        # 통계 추적
         self.total_requests = 0
         self.total_waits = 0
         self.total_wait_time = 0.0
-        self.request_history: deque[dict[str, Any]] = deque(maxlen=1000)  # 최근 1000개 요청 추적
+        self.request_history: deque[dict[str, Any]] = deque(maxlen=1000)
 
         logger.info(f"🚦 레이트 리미터 초기화: {requests_per_second} req/s, 버스트={burst_size}")
 
@@ -69,10 +67,8 @@ class RateLimiter:
         now = time.time()
         elapsed = now - self.last_refill
 
-        # 경과 시간 동안 생성된 토큰 수
         new_tokens = elapsed * self.rate
 
-        # 토큰 추가 (버스트 크기 제한)
         self.tokens = min(self.burst_size, self.tokens + new_tokens)
         self.last_refill = now
 
@@ -94,13 +90,11 @@ class RateLimiter:
             while True:
                 self._refill_tokens()
 
-                # 토큰이 충분하면 소비
                 if self.tokens >= tokens:
                     self.tokens -= tokens
                     self.total_requests += 1
                     self.last_request_time = time.time()
 
-                    # 통계 기록
                     wait_time = time.time() - start_time
                     if wait_time > 0:
                         self.total_waits += 1
@@ -118,14 +112,12 @@ class RateLimiter:
                     logger.debug(f"✅ 토큰 획득: {tokens}개 소비, 잔여={self.tokens:.2f}, 대기={wait_time:.3f}초")
                     return True
 
-                # 타임아웃 확인
                 if timeout is not None:
                     elapsed = time.time() - start_time
                     if elapsed >= timeout:
                         logger.warning(f"⏰ 토큰 획득 타임아웃: {timeout}초")
                         return False
 
-                # 다음 토큰이 생성될 때까지 대기 시간 계산
                 tokens_needed = tokens - self.tokens
                 wait_time = tokens_needed / self.rate
 
@@ -157,7 +149,6 @@ class RateLimiter:
         with self.lock:
             self.failure_count += 1
 
-            # 백오프 시간 계산 (지수적 증가)
             self.current_backoff = min(self.max_backoff, (self.backoff_factor**self.failure_count) * 0.5)
 
             # Rate Limit 에러 (429) 또는 서버 과부하 (503)인 경우 더 긴 대기
@@ -167,7 +158,6 @@ class RateLimiter:
             else:
                 logger.warning(f"⚠️ 요청 실패 #{self.failure_count}: {self.current_backoff:.2f}초 백오프")
 
-            # 백오프 대기
             if self.current_backoff > 0:
                 logger.info(f"⏸️  백오프 대기: {self.current_backoff:.2f}초")
                 time.sleep(self.current_backoff)
@@ -177,7 +167,6 @@ class RateLimiter:
         with self.lock:
             avg_wait_time = self.total_wait_time / self.total_waits if self.total_waits > 0 else 0
 
-            # 최근 1분간 요청 수 계산
             one_minute_ago = datetime.now() - timedelta(minutes=1)
             recent_requests = sum(
                 1 for req in self.request_history if datetime.fromisoformat(req["timestamp"]) > one_minute_ago
@@ -236,7 +225,6 @@ class AdaptiveRateLimiter(RateLimiter):
         self.max_rate = max_rate
         self.initial_rate = initial_rate
 
-        # 적응형 조절 변수
         self.success_streak = 0
         self.failure_streak = 0
         self.rate_adjustment_threshold = 10  # 10번 연속 성공/실패 시 조절
@@ -251,7 +239,6 @@ class AdaptiveRateLimiter(RateLimiter):
             self.success_streak += 1
             self.failure_streak = 0
 
-            # 연속 성공이 임계값 초과 시 속도 증가
             if self.success_streak >= self.rate_adjustment_threshold and self.rate < self.max_rate:
                 old_rate = self.rate
                 self.rate = min(self.max_rate, self.rate * 1.2)  # 20% 증가
@@ -268,7 +255,6 @@ class AdaptiveRateLimiter(RateLimiter):
             self.failure_streak += 1
             self.success_streak = 0
 
-            # 실패 시 즉시 속도 감소
             if self.rate > self.min_rate:
                 old_rate = self.rate
                 self.rate = max(self.min_rate, self.rate * 0.5)  # 50% 감소
@@ -329,13 +315,11 @@ class AuthRateLimiter(RateLimiter):
         with self.lock:
             now = time.time()
 
-            # 잠금 상태 확인
             if self.locked_until > now:
                 remaining = self.locked_until - now
                 logger.warning(f"🔒 인증 잠금 상태: {remaining:.0f}초 남음 (연속 {self.consecutive_failures}회 실패)")
                 return False
 
-            # 연속 실패 횟수에 따른 추가 대기
             if self.consecutive_failures > 0:
                 extra_wait = min(30.0, self.consecutive_failures * 5.0)
                 logger.info(f"⏳ 인증 실패 {self.consecutive_failures}회 → {extra_wait:.0f}초 추가 대기")
@@ -361,12 +345,10 @@ class AuthRateLimiter(RateLimiter):
 
             logger.warning(f"⚠️ 인증 실패 #{self.consecutive_failures}/{self.max_attempts}")
 
-            # 최대 시도 횟수 초과 시 잠금
             if self.consecutive_failures >= self.max_attempts:
                 self.locked_until = time.time() + self.lockout_duration
                 logger.error(f"🔒 인증 잠금 활성화: {self.lockout_duration:.0f}초 동안 인증 차단")
             else:
-                # 점진적 백오프
                 backoff = min(60.0, (self.backoff_factor**self.consecutive_failures) * 2)
                 logger.info(f"⏸️ 인증 백오프: {backoff:.0f}초 대기")
                 time.sleep(backoff)
@@ -395,12 +377,37 @@ class AuthRateLimiter(RateLimiter):
             logger.info("🔓 인증 레이트 리미터 완전 리셋")
 
 
+def _env_float(name: str, default: float) -> float:
+    """환경변수 float 파싱 — 미설정/빈 값/잘못된 값이면 기본값"""
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("잘못된 %s 값 %r — 기본값 %s 사용", name, raw, default)
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    """환경변수 int 파싱 — 미설정/빈 값/잘못된 값이면 기본값"""
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("잘못된 %s 값 %r — 기본값 %s 사용", name, raw, default)
+        return default
+
+
 # 전역 인스턴스 (REGTECH 최적화 설정)
+# 기본값은 fsec.or.kr WAF 쿼터 차단 회피가 실증된 보수적 속도 — 필요 시 env로 조정
 regtech_rate_limiter = AdaptiveRateLimiter(
-    initial_rate=2.0,  # 초당 2개 요청 (0.5초 간격)
-    min_rate=0.5,  # 최소 초당 0.5개 (2초 간격)
-    max_rate=5.0,  # 최대 초당 5개 (0.2초 간격)
-    burst_size=5,  # 버스트 5개까지 허용
+    initial_rate=_env_float("REGTECH_RATE_INITIAL", 0.2),  # 초당 0.2개 (5초 간격)
+    min_rate=_env_float("REGTECH_RATE_MIN", 0.1),  # 최소 초당 0.1개 (10초 간격)
+    max_rate=_env_float("REGTECH_RATE_MAX", 0.5),  # 최대 초당 0.5개 (2초 간격)
+    burst_size=_env_int("REGTECH_RATE_BURST", 1),  # 버스트 비허용
     backoff_factor=2.0,  # 실패 시 2배씩 증가
     max_backoff=300.0,  # 최대 5분 대기
 )

@@ -1,9 +1,3 @@
-"""
-Authentication API routes.
-
-Provides login/logout/me endpoints for JWT-based authentication.
-"""
-
 import logging
 
 from flask import Blueprint, jsonify, request, current_app
@@ -82,7 +76,6 @@ def login():
         admin_username = settings_service.get_setting("admin_username", config.ADMIN_USERNAME)
         admin_password = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
     except Exception as e:
-        # Fallback to environment variables
         logger.warning("Settings service unavailable, falling back to env vars: %s", e)
         admin_username = config.ADMIN_USERNAME
         admin_password = config.ADMIN_PASSWORD
@@ -93,12 +86,12 @@ def login():
     if not credentials_configured:
         logger.error("Administrator login is disabled: configure ADMIN_USERNAME and ADMIN_PASSWORD")
     elif username != admin_username or password != admin_password:
-        logger.warning(f"Failed login attempt for user: {username}")
+        logger.warning("Failed login attempt for user: %s", username)
     else:
         jwt_service = current_app.extensions["jwt_service"]
         token = jwt_service.encode_token(user_id=username, role="admin")
 
-        logger.info(f"User '{username}' logged in successfully")
+        logger.info("User '%s' logged in successfully", username)
         return jsonify(
             {
                 "token": token,

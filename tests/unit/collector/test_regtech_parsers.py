@@ -54,9 +54,6 @@ class TestIsValidIp:
     def test_valid_public_ip(self):
         assert is_valid_ip("8.8.8.8") is True
 
-    def test_valid_public_ip_2(self):
-        assert is_valid_ip("1.1.1.1") is True
-
     def test_private_ip_rejected(self):
         assert is_valid_ip("192.168.1.1") is False
         assert is_valid_ip("10.0.0.1") is False

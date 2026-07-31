@@ -65,8 +65,7 @@ def test_manifest_covers_every_file_except_itself(tmp_path: Path) -> None:
     builder.write_manifest(tmp_path)
 
     recorded = {
-        line.split("  ", 1)[1]
-        for line in (tmp_path / "MANIFEST.sha256").read_text(encoding="utf-8").splitlines()
+        line.split("  ", 1)[1] for line in (tmp_path / "MANIFEST.sha256").read_text(encoding="utf-8").splitlines()
     }
     assert recorded == {"install.sh", "VERSION", "images/blacklist-app.tar.gz"}
     assert "MANIFEST.sha256" not in recorded
@@ -101,7 +100,7 @@ def test_installer_version_is_stamped_before_the_manifest(tmp_path: Path) -> Non
     builder = load_builder()
     installer = tmp_path / "install.sh"
     _ = installer.write_text(
-        '#!/bin/bash\nVERSION=$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo \'unknown\')\n',
+        "#!/bin/bash\nVERSION=$(cat \"${SCRIPT_DIR}/VERSION\" 2>/dev/null || echo 'unknown')\n",
         encoding="utf-8",
     )
 
@@ -110,8 +109,7 @@ def test_installer_version_is_stamped_before_the_manifest(tmp_path: Path) -> Non
 
     assert "VERSION=7.3.1" in installer.read_text(encoding="utf-8")
     recorded = dict(
-        line.split("  ", 1)[::-1]
-        for line in (tmp_path / "MANIFEST.sha256").read_text(encoding="utf-8").splitlines()
+        line.split("  ", 1)[::-1] for line in (tmp_path / "MANIFEST.sha256").read_text(encoding="utf-8").splitlines()
     )
     assert recorded["install.sh"] == hashlib.sha256(installer.read_bytes()).hexdigest()
 
@@ -214,3 +212,26 @@ def test_bundle_ships_release_notes_for_the_declared_version(tmp_path: Path) -> 
     builder.assemble(REPO_ROOT, bundle, version)
 
     assert (bundle / "RELEASE_NOTES.md").is_file()
+
+
+def test_bundle_ships_operator_documentation(tmp_path: Path) -> None:
+    # Given: an air-gapped operator cannot consult the source repository after delivery.
+    builder = load_builder()
+    version = builder.resolve_version(REPO_ROOT)
+    bundle = tmp_path / "bundle"
+
+    # When: the deployment bundle is assembled.
+    builder.assemble(REPO_ROOT, bundle, version)
+
+    # Then: installation, operations, and security guidance travels with the package.
+    expected_documents = {
+        "README.md",
+        "blacklist-offline-deployment-guide.pdf",
+        "blacklist-offline-installation-guide.md",
+        "blacklist-operations-guide.md",
+        "security-remediation-2026-07-28.md",
+        "security-remediation-checklist.md",
+        "security-remediation-validation-report.md",
+    }
+    packaged_documents = {path.name for path in (bundle / "docs").iterdir()}
+    assert expected_documents <= packaged_documents

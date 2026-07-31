@@ -2,7 +2,7 @@
 
 **Generated:** 2026-02-27 00:00 Asia/Seoul
 **Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+**Branch:** master | **Version:** 5.0.0
 
 ## OVERVIEW
 
@@ -36,7 +36,12 @@ app/
 │   ├── page.tsx             # unified IP management
 │   ├── IPManagementClient.tsx
 │   └── components/          # IPFormFields, IPManagementFormModal, IPManagementTable, IPManagementFilters, IPManagementTabs, DeleteConfirmModal
+├── cloudflare/
+│   └── page.tsx             # Cloudflare integration
+├── login/
+│   └── page.tsx             # public login (no JWT)
 └── settings/
+    └── page.tsx             # system settings + CloudflareSettings
     └── page.tsx             # system settings
 ```
 

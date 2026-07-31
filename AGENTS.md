@@ -1,7 +1,7 @@
 # Blacklist Project Guide
 
 **Repository:** `jclee941/blacklist`
-**Current version:** `4.1.0` in `VERSION`
+**Current version:** `5.0.0` in `VERSION`
 
 ## Overview
 
@@ -27,14 +27,14 @@ The normal service ports are Flask `2542`, Next.js `2543`, collector `8545`, Pos
 | Flask startup and route registration | `app/core/app.py`, `app/run_app.py` |
 | Configuration and environment variables | `app/core/config.py`, `deploy/` |
 | Auth token endpoints | `app/core/routes/api/auth_routes.py`, `app/core/auth/` |
-| Collector lifecycle and health API | `collector/run_collector.py`, `collector/health_server.py` |
+| Collector lifecycle and health API | `collector/run_collector.py`, `collector/health_server.py`, `collector/health_routes.py` |
 | Browser API boundary | `frontend/lib/api.ts`, `frontend/next.config.ts` |
 | Local commands | `Makefile` |
 | Release automation | `scripts/release.sh`, `.github/workflows/release.yml` |
 
 ## Authentication
 
-`/api/auth/login`, `/api/auth/me`, and `/api/auth/verify` provide JWT token APIs. Global JWT enforcement protects dashboard and application APIs by default; login, health, metrics, static assets, and explicitly `@public` feeds remain open. `DISABLE_JWT_AUTH=true` is an explicit development escape hatch. Keep credentials and signing secrets in environment variables or the settings store, never in source or documentation examples.
+`/api/auth/login`, `/api/auth/me`, and `/api/auth/verify` provide JWT token APIs. Global JWT enforcement protects dashboard and application APIs by default; login, health, metrics, static assets, and explicitly `@public` feeds remain open. `DISABLE_JWT_AUTH=true` is an explicit development escape hatch. Admin credentials resolve from the `system_settings` DB rows first, with `ADMIN_USERNAME`/`ADMIN_PASSWORD` env only as fallback — changing env alone does not rotate a stored admin password. Keep credentials and signing secrets in environment variables or the settings store, never in source or documentation examples.
 
 ## Development And Verification
 
