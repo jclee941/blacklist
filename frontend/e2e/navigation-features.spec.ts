@@ -1,21 +1,7 @@
-import { test, expect, type Page } from '@playwright/test';
-import { getE2ECredentials } from './auth.fixtures';
+import { test, expect } from '@playwright/test';
+import { loginViaApi } from './auth.fixtures';
 
 test.describe.configure({ mode: 'parallel' });
-
-async function loginViaApi(page: Page) {
-  const res = await page.request.post('/api/auth/login', {
-    data: getE2ECredentials(),
-  });
-  const body = await res.json();
-  const token = body.data?.token || body.token;
-  if (token) {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
-  }
-}
 
 test.describe('네비게이션 기능 검증', () => {
   test.beforeEach(async ({ page }) => {
@@ -23,6 +9,7 @@ test.describe('네비게이션 기능 검증', () => {
     await loginViaApi(page);
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('heading', { name: '대시보드', level: 1 })).toBeVisible();
   });
 
   test('모든 네비게이션 링크가 표시된다', async ({ page }) => {
@@ -37,11 +24,11 @@ test.describe('네비게이션 기능 검증', () => {
   });
 
   test('대시보드 링크 클릭 시 / 로 이동한다', async ({ page }) => {
-    await page.goto('/settings');
-    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('link', { name: 'IP 관리' }).first().click();
+    await page.waitForURL('**/ip-management', { timeout: 30000 });
     await page.getByRole('link', { name: '대시보드' }).first().click();
-    await page.waitForLoadState('domcontentloaded');
-    expect(page.url()).toContain('/');
+    await page.waitForURL((url) => url.pathname === '/', { timeout: 30000 });
+    expect(new URL(page.url()).pathname).toBe('/');
   });
 
   test('IP 관리 링크 클릭 시 /ip-management 로 이동한다', async ({ page }) => {
@@ -68,11 +55,10 @@ test.describe('네비게이션 기능 검증', () => {
     expect(page.url()).toContain('/database');
   });
 
-  test('/monitoring 접속 시 / 로 리다이렉트된다', async ({ page }) => {
-    await page.goto('/monitoring');
-    await page.waitForLoadState('domcontentloaded');
-    const url = page.url();
-    expect(url.endsWith('/') || !url.includes('/monitoring')).toBe(true);
+  test('/monitoring 접속 시 / 로 리다이렉트된다', async ({ request }) => {
+    const response = await request.get('/monitoring', { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(response.headers().location).toBe('/');
   });
 
   test('각 페이지 이동 후 뒤로 가기가 동작한다', async ({ page }) => {

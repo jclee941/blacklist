@@ -1,19 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-import { getE2ECredentials } from './auth.fixtures';
-
-async function loginViaApi(page: Page) {
-  const res = await page.request.post('/api/auth/login', {
-    data: getE2ECredentials(),
-  });
-  const body = await res.json();
-  const token = body.data?.token || body.token;
-  if (token) {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
-  }
-}
+import { test, expect } from '@playwright/test';
+import { loginViaApi } from './auth.fixtures';
 
 test.describe('대시보드 기능 테스트', () => {
   test.describe.configure({ mode: 'parallel' });
@@ -22,6 +8,7 @@ test.describe('대시보드 기능 테스트', () => {
     await loginViaApi(page);
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('heading', { name: '대시보드', level: 1 })).toBeVisible();
   });
 
   test('대시보드 헤더가 표시된다', async ({ page }) => {
@@ -102,19 +89,15 @@ test.describe('대시보드 기능 테스트', () => {
     }
   });
 
-  test('로딩 상태가 표시된 후 데이터가 로드된다', async ({ page }) => {
-    await page.goto('/');
-
-    await page.waitForLoadState('domcontentloaded');
+  test('데이터 로드 후 대시보드가 표시된다', async ({ page }) => {
     await expect(page.getByRole('heading', { name: '대시보드', level: 1 })).toBeVisible({
       timeout: 15000,
     });
   });
 
   test('API 에러 시 에러 상태가 처리된다', async ({ page }) => {
-    await page.route('**/api/stats', (route) => route.fulfill({ status: 500, body: '{}' }));
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.route('**/api/web-stats', (route) => route.fulfill({ status: 500, body: '{}' }));
+    await page.reload({ waitUntil: 'domcontentloaded' });
 
     await expect(page.getByRole('heading', { name: '대시보드', level: 1 })).toBeVisible();
   });
