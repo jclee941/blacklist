@@ -21,7 +21,7 @@ pytz==2026.3.post1
 schedule==1.2.2
 
 # Security & Encryption
-cryptography==48.0.1
+cryptography==50.0.0
 bcrypt==5.0.0
 
 # Monitoring & Health Check
