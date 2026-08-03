@@ -93,8 +93,6 @@ docs/manual/*
 !docs/manual/blacklist-user-guide.md
 !docs/manual/blacklist-user-guide.pdf
 !docs/manual/security-remediation-*.md
-!docs/manual/screenshots/
-!docs/manual/screenshots/*.png
 
 # Analysis documents (never track)
 ANALYSIS*.md
