@@ -326,12 +326,12 @@ deploy: ## Deploy to production (builds, starts, verifies health)
 	@echo "✅ Production deployment completed"
 
 # Release automation
-TYPE ?= patch
+TYPE ?= auto
 
-release: check-clean ## Release: bump/tag version and push (TYPE=patch|minor|major|current)
+release: check-clean ## Release: auto-select VERSION or bump/tag and push (TYPE=auto|patch|minor|major|current)
 	@bash scripts/release.sh $(TYPE) false
 
-release-dry: ## Dry-run release: preview what would happen (TYPE=patch|minor|major|current)
+release-dry: ## Dry-run release: preview what would happen (TYPE=auto|patch|minor|major|current)
 	@bash scripts/release.sh $(TYPE) true
 
 # Status and information

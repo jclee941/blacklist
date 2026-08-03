@@ -35,7 +35,7 @@ warn()  { echo -e "${YELLOW}⚠️${NC}  $*"; }
 error() { echo -e "${RED}❌${NC} $*" >&2; exit 1; }
 
 # --- Configuration ---
-BUMP_TYPE="${1:-patch}"
+BUMP_TYPE="${1:-auto}"
 DRY_RUN="${2:-false}"
 VERSION_FILE="VERSION"
 CHANGELOG_FILE="CHANGELOG.md"
@@ -56,8 +56,8 @@ if ! git diff-index --quiet HEAD -- 2>/dev/null; then
 fi
 
 # Check bump type
-if [[ "$BUMP_TYPE" != "patch" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "current" ]]; then
-  error "Invalid bump type: ${BUMP_TYPE}. Must be: patch, minor, major, or current"
+if [[ "$BUMP_TYPE" != "patch" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "current" && "$BUMP_TYPE" != "auto" ]]; then
+  error "Invalid bump type: ${BUMP_TYPE}. Must be: auto, patch, minor, major, or current"
 fi
 
 # Read current version
@@ -78,6 +78,7 @@ case "$BUMP_TYPE" in
   minor) NEW_VERSION="${MAJOR}.$((MINOR + 1)).0" ;;
   patch) NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
   current) NEW_VERSION="$CURRENT_VERSION" ;;
+  auto) NEW_VERSION="$CURRENT_VERSION" ;;
 esac
 
 RELEASE_NOTES_FILE="docs/manual/blacklist-${NEW_VERSION}-release-notes.md"
@@ -90,7 +91,7 @@ fi
 if ! git ls-files --error-unmatch "$RELEASE_NOTES_FILE" >/dev/null 2>&1; then
   error "Release notes file must be tracked: ${RELEASE_NOTES_FILE}. Add and commit it before releasing."
 fi
-if [[ "$BUMP_TYPE" == "current" ]] && ! grep -Fq "## [${NEW_VERSION}]" "$CHANGELOG_FILE"; then
+if [[ "$BUMP_TYPE" == "current" || "$BUMP_TYPE" == "auto" ]] && ! grep -Fq "## [${NEW_VERSION}]" "$CHANGELOG_FILE"; then
   error "CHANGELOG entry not found for current version: ${NEW_VERSION}"
 fi
 
@@ -167,7 +168,7 @@ echo -e "  Branch:          ${CYAN}${BRANCH}${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # --- Generate changelog entry ---
-if [[ "$BUMP_TYPE" != "current" ]]; then
+if [[ "$BUMP_TYPE" != "current" && "$BUMP_TYPE" != "auto" ]]; then
 info "Generating changelog from git log..."
 
 # Get last tag
@@ -245,7 +246,7 @@ fi
 echo ""
 info "Executing release..."
 
-if [[ "$BUMP_TYPE" != "current" ]]; then
+if [[ "$BUMP_TYPE" != "current" && "$BUMP_TYPE" != "auto" ]]; then
 echo "${NEW_VERSION}" > "$VERSION_FILE"
 ok "VERSION bumped: ${CURRENT_VERSION} → ${NEW_VERSION}"
 
