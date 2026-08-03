@@ -3,6 +3,12 @@ import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL || 'https://localhost';
 const OUT = new URL('../../../docs/manual/screenshots/', import.meta.url).pathname;
+const username = process.env.E2E_USERNAME;
+const password = process.env.E2E_PASSWORD;
+
+if (!username || !password) {
+  throw new Error('E2E_USERNAME and E2E_PASSWORD are required');
+}
 
 const PAGES = [
   ['dashboard', '/'],
@@ -25,8 +31,8 @@ const page = await context.newPage();
 await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
 await page.screenshot({ path: `${OUT}/login.png` });
 
-await page.locator('input[type="text"], input[name="username"], #username').first().fill('admin');
-await page.locator('input[type="password"]').first().fill('qwe123!@#');
+await page.locator('input[type="text"], input[name="username"], #username').first().fill(username);
+await page.locator('input[type="password"]').first().fill(password);
 await page.locator('button[type="submit"], button:has-text("로그인"), button:has-text("Login")').first().click();
 await page.waitForURL('**/', { timeout: 15000 });
 await page.waitForLoadState('networkidle');
