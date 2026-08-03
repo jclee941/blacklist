@@ -127,7 +127,9 @@ fi
 
 # 2. Fallback: Docker stack containerized tests
 if [[ "$CI_VERIFIED" == "false" ]]; then
-  if command -v docker &>/dev/null && docker compose ps --services 2>/dev/null | grep -q .; then
+  if command -v docker &>/dev/null \
+    && docker compose ps --services 2>/dev/null | grep -q . \
+    && docker compose exec -T blacklist-app test -d /app/tests 2>/dev/null; then
     if docker compose exec -T blacklist-app python -m pytest tests/ -x -q --tb=short 2>/dev/null; then
       ok "Backend tests passed (docker)"
       CI_VERIFIED=true
