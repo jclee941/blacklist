@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { getE2ECredentials } from './auth.fixtures';
+import { getE2ECredentials, loginViaApi } from './auth.fixtures';
 
 /**
  * Smoke Tests - Deployment Verification
@@ -69,6 +69,10 @@ test.describe('Smoke Tests @smoke', () => {
   });
 
   test.describe('Core Pages Load', () => {
+    test.beforeEach(async ({ page }) => {
+      await loginViaApi(page);
+    });
+
     test('Dashboard (/) 로드', async ({ page }) => {
       await page.goto('/');
       await expect(page).toHaveTitle(/Blacklist/i);
