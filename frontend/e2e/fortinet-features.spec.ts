@@ -1,21 +1,7 @@
-import { test, expect, type Page } from '@playwright/test';
-import { getE2ECredentials } from './auth.fixtures';
+import { test, expect } from '@playwright/test';
+import { loginViaApi } from './auth.fixtures';
 
 test.describe.configure({ mode: 'parallel' });
-
-async function loginViaApi(page: Page) {
-  const res = await page.request.post('/api/auth/login', {
-    data: getE2ECredentials(),
-  });
-  const body = await res.json();
-  const token = body.data?.token || body.token;
-  if (token) {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-  }
-}
 
 test.describe('FortiGate 연동 페이지 기능 검증', () => {
   test.beforeEach(async ({ page }) => {
