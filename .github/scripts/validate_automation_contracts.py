@@ -23,6 +23,9 @@ RELEASE_JOB_PERMISSIONS: Final = {
     "notify": "    permissions: {}",
 }
 PRIMARY_CI_WORKFLOW: Final = "CI"
+RELEASE_SETUP_PYTHON_ACTION: Final = (
+    "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0"
+)
 CI_E2E_COMPOSE_COMMAND: Final = (
     'docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml'
 )
@@ -120,6 +123,10 @@ def main() -> None:
             (
                 "scripts/build_offline_bundle.py" in release,
                 "release packaging does not use the bundle builder, so it can drift from what install.sh requires",
+            ),
+            (
+                RELEASE_SETUP_PYTHON_ACTION in release,
+                "release packaging does not use the approved setup-python action",
             ),
             (
                 "sha256sum -- ./*.tar.gz > checksums.sha256" not in release,

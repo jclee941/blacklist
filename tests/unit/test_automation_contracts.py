@@ -41,6 +41,7 @@ jobs:
 Release notes file not found
 if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
 scripts/build_offline_bundle.py
+actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
 jobs:
   validate:
     permissions:
@@ -160,6 +161,11 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             ".github/workflows/release.yml",
             'if [[ ! -s "$RELEASE_NOTES_FILE" ]]; then',
             "release workflow does not reject empty release notes",
+        ),
+        (
+            ".github/workflows/release.yml",
+            "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0",
+            "release packaging does not use the approved setup-python action",
         ),
         (
             ".github/workflows/release.yml",
