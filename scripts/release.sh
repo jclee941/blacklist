@@ -56,8 +56,8 @@ if ! git diff-index --quiet HEAD -- 2>/dev/null; then
 fi
 
 # Check bump type
-if [[ "$BUMP_TYPE" != "patch" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "major" ]]; then
-  error "Invalid bump type: ${BUMP_TYPE}. Must be: patch, minor, or major"
+if [[ "$BUMP_TYPE" != "patch" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "current" ]]; then
+  error "Invalid bump type: ${BUMP_TYPE}. Must be: patch, minor, major, or current"
 fi
 
 # Read current version
@@ -77,6 +77,7 @@ case "$BUMP_TYPE" in
   major) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
   minor) NEW_VERSION="${MAJOR}.$((MINOR + 1)).0" ;;
   patch) NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+  current) NEW_VERSION="$CURRENT_VERSION" ;;
 esac
 
 RELEASE_NOTES_FILE="docs/manual/blacklist-${NEW_VERSION}-release-notes.md"
@@ -88,6 +89,9 @@ if [[ ! -s "$RELEASE_NOTES_FILE" ]]; then
 fi
 if ! git ls-files --error-unmatch "$RELEASE_NOTES_FILE" >/dev/null 2>&1; then
   error "Release notes file must be tracked: ${RELEASE_NOTES_FILE}. Add and commit it before releasing."
+fi
+if [[ "$BUMP_TYPE" == "current" ]] && ! grep -Fq "## [${NEW_VERSION}]" "$CHANGELOG_FILE"; then
+  error "CHANGELOG entry not found for current version: ${NEW_VERSION}"
 fi
 
 # Check tag doesn't already exist
@@ -161,6 +165,7 @@ echo -e "  Branch:          ${CYAN}${BRANCH}${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # --- Generate changelog entry ---
+if [[ "$BUMP_TYPE" != "current" ]]; then
 info "Generating changelog from git log..."
 
 # Get last tag
@@ -220,6 +225,9 @@ echo -e "${BOLD}Changelog Preview:${NC}"
 echo "─────────────────────────────────────"
 echo -e "$CHANGELOG_ENTRY"
 echo "─────────────────────────────────────"
+else
+  ok "Using existing VERSION, CHANGELOG, and release notes for v${NEW_VERSION}"
+fi
 
 # --- Dry Run Exit ---
 if [[ "$DRY_RUN" == "true" ]]; then
@@ -235,7 +243,7 @@ fi
 echo ""
 info "Executing release..."
 
-# 1. Bump VERSION
+if [[ "$BUMP_TYPE" != "current" ]]; then
 echo "${NEW_VERSION}" > "$VERSION_FILE"
 ok "VERSION bumped: ${CURRENT_VERSION} → ${NEW_VERSION}"
 
@@ -259,10 +267,12 @@ while IFS= read -r line; do
     # Check if previous line area was [Unreleased]
     PREV=$(tail -3 "$TMPFILE" | head -1)
     if [[ "$PREV" =~ \[Unreleased\] ]]; then
-      echo "" >> "$TMPFILE"
-      echo -e "$CHANGELOG_ENTRY" >> "$TMPFILE"
-      echo "" >> "$TMPFILE"
-      echo "---" >> "$TMPFILE"
+      {
+        echo ""
+        echo -e "$CHANGELOG_ENTRY"
+        echo ""
+        echo "---"
+      } >> "$TMPFILE"
       ENTRY_WRITTEN=true
     fi
   fi
@@ -282,6 +292,9 @@ git commit -m "chore(release): v${NEW_VERSION}
 
 Automated release: ${BUMP_TYPE} bump ${CURRENT_VERSION} → ${NEW_VERSION}"
 ok "Changes committed"
+else
+  ok "Current version metadata already committed; skipping release metadata commit"
+fi
 
 # 4. Tag
 git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"

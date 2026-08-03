@@ -140,6 +140,14 @@ def main() -> None:
                 "release script does not stage release notes",
             ),
             (
+                'current) NEW_VERSION="$CURRENT_VERSION" ;;' in release_script,
+                "release script cannot tag the current VERSION",
+            ),
+            (
+                'if [[ "$BUMP_TYPE" != "current" ]]; then' in release_script,
+                "current-version release does not skip duplicate metadata changes",
+            ),
+            (
                 f'CI_WORKFLOW="{PRIMARY_CI_WORKFLOW}"' in release_script,
                 "release script does not select the primary CI workflow",
             ),

@@ -328,10 +328,10 @@ deploy: ## Deploy to production (builds, starts, verifies health)
 # Release automation
 TYPE ?= patch
 
-release: check-clean ## Release: bump version, changelog, tag, push (TYPE=patch|minor|major)
+release: check-clean ## Release: bump/tag version and push (TYPE=patch|minor|major|current)
 	@bash scripts/release.sh $(TYPE) false
 
-release-dry: ## Dry-run release: preview what would happen (TYPE=patch|minor|major)
+release-dry: ## Dry-run release: preview what would happen (TYPE=patch|minor|major|current)
 	@bash scripts/release.sh $(TYPE) true
 
 # Status and information

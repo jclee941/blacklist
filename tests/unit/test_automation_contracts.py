@@ -69,6 +69,8 @@ Release notes file not found
 if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
 git ls-files --error-unmatch \"$RELEASE_NOTES_FILE\"
 git add \"$VERSION_FILE\" \"$CHANGELOG_FILE\" \"$FRONTEND_PKG\" \"$RELEASE_NOTES_FILE\"
+current) NEW_VERSION=\"$CURRENT_VERSION\" ;;
+if [[ \"$BUMP_TYPE\" != \"current\" ]]; then
 CI_WORKFLOW=\"CI\"
 gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
 """,
@@ -176,6 +178,16 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             "scripts/release.sh",
             'gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA"',
             "release script does not limit remote verification to the primary CI workflow",
+        ),
+        (
+            "scripts/release.sh",
+            'current) NEW_VERSION="$CURRENT_VERSION" ;;',
+            "release script cannot tag the current VERSION",
+        ),
+        (
+            "scripts/release.sh",
+            'if [[ "$BUMP_TYPE" != "current" ]]; then',
+            "current-version release does not skip duplicate metadata changes",
         ),
         (
             ".github/workflows/release.yml",
