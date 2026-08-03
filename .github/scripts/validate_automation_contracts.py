@@ -148,6 +148,10 @@ def main() -> None:
                 "current-version release does not skip duplicate metadata changes",
             ),
             (
+                "docker compose exec -T blacklist-app test -d /app/tests" in release_script,
+                "release script treats production images without tests as failed test runs",
+            ),
+            (
                 f'CI_WORKFLOW="{PRIMARY_CI_WORKFLOW}"' in release_script,
                 "release script does not select the primary CI workflow",
             ),

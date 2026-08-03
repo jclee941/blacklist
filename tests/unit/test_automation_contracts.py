@@ -73,6 +73,7 @@ current) NEW_VERSION=\"$CURRENT_VERSION\" ;;
 if [[ \"$BUMP_TYPE\" != \"current\" ]]; then
 CI_WORKFLOW=\"CI\"
 gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
+docker compose exec -T blacklist-app test -d /app/tests
 """,
         ".github/docker-compose.ci.yml": """
 services:
@@ -188,6 +189,11 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             "scripts/release.sh",
             'if [[ "$BUMP_TYPE" != "current" ]]; then',
             "current-version release does not skip duplicate metadata changes",
+        ),
+        (
+            "scripts/release.sh",
+            "docker compose exec -T blacklist-app test -d /app/tests",
+            "release script treats production images without tests as failed test runs",
         ),
         (
             ".github/workflows/release.yml",
