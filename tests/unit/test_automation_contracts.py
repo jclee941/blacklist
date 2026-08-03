@@ -70,7 +70,8 @@ if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
 git ls-files --error-unmatch \"$RELEASE_NOTES_FILE\"
 git add \"$VERSION_FILE\" \"$CHANGELOG_FILE\" \"$FRONTEND_PKG\" \"$RELEASE_NOTES_FILE\"
 current) NEW_VERSION=\"$CURRENT_VERSION\" ;;
-if [[ \"$BUMP_TYPE\" != \"current\" ]]; then
+auto) NEW_VERSION=\"$CURRENT_VERSION\" ;;
+if [[ \"$BUMP_TYPE\" != \"current\" && \"$BUMP_TYPE\" != \"auto\" ]]; then
 CI_WORKFLOW=\"CI\"
 gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
 docker compose exec -T blacklist-app test -d /app/tests
@@ -187,8 +188,13 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             "scripts/release.sh",
-            'if [[ "$BUMP_TYPE" != "current" ]]; then',
+            'if [[ "$BUMP_TYPE" != "current" && "$BUMP_TYPE" != "auto" ]]; then',
             "current-version release does not skip duplicate metadata changes",
+        ),
+        (
+            "scripts/release.sh",
+            'auto) NEW_VERSION="$CURRENT_VERSION" ;;',
+            "release script does not select the VERSION file automatically",
         ),
         (
             "scripts/release.sh",
