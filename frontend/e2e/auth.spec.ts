@@ -116,12 +116,18 @@ test.describe('인증 - 토큰 지속성', () => {
   test('로그인 화면에서 인증 후 대시보드로 이동', async ({ page }) => {
     const credentials = getE2ECredentials();
     await page.goto('/login');
+    await page.waitForLoadState('networkidle');
 
     await page.getByLabel('관리자 아이디').fill(credentials.username);
     await page.getByLabel('비밀번호').fill(credentials.password);
+    const loginResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/auth/login') && response.request().method() === 'POST'
+    );
     await page.getByRole('button', { name: '로그인' }).click();
 
-    await expect(page).toHaveURL(/\/$/);
+    expect((await loginResponse).status()).toBe(200);
+    await expect(page).toHaveURL(/\/$/, { timeout: 30000 });
     await expect
       .poll(() => page.evaluate(() => localStorage.getItem('blacklist_auth_token')))
       .not.toBeNull();
