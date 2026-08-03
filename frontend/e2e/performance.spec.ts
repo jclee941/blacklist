@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { loginViaApi } from './auth.fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await loginViaApi(page);
+});
 
 test.describe('Performance Tests', () => {
   test('homepage should load within acceptable time', async ({ page }) => {

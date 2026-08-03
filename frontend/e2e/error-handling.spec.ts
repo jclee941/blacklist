@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { authenticatedGet, loginViaApi } from './auth.fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await loginViaApi(page);
+});
 
 /**
  * Error Handling Tests
@@ -57,7 +62,7 @@ test.describe('Error Handling', () => {
     });
 
     test('잘못된 API 엔드포인트 요청', async ({ request }) => {
-      const response = await request.get('/api/invalid-endpoint-xyz');
+      const response = await authenticatedGet(request, '/api/invalid-endpoint-xyz');
 
       // Should return 404 or appropriate error status
       expect([400, 404, 405]).toContain(response.status());
