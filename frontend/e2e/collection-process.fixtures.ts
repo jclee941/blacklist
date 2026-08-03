@@ -1,19 +1,5 @@
 import { type Page } from '@playwright/test';
-import { getE2ECredentials } from './auth.fixtures';
-
-export async function loginViaApi(page: Page) {
-  const res = await page.request.post('/api/auth/login', {
-    data: getE2ECredentials(),
-  });
-  const body = await res.json();
-  const token = body.data?.token || body.token;
-  if (token) {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('blacklist_auth_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
-  }
-}
+export { loginViaApi } from './auth.fixtures';
 
 export function mockCollectionApis(page: Page) {
   return Promise.all([
