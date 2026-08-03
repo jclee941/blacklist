@@ -26,6 +26,10 @@ E2E_PASSWORD: blacklist-dev-password
 BLACKLIST_TLS_DIR=$RUNNER_TEMP/blacklist-ci-tls
 docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml up
 jobs:
+  scan-images:
+    steps:
+      - with:
+          skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json
   e2e:
     timeout-minutes: 60
   ci-gate:
@@ -241,6 +245,11 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             ".github/workflows/ci.yml",
             "E2E_PASSWORD: blacklist-dev-password",
             "CI does not provide the E2E password",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json",
+            "CI Trivy scan does not exclude pip's vendored dependency SBOM",
         ),
         (
             ".github/docker-compose.ci.yml",

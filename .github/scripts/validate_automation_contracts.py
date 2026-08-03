@@ -29,6 +29,9 @@ RELEASE_SETUP_PYTHON_ACTION: Final = (
 CI_E2E_COMPOSE_COMMAND: Final = (
     'docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml'
 )
+PIP_VENDOR_SBOM_SKIP: Final = (
+    "skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json"
+)
 TAG_TRIGGERED_NON_DRY_RUN_CONDITION: Final = (
     "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}"
 )
@@ -85,6 +88,10 @@ def main() -> None:
             (
                 "    timeout-minutes: 60" in job_body(ci, "e2e"),
                 "CI E2E timeout is too short for the full browser matrix",
+            ),
+            (
+                PIP_VENDOR_SBOM_SKIP in job_body(ci, "scan-images"),
+                "CI Trivy scan does not exclude pip's vendored dependency SBOM",
             ),
             (
                 '          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then'
