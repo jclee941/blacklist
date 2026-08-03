@@ -51,6 +51,7 @@ def main() -> None:
     release_script = read("scripts/release.sh")
     ci_compose = read(".github/docker-compose.ci.yml")
     frontend_dockerfile = read("frontend/Dockerfile")
+    guide_capture = read("frontend/e2e/helpers/capture-guide-screenshots.mjs")
     reusable_node = read(".github/workflows/_ci-node.yml")
     dependabot = read(".github/dependabot.yml")
     gitignore = read(".gitignore")
@@ -108,6 +109,14 @@ def main() -> None:
             ),
             ("FROM node:24-alpine AS builder" in frontend_dockerfile, "frontend build image does not use Node 24"),
             ("FROM node:24-alpine AS runner" in frontend_dockerfile, "frontend runtime image does not use Node 24"),
+            (
+                "const username = process.env.E2E_USERNAME;" in guide_capture,
+                "guide screenshot capture does not require the E2E username from the environment",
+            ),
+            (
+                "const password = process.env.E2E_PASSWORD;" in guide_capture,
+                "guide screenshot capture does not require the E2E password from the environment",
+            ),
             (
                 "scripts/build_offline_bundle.py" in release,
                 "release packaging does not use the bundle builder, so it can drift from what install.sh requires",

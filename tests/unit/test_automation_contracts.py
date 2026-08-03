@@ -96,6 +96,10 @@ updates:
 """,
         "frontend/package.json": "{}",
         "frontend/package-lock.json": "{}",
+        "frontend/e2e/helpers/capture-guide-screenshots.mjs": """
+const username = process.env.E2E_USERNAME;
+const password = process.env.E2E_PASSWORD;
+""",
         ".gitignore": """
 docs/*
 !docs/manual/
@@ -232,6 +236,16 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             ".github/dependabot.yml",
             '    directory: "/frontend"',
             "Dependabot npm directory does not point to /frontend",
+        ),
+        (
+            "frontend/e2e/helpers/capture-guide-screenshots.mjs",
+            "const password = process.env.E2E_PASSWORD;",
+            "guide screenshot capture does not require the E2E password from the environment",
+        ),
+        (
+            "frontend/e2e/helpers/capture-guide-screenshots.mjs",
+            "const username = process.env.E2E_USERNAME;",
+            "guide screenshot capture does not require the E2E username from the environment",
         ),
     ),
 )
