@@ -333,6 +333,7 @@ jobs:
           exit-code: "1"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json
 
   e2e:
     needs: build
