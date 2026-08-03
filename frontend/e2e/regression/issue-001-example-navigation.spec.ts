@@ -6,6 +6,11 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { loginViaApi } from '../auth.fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await loginViaApi(page);
+});
 
 test.describe('Regression: Issue #001 - Navigation After Page Load', () => {
   /**

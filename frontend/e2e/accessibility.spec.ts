@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { loginViaApi } from './auth.fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await loginViaApi(page);
+});
 
 test.describe('Accessibility Tests', () => {
   test('homepage should have proper semantic HTML', async ({ page }) => {
@@ -31,6 +36,7 @@ test.describe('Accessibility Tests', () => {
 
   test('should be keyboard navigable', async ({ page }) => {
     await page.goto('/');
+    await expect(page.locator('nav')).toBeVisible();
 
     // Press Tab to focus first link
     await page.keyboard.press('Tab');

@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { loginViaApi } from './auth.fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await loginViaApi(page);
+});
 
 test.describe('Homepage', () => {
   test.beforeEach(async ({ page }) => {
