@@ -11,6 +11,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.0] - 2026-08-04
+
+### Added
+- feat(frontend): add administrator login flow
+- feat(frontend): persist JWT sessions in API client
+- feat(auth): enforce administrator JWT sessions
+- feat(frontend): add cloudflare integration route
+
+### Changed
+- refactor(frontend): remove login page
+- refactor(frontend): remove auth redirects
+- refactor(frontend): remove login navigation
+- refactor(tests): deduplicate REGTECH pagination setup
+- refactor(tests): prepare REGTECH pagination scenarios
+- refactor(tests): deduplicate REGTECH pagination setup
+
+### Fixed
+- fix(frontend): update vulnerable dependencies
+- fix(collector): update security dependencies
+- fix(app): update cryptography security release
+- fix(ci): ignore pip vendored SBOM during image scans
+- fix(release): pin a resolvable Python setup action
+- fix(dependabot): target frontend package manifest
+- fix(ci): repair PR review source checkout
+- fix(collector): support CI package imports
+- fix(deploy): prevent offline image pulls
+- fix(auth): disable jwt middleware
+- fix(frontend): validate credential modal on submit
+- fix(frontend): clarify collection controls
+- fix(frontend): align collection state contracts
+- fix(deploy): harden offline secret provisioning
+- fix(collector): bind control server to loopback
+- fix(scheduler): skip collection without credentials
+- fix(credentials): fail closed on decryption errors
+- fix(proxy): forward authorization headers
+- fix(api): validate collection credential payloads
+- fix(scheduler): request all REGTECH pages manually
+- fix(scheduler): request all REGTECH pages manually
+- fix(regtech): complete pagination without partial results
+- fix(health): report persisted collection status
+- fix(database): persist collection snapshots atomically
+- fix(config): redact collector credentials from diagnostics
+- fix(health): report persisted collection status
+- fix(database): persist collection snapshots atomically
+- fix(scheduler): request all REGTECH pages manually
+- fix(regtech): complete pagination without partial results
+- fix(config): redact collector credentials from diagnostics
+- fix(deps): restore Python 3.11 image builds
+- fix(deploy): stop running containers before install
+- fix(frontend): improve cloudflare settings layout
+- fix(deploy): repair development compose configuration
+- fix(collector): use supported regtech page size
+- fix(collector): correct regtech request pagination
+
+### CI/CD
+- ci(release): package offline documentation
+
+### Other
+- test(e2e): consolidate security page login
+- test(e2e): consolidate database settings login
+- test(e2e): stabilize dashboard navigation
+- test(e2e): stabilize collection analytics authentication
+- test(e2e): consolidate collection login setup
+- test(e2e): authenticate deployment smoke checks
+- test(e2e): authenticate integration scenarios
+- test(e2e): authenticate core protected pages
+- test(e2e): centralize authenticated requests
+- test(ci): guard pip vendor SBOM exclusion
+- revert(deps): restore TypeScript 5
+- revert(deps): restore Vite React plugin 5
+- test(ci): enforce Dependabot manifest directory
+- docs(deploy): list offline runtime prerequisites
+- docs(deploy): remove administrator setup
+- docs(release): document v4.1.0 auth changes
+- docs: update offline guide indexes
+- docs(deploy): consolidate offline installation guide
+- docs(frontend): define operational console design
+- docs(deploy): document credential bootstrap
+- Revert "fix(scheduler): request all REGTECH pages manually"
+- Revert "chore(deps): override vulnerable frontend packages"
+- docs(release): add operator checklist
+- docs(release): note Python 3.11 dependency fix
+
+---
+
 ## [5.0.0] - 2026-07-29
 
 정보보호팀 코드검토(2026-07-28) 지적사항을 조치한 보안 릴리즈입니다.
