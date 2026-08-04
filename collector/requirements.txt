@@ -21,7 +21,7 @@ pytz==2026.3.post1
 schedule==1.2.2
 
 # Security & Encryption
-cryptography==48.0.1
+cryptography==50.0.0
 bcrypt==5.0.0
 
 # Monitoring & Health Check
@@ -33,4 +33,4 @@ colorlog==6.12.0
 structlog==25.5.0
 
 # SSH for FortiGate
-paramiko==4.0.0
+paramiko==5.0.0
