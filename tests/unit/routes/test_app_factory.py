@@ -6,6 +6,12 @@ import pytest
 from core.app import MemoryHandler, create_app
 
 
+@pytest.fixture(autouse=True)
+def app_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FLASK_SECRET_KEY", "unit-test-flask-secret")
+    monkeypatch.setenv("JWT_SECRET_KEY", "unit-test-jwt-secret")
+
+
 class TestMemoryHandler:
     def test_init_capacity(self):
         handler = MemoryHandler(capacity=5)
@@ -53,15 +59,13 @@ class TestCreateApp:
         app = create_app()
         with patch("core.app_lifecycle.psycopg2.connect") as mc:
             conn, cur = MagicMock(), MagicMock()
-            cur.fetchall.return_value = [("blacklist_ips",)]
-            cur.fetchone.return_value = (42,)
             conn.cursor.return_value = cur
             mc.return_value = conn
             resp = app.test_client().get("/health")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["status"] == "healthy"
-        assert data["database"]["blacklist_ips_count"] == 42
+        assert set(data) == {"status", "timestamp"}
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app_lifecycle.threading.Thread")
@@ -70,7 +74,10 @@ class TestCreateApp:
         with patch("core.app_lifecycle.psycopg2.connect", side_effect=Exception("conn refused")):
             resp = app.test_client().get("/health")
         assert resp.status_code == 500
-        assert resp.get_json()["status"] == "unhealthy"
+        data = resp.get_json()
+        assert data["status"] == "unhealthy"
+        assert set(data) == {"status", "timestamp"}
+        assert "conn refused" not in resp.get_data(as_text=True)
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app_lifecycle.threading.Thread")
@@ -90,17 +97,16 @@ class TestCreateApp:
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app_lifecycle.threading.Thread")
-    def test_gzip_compression_large_response(self, _thread, _init):
+    def test_health_response_stays_small_with_gzip_accepted(self, _thread, _init):
         app = create_app()
         with patch("core.app_lifecycle.psycopg2.connect") as mc:
             conn, cur = MagicMock(), MagicMock()
-            cur.fetchall.return_value = [(f"table_{i}",) for i in range(100)]
-            cur.fetchone.return_value = (999,)
             conn.cursor.return_value = cur
             mc.return_value = conn
             resp = app.test_client().get("/health", headers={"Accept-Encoding": "gzip"})
         assert resp.status_code == 200
-        assert resp.headers.get("Content-Encoding") == "gzip"
+        assert resp.headers.get("Content-Encoding") is None
+        assert set(resp.get_json()) == {"status", "timestamp"}
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app_lifecycle.threading.Thread")
@@ -135,20 +141,37 @@ class TestCreateApp:
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app_lifecycle.threading.Thread")
-    def test_health_ip_count_query_failure(self, _thread, _init):
-        import psycopg2
-
+    def test_health_uses_status_probe_only(self, _thread, _init):
         app = create_app()
         with patch("core.app_lifecycle.psycopg2.connect") as mc:
             conn, cur = MagicMock(), MagicMock()
-            cur.fetchall.return_value = [("blacklist_ips",)]
-            cur.execute.side_effect = [None, psycopg2.Error("count failed")]
-            cur.fetchone.return_value = None
             conn.cursor.return_value = cur
             mc.return_value = conn
             resp = app.test_client().get("/health")
         assert resp.status_code == 200
-        assert resp.get_json()["database"]["blacklist_ips_count"] == 0
+        cur.execute.assert_called_once_with("SELECT 1")
+
+    @patch("core.services.service_factory.initialize_services", return_value={})
+    @patch("core.app_lifecycle.threading.Thread")
+    def test_only_supported_route_namespaces_are_registered(self, _thread, _init):
+        app = create_app()
+        rules = [str(rule) for rule in app.url_map.iter_rules()]
+
+        for obsolete_rule in (
+            "/",
+            "/settings/",
+            "/admin/regtech/credentials",
+            "/collection-control",
+            "/debug/routes",
+            "/test-simple",
+            "/api/migration/reset-all-data",
+        ):
+            assert obsolete_rule not in rules
+
+        assert rules.count("/api/collection/history") == 1
+        assert rules.count("/api/collection/credentials/<source>") == 1
+        assert rules.count("/api/fortinet/health") == 1
+        assert rules.count("/api/fortinet/register") == 1
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app_lifecycle.threading.Thread")

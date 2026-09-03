@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import NavBar from '../../components/NavBar';
 
@@ -45,26 +45,31 @@ vi.mock('@/lib/api', () => ({
 describe('NavBar Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLogout.mockResolvedValue(undefined);
   });
 
-  it('ends the session and returns to login from the desktop navigation', () => {
+  it('ends the session and returns to login from the desktop navigation', async () => {
     render(<NavBar />);
 
     fireEvent.click(screen.getByRole('button', { name: '로그아웃' }));
 
-    expect(mockLogout).toHaveBeenCalledOnce();
-    expect(mockReplace).toHaveBeenCalledWith('/login');
+    await waitFor(() => {
+      expect(mockLogout).toHaveBeenCalledOnce();
+      expect(mockReplace).toHaveBeenCalledWith('/login');
+    });
   });
 
-  it('ends the session and returns to login from the mobile navigation', () => {
+  it('ends the session and returns to login from the mobile navigation', async () => {
     render(<NavBar />);
 
     fireEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
     const logoutButtons = screen.getAllByRole('button', { name: '로그아웃' });
     fireEvent.click(logoutButtons[logoutButtons.length - 1]);
 
-    expect(mockLogout).toHaveBeenCalledOnce();
-    expect(mockReplace).toHaveBeenCalledWith('/login');
+    await waitFor(() => {
+      expect(mockLogout).toHaveBeenCalledOnce();
+      expect(mockReplace).toHaveBeenCalledWith('/login');
+    });
   });
 
   it('renders logo correctly', () => {

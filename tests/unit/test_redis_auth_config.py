@@ -7,6 +7,7 @@ connection parameters only.
 """
 
 from unittest.mock import patch
+from pathlib import Path
 
 import pytest
 
@@ -14,6 +15,7 @@ import pytest
 PROBE_PASSWORD = "pr@be:pass/word"
 ENCODED_PROBE_PASSWORD = "pr%40be%3Apass%2Fword"
 TLS_QUERY = "ssl_ca_certs=%2Frun%2Fblacklist%2Fca.crt&ssl_cert_reqs=required"
+ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.unit
@@ -115,6 +117,8 @@ class TestRedisClientAuthentication:
         monkeypatch.setenv("REDIS_HOST", "redis-host")
         monkeypatch.setenv("REDIS_PORT", "6380")
         monkeypatch.setenv("REDIS_PASSWORD", PROBE_PASSWORD)
+        monkeypatch.setenv("SECRET_KEY", "test-flask-secret")
+        monkeypatch.setenv("JWT_SECRET_KEY", "test-jwt-secret")
         from core.app import create_app
 
         with patch("core.app.Limiter") as mock_limiter, patch("core.app_lifecycle.threading.Thread"), patch(
@@ -124,3 +128,13 @@ class TestRedisClientAuthentication:
 
         storage_uri = mock_limiter.call_args.kwargs["storage_uri"]
         assert storage_uri == f"rediss://:{ENCODED_PROBE_PASSWORD}@redis-host:6380/1?{TLS_QUERY}"
+        assert mock_limiter.call_args.kwargs["default_limits"] == ["1000 per hour"]
+
+
+def test_redis_preserves_auth_state_without_eviction() -> None:
+    redis_config = (ROOT / "deploy/redis/Dockerfile").read_text()
+
+    assert '"appendonly yes"' in redis_config
+    assert '"appendfsync everysec"' in redis_config
+    assert '"maxmemory-policy noeviction"' in redis_config
+    assert '"save \"\""' not in redis_config

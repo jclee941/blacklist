@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import io
-import logging
-import secrets
 import uuid
 import gzip
 from pathlib import Path
@@ -11,10 +9,14 @@ from flask.json.provider import DefaultJSONProvider
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
+import redis
 
 from core.app_lifecycle import register_health_route, start_delayed_background_tasks
 from core.app_logging import MemoryHandler
 from .config import config
+from .auth.proxy import TrustedProxyMiddleware
+from .exceptions import ConfigurationError
+from .utils.rate_limit import apply_route_limits, is_rate_limit_exempt_path
 
 __all__ = ["MemoryHandler", "create_app"]
 
@@ -24,15 +26,21 @@ def create_app():
     templates_dir = app_root / "templates"
 
     app = Flask(__name__, template_folder=str(templates_dir))
+    app.wsgi_app = TrustedProxyMiddleware(app.wsgi_app, config.TRUSTED_PROXY_NETWORKS)
+    app.config["FORTINET_FEED_TOKEN"] = config.FORTINET_FEED_TOKEN
+    app.config["FORTINET_FEED_ALLOWED_NETWORKS"] = config.FORTINET_FEED_ALLOWED_NETWORKS
+    app.config["FORTIGATE_ALLOWED_NETWORKS"] = config.FORTIGATE_ALLOWED_NETWORKS
+
+    if config.DISABLE_JWT_AUTH and config.FLASK_ENV != "development" and not config.TESTING:
+        raise ConfigurationError(
+            "DISABLE_JWT_AUTH is forbidden outside development",
+            config_key="DISABLE_JWT_AUTH",
+        )
 
     # Secret key for session management and CSRF protection
     flask_secret = config.FLASK_SECRET_KEY or config.SECRET_KEY
     if not flask_secret:
-        logging.getLogger(__name__).warning(
-            "FLASK_SECRET_KEY not set — using random key. "
-            "JWTs will be invalidated on restart. Set FLASK_SECRET_KEY in production."
-        )
-        flask_secret = secrets.token_hex(32)
+        raise ConfigurationError("FLASK_SECRET_KEY or SECRET_KEY is required", config_key="FLASK_SECRET_KEY")
     app.config["SECRET_KEY"] = flask_secret
 
     app.config["WTF_CSRF_CHECK_DEFAULT"] = False
@@ -62,7 +70,7 @@ def create_app():
         key_func=get_remote_address,
         storage_uri=config.get_redis_url(database=1),
         storage_options={"socket_connect_timeout": 2},
-        default_limits=["200 per day", "50 per hour"],
+        default_limits=["1000 per hour"],
         strategy="fixed-window",
         headers_enabled=True,
     )
@@ -70,6 +78,8 @@ def create_app():
     @limiter.request_filter
     def ip_whitelist_rate_limit():
         """Exempt internal health checks from rate limiting"""
+        if is_rate_limit_exempt_path(request.path):
+            return True
         remote_addr = get_remote_address()
         whitelist = config.RATE_LIMIT_WHITELIST
         return any(
@@ -90,7 +100,7 @@ def create_app():
         for service_name, service_instance in services.items():
             app.extensions[service_name] = service_instance
 
-        app.logger.info(f"✅ Initialized {len(services)}/15 services via dependency injection")
+        app.logger.info("✅ Initialized %d services via dependency injection", len(services))
     except Exception:
         app.logger.exception("❌ Service initialization failed")
         raise
@@ -101,8 +111,23 @@ def create_app():
     from .auth.decorators import public
     from .auth.jwt_service import JWTService
     from .auth.middleware import jwt_required_hook
+    from .auth.security import AuthSecurity, RedisSecurityStore
 
-    jwt_service = JWTService(config.JWT_SECRET or app.config["SECRET_KEY"])
+    auth_store = redis.Redis(
+        host=config.REDIS_HOST,
+        port=config.REDIS_PORT,
+        db=2,
+        decode_responses=True,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+        **config.get_redis_auth_params(),
+    )
+    auth_security = AuthSecurity(RedisSecurityStore(auth_store))
+    app.extensions["auth_security"] = auth_security
+    jwt_secret = config.JWT_SECRET
+    if not jwt_secret:
+        raise ConfigurationError("JWT_SECRET_KEY is required", config_key="JWT_SECRET_KEY")
+    jwt_service = JWTService(jwt_secret, revocations=auth_security, expiry_hours=config.JWT_EXPIRY_HOURS)
     app.extensions["jwt_service"] = jwt_service
     app.before_request(jwt_required_hook)
 
@@ -188,78 +213,13 @@ def create_app():
         app.logger.error(f"❌ Auth API failed: {e}")
 
     try:
-        from core.routes.api.fortinet import register_fortinet_routes
-
-        register_fortinet_routes(app)
-        app.logger.info("✅ Fortinet API routes registered")
-    except Exception as e:
-        app.logger.error(f"❌ Fortinet API failed: {e}")
-
-    try:
-        from core.routes.api.collection import register_collection_routes
-
-        register_collection_routes(app)
-        app.logger.info("✅ Collection API routes registered")
-    except Exception as e:
-        app.logger.error(f"❌ Collection API failed: {e}")
-
-    try:
         from core.routes.api import api_bp
-        from core.routes.api.ip_management import ip_management_legacy_bp
 
-        # Exempt API blueprint from CSRF - API uses other auth mechanisms (tokens, headers)
         csrf.exempt(api_bp)
-        csrf.exempt(ip_management_legacy_bp)
-        # Use name='api_unified' to avoid name collision with existing blueprints
         app.register_blueprint(api_bp, name="api_unified")
-        app.register_blueprint(ip_management_legacy_bp)
         app.logger.info("✅ Unified API Blueprint registered (CSRF exempt)")
     except Exception as e:
         app.logger.error(f"❌ Unified API Blueprint failed: {e}")
-
-    try:
-        from .routes.web.settings import settings_bp
-
-        csrf.exempt(settings_bp)
-    except Exception as e:
-        settings_bp = None
-        app.logger.error(f"❌ Settings blueprint import failed: {e}")
-
-    try:
-        from .routes.web.admin import regtech_admin_bp
-
-        csrf.exempt(regtech_admin_bp)
-    except Exception as e:
-        regtech_admin_bp = None
-        app.logger.error(f"❌ REGTECH admin blueprint import failed: {e}")
-
-    try:
-        from .routes.web_routes import web_bp
-
-        if "web" not in app.blueprints:
-            app.register_blueprint(web_bp)
-    except Exception as e:
-        app.logger.error(f"❌ Web routes failed: {e}")
-
-    if regtech_admin_bp:
-        try:
-            app.register_blueprint(regtech_admin_bp, url_prefix="/admin", name="regtech_admin_web")
-        except Exception as e:
-            app.logger.error(f"❌ REGTECH admin routes registration failed: {e}")
-
-    if settings_bp:
-        try:
-            app.register_blueprint(settings_bp, name="settings_web")
-        except Exception as e:
-            app.logger.error(f"❌ Settings routes registration failed: {e}")
-
-    try:
-        from .routes.web.collection_panel import collection_bp
-
-        csrf.exempt(collection_bp)
-        app.register_blueprint(collection_bp, name="collection_panel_web")
-    except Exception as e:
-        app.logger.error(f"❌ Collection panel routes failed: {e}")
 
     try:
         from .routes.proxy_routes import proxy_bp
@@ -287,6 +247,7 @@ def create_app():
 
     register_health_route(app)
     start_delayed_background_tasks(app)
+    apply_route_limits(app, limiter)
 
     return app
 

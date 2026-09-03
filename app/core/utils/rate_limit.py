@@ -1,30 +1,28 @@
-"""Centralized rate limiting decorator.
+from collections.abc import Callable
+from typing import Final, TypeVar
 
-Uses Flask-Limiter instance stored on the Flask app.
-Gracefully degrades if limiter is not configured.
-"""
-
-from functools import wraps
-
-from flask import current_app
+from flask import Flask
+from flask.typing import ResponseReturnValue
 
 
-def rate_limit(limit_string):
-    """Rate limiting decorator - uses app.limiter from app.py"""
+F = TypeVar("F", bound=Callable[..., ResponseReturnValue])
+RATE_LIMIT_EXEMPT_PATHS: Final = frozenset({"/health", "/api/health", "/metrics"})
 
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            limiter = getattr(current_app, "limiter", None)
-            if limiter is None:
-                return f(*args, **kwargs)
 
-            @limiter.limit(limit_string)
-            def limited_route(*args, **kwargs):
-                return f(*args, **kwargs)
+def is_rate_limit_exempt_path(path: str) -> bool:
+    return path in RATE_LIMIT_EXEMPT_PATHS
 
-            return limited_route(*args, **kwargs)
 
-        return decorated_function
+def rate_limit(limit_string: str) -> Callable[[F], F]:
+    def decorator(function: F) -> F:
+        setattr(function, "_rate_limit", limit_string)
+        return function
 
     return decorator
+
+
+def apply_route_limits(app: Flask, limiter) -> None:
+    for endpoint, view in tuple(app.view_functions.items()):
+        limit_string = getattr(view, "_rate_limit", None)
+        if limit_string:
+            app.view_functions[endpoint] = limiter.limit(limit_string)(view)

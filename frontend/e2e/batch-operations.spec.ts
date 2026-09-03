@@ -20,10 +20,8 @@ test.describe('Batch Operations', () => {
   test.describe('Batch Add API', () => {
     test('유효한 IP 목록 일괄 추가', async ({ request }) => {
       const response = await authenticatedPost(request, '/api/blacklist/batch/add', {
-        ips: [
-          { ip_address: '10.99.99.1', reason: 'E2E batch test 1', source: 'e2e-test' },
-          { ip_address: '10.99.99.2', reason: 'E2E batch test 2', source: 'e2e-test' },
-        ],
+        ips: ['10.99.99.1', '10.99.99.2'],
+        reason: 'E2E batch test',
       });
 
       expect([200, 201, 207, 429]).toContain(response.status());
@@ -42,10 +40,8 @@ test.describe('Batch Operations', () => {
 
     test('잘못된 IP 형식 포함 시 처리', async ({ request }) => {
       const response = await authenticatedPost(request, '/api/blacklist/batch/add', {
-        ips: [
-          { ip_address: 'not-an-ip', reason: 'invalid', source: 'e2e-test' },
-          { ip_address: '10.99.99.3', reason: 'valid', source: 'e2e-test' },
-        ],
+        ips: ['not-an-ip', '10.99.99.3'],
+        reason: 'E2E mixed batch test',
       });
 
       expect([200, 207, 400, 422, 429]).toContain(response.status());
@@ -77,7 +73,8 @@ test.describe('Batch Operations', () => {
   test.describe('Batch Update API', () => {
     test('IP 목록 일괄 업데이트', async ({ request }) => {
       const response = await authenticatedPost(request, '/api/blacklist/batch/update', {
-        ips: [{ ip_address: '10.99.99.1', reason: 'Updated via E2E batch' }],
+        ips: ['10.99.99.1'],
+        reason: 'Updated via E2E batch',
       });
 
       expect([200, 207, 400, 404, 429]).toContain(response.status());
@@ -95,7 +92,8 @@ test.describe('Batch Operations', () => {
       const responses = [];
       for (let i = 0; i < 3; i++) {
         const response = await authenticatedPost(request, '/api/blacklist/batch/add', {
-          ips: [{ ip_address: `10.99.98.${i}`, reason: 'rate limit test', source: 'e2e-test' }],
+          ips: [`10.99.98.${i}`],
+          reason: 'rate limit test',
         });
         responses.push(response.status());
       }

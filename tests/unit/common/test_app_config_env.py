@@ -59,10 +59,10 @@ class TestAppConfigEnvOverrides:
             cfg = AppConfig()
             assert cfg.SECRET_KEY == "my-secret"
 
-    def test_migration_key_override(self):
-        with patch.dict(os.environ, {"MIGRATION_KEY": "new-key-2026"}):
-            cfg = AppConfig()
-            assert cfg.MIGRATION_KEY == "new-key-2026"
+    def test_obsolete_migration_key_is_not_configuration(self):
+        cfg = AppConfig()
+
+        assert not hasattr(cfg, "MIGRATION_KEY")
 
 
 @pytest.mark.unit

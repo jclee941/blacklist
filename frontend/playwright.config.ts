@@ -47,6 +47,7 @@ import { defineConfig, devices } from '@playwright/test';
 const webkitEnabled = process.env.WEBKIT_ENABLED === 'true';
 const templateTest = /(?:^|\/)_template-.*\.spec\.ts$/;
 const smokeTest = /smoke\.spec\.ts/;
+const authTest = /auth\.spec\.ts/;
 
 export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
@@ -109,7 +110,7 @@ export default defineConfig({
 
     {
       name: 'chromium',
-      testIgnore: [smokeTest, templateTest],
+      testIgnore: [smokeTest, templateTest, authTest],
       use: { ...devices['Desktop Chrome'] },
     },
 
@@ -123,11 +124,19 @@ export default defineConfig({
       ? [
           {
             name: 'webkit',
-            testIgnore: [smokeTest, templateTest],
+            testIgnore: [smokeTest, templateTest, authTest],
             use: { ...devices['Desktop Safari'] },
           },
         ]
       : []),
+
+    {
+      name: 'auth',
+      testMatch: authTest,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['smoke', 'chromium', ...(webkitEnabled ? ['webkit'] : [])],
+      retries: 0,
+    },
 
     /* Test against branded browsers. */
     // {

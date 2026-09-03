@@ -1,10 +1,14 @@
 import logging
+import secrets
 
+import psycopg2
 from flask import Blueprint, jsonify, request, current_app
 
 from core.auth.decorators import public
 from core.config import config
 from core.exceptions.auth_exceptions import AuthenticationError
+from core.auth.security import PasswordPolicyError, hash_password, verify_password
+from core.utils.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +16,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
 @auth_bp.route("/login", methods=["POST"])
+@rate_limit("5 per minute")
 @public
 def login():
     """Authenticate user and return JWT token.
@@ -34,8 +39,19 @@ def login():
             }
         ), 400
 
-    username = data["username"].strip()
+    raw_username = data["username"]
     password = data["password"]
+    if not isinstance(raw_username, str) or not isinstance(password, str):
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "Username and password must be strings",
+                "code": "AUTH_INVALID_INPUT",
+            }
+        ), 400
+    username = raw_username.strip()
 
     if not username or len(username) > 255:
         return jsonify(
@@ -48,7 +64,7 @@ def login():
             }
         ), 400
 
-    if len(password) > 1024:
+    if len(password.encode("utf-8")) > 72:
         return jsonify(
             {
                 "type": "about:blank",
@@ -72,30 +88,90 @@ def login():
             }
         ), 500
 
+    auth_security = current_app.extensions.get("auth_security")
+    if auth_security is None:
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "Authentication service unavailable",
+                "code": "AUTH_SERVICE_UNAVAILABLE",
+            }
+        ), 500
+
+    client_ip = request.remote_addr or "unknown"
+    if auth_security.is_login_locked(username, client_ip):
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Too Many Requests",
+                "status": 429,
+                "detail": "Too many failed login attempts",
+                "code": "AUTH_ACCOUNT_LOCKED",
+            }
+        ), 429
+
     try:
         admin_username = settings_service.get_setting("admin_username", config.ADMIN_USERNAME)
         admin_password = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
-    except Exception as e:
+    except (KeyError, RuntimeError, psycopg2.Error) as e:
         logger.warning("Settings service unavailable, falling back to env vars: %s", e)
         admin_username = config.ADMIN_USERNAME
         admin_password = config.ADMIN_PASSWORD
 
-    credentials_configured = bool(
-        admin_username and admin_username.strip() and admin_password and admin_password.strip()
-    )
+    credentials_configured = False
+    username_valid = False
+    password_valid = False
+    upgraded_hash = None
+    if (
+        isinstance(admin_username, str)
+        and admin_username.strip()
+        and isinstance(admin_password, str)
+        and admin_password.strip()
+    ):
+        credentials_configured = True
+        password_valid, upgraded_hash = verify_password(password, admin_password)
+        username_valid = secrets.compare_digest(username.encode(), admin_username.encode())
     if not credentials_configured:
         logger.error("Administrator login is disabled: configure ADMIN_USERNAME and ADMIN_PASSWORD")
-    elif username != admin_username or password != admin_password:
+    if credentials_configured and (not username_valid or not password_valid):
+        auth_security.record_login_failure(username, client_ip)
         logger.warning("Failed login attempt for user: %s", username)
-    else:
+    elif credentials_configured:
+        if upgraded_hash is not None:
+            password_persisted = settings_service.set_setting("admin_password", upgraded_hash, encrypt=False)
+            if not password_persisted:
+                password_persisted = settings_service.create_setting(
+                    key="admin_password",
+                    value=upgraded_hash,
+                    setting_type="password",
+                    description="Administrator password hash",
+                    category="security",
+                    encrypt=False,
+                )
+            if not password_persisted:
+                return jsonify(
+                    {
+                        "type": "about:blank",
+                        "title": "Internal Server Error",
+                        "status": 500,
+                        "detail": "Authentication service unavailable",
+                        "code": "AUTH_SERVICE_UNAVAILABLE",
+                    }
+                ), 500
+        auth_security.clear_login_failures(username, client_ip)
         jwt_service = current_app.extensions["jwt_service"]
         token = jwt_service.encode_token(user_id=username, role="admin")
+        expiry_seconds = jwt_service.expiry_seconds
+        if not isinstance(expiry_seconds, int):
+            expiry_seconds = config.JWT_EXPIRY_HOURS * 60 * 60
 
         logger.info("User '%s' logged in successfully", username)
         return jsonify(
             {
                 "token": token,
-                "expires_in": 28800,
+                "expires_in": expiry_seconds,
                 "user": {"id": username, "role": "admin"},
             }
         ), 200
@@ -109,6 +185,91 @@ def login():
             "code": "AUTH_INVALID_CREDENTIALS",
         }
     ), 401
+
+
+@auth_bp.route("/logout", methods=["POST"])
+def logout():
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return _unauthorized()
+    jwt_service = current_app.extensions.get("jwt_service")
+    if jwt_service is None:
+        return _unauthorized()
+    try:
+        jwt_service.revoke_token(header[7:])
+    except (AuthenticationError, AttributeError):
+        return _unauthorized()
+    return jsonify({"success": True}), 200
+
+
+@auth_bp.route("/password", methods=["PUT"])
+@rate_limit("5 per minute")
+def rotate_password():
+    identity = _resolve_bearer_identity()
+    if identity is None:
+        return _unauthorized()
+    if identity.get("role") != "admin":
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Forbidden",
+                "status": 403,
+                "detail": "Administrator role is required",
+                "code": "AUTH_ADMIN_REQUIRED",
+            }
+        ), 403
+
+    data = request.get_json(silent=True) or {}
+    current_password = data.get("current_password")
+    new_password = data.get("new_password")
+    if not isinstance(current_password, str) or not isinstance(new_password, str):
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "Current and new passwords are required",
+                "code": "AUTH_INVALID_INPUT",
+            }
+        ), 400
+
+    settings_service = current_app.extensions["settings_service"]
+    configured = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
+    if not configured or not verify_password(current_password, configured)[0]:
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Current password is invalid",
+                "code": "AUTH_CURRENT_PASSWORD_INVALID",
+            }
+        ), 401
+    try:
+        replacement = hash_password(new_password)
+    except PasswordPolicyError:
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "New password does not meet policy",
+                "code": "AUTH_PASSWORD_POLICY",
+            }
+        ), 400
+    if not settings_service.set_setting("admin_password", replacement, encrypt=False):
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "Password rotation failed",
+                "code": "AUTH_SERVICE_UNAVAILABLE",
+            }
+        ), 500
+    auth_security = current_app.extensions["auth_security"]
+    auth_security.invalidate_sessions(identity["sub"])
+    return jsonify({"success": True, "message": "Password rotated successfully"}), 200
 
 
 def _resolve_bearer_identity():

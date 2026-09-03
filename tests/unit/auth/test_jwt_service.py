@@ -1,6 +1,7 @@
 """Unit tests for core.auth.jwt_service."""
 
 from datetime import datetime, timedelta, timezone
+from typing import final
 
 import jwt
 import pytest
@@ -20,15 +21,16 @@ class TestJWTServiceInit:
             JWTService(secret_key="")
 
     def test_init_with_none_raises(self):
+        constructor = getattr(__import__("core.auth.jwt_service", fromlist=["JWTService"]), "JWTService")
         with pytest.raises((ValueError, TypeError)):
-            JWTService(secret_key=None)
+            constructor(secret_key=None)
 
 
+@final
 class TestEncodeToken:
     """Tests for JWTService.encode_token."""
 
-    def setup_method(self):
-        self.service = JWTService(secret_key="test-secret-key-for-jwt")
+    service = JWTService(secret_key="test-secret-key-for-jwt")
 
     def test_encode_returns_string(self):
         token = self.service.encode_token(user_id="user1")
@@ -40,6 +42,7 @@ class TestEncodeToken:
         payload = jwt.decode(token, "test-secret-key-for-jwt", algorithms=[JWT_ALGORITHM])
         assert payload["sub"] == "user1"
         assert payload["role"] == "user"
+        assert payload["session_version"] == 0
         assert "iat" in payload
         assert "exp" in payload
 
@@ -71,11 +74,11 @@ class TestEncodeToken:
         assert token1 != token2
 
 
+@final
 class TestDecodeToken:
     """Tests for JWTService.decode_token."""
 
-    def setup_method(self):
-        self.service = JWTService(secret_key="test-secret-key-for-jwt")
+    service = JWTService(secret_key="test-secret-key-for-jwt")
 
     def test_decode_valid_token(self):
         token = self.service.encode_token(user_id="user1", role="admin")
@@ -114,11 +117,11 @@ class TestDecodeToken:
             self.service.decode_token(token)
 
 
+@final
 class TestValidateToken:
     """Tests for JWTService.validate_token."""
 
-    def setup_method(self):
-        self.service = JWTService(secret_key="test-secret-key-for-jwt")
+    service = JWTService(secret_key="test-secret-key-for-jwt")
 
     def test_validate_valid_token(self):
         token = self.service.encode_token(user_id="user1")
@@ -136,6 +139,20 @@ class TestValidateToken:
         from core.exceptions.auth_exceptions import AuthenticationError
 
         with pytest.raises(AuthenticationError, match="subject"):
+            self.service.validate_token(token)
+
+    def test_validate_token_missing_session_version(self):
+        payload = {
+            "sub": "user1",
+            "role": "user",
+            "jti": "legacy-token",
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        }
+        token = jwt.encode(payload, "test-secret-key-for-jwt", algorithm=JWT_ALGORITHM)
+        from core.exceptions.auth_exceptions import AuthenticationError
+
+        with pytest.raises(AuthenticationError, match="session version"):
             self.service.validate_token(token)
 
     def test_validate_expired_token_raises(self):

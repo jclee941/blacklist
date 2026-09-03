@@ -51,7 +51,31 @@ class AppConfig(DatastoreConfig):
     @property
     def RATE_LIMIT_WHITELIST(self) -> list[str]:
         """Rate limit exempt IPs/prefixes. Entries ending with '.' are prefix matches."""
-        return os.getenv("RATE_LIMIT_WHITELIST", "127.0.0.1,localhost,172.,192.168.").split(",")
+        return [
+            entry.strip() for entry in os.getenv("RATE_LIMIT_WHITELIST", "127.0.0.1,::1").split(",") if entry.strip()
+        ]
+
+    @property
+    def TRUSTED_PROXY_NETWORKS(self) -> tuple[str, ...]:
+        return tuple(
+            entry.strip()
+            for entry in os.getenv("TRUSTED_PROXY_NETWORKS", "127.0.0.1/32,::1/128").split(",")
+            if entry.strip()
+        )
+
+    @property
+    def FORTINET_FEED_TOKEN(self) -> str:
+        return os.getenv("FORTINET_FEED_TOKEN", "")
+
+    @property
+    def FORTINET_FEED_ALLOWED_NETWORKS(self) -> tuple[str, ...]:
+        return tuple(
+            entry.strip() for entry in os.getenv("FORTINET_FEED_ALLOWED_NETWORKS", "").split(",") if entry.strip()
+        )
+
+    @property
+    def FORTIGATE_ALLOWED_NETWORKS(self) -> tuple[str, ...]:
+        return tuple(entry.strip() for entry in os.getenv("FORTIGATE_ALLOWED_NETWORKS", "").split(",") if entry.strip())
 
     @property
     def SECRET_KEY(self) -> str | None:
@@ -96,10 +120,6 @@ class AppConfig(DatastoreConfig):
     @property
     def ADMIN_RESET_KEY(self) -> str | None:
         return os.getenv("ADMIN_RESET_KEY")
-
-    @property
-    def MIGRATION_KEY(self) -> str:
-        return os.getenv("MIGRATION_KEY", "cleanup-2025-09-03")
 
     @property
     def DISABLE_JWT_AUTH(self) -> bool:

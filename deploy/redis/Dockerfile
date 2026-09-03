@@ -1,4 +1,3 @@
-# Redis 7 - Blacklist Intelligence Platform (cache-only, no persistence)
 FROM redis:7-alpine
 
 LABEL description="Redis 7 for Blacklist Intelligence Platform"
@@ -23,9 +22,10 @@ RUN mkdir -p /usr/local/etc/redis && \
         "tls-auth-clients no" \
         "protected-mode yes" \
         "maxmemory 256mb" \
-        "maxmemory-policy allkeys-lru" \
-        "appendonly no" \
-        "save \"\"" \
+        "maxmemory-policy noeviction" \
+        "appendonly yes" \
+        "appendfsync everysec" \
+        "save 900 1" \
         "tcp-keepalive 300" \
         "timeout 0" \
     > /usr/local/etc/redis/redis.conf

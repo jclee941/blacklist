@@ -10,6 +10,8 @@ from typing import Any
 
 from flask import current_app, g, jsonify, request
 
+from core.exceptions.auth_exceptions import AuthenticationError
+
 logger = logging.getLogger(__name__)
 
 # Paths that are always public (no blueprint endpoint to decorate)
@@ -33,6 +35,8 @@ def jwt_required_hook() -> Any | None:
     from core.config import config
 
     if config.DISABLE_JWT_AUTH:
+        if config.FLASK_ENV != "development" and not current_app.testing:
+            return _auth_error("AUTH_BYPASS_FORBIDDEN", "Authentication bypass is forbidden in production"), 500
         g.current_user = {"sub": "dev", "role": "admin"}
         return None
 
@@ -51,10 +55,12 @@ def jwt_required_hook() -> Any | None:
 
     try:
         payload = jwt_service.validate_token(token)
+        if payload.get("role") != "admin":
+            return _auth_error("AUTH_ADMIN_REQUIRED", "Administrator role is required"), 403
         g.current_user = payload
         return None
-    except Exception as e:
-        return _auth_error("AUTH_TOKEN_INVALID", str(e)), 401
+    except AuthenticationError:
+        return _auth_error("AUTH_TOKEN_INVALID", "Invalid or expired bearer token"), 401
 
 
 def _auth_error(code: str, message: str) -> Any:
@@ -63,7 +69,11 @@ def _auth_error(code: str, message: str) -> Any:
         {
             "type": f"https://blacklist.local/errors/{code.lower().replace('_', '-')}",
             "title": "Authentication Error",
-            "status": 401 if "INTERNAL" not in code else 500,
+            "status": 500
+            if code in {"INTERNAL_AUTH_ERROR", "AUTH_BYPASS_FORBIDDEN"}
+            else 403
+            if code == "AUTH_ADMIN_REQUIRED"
+            else 401,
             "detail": message,
             "code": code,
         }

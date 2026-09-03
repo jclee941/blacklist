@@ -40,20 +40,14 @@ test.describe('데이터베이스 페이지', () => {
   });
 
   test('새로고침 버튼이 동작한다', async ({ page }) => {
-    const refreshBtn = page
-      .locator('button')
-      .filter({
-        has: page.locator('svg'),
-      })
-      .first();
+    const refreshButton = page.getByRole('button', { name: '새로고침', exact: true });
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/database/tables') && response.request().method() === 'GET'
+    );
 
-    if (await refreshBtn.isVisible().catch(() => false)) {
-      const reqPromise = page
-        .waitForRequest((req) => req.url().includes('/api/'), { timeout: 5000 })
-        .catch(() => null);
-      await refreshBtn.click();
-      await reqPromise;
-    }
+    await refreshButton.click();
+    expect((await responsePromise).status()).toBe(200);
   });
 
   test('테이블 행 데이터가 로드된다', async ({ page }) => {

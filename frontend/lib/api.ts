@@ -74,8 +74,18 @@ export const login = async (username: string, password: string) => {
   return data;
 };
 
-export const logout = () => {
-  removeToken();
+export const logout = async (): Promise<void> => {
+  try {
+    if (getToken()) {
+      await api.post('/auth/logout');
+    }
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      throw error;
+    }
+  } finally {
+    removeToken();
+  }
 };
 
 export const verifyToken = async () => {
@@ -84,12 +94,12 @@ export const verifyToken = async () => {
 };
 
 export const getStats = async () => {
-  const { data } = await api.get('/web-stats');
+  const { data } = await api.get('/dashboard/stats');
   return data;
 };
 
 export const getSystemStatus = async () => {
-  const { data } = await api.get('/connection/status');
+  const { data } = await api.get('/dashboard/status');
   return data;
 };
 

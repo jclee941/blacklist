@@ -40,6 +40,15 @@ describe('LoginPage', () => {
     expect(mocks.replace).toHaveBeenCalledWith('/');
   });
 
+  it('uses POST for the native pre-hydration fallback', () => {
+    render(<LoginPage />);
+
+    expect(screen.getByRole('button', { name: '로그인' }).closest('form')).toHaveAttribute(
+      'method',
+      'post'
+    );
+  });
+
   it('keeps the form visible and announces invalid credentials', async () => {
     const user = userEvent.setup();
     mocks.login.mockRejectedValue(new Error('invalid credentials'));

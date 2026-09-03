@@ -40,9 +40,18 @@ export const registerApiAuthFlowTests = () => {
       expect(getToken()).toBe('new-token');
     });
 
-    it('logout removes stored token', () => {
+    it('logout revokes the server token before clearing local storage', async () => {
+      getMocks().apiInstance.post.mockResolvedValueOnce({ data: { success: true } });
       setToken('temporary-token');
-      logout();
+      await logout();
+      expect(getMocks().apiInstance.post).toHaveBeenCalledWith('/auth/logout');
+      expect(getToken()).toBeNull();
+    });
+
+    it('logout clears local storage when server revocation fails', async () => {
+      getMocks().apiInstance.post.mockRejectedValueOnce(new Error('network unavailable'));
+      setToken('temporary-token');
+      await expect(logout()).resolves.toBeUndefined();
       expect(getToken()).toBeNull();
     });
 

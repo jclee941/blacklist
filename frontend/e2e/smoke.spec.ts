@@ -1,5 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
-import { getE2ECredentials, loginViaApi } from './auth.fixtures';
+import { test, expect } from '@playwright/test';
+import { getSharedAuthToken, loginViaApi } from './auth.fixtures';
 
 /**
  * Smoke Tests - Deployment Verification
@@ -12,14 +12,6 @@ import { getE2ECredentials, loginViaApi } from './auth.fixtures';
  */
 
 const API_BASE = process.env.API_URL || process.env.BASE_URL || 'http://localhost:2543';
-
-async function getToken(page: Page): Promise<string> {
-  const res = await page.request.post(`${API_BASE}/api/auth/login`, {
-    data: getE2ECredentials(),
-  });
-  const body = await res.json();
-  return body.data?.token ?? body.token ?? '';
-}
 
 test.describe('Smoke Tests @smoke', () => {
   test.describe.configure({ mode: 'parallel' });
@@ -40,7 +32,7 @@ test.describe('Smoke Tests @smoke', () => {
     });
 
     test('GET /api/collection/health - 수집기 헬스체크', async ({ page }) => {
-      const token = await getToken(page);
+      const token = getSharedAuthToken();
       const res = await page.request.get(`${API_BASE}/api/collection/health`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -50,7 +42,7 @@ test.describe('Smoke Tests @smoke', () => {
     });
 
     test('GET /api/blacklist/health - 블랙리스트 서비스 헬스체크', async ({ page }) => {
-      const token = await getToken(page);
+      const token = getSharedAuthToken();
       const res = await page.request.get(`${API_BASE}/api/blacklist/health`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -58,7 +50,7 @@ test.describe('Smoke Tests @smoke', () => {
     });
 
     test('GET /api/dashboard/status - 시스템 상태', async ({ page }) => {
-      const token = await getToken(page);
+      const token = getSharedAuthToken();
       const res = await page.request.get(`${API_BASE}/api/dashboard/status`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -103,7 +95,7 @@ test.describe('Smoke Tests @smoke', () => {
 
   test.describe('API Basic Response', () => {
     test('GET /api/blacklist/list - 블랙리스트 데이터 응답', async ({ page }) => {
-      const token = await getToken(page);
+      const token = getSharedAuthToken();
       const res = await page.request.get(`${API_BASE}/api/blacklist/list`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -114,7 +106,7 @@ test.describe('Smoke Tests @smoke', () => {
     });
 
     test('GET /api/dashboard/stats - 대시보드 통계 응답', async ({ page }) => {
-      const token = await getToken(page);
+      const token = getSharedAuthToken();
       const res = await page.request.get(`${API_BASE}/api/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -14,6 +14,8 @@ class TestAuthLogin:
         app.register_blueprint(auth_bp)
         app.extensions["jwt_service"] = Mock()
         app.extensions["settings_service"] = Mock()
+        app.extensions["auth_security"] = Mock()
+        app.extensions["auth_security"].is_login_locked.return_value = False
         return app
 
     @pytest.fixture
@@ -58,7 +60,7 @@ class TestAuthLogin:
         assert response.status_code == 401
 
     def test_login_settings_service_fallback_to_env(self, client, app):
-        app.extensions["settings_service"].get_setting.side_effect = Exception("DB down")
+        app.extensions["settings_service"].get_setting.side_effect = RuntimeError("DB down")
         app.extensions["jwt_service"].encode_token.return_value = "fallback-token"
         with patch.dict("os.environ", {"ADMIN_USERNAME": "envuser", "ADMIN_PASSWORD": "envpass"}):
             response = client.post("/api/auth/login", json={"username": "envuser", "password": "envpass"})

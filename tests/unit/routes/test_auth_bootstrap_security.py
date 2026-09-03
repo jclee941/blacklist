@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from flask import Flask
@@ -11,6 +12,10 @@ class SettingsServiceStub:
     def get_setting(self, _key: str, default: str | None = None) -> str | None:
         return default
 
+    def set_setting(self, _key: str, _value: str, *, encrypt: bool = False) -> bool:
+        assert encrypt is False
+        return True
+
 
 @pytest.fixture
 def app() -> Flask:
@@ -19,6 +24,8 @@ def app() -> Flask:
     application.register_blueprint(auth_bp)
     application.extensions["jwt_service"] = JWTService(secret_key="test-auth-bootstrap-secret")
     application.extensions["settings_service"] = SettingsServiceStub()
+    application.extensions["auth_security"] = Mock()
+    application.extensions["auth_security"].is_login_locked.return_value = False
     return application
 
 
