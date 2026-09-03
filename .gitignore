@@ -68,6 +68,7 @@ in-memoria-vectors.db/
 # ============================================================================
 *.bak
 *.backup
+*.heapsnapshot
 *.old
 logs/
 
