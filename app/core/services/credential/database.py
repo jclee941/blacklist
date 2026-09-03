@@ -2,38 +2,22 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from typing import Any
 
+from psycopg2.extensions import connection as PostgreSQLConnection
 
-def get_database_connection(service: Any) -> Any:
-    """Return a database connection or raise on failure."""
-    conn = None
+from ..database_lease import connection_lease
+
+
+def get_database_connection(service: Any) -> AbstractContextManager[PostgreSQLConnection]:
+    """Return a deterministic lease for the configured database service."""
     if service.db_service:
-        conn = service.db_service.get_connection()
-    else:
-        try:
-            from ..database_service import DatabaseService
-
-            db_service = DatabaseService()
-            conn = db_service.get_connection()
-        except ImportError:
-            from core.services.database_service import DatabaseService
-
-            db_service = DatabaseService()
-            conn = db_service.get_connection()
-
-    if conn is None:
-        raise RuntimeError("Failed to establish database connection")
-    return conn
-
-
-def close_connection(service: Any, conn: Any, logger: Any) -> None:
-    """Return a pooled connection or close a standalone connection."""
-    if service.db_service:
-        service.db_service.return_connection(conn)
-        return
+        return connection_lease(service.db_service)
 
     try:
-        conn.close()
-    except Exception as exc:
-        logger.debug("Failed to close connection: %s", exc)
+        from ..database_service import DatabaseService
+    except ImportError:
+        from core.services.database_service import DatabaseService
+
+    return connection_lease(DatabaseService())

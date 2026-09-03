@@ -24,7 +24,9 @@ def setup_encryption(
             )
 
         salt_env = app_config.ENCRYPTION_SALT
-        service._salt = salt_env.encode() if salt_env else b"blacklist-regtech-salt-2025"
+        if not salt_env:
+            raise RuntimeError("ENCRYPTION_SALT environment variable is required")
+        service._salt = salt_env.encode()
 
         kdf = pbkdf2_cls(
             algorithm=hashes_module.SHA256(),

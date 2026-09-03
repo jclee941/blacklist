@@ -1,7 +1,11 @@
 import logging
+from datetime import date, datetime
 from typing import Optional
 
+from .database_lease import connection_lease
+
 logger = logging.getLogger(__name__)
+RowValue = str | int | float | bool | date | datetime | None
 
 
 class BlacklistRepository:
@@ -18,7 +22,7 @@ class BlacklistRepository:
         )
         return result[0]["count"] if result else 0
 
-    def get_blacklist_entry(self, ip: str) -> Optional[dict]:
+    def get_blacklist_entry(self, ip: str) -> Optional[dict[str, RowValue]]:
         results = self.db.query(
             """
             SELECT ip_address, reason, source, detection_count
@@ -65,8 +69,9 @@ class BlacklistRepository:
                 """
                 INSERT INTO whitelist_ips (ip_address, reason, source, is_active)
                 VALUES (%s, %s, %s, true)
-                ON CONFLICT (ip_address, source) DO UPDATE SET
+                ON CONFLICT (ip_address) DO UPDATE SET
                     reason = EXCLUDED.reason,
+                    source = EXCLUDED.source,
                     is_active = true,
                     updated_at = CURRENT_TIMESTAMP
                 """,
@@ -81,7 +86,7 @@ class BlacklistRepository:
         result = self.db.query("SELECT COUNT(*) as count FROM blacklist_ips")
         return result[0]["count"] if result else 0
 
-    def get_source_stats(self) -> list[dict]:
+    def get_source_stats(self) -> list[dict[str, RowValue]]:
         return self.db.query(
             """
             SELECT data_source, COUNT(*) as count, MAX(last_seen) as last_seen
@@ -90,7 +95,7 @@ class BlacklistRepository:
             """
         )
 
-    def get_active_blacklist_enhanced(self) -> list[dict]:
+    def get_active_blacklist_enhanced(self) -> list[dict[str, RowValue]]:
         return self.db.query(
             """
             SELECT ip_address, reason, source,
@@ -109,7 +114,7 @@ class BlacklistRepository:
         result = self.db.query("SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive WHERE is_active = true")
         return result[0]["count"] if result else 0
 
-    def get_source_counts(self) -> dict[str, dict]:
+    def get_source_counts(self) -> dict[str, dict[str, int]]:
         results = self.db.query(
             """
             SELECT data_source, COUNT(*) as count
@@ -152,7 +157,7 @@ class BlacklistRepository:
 
     def add_column_if_not_exists(self, column_name: str, column_type: str) -> bool:
         try:
-            with self.db.get_connection() as conn:
+            with connection_lease(self.db) as conn:
                 cursor = conn.cursor()
                 cursor.execute(f"ALTER TABLE blacklist_ips ADD COLUMN {column_name} {column_type};")
                 conn.commit()

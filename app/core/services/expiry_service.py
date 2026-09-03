@@ -5,7 +5,10 @@ IP 만료/해제일 관리 서비스
 
 import logging
 from datetime import date
-from typing import Dict, Any
+from typing import TYPE_CHECKING, Dict, Any
+
+if TYPE_CHECKING:
+    from .database_service import DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +16,7 @@ logger = logging.getLogger(__name__)
 class IPExpiryService:
     """IP 만료 관리 서비스"""
 
-    def __init__(self, db_service=None):
+    def __init__(self, db_service: "DatabaseService") -> None:
         """
         Initialize IP expiry service
 
@@ -120,7 +123,7 @@ class IPExpiryService:
             logger.error(f"만료 통계 조회 실패: {e}")
             return {"success": False, "error": str(e)}
 
-    def manually_expire_ip(self, ip_address: str, source: str = None) -> Dict[str, Any]:
+    def manually_expire_ip(self, ip_address: str, source: str | None = None) -> Dict[str, Any]:
         """특정 IP를 수동으로 만료/비활성화"""
         try:
             # IP 조회
@@ -150,7 +153,7 @@ class IPExpiryService:
                 }
 
             # IP 비활성화
-            self.db_service.query(
+            self.db_service.execute(
                 """
                 UPDATE blacklist_ips
                 SET is_active = false,

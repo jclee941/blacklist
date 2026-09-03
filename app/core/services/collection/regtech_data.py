@@ -6,8 +6,8 @@ import logging
 from importlib import import_module
 from typing import Any, Dict, List, Optional
 
-_discovery = import_module("app.core.services.collection.regtech_data_discovery")
-_processing = import_module("app.core.services.collection.regtech_data_processing")
+_discovery = import_module(".regtech_data_discovery", package=__package__)
+_processing = import_module(".regtech_data_processing", package=__package__)
 
 collect_real_regtech_data = _discovery.collect_real_regtech_data
 discover_data_urls = _discovery.discover_data_urls

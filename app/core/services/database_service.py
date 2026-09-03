@@ -4,13 +4,16 @@ NextTrade Blacklist Management System용 데이터베이스 접근 계층
 """
 
 import psycopg2
+from contextlib import AbstractContextManager
 from psycopg2 import pool, sql
 from psycopg2.extras import RealDictCursor
+from psycopg2.extensions import connection as PostgreSQLConnection
 from typing import Dict, Optional, Any
 import time
 
 from ..config import config
 from ..utils.logger_config import db_logger as logger
+from .database_lease import connection_lease
 
 MAX_STARTUP_RETRIES = 5
 MAX_STARTUP_BACKOFF_SECONDS = 1.0
@@ -51,6 +54,7 @@ class DatabaseService:
                 test_conn = self.connection_pool.getconn()
                 test_conn.cursor().execute("SELECT 1")
                 self.connection_pool.putconn(test_conn)
+                self._apply_schema_migrations()
 
                 logger.info(f"✅ Database connection pool initialized successfully (attempt {retry_count + 1})")
                 return
@@ -67,46 +71,88 @@ class DatabaseService:
                     logger.error(f"❌ Database connection failed after {max_retries} attempts: {e}")
                     raise
 
-    def get_connection(self):
+    def _apply_schema_migrations(self) -> None:
+        with self.connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                ALTER TABLE whitelist_ips
+                ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+                UPDATE whitelist_ips
+                SET is_active = TRUE
+                WHERE is_active IS NULL;
+
+                ALTER TABLE whitelist_ips
+                ALTER COLUMN is_active SET DEFAULT TRUE;
+
+                ALTER TABLE whitelist_ips
+                ALTER COLUMN is_active SET NOT NULL;
+
+                ALTER TABLE blacklist_ips
+                ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+                UPDATE blacklist_ips
+                SET is_active = TRUE
+                WHERE is_active IS NULL;
+
+                ALTER TABLE blacklist_ips
+                ALTER COLUMN is_active SET DEFAULT TRUE;
+
+                ALTER TABLE blacklist_ips
+                ALTER COLUMN is_active SET NOT NULL;
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_whitelist_ips_ip_unique
+                ON whitelist_ips(ip_address);
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_blacklist_ips_ip_source_unique
+                ON blacklist_ips(ip_address, source);
+                """
+            )
+            connection.commit()
+            cursor.close()
+
+    def get_connection(self) -> PostgreSQLConnection:
         """Get connection from pool with automatic retry on failure"""
         max_retries = 3
         retry_count = 0
 
+        if not self.connection_pool:
+            self._initialize_pool_with_retry()
+        connection_pool = self.connection_pool
+        if connection_pool is None:
+            raise RuntimeError("Database connection pool is unavailable")
+
         while retry_count < max_retries:
             try:
-                if not self.connection_pool:
-                    self._initialize_pool_with_retry()
-
-                return self.connection_pool.getconn()
+                return connection_pool.getconn()
 
             except Exception as e:
                 retry_count += 1
                 if retry_count < max_retries:
                     logger.warning(f"⚠️ Failed to get connection (attempt {retry_count}/{max_retries}): {e}")
                     time.sleep(1)
-                    # Try to reinitialize pool
-                    try:
-                        self._initialize_pool_with_retry()
-                    except Exception as init_error:
-                        logger.error(f"❌ Pool reinitialization failed: {init_error}")
                 else:
                     logger.error(f"❌ Failed to get connection after {max_retries} attempts: {e}")
                     raise
+        raise RuntimeError("Database connection checkout failed")
 
-    def return_connection(self, conn):
+    def connection(self) -> AbstractContextManager[PostgreSQLConnection]:
+        """Lease a pooled connection and return it deterministically."""
+        return connection_lease(self)
+
+    def return_connection(self, connection: PostgreSQLConnection) -> None:
         """Return connection to pool"""
         try:
-            if self.connection_pool and conn:
-                self.connection_pool.putconn(conn)
+            if self.connection_pool and connection:
+                self.connection_pool.putconn(connection)
         except Exception as e:
             logger.warning(f"Failed to return connection to pool: {e}")
-            # Connection may belong to a stale pool after reinitialization;
-            # close it directly to prevent connection leaks.
             try:
-                if conn and not conn.closed:
-                    conn.close()
-            except Exception as e:
-                logger.debug("Failed to close leaked connection: %s", e)
+                if self.connection_pool:
+                    self.connection_pool.putconn(connection, close=True)
+            except Exception as close_error:
+                logger.debug("Failed to discard stale pooled connection: %s", close_error)
 
     def close_all_connections(self):
         """Close all connections in pool"""
@@ -121,12 +167,11 @@ class DatabaseService:
     def health_check(self) -> bool:
         """Health check with retry logic"""
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
-            cursor.close()
-            self.return_connection(conn)
+            with self.connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                result = cursor.fetchone()
+                cursor.close()
             return result is not None
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
@@ -153,18 +198,17 @@ class DatabaseService:
             logger.error(f"Connection status check failed: {e}")
             return {"status": "error", "error": str(e)}
 
-    def query(self, sql: str, params=None) -> list:
+    def query(self, sql: str, params=None) -> list[dict[str, Any]]:
         """Execute a SELECT query and return results as list of dicts"""
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.execute(sql)
-            results = cursor.fetchall()
-            cursor.close()
-            self.return_connection(conn)
+            with self.connection() as conn:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                if params:
+                    cursor.execute(sql, params)
+                else:
+                    cursor.execute(sql)
+                results = cursor.fetchall()
+                cursor.close()
             return [dict(row) for row in results] if results else []
         except Exception as e:
             logger.error(f"Query execution failed: {e}")
@@ -181,29 +225,20 @@ class DatabaseService:
         Returns:
             Number of affected rows
         """
-        conn = None
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.execute(sql)
-            affected_rows = cursor.rowcount
-            conn.commit()
-            cursor.close()
-            return affected_rows
+            with self.connection() as conn:
+                cursor = conn.cursor()
+                if params:
+                    cursor.execute(sql, params)
+                else:
+                    cursor.execute(sql)
+                affected_rows = cursor.rowcount
+                conn.commit()
+                cursor.close()
+                return affected_rows
         except Exception as e:
             logger.error(f"Execute query failed: {e}")
-            try:
-                if conn:
-                    conn.rollback()
-            except Exception as e:
-                logger.debug("Rollback failed during error handling: %s", e)
             raise
-        finally:
-            if conn:
-                self.return_connection(conn)
 
     def create_raw_connection(self):
         """
@@ -211,21 +246,20 @@ class DatabaseService:
         Useful for special operations like LISTEN/NOTIFY or maintenance
         """
         try:
-            return psycopg2.connect(**self.db_config)
+            return psycopg2.connect(config.get_postgres_dsn())
         except Exception as e:
             logger.error(f"Failed to create raw connection: {e}")
             raise
 
-    def save_blacklist_ip(self, ip_data: dict) -> bool:
+    def save_blacklist_ip(self, ip_data: dict[str, Any]) -> bool:
         """Save blacklist IP data to database"""
-        conn = None
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            with self.connection() as conn:
+                cursor = conn.cursor()
 
-            # Insert or update blacklist IP
-            cursor.execute(
-                """
+                # Insert or update blacklist IP
+                cursor.execute(
+                    """
                 INSERT INTO blacklist_ips (
                     ip_address, source, reason, confidence_level,
                     detection_count, is_active, country, detection_date, removal_date,
@@ -243,36 +277,29 @@ class DatabaseService:
                     END,
                     raw_data = EXCLUDED.raw_data,
                     updated_at = CURRENT_TIMESTAMP
-            """,
-                (
-                    ip_data.get("ip_address"),
-                    ip_data.get("source", "unknown"),
-                    ip_data.get("reason"),
-                    ip_data.get("confidence_level", 50),
-                    ip_data.get("detection_count", 1),
-                    ip_data.get("is_active", True),
-                    ip_data.get("country"),
-                    ip_data.get("detection_date"),
-                    ip_data.get("removal_date"),
-                    ip_data.get("last_seen"),
-                    ip_data.get("created_at", "NOW()"),
-                    ip_data.get("raw_data", "{}"),
-                ),
-            )
+                """,
+                    (
+                        ip_data.get("ip_address"),
+                        ip_data.get("source", "unknown"),
+                        ip_data.get("reason"),
+                        ip_data.get("confidence_level", 50),
+                        ip_data.get("detection_count", 1),
+                        ip_data.get("is_active", True),
+                        ip_data.get("country"),
+                        ip_data.get("detection_date"),
+                        ip_data.get("removal_date"),
+                        ip_data.get("last_seen"),
+                        ip_data.get("created_at", "NOW()"),
+                        ip_data.get("raw_data", "{}"),
+                    ),
+                )
 
-            conn.commit()
-            cursor.close()
-            self.return_connection(conn)
+                conn.commit()
+                cursor.close()
             return True
 
         except Exception as e:
             logger.error(f"Failed to save blacklist IP {ip_data.get('ip_address', 'unknown')}: {e}")
-            try:
-                if conn:
-                    conn.rollback()
-                    self.return_connection(conn)
-            except BaseException as e:
-                logger.debug("Cleanup rollback failed: %s", e)
             return False
 
     def get_collection_credentials(self, service_name: str) -> Dict[str, Any]:
@@ -298,21 +325,20 @@ class DatabaseService:
                 }
             else:
                 # 기존 방식으로 폴백 (호환성)
-                conn = self.get_connection()
-                cursor = conn.cursor()
+                with self.connection() as conn:
+                    cursor = conn.cursor()
 
-                cursor.execute(
-                    """
+                    cursor.execute(
+                        """
                     SELECT service_name, username, password, config, encrypted, created_at, updated_at
                     FROM collection_credentials
                     WHERE service_name = %s AND is_active = true
-                """,
-                    (service_name.upper(),),
-                )
+                    """,
+                        (service_name.upper(),),
+                    )
 
-                result = cursor.fetchone()
-                cursor.close()
-                self.return_connection(conn)
+                    result = cursor.fetchone()
+                    cursor.close()
 
                 if result:
                     (
@@ -348,88 +374,83 @@ class DatabaseService:
     def show_database_tables(self) -> Dict[str, Any]:
         """데이터베이스 테이블 상세 정보 조회 (UI용)"""
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            with self.connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT DISTINCT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_type = 'BASE TABLE'
+                      AND table_name <> 'collection_credentials'
+                    ORDER BY table_name
+                """)
+                tables = {}
+                table_list = cursor.fetchall()
 
-            # 1. 모든 테이블 목록 조회 (중복 제거)
-            cursor.execute("""
-                SELECT DISTINCT table_name
-                FROM information_schema.tables
-                WHERE table_schema = 'public'
-                  AND table_type = 'BASE TABLE'
-                ORDER BY table_name
-            """)
+                for (table_name,) in table_list:
+                    try:
+                        cursor.execute(
+                            """
+                            SELECT column_name, data_type, is_nullable
+                            FROM information_schema.columns
+                            WHERE table_schema = 'public'
+                              AND table_name = %s
+                            ORDER BY ordinal_position
+                            """,
+                            (table_name,),
+                        )
+                        columns = []
+                        for col_name, col_type, nullable in cursor.fetchall():
+                            columns.append({"name": col_name, "type": col_type, "nullable": nullable})
 
-            tables = {}
-            table_list = cursor.fetchall()
+                        cursor.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table_name)))
+                        count_row = cursor.fetchone()
+                        record_count = count_row[0] if count_row else 0
+                        tables[table_name] = {
+                            "columns": columns,
+                            "record_count": record_count,
+                        }
 
-            for (table_name,) in table_list:
-                try:
-                    # 2. 컬럼 정보 조회
-                    cursor.execute(
-                        """
-                        SELECT column_name, data_type, is_nullable
-                        FROM information_schema.columns
-                        WHERE table_schema = 'public'
-                          AND table_name = %s
-                        ORDER BY ordinal_position
-                    """,
-                        (table_name,),
-                    )
+                    except Exception as table_error:
+                        logger.error(f"Error processing table {table_name}: {table_error}")
+                        tables[table_name] = {
+                            "columns": [],
+                            "record_count": 0,
+                            "error": "Table metadata unavailable",
+                        }
 
-                    columns = []
-                    for col_name, col_type, nullable in cursor.fetchall():
-                        columns.append({"name": col_name, "type": col_type, "nullable": nullable})
-
-                    # 3. Record count query (using sql.Identifier for safe table name)
-                    cursor.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table_name)))
-                    record_count = cursor.fetchone()[0]
-
-                    tables[table_name] = {
-                        "columns": columns,
-                        "record_count": record_count,
-                    }
-
-                except Exception as table_error:
-                    logger.error(f"Error processing table {table_name}: {table_error}")
-                    tables[table_name] = {
-                        "columns": [],
-                        "record_count": 0,
-                        "error": str(table_error),
-                    }
-
-            cursor.close()
-            self.return_connection(conn)
-
+                cursor.close()
             return {"success": True, "total_tables": len(tables), "tables": tables}
 
         except Exception as e:
             logger.error(f"❌ show_database_tables 실패: {e}")
-            return {"success": False, "error": str(e), "tables": {}}
+            return {"success": False, "error": "Database metadata unavailable", "tables": {}}
 
     def get_blacklist_stats(self) -> Dict[str, Any]:
         """블랙리스트 통계 조회"""
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            with self.connection() as conn:
+                cursor = conn.cursor()
 
-            # Total IPs
-            cursor.execute("SELECT COUNT(*) FROM blacklist_ips")
-            total_ips = cursor.fetchone()[0]
+                # Total IPs
+                cursor.execute("SELECT COUNT(*) FROM blacklist_ips")
+                total_row = cursor.fetchone()
+                total_ips = total_row[0] if total_row else 0
 
-            # Active IPs
-            cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
-            active_ips = cursor.fetchone()[0]
+                # Active IPs
+                cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
+                active_row = cursor.fetchone()
+                active_ips = active_row[0] if active_row else 0
 
-            # Last update
-            cursor.execute("""
+                # Last update
+                cursor.execute("""
                 SELECT MAX(updated_at) FROM blacklist_ips
             """)
-            last_update_result = cursor.fetchone()[0]
-            last_update = last_update_result.strftime("%Y-%m-%d %H:%M") if last_update_result else "없음"
+                last_update_row = cursor.fetchone()
+                last_update_result = last_update_row[0] if last_update_row else None
+                last_update = last_update_result.strftime("%Y-%m-%d %H:%M") if last_update_result else "없음"
 
-            cursor.close()
-            self.return_connection(conn)
+                cursor.close()
 
             return {
                 "total_ips": total_ips,
@@ -444,26 +465,30 @@ class DatabaseService:
     def get_dashboard_stats(self) -> Dict[str, Any]:
         """대시보드 통계 조회"""
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            with self.connection() as conn:
+                cursor = conn.cursor()
 
-            # Total IPs
-            cursor.execute("SELECT COUNT(*) FROM blacklist_ips")
-            total_count = cursor.fetchone()[0]
+                # Total IPs
+                cursor.execute("SELECT COUNT(*) FROM blacklist_ips")
+                total_row = cursor.fetchone()
+                total_count = total_row[0] if total_row else 0
 
-            # REGTECH source IPs
-            cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE data_source = 'REGTECH'")
-            regtech_count = cursor.fetchone()[0]
+                # REGTECH source IPs
+                cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE data_source = 'REGTECH'")
+                regtech_row = cursor.fetchone()
+                regtech_count = regtech_row[0] if regtech_row else 0
 
-            # Last collection
-            cursor.execute("""
+                # Last collection
+                cursor.execute("""
                 SELECT MAX(collection_date) FROM collection_history
             """)
-            last_collection_result = cursor.fetchone()[0]
-            last_updated = last_collection_result.strftime("%Y-%m-%d %H:%M") if last_collection_result else "확인 중..."
+                last_collection_row = cursor.fetchone()
+                last_collection_result = last_collection_row[0] if last_collection_row else None
+                last_updated = (
+                    last_collection_result.strftime("%Y-%m-%d %H:%M") if last_collection_result else "확인 중..."
+                )
 
-            cursor.close()
-            self.return_connection(conn)
+                cursor.close()
 
             return {
                 "total_count": total_count,

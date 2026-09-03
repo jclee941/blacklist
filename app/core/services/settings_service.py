@@ -8,14 +8,18 @@ import logging
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 from cryptography.fernet import Fernet
-import os
 import base64
-import hashlib
 
 from ..config import config
 from .database_service import DatabaseService
+from .database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
+
+
+class SettingsEncryptionKeyError(RuntimeError):
+    def __init__(self) -> None:
+        super().__init__("SETTINGS_ENCRYPTION_KEY is required")
 
 
 class SettingsService:
@@ -36,7 +40,7 @@ class SettingsService:
     def _get_connection(self):
         if self.db is None:
             raise RuntimeError("DatabaseService not initialized")
-        return self.db.get_connection()
+        return connection_lease(self.db)
 
     # Removed singleton __new__ method to allow DI instantiation
 
@@ -45,19 +49,7 @@ class SettingsService:
         key_str = config.SETTINGS_ENCRYPTION_KEY
 
         if not key_str:
-            secret = config.SECRET_KEY
-
-            if not secret:
-                env_mode = config.FLASK_ENV
-                if env_mode == "production":
-                    logger.warning("SECRET_KEY missing in production! Generating random key.")
-                    secret = base64.urlsafe_b64encode(os.urandom(32)).decode()
-                else:
-                    secret = "blacklist-secret-key-change-in-production"
-
-            # Generate deterministic key from secret
-            key_bytes = hashlib.sha256(secret.encode()).digest()
-            key_str = base64.urlsafe_b64encode(key_bytes).decode()
+            raise SettingsEncryptionKeyError
 
         self._encryption_key: bytes = key_str.encode()
         logger.info("Encryption key initialized")
@@ -114,23 +106,21 @@ class SettingsService:
             if use_cache and self._is_cache_valid() and key in self._cache:
                 return self._cache[key]
 
-            conn = self._get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT setting_value, setting_type, is_encrypted
-                FROM system_settings
-                WHERE setting_key = %s AND is_active = true
-            """,
-                (key,),
-            )
-
-            result = cursor.fetchone()
-            cursor.close()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT setting_value, setting_type, is_encrypted
+                    FROM system_settings
+                    WHERE setting_key = %s AND is_active = true
+                    """,
+                    (key,),
+                )
+                result = cursor.fetchone()
+                cursor.close()
 
             if not result:
-                logger.warning(f"Setting not found: {key}, using default: {default}")
+                logger.warning("Setting not found: %s", key)
                 return default
 
             value, setting_type, is_encrypted = result
@@ -185,7 +175,6 @@ class SettingsService:
         Returns:
             True if successful
         """
-        conn: Any = None
         try:
             # Convert value to string
             if isinstance(value, bool):
@@ -201,24 +190,22 @@ class SettingsService:
             if encrypt:
                 str_value = self._encrypt_value(str_value)
 
-            conn = self._get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                UPDATE system_settings
-                SET setting_value = %s,
-                    is_encrypted = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE setting_key = %s
-                RETURNING id
-            """,
-                (str_value, encrypt, key),
-            )
-
-            result = cursor.fetchone()
-            conn.commit()
-            cursor.close()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE system_settings
+                    SET setting_value = %s,
+                        is_encrypted = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE setting_key = %s
+                    RETURNING id
+                    """,
+                    (str_value, encrypt, key),
+                )
+                result = cursor.fetchone()
+                conn.commit()
+                cursor.close()
 
             if result:
                 self._invalidate_cache()
@@ -230,11 +217,9 @@ class SettingsService:
 
         except Exception as e:
             logger.error(f"Error setting {key}: {e}")
-            if conn is not None:
-                conn.rollback()
             return False
 
-    def get_all_settings(self, category: Optional[str] = None, include_encrypted: bool = False) -> List[Dict]:
+    def get_all_settings(self, category: Optional[str] = None, include_encrypted: bool = False) -> List[Dict[str, Any]]:
         """
         Get all settings, optionally filtered by category
 
@@ -246,30 +231,30 @@ class SettingsService:
             List of setting dictionaries
         """
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
 
-            if category:
-                query = """
-                    SELECT setting_key, setting_value, setting_type, description,
-                           is_encrypted, is_active, category, display_order, updated_at
-                    FROM system_settings
-                    WHERE category = %s AND is_active = true
-                    ORDER BY display_order, setting_key
-                """
-                cursor.execute(query, (category,))
-            else:
-                query = """
-                    SELECT setting_key, setting_value, setting_type, description,
-                           is_encrypted, is_active, category, display_order, updated_at
-                    FROM system_settings
-                    WHERE is_active = true
-                    ORDER BY category, display_order, setting_key
-                """
-                cursor.execute(query)
+                if category:
+                    query = """
+                        SELECT setting_key, setting_value, setting_type, description,
+                               is_encrypted, is_active, category, display_order, updated_at
+                        FROM system_settings
+                        WHERE category = %s AND is_active = true
+                        ORDER BY display_order, setting_key
+                    """
+                    cursor.execute(query, (category,))
+                else:
+                    query = """
+                        SELECT setting_key, setting_value, setting_type, description,
+                               is_encrypted, is_active, category, display_order, updated_at
+                        FROM system_settings
+                        WHERE is_active = true
+                        ORDER BY category, display_order, setting_key
+                    """
+                    cursor.execute(query)
 
-            rows = cursor.fetchall()
-            cursor.close()
+                rows = cursor.fetchall()
+                cursor.close()
 
             settings = []
             for row in rows:
@@ -298,7 +283,7 @@ class SettingsService:
 
                 # Convert value to appropriate type
                 if not setting["is_encrypted"] or include_encrypted:
-                    setting["value"] = self._convert_value(setting["value"], setting["type"])
+                    setting["value"] = self._convert_value(str(setting["value"]), str(setting["type"]))
 
                 settings.append(setting)
 
@@ -308,7 +293,7 @@ class SettingsService:
             logger.error(f"Error getting all settings: {e}")
             return []
 
-    def get_settings_by_category(self) -> Dict[str, List[Dict]]:
+    def get_settings_by_category(self) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get all settings grouped by category
 
@@ -349,7 +334,6 @@ class SettingsService:
         Returns:
             True if successful
         """
-        conn: Any = None
         try:
             # Convert value to string
             if isinstance(value, bool):
@@ -365,22 +349,20 @@ class SettingsService:
             if encrypt:
                 str_value = self._encrypt_value(str_value)
 
-            conn = self._get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                INSERT INTO system_settings
-                (setting_key, setting_value, setting_type, description, category, is_encrypted, is_active)
-                VALUES (%s, %s, %s, %s, %s, %s, true)
-                RETURNING id
-            """,
-                (key, str_value, setting_type, description, category, encrypt),
-            )
-
-            result = cursor.fetchone()
-            conn.commit()
-            cursor.close()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO system_settings
+                    (setting_key, setting_value, setting_type, description, category, is_encrypted, is_active)
+                    VALUES (%s, %s, %s, %s, %s, %s, true)
+                    RETURNING id
+                    """,
+                    (key, str_value, setting_type, description, category, encrypt),
+                )
+                result = cursor.fetchone()
+                conn.commit()
+                cursor.close()
 
             if result:
                 self._invalidate_cache()
@@ -391,8 +373,6 @@ class SettingsService:
 
         except Exception as e:
             logger.error(f"Error creating setting {key}: {e}")
-            if conn is not None:
-                conn.rollback()
             return False
 
     def delete_setting(self, key: str) -> bool:
@@ -405,25 +385,22 @@ class SettingsService:
         Returns:
             True if successful
         """
-        conn: Any = None
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                UPDATE system_settings
-                SET is_active = false,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE setting_key = %s
-                RETURNING id
-            """,
-                (key,),
-            )
-
-            result = cursor.fetchone()
-            conn.commit()
-            cursor.close()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE system_settings
+                    SET is_active = false,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE setting_key = %s
+                    RETURNING id
+                    """,
+                    (key,),
+                )
+                result = cursor.fetchone()
+                conn.commit()
+                cursor.close()
 
             if result:
                 self._invalidate_cache()
@@ -435,8 +412,6 @@ class SettingsService:
 
         except Exception as e:
             logger.error(f"Error deleting setting {key}: {e}")
-            if conn is not None:
-                conn.rollback()
             return False
 
     # Convenience methods for common settings

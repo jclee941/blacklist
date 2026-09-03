@@ -8,6 +8,7 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 from psycopg2.extras import RealDictCursor
+from .database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -22,68 +23,63 @@ class OptimizedBlacklistService:
 
     def get_unified_statistics(self) -> Dict[str, Any]:
         """통합 통계 - 단일 쿼리로 모든 통계 수집"""
-        conn = None
         try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            with connection_lease(self.db) as conn:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                cursor.execute("""
+                    SELECT
+                        COUNT(*) as total_ips,
+                        COUNT(*) FILTER (WHERE is_active = true) as active_ips,
+                        COUNT(DISTINCT source) as sources,
+                        COUNT(DISTINCT country) as countries,
+                        MAX(updated_at) as last_update,
+                        MIN(updated_at) as first_update,
+                        COUNT(*) FILTER (WHERE detection_date >= CURRENT_DATE - INTERVAL '1 day') as recent_additions,
+                        COUNT(*) FILTER (WHERE detection_count > 5) as high_confidence,
+                        ROUND(AVG(confidence_level)::numeric, 2) as avg_confidence
+                    FROM blacklist_ips_with_auto_inactive
+                """)
+                stats = cursor.fetchone()
+                cursor.execute("""
+                    SELECT
+                        COUNT(*) as collection_count,
+                        MAX(collection_date) as last_collection,
+                        COUNT(*) FILTER (WHERE success = true) as successful_collections
+                    FROM collection_history
+                    WHERE collection_date >= NOW() - INTERVAL '7 days'
+                """)
+                collection_stats = cursor.fetchone()
+                cursor.close()
 
-            # 단일 쿼리로 모든 통계 수집
-            cursor.execute("""
-                SELECT
-                    COUNT(*) as total_ips,
-                    COUNT(*) FILTER (WHERE is_active = true) as active_ips,
-                    COUNT(DISTINCT source) as sources,
-                    COUNT(DISTINCT country) as countries,
-                    MAX(updated_at) as last_update,
-                    MIN(updated_at) as first_update,
-                    COUNT(*) FILTER (WHERE detection_date >= CURRENT_DATE - INTERVAL '1 day') as recent_additions,
-                    COUNT(*) FILTER (WHERE detection_count > 5) as high_confidence,
-                    ROUND(AVG(confidence_level)::numeric, 2) as avg_confidence
-                FROM blacklist_ips_with_auto_inactive
-            """)
-
-            stats = cursor.fetchone()
-
-            # 최근 활동 및 수집 히스토리 (별도 최적화된 쿼리)
-            cursor.execute("""
-                SELECT
-                    COUNT(*) as collection_count,
-                    MAX(collection_date) as last_collection,
-                    COUNT(*) FILTER (WHERE success = true) as successful_collections
-                FROM collection_history
-                WHERE collection_date >= NOW() - INTERVAL '7 days'
-            """)
-
-            collection_stats = cursor.fetchone()
-
-            cursor.close()
-            self.db.return_connection(conn)
-
+            stats_values = dict(stats) if stats else {}
+            collection_values = dict(collection_stats) if collection_stats else {}
             return {
                 "success": True,
                 "statistics": {
-                    "total_ips": stats["total_ips"] or 0,
-                    "active_ips": stats["active_ips"] or 0,
-                    "sources": stats["sources"] or 0,
-                    "countries": stats["countries"] or 0,
-                    "last_update": stats["last_update"].isoformat() if stats["last_update"] else None,
-                    "first_update": stats["first_update"].isoformat() if stats["first_update"] else None,
-                    "recent_additions": stats["recent_additions"] or 0,
-                    "high_confidence": stats["high_confidence"] or 0,
-                    "avg_confidence": float(stats["avg_confidence"]) if stats["avg_confidence"] else 0.0,
-                    "collection_count": collection_stats["collection_count"] or 0,
-                    "last_collection": collection_stats["last_collection"].isoformat()
-                    if collection_stats["last_collection"]
+                    "total_ips": stats_values.get("total_ips") or 0,
+                    "active_ips": stats_values.get("active_ips") or 0,
+                    "sources": stats_values.get("sources") or 0,
+                    "countries": stats_values.get("countries") or 0,
+                    "last_update": stats_values["last_update"].isoformat() if stats_values.get("last_update") else None,
+                    "first_update": stats_values["first_update"].isoformat()
+                    if stats_values.get("first_update")
                     else None,
-                    "successful_collections": collection_stats["successful_collections"] or 0,
+                    "recent_additions": stats_values.get("recent_additions") or 0,
+                    "high_confidence": stats_values.get("high_confidence") or 0,
+                    "avg_confidence": float(stats_values["avg_confidence"])
+                    if stats_values.get("avg_confidence")
+                    else 0.0,
+                    "collection_count": collection_values.get("collection_count") or 0,
+                    "last_collection": collection_values["last_collection"].isoformat()
+                    if collection_values.get("last_collection")
+                    else None,
+                    "successful_collections": collection_values.get("successful_collections") or 0,
                 },
                 "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
             logger.error(f"통합 통계 조회 실패: {e}")
-            if conn:
-                self.db.return_connection(conn)
             return {
                 "success": False,
                 "error": str(e),
@@ -92,31 +88,26 @@ class OptimizedBlacklistService:
 
     def search_ips(self, query: str, limit: int = 100) -> Dict[str, Any]:
         """IP 검색 - 최적화된 인덱스 활용"""
-        conn = None
         try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-            # IP 검색 최적화 (인덱스 활용)
-            cursor.execute(
-                """
-                SELECT
-                    ip_address, source, reason, confidence_level,
-                    detection_count, is_active, country,
-                    detection_date, last_seen, created_at
-                FROM blacklist_ips_with_auto_inactive
-                WHERE ip_address ILIKE %s
-                   OR source ILIKE %s
-                   OR country ILIKE %s
-                ORDER BY detection_count DESC, last_seen DESC
-                LIMIT %s
-            """,
-                (f"%{query}%", f"%{query}%", f"%{query}%", limit),
-            )
-
-            results = cursor.fetchall()
-            cursor.close()
-            self.db.return_connection(conn)
+            with connection_lease(self.db) as conn:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                cursor.execute(
+                    """
+                    SELECT
+                        ip_address, source, reason, confidence_level,
+                        detection_count, is_active, country,
+                        detection_date, last_seen, created_at
+                    FROM blacklist_ips_with_auto_inactive
+                    WHERE ip_address ILIKE %s
+                       OR source ILIKE %s
+                       OR country ILIKE %s
+                    ORDER BY detection_count DESC, last_seen DESC
+                    LIMIT %s
+                    """,
+                    (f"%{query}%", f"%{query}%", f"%{query}%", limit),
+                )
+                results = cursor.fetchall()
+                cursor.close()
 
             return {
                 "success": True,
@@ -128,8 +119,6 @@ class OptimizedBlacklistService:
 
         except Exception as e:
             logger.error(f"IP 검색 실패: {e}")
-            if conn:
-                self.db.return_connection(conn)
             return {
                 "success": False,
                 "error": str(e),
@@ -139,33 +128,27 @@ class OptimizedBlacklistService:
 
     def get_active_blacklist(self, format_type: str = "json") -> Dict[str, Any]:
         """활성 블랙리스트 조회 - 형식별 최적화"""
-        conn = None
         try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            with connection_lease(self.db) as conn:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-            if format_type == "plain":
-                # 단순 IP 리스트만
-                cursor.execute("""
-                    SELECT ip_address
-                    FROM blacklist_ips_with_auto_inactive
-                    WHERE is_active = true
-                    ORDER BY ip_address
-                """)
-                ips = [row["ip_address"] for row in cursor.fetchall()]
+                if format_type == "plain":
+                    cursor.execute("""
+                        SELECT ip_address
+                        FROM blacklist_ips_with_auto_inactive
+                        WHERE is_active = true
+                        ORDER BY ip_address
+                    """)
+                    ips = [row["ip_address"] for row in cursor.fetchall()]
+                    cursor.close()
+                    return {
+                        "success": True,
+                        "ips": ips,
+                        "count": len(ips),
+                        "format": "plain",
+                        "timestamp": datetime.now().isoformat(),
+                    }
 
-                cursor.close()
-                self.db.return_connection(conn)
-
-                return {
-                    "success": True,
-                    "ips": ips,
-                    "count": len(ips),
-                    "format": "plain",
-                    "timestamp": datetime.now().isoformat(),
-                }
-            else:
-                # 전체 정보
                 cursor.execute("""
                     SELECT
                         ip_address, source, reason, confidence_level,
@@ -174,11 +157,8 @@ class OptimizedBlacklistService:
                     WHERE is_active = true
                     ORDER BY detection_count DESC, last_seen DESC
                 """)
-
                 results = cursor.fetchall()
                 cursor.close()
-                self.db.return_connection(conn)
-
                 return {
                     "success": True,
                     "blacklist": [dict(row) for row in results],
@@ -189,8 +169,6 @@ class OptimizedBlacklistService:
 
         except Exception as e:
             logger.error(f"활성 블랙리스트 조회 실패: {e}")
-            if conn:
-                self.db.return_connection(conn)
             return {
                 "success": False,
                 "error": str(e),
@@ -200,38 +178,29 @@ class OptimizedBlacklistService:
 
     def get_collection_status(self) -> Dict[str, Any]:
         """수집 상태 조회 - 최적화된 단일 쿼리"""
-        conn = None
         try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-            # 최근 수집 상태 통합 조회
-            cursor.execute("""
-                SELECT
-                    status,
-                    ips_collected,
-                    created_at,
-                    error_message,
-                    ROW_NUMBER() OVER (ORDER BY created_at DESC) as row_num
-                FROM collection_history
-                WHERE created_at >= NOW() - INTERVAL '7 days'
-                ORDER BY created_at DESC
-                LIMIT 10
-            """)
-
-            history = cursor.fetchall()
-
-            # 수집 서비스 상태
-            cursor.execute("""
-                SELECT service_name, is_active, updated_at
-                FROM collection_credentials
-                ORDER BY service_name
-            """)
-
-            services = cursor.fetchall()
-
-            cursor.close()
-            self.db.return_connection(conn)
+            with connection_lease(self.db) as conn:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                cursor.execute("""
+                    SELECT
+                        CASE WHEN success THEN 'success' ELSE 'failed' END AS status,
+                        items_collected AS ips_collected,
+                        collection_date AS created_at,
+                        error_message,
+                        ROW_NUMBER() OVER (ORDER BY collection_date DESC) as row_num
+                    FROM collection_history
+                    WHERE collection_date >= NOW() - INTERVAL '7 days'
+                    ORDER BY collection_date DESC
+                    LIMIT 10
+                """)
+                history = cursor.fetchall()
+                cursor.execute("""
+                    SELECT service_name, is_active, updated_at
+                    FROM collection_credentials
+                    ORDER BY service_name
+                """)
+                services = cursor.fetchall()
+                cursor.close()
 
             latest_collection = history[0] if history else None
 
@@ -255,8 +224,6 @@ class OptimizedBlacklistService:
 
         except Exception as e:
             logger.error(f"수집 상태 조회 실패: {e}")
-            if conn:
-                self.db.return_connection(conn)
             return {
                 "success": False,
                 "error": str(e),
@@ -270,12 +237,12 @@ class OptimizedBlacklistService:
             db_healthy = self.db.health_check()
 
             # 기본 통계 (캐시 가능)
-            conn = self.db.get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive")
-            total_ips = cursor.fetchone()[0]
-            cursor.close()
-            self.db.return_connection(conn)
+            with connection_lease(self.db) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive")
+                count_row = cursor.fetchone()
+                total_ips = count_row[0] if count_row else 0
+                cursor.close()
 
             return {
                 "success": True,

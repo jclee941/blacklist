@@ -20,7 +20,7 @@ Service Categories:
 - Core Infrastructure: database_service
 - Collection Services: collection_service, scheduler_service
 - Integration Services: cloudflare_service
-- Configuration Services: credential_service, secure_credential_service, regtech_config_service, settings_service
+- Configuration Services: secure_credential_service, regtech_config_service, settings_service
 - Business Logic: blacklist_service, analytics_service, scoring_service, expiry_service, ab_test_service
 
 Created: 2025-11-21 (Service DI Improvement - HIGH PRIORITY #2)
@@ -129,16 +129,6 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     # 5. CONFIGURATION SERVICES
     # ============================================================
 
-    # Credential Service - Credential CRUD operations
-    try:
-        from .credential_service import CredentialService
-
-        credential_service = CredentialService(db_service=services["db_service"])
-        services["credential_service"] = credential_service
-        logger.info("  ✅ credential_service (CredentialService)")
-    except Exception as e:
-        logger.error(f"  ❌ Failed to initialize credential_service: {e}")
-
     # Secure Credential Service - AES-256-GCM encryption
     from .secure_credential_service import SecureCredentialService
 
@@ -208,7 +198,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     # ============================================================
 
     initialized_count = len(services)
-    total_services = 14
+    total_services = 13
 
     if initialized_count == total_services:
         logger.info(f"✅ Successfully initialized all {initialized_count} services")
@@ -227,13 +217,12 @@ def get_service_info() -> Dict[str, Any]:
         Dictionary with service metadata
     """
     return {
-        "total_services": 14,
+        "total_services": 13,
         "categories": {
             "core_infrastructure": ["db_service"],
             "collection_services": ["collection_service", "scheduler_service"],
             "integration_services": ["cloudflare_service"],
             "configuration_services": [
-                "credential_service",
                 "secure_credential_service",
                 "regtech_config_service",
                 "settings_service",

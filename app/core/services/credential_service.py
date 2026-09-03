@@ -15,6 +15,7 @@ from datetime import datetime
 
 from ..config import config
 from ..utils.encryption import encryption_service
+from .database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ class CredentialService:
         # 파일 경로 초기화
         self.credentials_file = Path("/app/data/credentials.enc")
         self.key_file = Path("/app/data/credential.key")
+        self.key: bytes = b""
+        self._temp_credentials: dict[str, str] | None = None
 
         # 데이터 디렉토리 생성
         try:
@@ -49,26 +52,22 @@ class CredentialService:
             if not self.db_service:
                 return
 
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            # credentials 테이블 생성
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS credentials (
-                    id SERIAL PRIMARY KEY,
-                    service_name VARCHAR(50) NOT NULL,
-                    encrypted_data TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(service_name)
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS credentials (
+                        id SERIAL PRIMARY KEY,
+                        service_name VARCHAR(50) NOT NULL,
+                        encrypted_data TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(service_name)
+                    )
+                    """
                 )
-            """
-            )
-
-            conn.commit()
-            cursor.close()
-            conn.close()
+                conn.commit()
+                cursor.close()
 
         except Exception as e:
             logger.error(f"데이터베이스 초기화 실패: {e}")
@@ -120,26 +119,22 @@ class CredentialService:
                 logger.warning("db_service not available, skipping table creation")
                 return
 
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            # 인증정보 테이블 생성
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS credentials (
-                    id SERIAL PRIMARY KEY,
-                    service_name VARCHAR(50) NOT NULL,
-                    encrypted_data TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(service_name)
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS credentials (
+                        id SERIAL PRIMARY KEY,
+                        service_name VARCHAR(50) NOT NULL,
+                        encrypted_data TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(service_name)
+                    )
+                    """
                 )
-            """
-            )
-
-            conn.commit()
-            cursor.close()
-            conn.close()
+                conn.commit()
+                cursor.close()
 
             logger.info("✅ 인증정보 테이블 확인/생성 완료")
 
@@ -165,25 +160,21 @@ class CredentialService:
             try:
                 if not self.db_service:
                     raise Exception("db_service not available")
-                conn = self.db_service.get_connection()
-                cursor = conn.cursor()
-
-                # UPSERT 쿼리 (PostgreSQL 9.5+)
-                cursor.execute(
-                    """
-                    INSERT INTO credentials (service_name, encrypted_data, updated_at)
-                    VALUES (%s, %s, NOW())
-                    ON CONFLICT (service_name)
-                    DO UPDATE SET
-                        encrypted_data = EXCLUDED.encrypted_data,
-                        updated_at = NOW()
-                """,
-                    ("regtech", encrypted_str),
-                )
-
-                conn.commit()
-                cursor.close()
-                conn.close()
+                with connection_lease(self.db_service) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO credentials (service_name, encrypted_data, updated_at)
+                        VALUES (%s, %s, NOW())
+                        ON CONFLICT (service_name)
+                        DO UPDATE SET
+                            encrypted_data = EXCLUDED.encrypted_data,
+                            updated_at = NOW()
+                        """,
+                        ("regtech", encrypted_str),
+                    )
+                    conn.commit()
+                    cursor.close()
 
                 logger.info(f"✅ 인증정보 데이터베이스 저장 완료: {regtech_id}")
 
@@ -223,21 +214,18 @@ class CredentialService:
         try:
             if not self.db_service:
                 raise Exception("db_service not available")
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT encrypted_data, updated_at
-                FROM credentials
-                WHERE service_name = %s
-            """,
-                ("regtech",),
-            )
-
-            result = cursor.fetchone()
-            cursor.close()
-            conn.close()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT encrypted_data, updated_at
+                    FROM credentials
+                    WHERE service_name = %s
+                    """,
+                    ("regtech",),
+                )
+                result = cursor.fetchone()
+                cursor.close()
 
             if result:
                 json_str, updated_at = result
@@ -292,21 +280,17 @@ class CredentialService:
             if not self.db_service:
                 logger.warning("db_service not available")
                 return {}
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            # collection_credentials 테이블에서 직접 인증정보 조회
-            cursor.execute(
-                """
-                SELECT username, password
-                FROM collection_credentials
-                WHERE service_name = 'REGTECH' AND is_active = true
-                """
-            )
-
-            result = cursor.fetchone()
-            cursor.close()
-            self.db_service.return_connection(conn)
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT username, password
+                    FROM collection_credentials
+                    WHERE service_name = 'REGTECH' AND is_active = true
+                    """
+                )
+                result = cursor.fetchone()
+                cursor.close()
 
             if result:
                 regtech_id, regtech_pw = result
@@ -326,20 +310,20 @@ class CredentialService:
             if not self.db_service:
                 logger.warning("db_service not available")
                 return False
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT COUNT(*) FROM collection_credentials
-                WHERE service_name = 'REGTECH' AND is_active = true
-                AND username IS NOT NULL AND password IS NOT NULL
-                """
-            )
-
-            count = cursor.fetchone()[0]
-            cursor.close()
-            self.db_service.return_connection(conn)
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) FROM collection_credentials
+                    WHERE service_name = 'REGTECH' AND is_active = true
+                    AND username IS NOT NULL AND password IS NOT NULL
+                    """
+                )
+                count_row = cursor.fetchone()
+                if count_row is None:
+                    raise RuntimeError("Credential count query returned no row")
+                count = count_row[0]
+                cursor.close()
 
             return count > 0
 
@@ -355,20 +339,15 @@ class CredentialService:
         try:
             if not self.db_service:
                 raise Exception("db_service not available")
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                DELETE FROM credentials WHERE service_name = %s
-            """,
-                ("regtech",),
-            )
-
-            deleted_count = cursor.rowcount
-            conn.commit()
-            cursor.close()
-            conn.close()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM credentials WHERE service_name = %s",
+                    ("regtech",),
+                )
+                deleted_count = cursor.rowcount
+                conn.commit()
+                cursor.close()
 
             if deleted_count > 0:
                 logger.info("✅ 데이터베이스 인증정보 삭제 완료")

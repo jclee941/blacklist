@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 # Enhanced logging with tagging
 from ..utils.logger_config import collection_logger as logger
+from .database_lease import connection_lease
 
 # 모듈화된 컴포넌트 임포트
 try:
@@ -285,34 +286,30 @@ class CollectionService:
     def get_collection_stats(self) -> Dict[str, Any]:
         """수집 통계 조회 - 대시보드 및 모니터링 UI용"""
         try:
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            # 통합 통계 쿼리
-            cursor.execute("""
-                WITH stats AS (
-                    SELECT
-                        COUNT(*) as total_ips,
-                        COUNT(*) FILTER (WHERE is_active = true) as active_ips,
-                        MAX(created_at) as latest_collection
-                    FROM blacklist_ips
-                ),
-                source_stats AS (
-                    SELECT COALESCE(json_object_agg(data_source, cnt), '{}') as source_breakdown
-                    FROM (
-                        SELECT data_source, COUNT(*) as cnt
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    WITH stats AS (
+                        SELECT
+                            COUNT(*) as total_ips,
+                            COUNT(*) FILTER (WHERE is_active = true) as active_ips,
+                            MAX(created_at) as latest_collection
                         FROM blacklist_ips
-                        GROUP BY data_source
-                    ) s
-                )
-                SELECT s.total_ips, s.active_ips, s.latest_collection,
-                       ss.source_breakdown
-                FROM stats s CROSS JOIN source_stats ss
-            """)
-
-            result = cursor.fetchone()
-            cursor.close()
-            conn.close()
+                    ),
+                    source_stats AS (
+                        SELECT COALESCE(json_object_agg(data_source, cnt), '{}') as source_breakdown
+                        FROM (
+                            SELECT data_source, COUNT(*) as cnt
+                            FROM blacklist_ips
+                            GROUP BY data_source
+                        ) s
+                    )
+                    SELECT s.total_ips, s.active_ips, s.latest_collection,
+                           ss.source_breakdown
+                    FROM stats s CROSS JOIN source_stats ss
+                """)
+                result = cursor.fetchone()
+                cursor.close()
 
             if result:
                 return {

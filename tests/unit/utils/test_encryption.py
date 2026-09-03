@@ -7,7 +7,7 @@ from core.utils.encryption import CredentialEncryption, EncryptionError
 
 def _make_service(master_key="test-master-key-for-unit-tests"):
     """Create a CredentialEncryption instance with a test key."""
-    return CredentialEncryption(master_key=master_key)
+    return CredentialEncryption(master_key=master_key, salt="test-encryption-salt")
 
 
 class TestCredentialEncryptionInit:
@@ -20,6 +20,12 @@ class TestCredentialEncryptionInit:
     def test_init_creates_fernet(self):
         service = _make_service()
         assert service.fernet is not None
+
+    def test_explicit_master_key_without_salt_is_rejected(self, monkeypatch):
+        monkeypatch.delenv("ENCRYPTION_SALT", raising=False)
+
+        with pytest.raises(EncryptionError, match="ENCRYPTION_SALT"):
+            CredentialEncryption(master_key="test-master-key")
 
 
 class TestEncryptDecrypt:

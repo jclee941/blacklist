@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS blacklist_ips (
     category VARCHAR(50) DEFAULT 'unknown',
     confidence_level INTEGER DEFAULT 50 CHECK (confidence_level >= 0 AND confidence_level <= 100),
     detection_count INTEGER DEFAULT 1,
-    is_active BOOLEAN DEFAULT TRUE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     country VARCHAR(10),
     detection_date DATE,
     removal_date DATE,
@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS whitelist_ips (
     reason TEXT,
     source VARCHAR(50) DEFAULT 'MANUAL',
     country VARCHAR(10),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT whitelist_unique_ip UNIQUE(ip_address)

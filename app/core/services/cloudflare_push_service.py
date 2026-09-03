@@ -20,6 +20,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from ..config import config
+from .database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +55,7 @@ class CloudflarePushService:
         """Load CF credentials from database"""
         try:
             if self.db_service:
-                conn = self.db_service.get_connection()
-                if conn:
+                with connection_lease(self.db_service) as conn:
                     cursor = conn.cursor()
                     cursor.execute(
                         "SELECT password, config, encrypted FROM collection_credentials "
@@ -63,33 +63,32 @@ class CloudflarePushService:
                     )
                     row = cursor.fetchone()
                     cursor.close()
-                    conn.close()
-                    if row:
-                        password, cf_config, encrypted = row
-                        if encrypted and password:
-                            try:
-                                from .secure_credential_service import SecureCredentialService
+                if row:
+                    password, cf_config, encrypted = row
+                    if encrypted and password:
+                        try:
+                            from .secure_credential_service import SecureCredentialService
 
-                                scs = SecureCredentialService()
-                                creds = scs.get_credentials("CLOUDFLARE")
-                                if creds:
-                                    self.api_token = creds.get("password", "")
-                                    db_config = creds.get("config", {})
-                                    self.account_id = db_config.get("account_id", "")
-                                    self.list_id = db_config.get("list_id", "")
-                                    logger.info("Cloudflare credentials loaded from database")
-                                    return
-                            except Exception as e:
-                                logger.warning("Failed to decrypt DB credentials: %s", e)
-                        elif cf_config:
-                            import json
+                            scs = SecureCredentialService()
+                            creds = scs.get_credentials("CLOUDFLARE")
+                            if creds:
+                                self.api_token = creds.get("password", "")
+                                db_config = creds.get("config", {})
+                                self.account_id = db_config.get("account_id", "")
+                                self.list_id = db_config.get("list_id", "")
+                                logger.info("Cloudflare credentials loaded from database")
+                                return
+                        except Exception as e:
+                            logger.warning("Failed to decrypt DB credentials: %s", e)
+                    elif cf_config:
+                        import json
 
-                            config_data = cf_config if isinstance(cf_config, dict) else json.loads(cf_config)
-                            self.api_token = password or ""
-                            self.account_id = config_data.get("account_id", "")
-                            self.list_id = config_data.get("list_id", "")
-                            logger.info("Cloudflare credentials loaded from database (unencrypted)")
-                            return
+                        config_data = cf_config if isinstance(cf_config, dict) else json.loads(cf_config)
+                        self.api_token = password or ""
+                        self.account_id = config_data.get("account_id", "")
+                        self.list_id = config_data.get("list_id", "")
+                        logger.info("Cloudflare credentials loaded from database (unencrypted)")
+                        return
         except Exception as e:
             logger.error("Failed to load Cloudflare credentials from database: %s", e)
 
@@ -127,7 +126,7 @@ class CloudflarePushService:
         if self.db_service:
             self.db_conn = self.db_service.create_raw_connection()
         else:
-            self.db_conn = psycopg2.connect(**config.get_postgres_params())
+            self.db_conn = psycopg2.connect(config.get_postgres_dsn())
 
         self.db_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 

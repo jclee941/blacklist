@@ -2,10 +2,18 @@
 
 import json
 from unittest.mock import Mock, MagicMock, patch, mock_open
+
+import pytest
+
 from core.services.credential_service import CredentialService
 
 
 class TestCredentialServiceExtended:
+    @pytest.fixture(autouse=True)
+    def credential_keys(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CREDENTIAL_MASTER_KEY", "test-master-key")
+        monkeypatch.setenv("ENCRYPTION_SALT", "test-encryption-salt")
+
     def _make_service(self):
         mock_db = Mock()
         mock_conn = MagicMock()

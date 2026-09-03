@@ -91,6 +91,20 @@ class TestInsertWhitelist:
         result = repo.insert_whitelist("1.2.3.4", reason="Manual whitelist")
         assert result is True
 
+    def test_insert_whitelist_uses_single_ip_conflict_target(self):
+        # Given
+        repo, mock_db = _make_repo()
+        mock_db.execute.return_value = True
+
+        # When
+        result = repo.insert_whitelist("1.2.3.4", source="MANUAL")
+
+        # Then
+        assert result is True
+        query = mock_db.execute.call_args.args[0]
+        assert "ON CONFLICT (ip_address)" in query
+        assert "ON CONFLICT (ip_address, source)" not in query
+
 
 class TestCountBlacklistIps:
     def test_count_blacklist(self):
@@ -178,11 +192,10 @@ class TestAddColumnIfNotExists:
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        # add_column_if_not_exists uses `with self.db.get_connection() as conn:` (context manager)
-        mock_db.get_connection.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock_db.get_connection.return_value.__exit__ = Mock(return_value=False)
+        mock_db.get_connection.return_value = mock_conn
         result = repo.add_column_if_not_exists("new_col", "TEXT")
         assert result is True
+        mock_db.return_connection.assert_called_once_with(mock_conn)
 
     def test_add_column_already_exists(self):
         repo, mock_db = _make_repo()
@@ -190,12 +203,10 @@ class TestAddColumnIfNotExists:
         mock_cursor = MagicMock()
         mock_cursor.execute.side_effect = Exception("column already exists")
         mock_conn.cursor.return_value = mock_cursor
-        cm = MagicMock()
-        cm.__enter__ = Mock(return_value=mock_conn)
-        cm.__exit__ = Mock(return_value=False)
-        mock_db.get_connection.return_value = cm
+        mock_db.get_connection.return_value = mock_conn
         result = repo.add_column_if_not_exists("existing_col", "TEXT")
         assert result is False
+        mock_db.return_connection.assert_called_once_with(mock_conn)
 
 
 class TestCreateWhitelistTable:

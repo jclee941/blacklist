@@ -6,7 +6,10 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import TYPE_CHECKING, Dict, List, Any
+
+if TYPE_CHECKING:
+    from .database_service import DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,7 @@ logger = logging.getLogger(__name__)
 class AnalyticsService:
     """블랙리스트 분석 서비스"""
 
-    def __init__(self, db_service=None):
+    def __init__(self, db_service: "DatabaseService") -> None:
         """
         Initialize analytics service
 
@@ -62,7 +65,7 @@ class AnalyticsService:
                 FROM blacklist_ips
                 WHERE is_active = true
                     AND created_at > NOW() - INTERVAL '%s days'
-                GROUP BY data_source
+                GROUP BY source
                 ORDER BY count DESC
             """,
                 (days,),

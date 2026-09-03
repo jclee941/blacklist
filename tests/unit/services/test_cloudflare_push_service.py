@@ -83,7 +83,7 @@ class TestCloudflareServiceInit:
             "WHERE service_name = 'CLOUDFLARE' AND is_active = true"
         )
         mock_cursor.close.assert_called_once()
-        mock_conn.close.assert_called_once()
+        mock_db.return_connection.assert_called_once_with(mock_conn)
 
     def test_load_credentials_no_db_connection(self):
         """Empty credentials when DB has no connection"""

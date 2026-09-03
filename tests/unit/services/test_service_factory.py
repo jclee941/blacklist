@@ -1,6 +1,7 @@
 """Unit tests for service_factory module"""
 
 import pytest
+from cryptography.fernet import Fernet
 from unittest.mock import Mock, patch, MagicMock
 
 
@@ -12,6 +13,7 @@ class TestServiceFactory:
     def credential_master_key(self, monkeypatch):
         monkeypatch.setenv("CREDENTIAL_MASTER_KEY", "test-credential-master-key")
         monkeypatch.setenv("ENCRYPTION_SALT", "test-encryption-salt")
+        monkeypatch.setenv("SETTINGS_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
     # --- get_service_info ---
 

@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from ..config import config
 from .credential.crypto import decrypt_data, encrypt_data, setup_encryption
-from .credential.database import close_connection, get_database_connection
+from .credential.database import get_database_connection
 from .credential.helpers import (
     get_regtech_credentials,
     migrate_existing_credentials as migrate_existing_credentials_impl,
@@ -61,10 +61,6 @@ class SecureCredentialService:
             RuntimeError: If database connection cannot be established
         """
         return get_database_connection(self)
-
-    def _close_connection(self, conn):
-        """데이터베이스 연결 반환"""
-        close_connection(self, conn, logger)
 
     def _encrypt_data(self, data: str) -> str:
         """데이터 암호화"""
@@ -112,48 +108,44 @@ class SecureCredentialService:
             encrypted_data = self._encrypt_data(json_data)
 
             # 데이터베이스 저장
-            conn = self._get_database_connection()
-            cursor = conn.cursor()
-
-            # UPSERT 쿼리 실행
-            cursor.execute(
-                """
-                INSERT INTO collection_credentials
-                (
-                    service_name, username, password, config,
-                    encrypted, is_active, enabled,
-                    collection_interval, source, updated_at
+            with self._get_database_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO collection_credentials
+                    (
+                        service_name, username, password, config,
+                        encrypted, is_active, enabled,
+                        collection_interval, source, updated_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (service_name)
+                    DO UPDATE SET
+                        username = EXCLUDED.username,
+                        password = EXCLUDED.password,
+                        config = EXCLUDED.config,
+                        encrypted = EXCLUDED.encrypted,
+                        is_active = EXCLUDED.is_active,
+                        enabled = EXCLUDED.enabled,
+                        collection_interval = EXCLUDED.collection_interval,
+                        source = EXCLUDED.source,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    (
+                        service_name.upper(),
+                        username,
+                        encrypted_data,
+                        json.dumps(config or {}),
+                        True,
+                        True,
+                        enabled,
+                        collection_interval,
+                        service_name.upper(),
+                        datetime.now(),
+                    ),
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (service_name)
-                DO UPDATE SET
-                    username = EXCLUDED.username,
-                    password = EXCLUDED.password,
-                    config = EXCLUDED.config,
-                    encrypted = EXCLUDED.encrypted,
-                    is_active = EXCLUDED.is_active,
-                    enabled = EXCLUDED.enabled,
-                    collection_interval = EXCLUDED.collection_interval,
-                    source = EXCLUDED.source,
-                    updated_at = EXCLUDED.updated_at
-            """,
-                (
-                    service_name.upper(),
-                    username,  # 평문 저장 (호환성)
-                    encrypted_data,  # 암호화된 패스워드
-                    json.dumps(config or {}),
-                    True,  # encrypted 플래그
-                    True,  # is_active
-                    enabled,
-                    collection_interval,
-                    service_name.upper(),
-                    datetime.now(),
-                ),
-            )
-
-            conn.commit()
-            cursor.close()
-            conn.close()
+                conn.commit()
+                cursor.close()
 
             logger.info(f"✅ {service_name} 인증정보 암호화 저장 완료: {username}")
             return True
@@ -170,65 +162,61 @@ class SecureCredentialService:
         collection_interval: int,
     ) -> bool:
         try:
-            conn = self._get_database_connection()
-            cursor = conn.cursor()
+            with self._get_database_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT password, encrypted FROM collection_credentials WHERE service_name = %s",
+                    (service_name.upper(),),
+                )
+                result = cursor.fetchone()
 
-            cursor.execute(
-                "SELECT password, encrypted FROM collection_credentials WHERE service_name = %s",
-                (service_name.upper(),),
-            )
-            result = cursor.fetchone()
+                if not result:
+                    logger.warning(f"⚠️ {service_name} 인증정보를 찾을 수 없음 (업데이트 실패)")
+                    cursor.close()
+                    return False
 
-            if not result:
-                logger.warning(f"⚠️ {service_name} 인증정보를 찾을 수 없음 (업데이트 실패)")
+                current_password, is_encrypted = result
+                new_password_payload = current_password
+
+                if is_encrypted and current_password:
+                    try:
+                        decrypted_json = self._decrypt_data(current_password)
+                        credential_data = json.loads(decrypted_json)
+
+                        if credential_data.get("username") != username:
+                            logger.info(f"🔄 {service_name} 사용자명 변경 감지: 내부 페이로드 업데이트")
+                            credential_data["username"] = username
+                            credential_data["updated_at"] = datetime.now().isoformat()
+
+                            new_json = json.dumps(credential_data)
+                            new_password_payload = self._encrypt_data(new_json)
+                    except Exception as e:
+                        logger.error(f"❌ {service_name} 내부 페이로드 업데이트 실패 (기존 패스워드 유지): {e}")
+
+                cursor.execute(
+                    """
+                    UPDATE collection_credentials
+                    SET
+                        username = %s,
+                        password = %s,
+                        enabled = %s,
+                        collection_interval = %s,
+                        is_active = TRUE,
+                        updated_at = %s
+                    WHERE service_name = %s
+                    """,
+                    (
+                        username,
+                        new_password_payload,
+                        enabled,
+                        collection_interval,
+                        datetime.now(),
+                        service_name.upper(),
+                    ),
+                )
+                affected_rows = cursor.rowcount
+                conn.commit()
                 cursor.close()
-                self._close_connection(conn)
-                return False
-
-            current_password, is_encrypted = result
-            new_password_payload = current_password
-
-            if is_encrypted and current_password:
-                try:
-                    decrypted_json = self._decrypt_data(current_password)
-                    credential_data = json.loads(decrypted_json)
-
-                    if credential_data.get("username") != username:
-                        logger.info(f"🔄 {service_name} 사용자명 변경 감지: 내부 페이로드 업데이트")
-                        credential_data["username"] = username
-                        credential_data["updated_at"] = datetime.now().isoformat()
-
-                        new_json = json.dumps(credential_data)
-                        new_password_payload = self._encrypt_data(new_json)
-                except Exception as e:
-                    logger.error(f"❌ {service_name} 내부 페이로드 업데이트 실패 (기존 패스워드 유지): {e}")
-
-            cursor.execute(
-                """
-                UPDATE collection_credentials
-                SET
-                    username = %s,
-                    password = %s,
-                    enabled = %s,
-                    collection_interval = %s,
-                    is_active = TRUE,
-                    updated_at = %s
-                WHERE service_name = %s
-                """,
-                (
-                    username,
-                    new_password_payload,
-                    enabled,
-                    collection_interval,
-                    datetime.now(),
-                    service_name.upper(),
-                ),
-            )
-
-            affected_rows = cursor.rowcount
-            conn.commit()
-            cursor.close()
-            self._close_connection(conn)
 
             if affected_rows > 0:
                 logger.info(f"✅ {service_name} 인증정보 설정 업데이트 완료")
@@ -251,24 +239,21 @@ class SecureCredentialService:
             Dict: 복호화된 인증정보 또는 None
         """
         try:
-            conn = self._get_database_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT
-                    username, password, config, encrypted,
-                    created_at, updated_at, enabled,
-                    collection_interval, last_collection
-                FROM collection_credentials
-                WHERE service_name = %s AND is_active = true
-            """,
-                (service_name.upper(),),
-            )
-
-            result = cursor.fetchone()
-            cursor.close()
-            self._close_connection(conn)
+            with self._get_database_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT
+                        username, password, config, encrypted,
+                        created_at, updated_at, enabled,
+                        collection_interval, last_collection
+                    FROM collection_credentials
+                    WHERE service_name = %s AND is_active = true
+                    """,
+                    (service_name.upper(),),
+                )
+                result = cursor.fetchone()
+                cursor.close()
 
             if not result:
                 logger.warning(f"⚠️ {service_name} 인증정보를 찾을 수 없음")
@@ -329,19 +314,16 @@ class SecureCredentialService:
     def list_credentials(self) -> List[Dict[str, Any]]:
         """모든 활성 인증정보 목록 조회 (비밀번호 제외)"""
         try:
-            conn = self._get_database_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                SELECT service_name, username, encrypted, created_at, updated_at, is_active
-                FROM collection_credentials
-                WHERE is_active = true
-                ORDER BY service_name
-            """)
-
-            results = cursor.fetchall()
-            cursor.close()
-            self._close_connection(conn)
+            with self._get_database_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT service_name, username, encrypted, created_at, updated_at, is_active
+                    FROM collection_credentials
+                    WHERE is_active = true
+                    ORDER BY service_name
+                """)
+                results = cursor.fetchall()
+                cursor.close()
 
             credentials_list = []
             for row in results:
@@ -367,22 +349,19 @@ class SecureCredentialService:
     def delete_credentials(self, service_name: str) -> bool:
         """인증정보 삭제 (논리적 삭제 - is_active = false)"""
         try:
-            conn = self._get_database_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                UPDATE collection_credentials
-                SET is_active = false, updated_at = %s
-                WHERE service_name = %s
-            """,
-                (datetime.now(), service_name.upper()),
-            )
-
-            deleted_count = cursor.rowcount
-            conn.commit()
-            cursor.close()
-            self._close_connection(conn)
+            with self._get_database_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE collection_credentials
+                    SET is_active = false, updated_at = %s
+                    WHERE service_name = %s
+                    """,
+                    (datetime.now(), service_name.upper()),
+                )
+                deleted_count = cursor.rowcount
+                conn.commit()
+                cursor.close()
 
             if deleted_count > 0:
                 logger.info(f"✅ {service_name} 인증정보 삭제 완료")
@@ -398,22 +377,19 @@ class SecureCredentialService:
     def activate_credentials(self, service_name: str) -> bool:
         """인증정보 활성화"""
         try:
-            conn = self._get_database_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                UPDATE collection_credentials
-                SET is_active = true, updated_at = %s
-                WHERE service_name = %s
-            """,
-                (datetime.now(), service_name.upper()),
-            )
-
-            updated_count = cursor.rowcount
-            conn.commit()
-            cursor.close()
-            self._close_connection(conn)
+            with self._get_database_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE collection_credentials
+                    SET is_active = true, updated_at = %s
+                    WHERE service_name = %s
+                    """,
+                    (datetime.now(), service_name.upper()),
+                )
+                updated_count = cursor.rowcount
+                conn.commit()
+                cursor.close()
 
             if updated_count > 0:
                 logger.info(f"✅ {service_name} 인증정보 활성화 완료")

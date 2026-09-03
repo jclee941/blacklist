@@ -4,6 +4,8 @@ import json
 import os
 from unittest.mock import Mock, MagicMock, patch
 
+import pytest
+
 
 def _make_service(db_service=None):
     """Create SecureCredentialService with mocked encryption."""
@@ -25,28 +27,16 @@ def _make_service(db_service=None):
                 from core.services.secure_credential_service import SecureCredentialService
 
                 svc = SecureCredentialService(db_service=mock_db)
-                svc._cipher_suite = mock_fernet
     return svc, mock_db
 
 
 def _mock_db_context(mock_db, fetchone_result=None, fetchall_result=None):
-    """Helper to set up mock DB connection.
-
-    SecureCredentialService uses _get_database_connection() which returns
-    a raw connection (no context manager). Methods do:
-      conn = self._get_database_connection()
-      cursor = conn.cursor()
-      cursor.execute(...)
-      conn.commit()
-      self._close_connection(conn)
-    """
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchone.return_value = fetchone_result
     mock_cursor.fetchall.return_value = fetchall_result or []
     mock_cursor.rowcount = 1  # For delete/activate operations
     mock_conn.cursor.return_value = mock_cursor
-    # Patch _get_database_connection on the service instance (done per-test or via mock_db)
     mock_db.get_connection.return_value = mock_conn
     return mock_conn, mock_cursor
 
@@ -55,6 +45,17 @@ class TestSecureCredentialServiceInit:
     def test_init_sets_db_service(self):
         svc, mock_db = _make_service()
         assert svc.db_service is mock_db
+
+    def test_init_requires_encryption_salt(self):
+        with patch.dict(
+            os.environ,
+            {"CREDENTIAL_MASTER_KEY": "test-master-key"},
+            clear=True,
+        ):
+            from core.services.secure_credential_service import SecureCredentialService
+
+            with pytest.raises(RuntimeError, match="ENCRYPTION_SALT"):
+                SecureCredentialService(db_service=Mock())
 
     def test_init_creates_cipher_suite(self):
         svc, _ = _make_service()
@@ -95,18 +96,15 @@ class TestSaveCredentials:
     def test_save_credentials_success(self):
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db)
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.save_credentials("REGTECH", "user1", "pass1")
+        result = svc.save_credentials("REGTECH", "user1", "pass1")
         assert result is True
+        mock_db.return_connection.assert_called_once_with(mock_conn)
 
     def test_save_credentials_with_config(self):
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db)
         config = {"base_url": "https://example.com"}
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.save_credentials("REGTECH", "user1", "pass1", config=config)
+        result = svc.save_credentials("REGTECH", "user1", "pass1", config=config)
         assert result is True
 
     def test_save_credentials_db_error(self):
@@ -126,18 +124,15 @@ class TestGetCredentials:
             mock_db,
             fetchone_result=("user1", encrypted_data, None, True, "2024-01-01", "2024-01-01", True, 86400, None),
         )
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.get_credentials("REGTECH")
+        result = svc.get_credentials("REGTECH")
         assert result is not None
         assert isinstance(result, dict)
+        mock_db.return_connection.assert_called_once_with(mock_conn)
 
     def test_get_credentials_not_found(self):
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db, fetchone_result=None)
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.get_credentials("REGTECH")
+        result = svc.get_credentials("REGTECH")
         assert result is None
 
     def test_get_credentials_not_encrypted(self):
@@ -145,9 +140,7 @@ class TestGetCredentials:
         mock_conn, mock_cursor = _mock_db_context(
             mock_db, fetchone_result=("user1", "plainpass", None, False, "2024-01-01", "2024-01-01", True, 86400, None)
         )
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.get_credentials("REGTECH")
+        result = svc.get_credentials("REGTECH")
         assert result is not None
 
 
@@ -160,17 +153,13 @@ class TestListCredentials:
                 ("REGTECH", "user1", True, True, "2024-01-01", "2024-01-01", True),
             ],
         )
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.list_credentials()
+        result = svc.list_credentials()
         assert isinstance(result, list)
 
     def test_list_credentials_empty(self):
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db, fetchall_result=[])
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.list_credentials()
+        result = svc.list_credentials()
         assert isinstance(result, list)
         assert len(result) == 0
 
@@ -180,10 +169,9 @@ class TestDeleteCredentials:
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db)
         mock_cursor.rowcount = 1  # Ensure delete reports success
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.delete_credentials("REGTECH")
+        result = svc.delete_credentials("REGTECH")
         assert result is True
+        mock_db.return_connection.assert_called_once_with(mock_conn)
 
     def test_delete_credentials_error(self):
         svc, mock_db = _make_service()
@@ -197,9 +185,7 @@ class TestActivateCredentials:
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db)
         mock_cursor.rowcount = 1  # Ensure activate reports success
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.activate_credentials("REGTECH")
+        result = svc.activate_credentials("REGTECH")
         assert result is True
 
 
@@ -232,18 +218,14 @@ class TestMigrateExistingCredentials:
                 ("REGTECH", "user1", "plainpass", None, False),
             ],
         )
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                with patch.object(svc, "save_credentials", return_value=True):
-                    result = svc.migrate_existing_credentials()
+        with patch.object(svc, "save_credentials", return_value=True):
+            result = svc.migrate_existing_credentials()
         assert isinstance(result, dict)
 
     def test_migrate_nothing_to_migrate(self):
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db, fetchall_result=[])
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.migrate_existing_credentials()
+        result = svc.migrate_existing_credentials()
         assert isinstance(result, dict)
 
 
@@ -251,7 +233,5 @@ class TestUpdateCredentialSettings:
     def test_update_settings(self):
         svc, mock_db = _make_service()
         mock_conn, mock_cursor = _mock_db_context(mock_db, fetchone_result=("oldpass", True))
-        with patch.object(svc, "_get_database_connection", return_value=mock_conn):
-            with patch.object(svc, "_close_connection"):
-                result = svc.update_credential_settings("REGTECH", "newuser", True, 3600)
+        result = svc.update_credential_settings("REGTECH", "newuser", True, 3600)
         assert isinstance(result, bool)

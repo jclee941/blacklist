@@ -7,7 +7,10 @@ from core.utils.encryption import CredentialEncryption, EncryptionError
 
 class TestCredentialEncryptionExtended:
     def _make_encryption(self):
-        return CredentialEncryption(master_key=b"test-master-key-for-testing-1234")
+        return CredentialEncryption(
+            master_key="test-master-key-for-testing-1234",
+            salt="test-encryption-salt",
+        )
 
     def test_encrypt_empty_string(self):
         enc = self._make_encryption()
@@ -75,7 +78,13 @@ class TestCredentialEncryptionExtended:
         assert h1 != h2
 
     def test_get_or_create_master_key_from_env(self):
-        with patch.dict("os.environ", {"CREDENTIAL_MASTER_KEY": "env-key-1234"}):
+        with patch.dict(
+            "os.environ",
+            {
+                "CREDENTIAL_MASTER_KEY": "env-key-1234",
+                "ENCRYPTION_SALT": "test-encryption-salt",
+            },
+        ):
             with patch("os.path.exists", return_value=False):
                 enc = CredentialEncryption()
                 assert enc.master_key is not None

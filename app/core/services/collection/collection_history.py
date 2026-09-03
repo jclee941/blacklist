@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from flask import current_app
+from ..database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class CollectionHistoryManager:
         collected_count: int,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        additional_info: Dict[str, Any] = None,
+        additional_info: Optional[Dict[str, Any]] = None,
         success: bool = True,
         error_message: Optional[str] = None,
         execution_time_ms: int = 0,
@@ -45,37 +46,30 @@ class CollectionHistoryManager:
             execution_time_ms: 실행 시간 (밀리초)
         """
         try:
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            # 실제 테이블 구조에 맞게 INSERT
-            # Table: service_name, collection_type, collection_date, items_collected,
-            #        success, error_message, execution_time_ms, details
             import json
 
             details = json.dumps(additional_info) if additional_info else "{}"
-
-            cursor.execute(
-                """
-                INSERT INTO collection_history
-                (service_name, collection_date, items_collected,
-                 success, error_message, execution_time_ms, details)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-                (
-                    collection_type,  # service_name
-                    datetime.now(),  # collection_date
-                    collected_count,  # items_collected
-                    success,
-                    error_message,
-                    execution_time_ms,
-                    details,
-                ),
-            )
-
-            conn.commit()
-            cursor.close()
-            conn.close()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO collection_history
+                    (service_name, collection_date, items_collected,
+                     success, error_message, execution_time_ms, details)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        collection_type,
+                        datetime.now(),
+                        collected_count,
+                        success,
+                        error_message,
+                        execution_time_ms,
+                        details,
+                    ),
+                )
+                conn.commit()
+                cursor.close()
 
             logger.info(f"Collection history recorded: {collection_type}, {collected_count} items, success={success}")
             return True
@@ -90,29 +84,27 @@ class CollectionHistoryManager:
         # 이 함수는 하위 호환성을 위해 유지
         pass
 
-    def get_recent_history(self, collection_type: str = None, days: int = 30) -> List[Dict[str, Any]]:
+    def get_recent_history(self, collection_type: Optional[str] = None, days: int = 30) -> List[Dict[str, Any]]:
         """최근 수집 이력 조회"""
-        conn = None
         try:
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                query = """
+                    SELECT service_name, items_collected, collection_date, collection_date,
+                           details, collection_date
+                    FROM collection_history
+                    WHERE collection_date >= %s
+                """
+                params: list[datetime | str] = [datetime.now() - timedelta(days=days)]
 
-            query = """
-                SELECT service_name, items_collected, collection_date, collection_date,
-                       details, collection_date
-                FROM collection_history
-                WHERE collection_date >= %s
-            """
-            params = [datetime.now() - timedelta(days=days)]
+                if collection_type:
+                    query += " AND service_name = %s"
+                    params.append(collection_type)
 
-            if collection_type:
-                query += " AND service_name = %s"
-                params.append(collection_type)
-
-            query += " ORDER BY collection_date DESC LIMIT 100"
-
-            cursor.execute(query, params)
-            results = cursor.fetchall()
+                query += " ORDER BY collection_date DESC LIMIT 100"
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+                cursor.close()
 
             history = []
             columns = [
@@ -126,55 +118,46 @@ class CollectionHistoryManager:
 
             for row in results:
                 history_item = dict(zip(columns, row))
-                # 날짜 형식 변환
                 for date_field in ["start_date", "end_date", "collection_date"]:
                     if history_item[date_field]:
                         history_item[date_field] = history_item[date_field].isoformat()
                 history.append(history_item)
-
-            cursor.close()
 
             return history
 
         except Exception as e:
             logger.error(f"Failed to get collection history: {e}")
             return []
-        finally:
-            if conn:
-                self.db_service.return_connection(conn)
 
     def get_collection_statistics(self) -> Dict[str, Any]:
         """수집 통계 조회"""
         try:
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
 
-            stats = {
-                "total_collections": 0,
-                "total_collected_items": 0,
-                "last_7_days": {},
-                "by_type": {},
-                "success_rate": 0.0,
-            }
+                total_collections = 0
+                total_collected_items = 0
+                last_7_days: dict[str, dict[str, int]] = {}
+                by_type: dict[str, dict[str, int | str | None]] = {}
 
-            # 전체 수집 횟수 및 아이템 수
-            cursor.execute(
-                """
+                # 전체 수집 횟수 및 아이템 수
+                cursor.execute(
+                    """
                 SELECT COUNT(*), COALESCE(SUM(items_collected), 0)
                 FROM collection_history
                 WHERE collection_date >= %s
-            """,
-                (datetime.now() - timedelta(days=30),),
-            )
+                    """,
+                    (datetime.now() - timedelta(days=30),),
+                )
 
-            result = cursor.fetchone()
-            if result:
-                stats["total_collections"] = result[0]
-                stats["total_collected_items"] = result[1]
+                result = cursor.fetchone()
+                if result:
+                    total_collections = result[0]
+                    total_collected_items = result[1]
 
-            # 최근 7일간 일별 수집 현황
-            cursor.execute(
-                """
+                # 최근 7일간 일별 수집 현황
+                cursor.execute(
+                    """
                 SELECT DATE(collection_date) as collection_date,
                        COUNT(*) as collection_count,
                        COALESCE(SUM(items_collected), 0) as item_count
@@ -182,20 +165,20 @@ class CollectionHistoryManager:
                 WHERE collection_date >= %s
                 GROUP BY DATE(collection_date)
                 ORDER BY collection_date DESC
-            """,
-                (datetime.now() - timedelta(days=7),),
-            )
+                    """,
+                    (datetime.now() - timedelta(days=7),),
+                )
 
-            for row in cursor.fetchall():
-                date_str = row[0].isoformat() if row[0] else "unknown"
-                stats["last_7_days"][date_str] = {
-                    "collections": row[1],
-                    "items": row[2],
-                }
+                for row in cursor.fetchall():
+                    date_str = row[0].isoformat() if row[0] else "unknown"
+                    last_7_days[date_str] = {
+                        "collections": row[1],
+                        "items": row[2],
+                    }
 
-            # 수집 타입별 통계
-            cursor.execute(
-                """
+                # 수집 타입별 통계
+                cursor.execute(
+                    """
                 SELECT service_name,
                        COUNT(*) as collection_count,
                        COALESCE(SUM(items_collected), 0) as item_count,
@@ -203,21 +186,26 @@ class CollectionHistoryManager:
                 FROM collection_history
                 WHERE collection_date >= %s
                 GROUP BY service_name
-            """,
-                (datetime.now() - timedelta(days=30),),
-            )
+                    """,
+                    (datetime.now() - timedelta(days=30),),
+                )
 
-            for row in cursor.fetchall():
-                stats["by_type"][row[0]] = {
-                    "collections": row[1],
-                    "items": row[2],
-                    "last_collection": row[3].isoformat() if row[3] else None,
-                }
+                for row in cursor.fetchall():
+                    by_type[row[0]] = {
+                        "collections": row[1],
+                        "items": row[2],
+                        "last_collection": row[3].isoformat() if row[3] else None,
+                    }
 
-            cursor.close()
-            conn.close()
+                cursor.close()
 
-            return stats
+            return {
+                "total_collections": total_collections,
+                "total_collected_items": total_collected_items,
+                "last_7_days": last_7_days,
+                "by_type": by_type,
+                "success_rate": 0.0,
+            }
 
         except Exception as e:
             logger.error(f"Failed to get collection statistics: {e}")
@@ -232,23 +220,19 @@ class CollectionHistoryManager:
     def cleanup_old_history(self) -> int:
         """오래된 이력 정리"""
         try:
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            cutoff_date = datetime.now() - timedelta(days=self.history_retention_days)
-
-            cursor.execute(
-                """
-                DELETE FROM collection_history
-                WHERE created_at < %s
-            """,
-                (cutoff_date,),
-            )
-
-            deleted_count = cursor.rowcount
-            conn.commit()
-            cursor.close()
-            conn.close()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
+                cutoff_date = datetime.now() - timedelta(days=self.history_retention_days)
+                cursor.execute(
+                    """
+                    DELETE FROM collection_history
+                    WHERE collection_date < %s
+                    """,
+                    (cutoff_date,),
+                )
+                deleted_count = cursor.rowcount
+                conn.commit()
+                cursor.close()
 
             if deleted_count > 0:
                 logger.info(f"Cleaned up {deleted_count} old history records")

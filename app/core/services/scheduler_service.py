@@ -6,10 +6,12 @@
 import threading
 import time
 import logging
+import json
 from datetime import datetime
 from typing import Dict, Any, Optional
 
 from ..config import config
+from .database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -102,102 +104,85 @@ class CollectionScheduler:
 
     def _deactivate_expired_ips(self):
         """해제일이 지난 IP들을 자동으로 비활성 처리"""
+        db_service = self.db_service
+        if db_service is None:
+            logger.error("Database service not available")
+            return
         try:
             logger.info("🔄 해제일 만료 IP 비활성 처리 시작")
-
-            if not self.db_service:
-                logger.error("Database service not available")
-                return
-
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
-
-            # 해제일이 지나고 아직 활성 상태인 IP들 찾기
-            cursor.execute(
-                """
-                SELECT id, ip_address, removal_date, source
-                FROM blacklist_ips
-                WHERE is_active = true
-                AND removal_date IS NOT NULL
-                AND removal_date < CURRENT_DATE
-            """
-            )
-
-            expired_ips = cursor.fetchall()
-
-            if expired_ips:
-                expired_count = len(expired_ips)
-                logger.info(f"📋 해제일 만료 IP {expired_count}개 발견")
-
-                # 해제일이 지난 IP들을 비활성 처리
-                expired_ids = [str(ip[0]) for ip in expired_ips]
-                placeholders = ",".join(["%s"] * len(expired_ids))
-
-                cursor.execute(
-                    f"""
-                    UPDATE blacklist_ips
-                    SET is_active = false,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id IN ({placeholders})
-                """,
-                    expired_ids,
-                )
-
-                updated_count = cursor.rowcount
-                conn.commit()
-
-                # 로그 출력
-                for ip_record in expired_ips:
-                    ip_id, ip_address, removal_date, source = ip_record
-                    logger.info(f"🚫 IP 비활성 처리: {ip_address} (해제일: {removal_date}, 소스: {source})")
-
-                logger.info(f"✅ 해제일 만료 IP 비활성 처리 완료: {updated_count}개")
-
-                # 비활성 처리 통계 기록
+            with connection_lease(db_service) as conn:
+                cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO collection_history (
-                        collection_type,
-                        collected_count,
-                        success,
-                        additional_info
-                    ) VALUES (%s, %s, %s, %s)
-                """,
-                    (
-                        "expired_ip_deactivation",
-                        updated_count,
-                        True,
-                        {
-                            "deactivated_count": updated_count,
-                            "expired_ips": [
-                                {
-                                    "ip": ip[1],
-                                    "removal_date": str(ip[2]),
-                                    "source": ip[3],
-                                }
-                                for ip in expired_ips
-                            ],
-                            "execution_time": datetime.now().isoformat(),
-                        },
-                    ),
+                    SELECT id, ip_address, removal_date, source
+                    FROM blacklist_ips
+                    WHERE is_active = true
+                    AND removal_date IS NOT NULL
+                    AND removal_date < CURRENT_DATE
+                    """
                 )
+                expired_ips = cursor.fetchall()
 
-                conn.commit()
+                if expired_ips:
+                    expired_count = len(expired_ips)
+                    logger.info(f"📋 해제일 만료 IP {expired_count}개 발견")
+                    expired_ids = [str(ip[0]) for ip in expired_ips]
+                    placeholders = ",".join(["%s"] * len(expired_ids))
+                    cursor.execute(
+                        f"""
+                        UPDATE blacklist_ips
+                        SET is_active = false,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id IN ({placeholders})
+                        """,
+                        expired_ids,
+                    )
+                    updated_count = cursor.rowcount
+                    conn.commit()
 
-            else:
-                logger.info("✅ 해제일 만료 IP 없음 - 모든 활성 IP가 유효함")
+                    for ip_record in expired_ips:
+                        ip_id, ip_address, removal_date, source = ip_record
+                        logger.info(f"🚫 IP 비활성 처리: {ip_address} (해제일: {removal_date}, 소스: {source})")
 
-            cursor.close()
-            self.db_service.return_connection(conn)
+                    logger.info(f"✅ 해제일 만료 IP 비활성 처리 완료: {updated_count}개")
+                    cursor.execute(
+                        """
+                        INSERT INTO collection_history (
+                            service_name,
+                            collection_date,
+                            items_collected,
+                            success,
+                            details
+                        ) VALUES (%s, CURRENT_TIMESTAMP, %s, %s, %s)
+                        """,
+                        (
+                            "expired_ip_deactivation",
+                            updated_count,
+                            True,
+                            json.dumps(
+                                {
+                                    "deactivated_count": updated_count,
+                                    "expired_ips": [
+                                        {
+                                            "ip": ip[1],
+                                            "removal_date": str(ip[2]),
+                                            "source": ip[3],
+                                        }
+                                        for ip in expired_ips
+                                    ],
+                                    "execution_time": datetime.now().isoformat(),
+                                }
+                            ),
+                        ),
+                    )
+                    conn.commit()
+                else:
+                    logger.info("✅ 해제일 만료 IP 없음 - 모든 활성 IP가 유효함")
+
+                cursor.close()
 
         except Exception as e:
             logger.error(f"❌ 해제일 만료 IP 비활성 처리 오류: {e}")
-            if "conn" in locals():
-                try:
-                    conn.rollback()
-                    self.db_service.return_connection(conn)
-                except BaseException as e:
-                    logger.debug("Cleanup rollback failed: %s", e)
 
     def _update_collection_stats(self):
         """수집 통계 업데이트"""

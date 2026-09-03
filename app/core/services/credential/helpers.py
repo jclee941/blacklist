@@ -78,21 +78,21 @@ def validate_credentials(service: Any, service_name: str, logger: Any) -> Dict[s
 def migrate_existing_credentials(service: Any, logger: Any) -> Dict[str, Any]:
     """Migrate plaintext credentials to the encrypted storage format."""
     try:
-        conn = service._get_database_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
+        with service._get_database_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
                 SELECT service_name, username, password, config
                 FROM collection_credentials
                 WHERE (encrypted = false OR encrypted IS NULL)
                 AND is_active = true
                 AND password IS NOT NULL
                 AND password != ''
-            """
-        )
+                """
+            )
+            results = cursor.fetchall()
+            cursor.close()
 
-        results = cursor.fetchall()
         migrated_count = 0
         errors = []
 
@@ -108,9 +108,6 @@ def migrate_existing_credentials(service: Any, logger: Any) -> Dict[str, Any]:
             except Exception as exc:
                 errors.append(f"{service_name}: {str(exc)}")
                 logger.error(f"❌ {service_name} 마이그레이션 실패: {exc}")
-
-        cursor.close()
-        service._close_connection(conn)
 
         return {
             "success": True,

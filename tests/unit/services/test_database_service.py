@@ -33,9 +33,16 @@ class TestDatabaseService:
         with patch("app.core.services.database_service.pool.ThreadedConnectionPool", return_value=pool_instance):
             service._initialize_pool_with_retry(max_retries=1, base_delay=0)
 
-        pool_instance.getconn.assert_called_once()
-        test_cursor.execute.assert_called_once_with("SELECT 1")
-        pool_instance.putconn.assert_called_once_with(test_conn)
+        assert pool_instance.getconn.call_count == 2
+        assert test_cursor.execute.call_args_list[0] == call("SELECT 1")
+        migration_sql = test_cursor.execute.call_args_list[1].args[0]
+        assert "ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE" in migration_sql
+        assert "ALTER COLUMN is_active SET NOT NULL" in migration_sql
+        assert "ALTER TABLE blacklist_ips" in migration_sql
+        assert "ON whitelist_ips(ip_address)" in migration_sql
+        assert "ON blacklist_ips(ip_address, source)" in migration_sql
+        assert pool_instance.putconn.call_args_list == [call(test_conn), call(test_conn)]
+        test_conn.commit.assert_called_once_with()
 
     def test_initialize_pool_with_retry_failure_raises(self, monkeypatch):
         monkeypatch.delenv("TESTING", raising=False)
@@ -85,7 +92,7 @@ class TestDatabaseService:
 
         assert result is conn
 
-    def test_get_connection_retries_and_reinitializes(self):
+    def test_get_connection_retries_without_reinitializing_active_pool(self):
         with patch.object(DatabaseService, "_initialize_pool_with_retry"):
             service = DatabaseService()
 
@@ -100,19 +107,20 @@ class TestDatabaseService:
             result = service.get_connection()
 
         assert result is not None
-        assert reinit.call_count == 2
+        reinit.assert_not_called()
 
-    def test_return_connection_closes_stale_connection_on_put_failure(self):
+    def test_return_connection_discards_stale_connection_through_pool(self):
         with patch.object(DatabaseService, "_initialize_pool_with_retry"):
             service = DatabaseService()
 
         conn = Mock()
         conn.closed = False
-        service.connection_pool = Mock(putconn=Mock(side_effect=Exception("stale")))
+        service.connection_pool = Mock(putconn=Mock(side_effect=[Exception("stale"), None]))
 
         service.return_connection(conn)
 
-        conn.close.assert_called_once()
+        assert service.connection_pool.putconn.call_args_list == [call(conn), call(conn, close=True)]
+        conn.close.assert_not_called()
 
     def test_query_executes_with_params_and_returns_dicts(self):
         with patch.object(DatabaseService, "_initialize_pool_with_retry"):

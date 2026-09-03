@@ -1,5 +1,6 @@
 import threading
 import time
+from contextlib import closing
 from datetime import datetime
 from typing import Any, cast
 
@@ -9,6 +10,7 @@ from flask import jsonify
 
 from .auth.decorators import public
 from .config import config
+from .services.database_lease import connection_lease
 
 
 _background_tasks_lock = threading.Lock()
@@ -20,38 +22,16 @@ def register_health_route(app):
     @public
     def health_check():
         try:
-            conn = psycopg2.connect(**cast(Any, config.get_postgres_params()))
-            cursor = conn.cursor()
-            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-            tables = [row[0] for row in cursor.fetchall()]
-            try:
-                cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
-                row = cursor.fetchone()
-                ip_count = row[0] if row else 0
-            except psycopg2.Error:
-                ip_count = 0
-            cursor.close()
-            conn.close()
-            return jsonify(
-                {
-                    "status": "healthy",
-                    "timestamp": datetime.now().isoformat(),
-                    "database": {
-                        "connection": "successful",
-                        "tables": tables,
-                        "blacklist_ips_count": ip_count,
-                    },
-                    "message": "✅ PostgreSQL connection successful!",
-                }
-            ), 200
-        except Exception as e:
-            return jsonify(
-                {
-                    "status": "unhealthy",
-                    "timestamp": datetime.now().isoformat(),
-                    "error": str(e),
-                }
-            ), 500
+            with closing(psycopg2.connect(**cast(Any, config.get_postgres_params()))) as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("SELECT 1")
+                finally:
+                    cursor.close()
+            return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()}), 200
+        except Exception:
+            app.logger.exception("Health check failed")
+            return jsonify({"status": "unhealthy", "timestamp": datetime.now().isoformat()}), 500
 
 
 def start_background_tasks(app):
@@ -68,12 +48,13 @@ def start_background_tasks(app):
         if not db_service or not scheduler_service:
             return
 
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT username, password, enabled FROM collection_credentials WHERE service_name = 'REGTECH'")
-        result = cursor.fetchone()
-        cursor.close()
-        db_service.return_connection(conn)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT username, password, enabled FROM collection_credentials WHERE service_name = 'REGTECH'"
+            )
+            result = cursor.fetchone()
+            cursor.close()
 
         if result and result[2] and result[0] and result[1]:
             scheduler_service.start()

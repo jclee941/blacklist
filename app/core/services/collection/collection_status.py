@@ -10,6 +10,8 @@ from typing import Dict, Any, Set, TypedDict
 import requests
 from flask import current_app
 
+from ..database_lease import connection_lease
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,25 +61,27 @@ class CollectionStatusManager:
     def _get_database_stats(self) -> Dict[str, Any]:
         """데이터베이스 통계 조회"""
         try:
-            conn = self.db_service.get_connection()
-            cursor = conn.cursor()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor()
 
-            # 기본 통계
-            cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
-            total_ips = cursor.fetchone()[0] or 0
+                cursor.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
+                count_row = cursor.fetchone()
+                if count_row is None:
+                    raise RuntimeError("Active blacklist count query returned no row")
+                total_ips = count_row[0] or 0
 
-            cursor.execute(
-                """
-                SELECT data_source, COUNT(*)
-                FROM blacklist_ips
-                WHERE is_active = true
-                GROUP BY data_source
-            """
-            )
-            sources = dict(cursor.fetchall()) if cursor.fetchall() else {}
+                cursor.execute(
+                    """
+                    SELECT data_source, COUNT(*)
+                    FROM blacklist_ips
+                    WHERE is_active = true
+                    GROUP BY data_source
+                    """
+                )
+                source_rows = cursor.fetchall()
+                sources = dict(source_rows) if source_rows else {}
 
-            cursor.close()
-            conn.close()
+                cursor.close()
 
             return {"total_ips": total_ips, "sources": sources}
 
