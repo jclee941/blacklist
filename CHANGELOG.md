@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.1] - 2026-09-04
+
+### Added
+- feat(release): include application source in bundle
+
+### Fixed
+- fix(release): authenticate offline distribution artifacts
+- fix(deploy): enforce least-privilege service isolation
+- fix(frontend): secure proxy and interaction boundaries
+- fix(collector): harden runtime trust boundaries
+- fix(database): enforce deterministic connection ownership
+- fix(api): harden external trust boundaries
+- fix(auth): enforce durable session lifecycle
+- fix(release): exclude test environment policy from source
+
+### Other
+- docs(release): add v5.1.1 release notes
+
+---
+
 ## [5.1.0] - 2026-08-04
 
 ### Breaking
