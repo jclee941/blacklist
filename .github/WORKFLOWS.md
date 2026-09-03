@@ -30,6 +30,8 @@ make release-dry TYPE=minor
 
 Before releasing, create, add, and commit `docs/manual/blacklist-<next-version>-release-notes.md`. `scripts/release.sh` checks the branch, working tree, test status, and that the versioned release note is non-empty and tracked before changing metadata. It then updates version metadata, generates a changelog entry, commits the release, creates an annotated tag, and pushes. The tag invokes `release.yml`. That workflow validates `VERSION`, `CHANGELOG.md`, and the versioned release note before building images, packages release artifacts, creates the GitHub Release, and publishes five images to GHCR.
 
+The protected `production` environment must provide `RELEASE_GPG_PRIVATE_KEY`, optional `RELEASE_GPG_PASSPHRASE`, and the matching uppercase 40-character `RELEASE_GPG_FINGERPRINT` variable. The package job imports the private key into an ephemeral runner-local GnuPG home, verifies the fingerprint, signs both `MANIFEST.sha256` and the final tarball, and removes the GnuPG home before the job exits.
+
 ## Workflow Change Rules
 
 - Pin every GitHub Action to a full commit SHA with its version comment.

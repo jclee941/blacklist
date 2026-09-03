@@ -25,6 +25,8 @@ PREREQ_FILES = (
 MANIFEST_PATHS = (
     "install.sh",
     "docker-compose.yml",
+    "bin/ss",
+    "etc/blacklist/.env",
     *(f"images/{image_name}" for image_name in BUNDLE_IMAGES),
     "images/checksums.sha256",
     *PREREQ_FILES,
@@ -208,6 +210,21 @@ def test_valid_manifest_passes(tmp_path: Path) -> None:
     assert "Bundle manifest verified" in output, output
 
 
+def test_unlisted_compose_override_is_fatal(tmp_path: Path) -> None:
+    environment = prepare_bundle(tmp_path)
+    write_manifest(tmp_path)
+    _ = (tmp_path / "docker-compose.override.yml").write_text(
+        "services:\n  blacklist-app:\n    privileged: true\n",
+        encoding="utf-8",
+    )
+
+    result = run_verification(tmp_path, environment)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "docker-compose.override.yml" in output
+
+
 def test_empty_manifest_is_fatal(tmp_path: Path) -> None:
     # Given: an otherwise complete bundle with a zero-entry root manifest.
     environment = prepare_bundle(tmp_path)
@@ -255,6 +272,23 @@ def test_signature_is_skipped_without_keyring(tmp_path: Path) -> None:
     assert "signature verification skipped" in output.lower(), output
 
 
+def test_missing_signature_is_fatal_when_trusted_keyring_exists(tmp_path: Path) -> None:
+    # Given: a valid unsigned bundle and an explicitly configured trusted keyring.
+    environment = prepare_bundle(tmp_path)
+    write_manifest(tmp_path)
+    keyring = tmp_path.parent / f"{tmp_path.name}-trusted-release-keyring.gpg"
+    _ = keyring.write_bytes(b"trusted-keyring-fixture")
+    environment["BLACKLIST_RELEASE_KEYRING"] = str(keyring)
+
+    # When: detached signature verification runs without MANIFEST.sha256.asc.
+    result = run_verification(tmp_path, environment)
+
+    # Then: authenticity cannot be silently downgraded to checksum-only verification.
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "MANIFEST.sha256.asc" in output, output
+
+
 def test_require_signature_is_fatal_without_keyring(tmp_path: Path) -> None:
     # Given: a valid unsigned bundle on a host without the provisioned release keyring.
     environment = prepare_bundle(tmp_path)
@@ -269,6 +303,16 @@ def test_require_signature_is_fatal_without_keyring(tmp_path: Path) -> None:
     assert "/etc/blacklist/release-pubkey.gpg" in output, output
 
 
+def test_mutating_install_always_requires_signature() -> None:
+    installer_source = INSTALLER.read_text(encoding="utf-8")
+    install_branch = installer_source.split('if [ "$verify_only" = true ]; then', 1)[1].split(
+        "preflight_checks",
+        1,
+    )[0]
+
+    assert "REQUIRE_SIGNATURE=true" in install_branch
+
+
 def test_signature_verification_uses_host_keyring() -> None:
     # Given: the shipped installer source and the ADR-mandated trust anchor.
     installer_source = INSTALLER.read_text(encoding="utf-8")
@@ -279,8 +323,6 @@ def test_signature_verification_uses_host_keyring() -> None:
     # Then: gpgv uses only the fixed host keyring and bundle signature inputs.
     assert function_marker in installer_source, installer_source
     function_body = installer_source.split(function_marker, 1)[1].split("\n}", 1)[0]
-    assert (
-        "gpgv --keyring /etc/blacklist/release-pubkey.gpg "
-        "MANIFEST.sha256.asc MANIFEST.sha256"
-    ) in function_body
+    assert 'gpgv --keyring "${RELEASE_KEYRING}" MANIFEST.sha256.asc MANIFEST.sha256' in function_body
+    assert "BLACKLIST_RELEASE_KEYRING:-/etc/blacklist/release-pubkey.gpg" in installer_source
     assert '${SCRIPT_DIR}/release-pubkey.gpg' not in function_body

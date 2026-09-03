@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.0] - 2026-08-04
 
+### Breaking
+- 배포 환경에 서로 분리된 `FLASK_SECRET_KEY`, `JWT_SECRET_KEY`, `SETTINGS_ENCRYPTION_KEY`가 필요합니다. 설치기는 신규 설치 시 값을 생성하며 기존 설치는 업그레이드 전에 추가해야 합니다.
+- FortiGate HTTPS 및 SSH 연동은 각각 명시적인 CA bundle과 `known_hosts`가 없으면 실패합니다.
+- Collector는 고정 UID/GID `10001`로 실행되고 PostgreSQL 호스트 인증은 TLS 위의 SCRAM-SHA-256만 허용합니다.
+
 ### Added
 - feat(frontend): add administrator login flow
 - feat(frontend): persist JWT sessions in API client
