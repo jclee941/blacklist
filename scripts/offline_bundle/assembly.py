@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import io
 import re
 import shutil
+import subprocess
+import tarfile
 from pathlib import Path
 from typing import Final
 
@@ -29,6 +32,7 @@ OPERATOR_DOCUMENTS: Final[tuple[tuple[str, str], ...]] = (
     ("screenshots/cloudflare.png", "screenshots/cloudflare.png"),
     ("screenshots/database.png", "screenshots/database.png"),
 )
+SOURCE_ROOTS: Final[tuple[str, ...]] = ("app", "collector", "frontend", "postgres")
 
 
 def prereq_gaps(prereqs_dir: Path) -> list[str]:
@@ -45,6 +49,24 @@ def prereq_gaps(prereqs_dir: Path) -> list[str]:
 def assemble(repo_root: Path, bundle_dir: Path, version: str) -> None:
     deploy = repo_root / "deploy"
     bundle_dir.mkdir(parents=True, exist_ok=True)
+
+    source_archive = subprocess.run(
+        ["git", "archive", "--format=tar", "HEAD", "--", *SOURCE_ROOTS],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    if source_archive.returncode != 0:
+        detail = source_archive.stderr.decode(errors="replace").strip()
+        raise BundleError(f"Cannot archive release source: {detail}")
+    source_dir = bundle_dir / "source"
+    source_dir.mkdir()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(source_archive.stdout), mode="r:") as archive:
+            archive.extractall(source_dir, filter="data")
+    except (OSError, tarfile.TarError) as error:
+        raise BundleError(f"Cannot extract release source: {error}") from error
+
     _ = shutil.copy2(deploy / "docker-compose.release.yml", bundle_dir / "docker-compose.yml")
     _ = shutil.copy2(deploy / "base.yml", bundle_dir / "base.yml")
     _ = shutil.copy2(deploy / "install.sh", bundle_dir / "install.sh")
