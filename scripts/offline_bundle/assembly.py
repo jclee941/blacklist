@@ -33,6 +33,7 @@ OPERATOR_DOCUMENTS: Final[tuple[tuple[str, str], ...]] = (
     ("screenshots/database.png", "screenshots/database.png"),
 )
 SOURCE_ROOTS: Final[tuple[str, ...]] = ("app", "collector", "frontend", "postgres")
+SOURCE_EXCLUSIONS: Final[tuple[str, ...]] = (":(exclude)frontend/.env.e2e",)
 
 
 def prereq_gaps(prereqs_dir: Path) -> list[str]:
@@ -51,7 +52,7 @@ def assemble(repo_root: Path, bundle_dir: Path, version: str) -> None:
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
     source_archive = subprocess.run(
-        ["git", "archive", "--format=tar", "HEAD", "--", *SOURCE_ROOTS],
+        ["git", "archive", "--format=tar", "HEAD", "--", *SOURCE_ROOTS, *SOURCE_EXCLUSIONS],
         cwd=repo_root,
         capture_output=True,
         check=False,

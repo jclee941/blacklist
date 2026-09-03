@@ -24,4 +24,6 @@ def test_bundle_ships_only_application_source_under_source(tmp_path: Path) -> No
     assert (source_dir / "app" / "core" / "app.py").is_file()
     assert (source_dir / "collector" / "run_collector.py").is_file()
     assert (source_dir / "frontend" / "app" / "page.tsx").is_file()
+    assert (source_dir / "frontend" / ".env.example").is_file()
+    assert not (source_dir / "frontend" / ".env.e2e").exists()
     assert (source_dir / "postgres" / "Dockerfile").is_file()
