@@ -24,3 +24,9 @@ http.request = function request(options, callback) {
 
   return originalRequest(options, callback);
 };
+
+http.get = function get(options, callback) {
+  const request = http.request(options, callback);
+  request.end();
+  return request;
+};

@@ -76,8 +76,7 @@ def write_manifest(bundle_dir: Path) -> None:
     manifest = bundle_dir / "MANIFEST.sha256"
     manifest.unlink(missing_ok=True)
     lines = [
-        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  "
-        f"{path.relative_to(bundle_dir).as_posix()}"
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(bundle_dir).as_posix()}"
         for path in sorted(bundle_dir.rglob("*"))
         if path.is_file()
     ]
@@ -224,8 +223,8 @@ exit 0
     assert "info --format {{.DockerRootDir}}" in performed, performed
 
 
-def test_published_port_occupancy_is_fatal(tmp_path: Path) -> None:
-    # Given: a process already listening on the port the test bundle publishes.
+def test_verify_only_ignores_published_port_occupancy(tmp_path: Path) -> None:
+    # Given: a process already listening on the port the test bundle would publish.
     published_port = 44443
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         listener.bind(("127.0.0.1", published_port))
@@ -247,15 +246,15 @@ def test_published_port_occupancy_is_fatal(tmp_path: Path) -> None:
         assert configured_source != installer_source
         _ = installer.write_text(configured_source, encoding="utf-8")
 
-        # When: the read-only bundle verification checks that occupied port.
+        # When: read-only bundle verification runs without deploying services.
         result = run_verification(tmp_path, environment)
 
-    # Then: occupancy is fatal, scoped to the frontend, and checked after upgrade removal.
+    # Then: verification succeeds; deployment still checks the port after removing old containers.
     output = result.stdout + result.stderr
     shipped_source = INSTALLER.read_text(encoding="utf-8")
     deploy_body = shipped_source.split("\ndeploy_services() {", 1)[1].split("\n}", 1)[0]
-    assert result.returncode != 0, output
-    assert str(published_port) in output, output
+    assert result.returncode == 0, output
+    assert f"Port {published_port} is already in use" not in output
     assert "for port in 443 2542 5432 6379 8545; do" not in shipped_source
     assert deploy_body.index('docker rm -f "$c"') < deploy_body.index("verify_published_port_available")
     assert deploy_body.index("verify_published_port_available") < deploy_body.index('log_info "Starting services..."')

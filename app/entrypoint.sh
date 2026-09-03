@@ -72,5 +72,13 @@ echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}\U0001f680 Starting Flask application...${NC}"
 echo -e "${BLUE}========================================${NC}"
 
-# Start Flask application
-exec python run_app.py
+# A single worker preserves the application's in-process scheduler ownership; threads serve concurrent requests.
+exec gunicorn \
+    --bind "0.0.0.0:${PORT:-2542}" \
+    --workers 1 \
+    --threads 4 \
+    --timeout 120 \
+    --no-control-socket \
+    --certfile "${INTERNAL_TLS_CERT:?INTERNAL_TLS_CERT is required}" \
+    --keyfile "${INTERNAL_TLS_KEY:?INTERNAL_TLS_KEY is required}" \
+    'core.app:create_app()'

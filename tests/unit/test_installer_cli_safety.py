@@ -104,6 +104,18 @@ def test_help_lists_new_flags(tmp_path: Path) -> None:
     assert "--stop-all-containers" in result.stdout
 
 
+def test_unknown_option_fails_before_privilege_checks(tmp_path: Path) -> None:
+    # Given: an unprivileged operator mistypes an installer option.
+    # When: the unknown option is parsed.
+    result = run_installer(tmp_path, "--definitely-invalid")
+
+    # Then: parsing fails immediately instead of entering the installation path.
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "Unknown option: --definitely-invalid" in output
+    assert root_refusals(output) == []
+
+
 def test_install_requires_root(tmp_path: Path) -> None:
     # Given: a complete release bundle driven by an unprivileged operator.
     installer, docker_log, environment = prepare_bundle(tmp_path)
@@ -147,6 +159,17 @@ def test_check_secrets_still_runs_without_root(tmp_path: Path) -> None:
     assert result.returncode == 0, output
     assert root_refusals(output) == [], output
     assert Path(environment["BLACKLIST_ENV_FILE"]).exists(), output
+
+
+def test_verify_only_does_not_require_the_deployment_port_to_be_free() -> None:
+    # Given: the read-only verifier and the mutating deployment path.
+    source = INSTALLER.read_text(encoding="utf-8")
+    verify_branch = source.split('if [ "$verify_only" = true ]; then', 1)[1].split("fi", 1)[0]
+    install_branch = source.split('if [ "$verify_only" = true ]; then', 1)[1]
+
+    # When/Then: port ownership is checked only immediately before deployment.
+    assert "verify_published_port_available" not in verify_branch
+    assert "deploy_services" in install_branch
 
 
 

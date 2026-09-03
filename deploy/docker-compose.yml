@@ -72,6 +72,7 @@ volumes:
   blacklist-pgdata:
   blacklist-redis-data:
   blacklist-collector-data:
+  blacklist-collector-logs:
   blacklist-logs:
   blacklist-uploads:
   blacklist-app-data:
@@ -79,3 +80,6 @@ volumes:
 networks:
   blacklist-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: ${BLACKLIST_NETWORK_SUBNET:-172.30.0.0/24}

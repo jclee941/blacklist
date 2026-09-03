@@ -10,6 +10,7 @@ import pytest
 
 
 INSTALLER = Path(__file__).parents[2] / "deploy" / "install.sh"
+INIT_SECRETS = Path(__file__).parents[2] / "deploy" / "init-secrets.sh"
 ENV_EXAMPLE = Path(__file__).parents[2] / "deploy" / ".env.example"
 PRE_REDIS_REQUIRED_SECRETS = {
     "CREDENTIAL_MASTER_KEY": "local-credential-master-key-0123456789",
@@ -169,6 +170,17 @@ def test_env_file_override_is_honoured(tmp_path: Path) -> None:
     assert "REDIS_PASSWORD" in generated_values
     assert os.stat(env_file).st_mode & 0o777 == 0o600
     assert not (tmp_path / ".env").exists()
+
+
+def test_shared_secret_file_is_owner_readable_only() -> None:
+    # Given: the init-container secret writer used by Compose.
+    source = INIT_SECRETS.read_text(encoding="utf-8")
+
+    # When: its final permission contract is inspected.
+    # Then: group and other containers cannot read the generated values.
+    assert "umask 077" in source
+    assert 'chmod 600 "$SECRETS_FILE"' in source
+    assert 'chmod 644 "$SECRETS_FILE"' not in source
 
 
 def test_warp_is_disabled_when_proxy_is_not_bridge_reachable(tmp_path: Path) -> None:

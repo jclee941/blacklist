@@ -82,7 +82,10 @@ def test_upgrade_refreshes_the_deployment_version(tmp_path: Path) -> None:
     secrets = (
         "CREDENTIAL_MASTER_KEY=local-credential-master-key-0123456789",
         "SECRET_KEY=local-secret-key-0123456789",
+        "FLASK_SECRET_KEY=local-flask-secret-key-0123456789",
+        "JWT_SECRET_KEY=local-jwt-secret-key-0123456789",
         "CREDENTIAL_ENCRYPTION_KEY=local-credential-encryption-key-0123456789",
+        "SETTINGS_ENCRYPTION_KEY=local-settings-encryption-key-0123456789",
         "ENCRYPTION_SALT=local-encryption-salt-0123456789",
         "POSTGRES_PASSWORD=local-postgres-password-0123456789",
         "REDIS_PASSWORD=local-redis-password-0123456789",

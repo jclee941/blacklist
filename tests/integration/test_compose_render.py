@@ -10,15 +10,18 @@ import pytest
 
 
 PROJECT_ROOT = Path(__file__).parents[2]
-BASE_COMPOSE = PROJECT_ROOT / "deploy" / "base.yml"
 DEVELOPMENT_COMPOSE = PROJECT_ROOT / "deploy" / "docker-compose.yml"
 STUB_ENV = """\
 BLACKLIST_VERSION=4.1.0
 POSTGRES_PASSWORD=x
 REDIS_PASSWORD=x
 SECRET_KEY=x
+FLASK_SECRET_KEY=x
+JWT_SECRET_KEY=x
 CREDENTIAL_MASTER_KEY=x
+COLLECTOR_AUTH_TOKEN=x
 CREDENTIAL_ENCRYPTION_KEY=x
+SETTINGS_ENCRYPTION_KEY=x
 ENCRYPTION_SALT=x
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=x
@@ -45,8 +48,6 @@ def _render_compose(tmp_path: Path) -> subprocess.CompletedProcess[str]:
         [
             "docker",
             "compose",
-            "-f",
-            str(BASE_COMPOSE),
             "-f",
             str(DEVELOPMENT_COMPOSE),
             "--env-file",

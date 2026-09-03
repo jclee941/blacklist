@@ -21,6 +21,10 @@ IMAGES_DIR="${SCRIPT_DIR}/images"
 VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
 ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
 TLS_DIR="${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}"
+FORTIGATE_TRUST_DIR="${FORTIGATE_TRUST_DIR:-/etc/blacklist/fortigate}"
+FRONTEND_TLS_DIR="${BLACKLIST_FRONTEND_TLS_DIR:-/etc/blacklist/frontend-tls}"
+RELEASE_KEYRING="${BLACKLIST_RELEASE_KEYRING:-/etc/blacklist/release-pubkey.gpg}"
+INITIAL_ADMIN_PASSWORD_FILE="${BLACKLIST_INITIAL_ADMIN_PASSWORD_FILE:-${ENV_FILE}.initial-admin-password}"
 STOP_ALL_CONTAINERS=false
 SKIP_POSTURE_CHECK=false
 REQUIRE_SIGNATURE=false
@@ -35,7 +39,7 @@ readonly -a TLS_SERVICE_NAMES=("app" "collector" "postgres" "redis")
 readonly -a TLS_SERVICE_DNS_NAMES=("blacklist-app" "blacklist-collector" "blacklist-postgres" "blacklist-redis")
 readonly -a TLS_SERVICE_UIDS=(
     "${BLACKLIST_APP_UID:-999}"
-    "${BLACKLIST_COLLECTOR_UID:-0}"
+    "${BLACKLIST_COLLECTOR_UID:-10001}"
     "${BLACKLIST_POSTGRES_UID:-70}"
     "${BLACKLIST_REDIS_UID:-999}"
 )
@@ -50,9 +54,12 @@ readonly REQUIRED_SECRET_KEYS=(
     "ADMIN_PASSWORD"
     "CREDENTIAL_MASTER_KEY"
     "SECRET_KEY"
+    "FLASK_SECRET_KEY"
+    "JWT_SECRET_KEY"
     "COLLECTOR_AUTH_TOKEN"
     "CREDENTIAL_ENCRYPTION_KEY"
     "ENCRYPTION_SALT"
+    "SETTINGS_ENCRYPTION_KEY"
     "POSTGRES_PASSWORD"
     "REDIS_PASSWORD"
 )
@@ -60,12 +67,14 @@ readonly DEPLOYMENT_VOLUME_NAMES=(
     "blacklist-pgdata"
     "blacklist-redis-data"
     "blacklist-collector-data"
+    "blacklist-collector-logs"
     "blacklist-logs"
     "blacklist-uploads"
     "blacklist-app-data"
     "blacklist_blacklist-pgdata"
     "blacklist_blacklist-redis-data"
     "blacklist_blacklist-collector-data"
+    "blacklist_blacklist-collector-logs"
     "blacklist_blacklist-logs"
     "blacklist_blacklist-uploads"
     "blacklist_blacklist-app-data"
@@ -73,7 +82,6 @@ readonly DEPLOYMENT_VOLUME_NAMES=(
 readonly VARIABLE_REFERENCE_PREFIX="\${"
 readonly POSTURE_COMPOSE_CANDIDATES=(
     "docker-compose.yml"
-    "docker-compose.override.yml"
 )
 readonly JWT_DEFERRAL_ADR="docs/decisions/0002-collector-authentication-enforcement.md"
 readonly POSTURE_CHECK_PY='
@@ -94,6 +102,15 @@ for name in sorted(services):
 
     if service.get("network_mode") == "host":
         findings.append(name + ": network_mode: host is forbidden; every service must stay on the internal bridge network (C-04)")
+
+    if "no-new-privileges:true" not in (service.get("security_opt") or []):
+        findings.append(name + ": security_opt must include no-new-privileges:true")
+    if "ALL" not in (service.get("cap_drop") or []):
+        findings.append(name + ": cap_drop must include ALL")
+    if not service.get("pids_limit"):
+        findings.append(name + ": pids_limit is required")
+    if not service.get("mem_limit"):
+        findings.append(name + ": mem_limit is required")
 
     for port in service.get("ports") or []:
         published = str(port.get("published") or "")
@@ -180,6 +197,17 @@ verify_manifest() {
         log_error "Bundle manifest contains no verifiable entries: MANIFEST.sha256"
     fi
 
+    local bundled_file relative_path
+    while IFS= read -r -d '' bundled_file; do
+        relative_path="${bundled_file#"${SCRIPT_DIR}/"}"
+        case "${relative_path}" in
+            MANIFEST.sha256|MANIFEST.sha256.asc) continue ;;
+        esac
+        if ! normalize_manifest_records | awk -v target="${relative_path}" '$2 == target { found=1 } END { exit(found ? 0 : 1) }'; then
+            log_error "Bundle contains an unlisted file: ${relative_path}"
+        fi
+    done < <(find "${SCRIPT_DIR}" -type f -print0)
+
     if ! (cd "${SCRIPT_DIR}" && normalize_manifest_records | sha256sum -c --strict -); then
         log_error "Bundle manifest verification failed"
     fi
@@ -205,23 +233,19 @@ verify_manifest() {
 verify_manifest_signature() {
     log_step "Verify Bundle Manifest Signature"
 
-    if [ ! -f /etc/blacklist/release-pubkey.gpg ]; then
+    if [ ! -f "${RELEASE_KEYRING}" ]; then
         if [ "${REQUIRE_SIGNATURE}" = true ]; then
-            log_error "Required release keyring not found: /etc/blacklist/release-pubkey.gpg"
+            log_error "Required release keyring not found: ${RELEASE_KEYRING}"
         fi
-        log_warning "Manifest signature verification skipped: host keyring not found at /etc/blacklist/release-pubkey.gpg"
+        log_warning "Manifest signature verification skipped: host keyring not found at ${RELEASE_KEYRING}"
         return 0
     fi
 
     if [ ! -f "${SCRIPT_DIR}/MANIFEST.sha256.asc" ]; then
-        if [ "${REQUIRE_SIGNATURE}" = true ]; then
-            log_error "Required detached signature not found: MANIFEST.sha256.asc"
-        fi
-        log_warning "Manifest signature verification skipped: MANIFEST.sha256.asc not found"
-        return 0
+        log_error "Detached signature not found while trusted keyring exists: MANIFEST.sha256.asc"
     fi
 
-    if ! (cd "${SCRIPT_DIR}" && gpgv --keyring /etc/blacklist/release-pubkey.gpg MANIFEST.sha256.asc MANIFEST.sha256); then
+    if ! (cd "${SCRIPT_DIR}" && gpgv --keyring "${RELEASE_KEYRING}" MANIFEST.sha256.asc MANIFEST.sha256); then
         log_error "Bundle manifest signature verification failed"
     fi
 
@@ -429,6 +453,9 @@ load_images() {
             if [ -z "${loaded_image}" ]; then
                 log_error "Unable to determine the loaded image tag for ${name}"
             fi
+            if [ "${loaded_image}" != "blacklist-${name}:${VERSION}" ]; then
+                log_error "Loaded image tag mismatch for ${name}: expected blacklist-${name}:${VERSION}, got ${loaded_image}"
+            fi
             log_success "${name} (${loaded_image})"
         else
             log_error "Failed to load ${name}"
@@ -436,6 +463,18 @@ load_images() {
     done
 
     log_success "All images loaded"
+}
+
+prepare_collector_volumes() {
+    local volume
+    local image="blacklist-collector:${VERSION}"
+    for volume in blacklist_blacklist-collector-data blacklist_blacklist-collector-logs; do
+        docker volume create "${volume}" > /dev/null || log_error "Unable to create collector volume ${volume}."
+        docker run --rm --user 0:0 --cap-drop ALL --cap-add CHOWN --network none --read-only \
+            --security-opt no-new-privileges:true --entrypoint sh -v "${volume}:/target" "${image}" \
+            -c 'chown -R 10001:10001 /target && chmod 750 /target' > /dev/null ||
+            log_error "Unable to set collector volume ownership for ${volume}."
+    done
 }
 
 trim_whitespace() {
@@ -516,13 +555,16 @@ deployment_state_exists() {
 generate_env_file() {
     local env_file="$1"
     local temp_file
-    local fernet_key secret_key collector_auth_token master_key encryption_salt pg_password redis_password admin_password
+    local fernet_key settings_encryption_key secret_key flask_secret_key jwt_secret_key collector_auth_token master_key encryption_salt pg_password redis_password admin_password
 
     temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to create private environment file."
     chmod 600 "${temp_file}" || log_error "Unable to protect generated environment file."
 
     fernet_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+    settings_encryption_key=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
     secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    flask_secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    jwt_secret_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     collector_auth_token=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     encryption_salt=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
@@ -540,13 +582,18 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD=${admin_password}
 CREDENTIAL_MASTER_KEY=${master_key}
 SECRET_KEY=${secret_key}
+FLASK_SECRET_KEY=${flask_secret_key}
+JWT_SECRET_KEY=${jwt_secret_key}
 COLLECTOR_AUTH_TOKEN=${collector_auth_token}
 CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
 ENCRYPTION_SALT=${encryption_salt}
+SETTINGS_ENCRYPTION_KEY=${settings_encryption_key}
 POSTGRES_PASSWORD=${pg_password}
 REDIS_PASSWORD=${redis_password}
+FRONTEND_TLS_MODE=self-signed
 WARP_ENABLED=false
 WARP_PROXY_URL=
+TRUSTED_PROXY_NETWORKS=172.30.0.10/32
 EOF
     then
         rm -f "${temp_file}"
@@ -795,7 +842,7 @@ setup_internal_tls() {
     log_success "Generated target-local CA and service certificates (${TLS_DIR})"
 }
 
-show_initial_admin_password() {
+write_initial_admin_password_file() {
     if [ "${ADMIN_CREDENTIALS_GENERATED}" != true ]; then
         return 0
     fi
@@ -803,13 +850,16 @@ show_initial_admin_password() {
     if ! read_required_secret_value "${ENV_FILE}" "ADMIN_PASSWORD"; then
         log_error "Unable to read the generated administrator password from ${ENV_FILE}."
     fi
-    local admin_password="${DOTENV_NORMALIZED_VALUE}"
+    umask 077
+    printf '%s\n' "${DOTENV_NORMALIZED_VALUE}" > "${INITIAL_ADMIN_PASSWORD_FILE}" ||
+        log_error "Unable to write initial administrator password file."
+    chmod 600 "${INITIAL_ADMIN_PASSWORD_FILE}" || log_error "Unable to protect initial administrator password file."
+    log_warning "Initial administrator password written to ${INITIAL_ADMIN_PASSWORD_FILE}; import it into a password manager and delete the file."
+}
 
-    log_step "First-Run Administrator Credentials"
-    log_warning "This administrator password is shown only once."
-    log_warning "Store it in your password manager and change it after the first login."
-    printf '  Admin username: admin\n'
-    printf '  Admin password: %s\n' "${admin_password}"
+setup_trust_directories() {
+    install -d -m 755 "${FORTIGATE_TRUST_DIR}" || log_error "Unable to create FortiGate trust directory."
+    install -d -m 700 -o 1001 -g 1001 "${FRONTEND_TLS_DIR}" || log_error "Unable to create persistent frontend TLS directory."
 }
 
 stop_all_running_containers() {
@@ -922,7 +972,7 @@ deploy_services() {
 
     log_info "Starting services..."
     local compose_output
-    if ! compose_output=$(docker compose --env-file "${ENV_FILE}" up -d --pull never 2>&1); then
+    if ! compose_output=$(docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" up -d --pull never 2>&1); then
         printf '%s\n' "${compose_output}"
         log_error "Failed to start Blacklist services"
     fi
@@ -935,7 +985,7 @@ deploy_services() {
 
 validate_compose_config() {
     log_step "Validate Compose Configuration"
-    if ! (cd "${SCRIPT_DIR}" && docker compose --env-file "${ENV_FILE}" config --quiet); then
+    if ! docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" config --quiet; then
         log_error "Compose configuration validation failed"
     fi
     log_success "Compose configuration"
@@ -954,7 +1004,7 @@ collect_posture_compose_files() {
 }
 
 render_effective_config() {
-    (cd "${SCRIPT_DIR}" && docker compose --env-file "${ENV_FILE}" "${POSTURE_COMPOSE_FILES[@]}" config "$@")
+    docker compose --env-file "${ENV_FILE}" "${POSTURE_COMPOSE_FILES[@]}" config "$@"
 }
 
 # ADR-0002 governs the collector flag only; its Decision line is the binding baseline.
@@ -1020,7 +1070,7 @@ verify_security_posture() {
 health_checks() {
     log_step "Health Checks"
 
-    if ! docker compose --env-file "${ENV_FILE}" ps --format "table {{.Name}}\t{{.Status}}"; then
+    if ! docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" ps --format "table {{.Name}}\t{{.Status}}"; then
         log_error "Failed to read service status"
     fi
 
@@ -1064,7 +1114,7 @@ show_help() {
     echo "  --verify-only  Verify the bundle layout, image checksums, and security posture, then exit (read-only)"
     echo "  --stop-all-containers  Stop every running container on the host before deploying"
     echo "  --skip-posture-check  Deploy even if the security posture check fails (emergency use; logs a warning)"
-    echo "  --require-signature  Require MANIFEST.sha256.asc verification with the host release keyring"
+    echo "  --require-signature  Require signature during --verify-only (installation always requires it)"
     echo "  --help, -h     Show this help"
     echo ""
 }
@@ -1085,7 +1135,7 @@ main() {
             --skip-posture-check) SKIP_POSTURE_CHECK=true ;;
             --require-signature) REQUIRE_SIGNATURE=true ;;
             --help|-h) show_help; exit 0 ;;
-            *) log_warning "Unknown option: $arg" ;;
+            *) log_error "Unknown option: $arg" ;;
         esac
     done
 
@@ -1096,19 +1146,19 @@ main() {
 
     if [ "$check_secrets" = true ]; then
         setup_secrets
-        show_initial_admin_password
+        write_initial_admin_password_file
         return 0
     fi
 
     if [ "$verify_only" = true ]; then
         preflight_verify
-        verify_published_port_available
         verify_checksums
         verify_security_posture
         log_success "Bundle verification completed (no changes were made)"
         return 0
     fi
 
+    REQUIRE_SIGNATURE=true
     require_root
 
     echo ""
@@ -1128,6 +1178,8 @@ main() {
 
     setup_secrets
     setup_internal_tls
+    setup_trust_directories
+    prepare_collector_volumes
     validate_compose_config
     verify_security_posture
     if [ "$STOP_ALL_CONTAINERS" = true ]; then
@@ -1141,7 +1193,7 @@ main() {
     post_install
 
     log_success "Installation completed!"
-    show_initial_admin_password
+    write_initial_admin_password_file
 }
 
 main "$@"

@@ -8,6 +8,7 @@
 # via atomic mkdir lock.
 
 SECRETS_FILE="/secrets/.secrets.env"
+umask 077
 
 if [ ! -f "$SECRETS_FILE" ]; then
     # Atomic lock via mkdir to prevent race between app and collector
@@ -19,7 +20,7 @@ if [ ! -f "$SECRETS_FILE" ]; then
             _ek=$(python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
             printf 'CREDENTIAL_MASTER_KEY=%s\nSECRET_KEY=%s\nCREDENTIAL_ENCRYPTION_KEY=%s\n' \
                 "$_mk" "$_sk" "$_ek" > "$SECRETS_FILE"
-            chmod 644 "$SECRETS_FILE"
+            chmod 600 "$SECRETS_FILE"
             echo "Secrets persisted to ${SECRETS_FILE}"
         fi
         rmdir /secrets/.secrets.lock 2>/dev/null || true

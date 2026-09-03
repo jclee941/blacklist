@@ -75,8 +75,6 @@ RUN set -e && \
         fi; \
     done
 
-# Upgrade pip/setuptools/wheel to fix known CVEs in base image
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ============================================================================
 # Application Source Code
@@ -149,8 +147,6 @@ RUN set -e && \
         && apt-get clean && \
     echo "✅ Runtime dependencies installed"
 
-# Upgrade pip/setuptools/wheel to patch CVEs from base image
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ============================================================================
 # Security: Non-Root User Creation
@@ -183,7 +179,7 @@ ENV APP_VERSION=${APP_VERSION} \
     REDIS_PORT=6379
 
 # Create required directories (static already copied from build stage)
-RUN mkdir -p logs uploads cache
+RUN mkdir -p logs uploads cache && chown -R app:app logs uploads cache
 
 # ============================================================================
 # Build-Time Validation and Summary

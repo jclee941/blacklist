@@ -8,6 +8,18 @@ services:
   blacklist-postgres:
     container_name: blacklist-postgres
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    pids_limit: 200
+    mem_limit: 1g
     networks:
       - blacklist-net
     environment:
@@ -25,6 +37,8 @@ services:
       - ssl_key_file=/run/blacklist/tls/tls.key
       - -c
       - ssl_min_protocol_version=TLSv1.2
+      - -c
+      - password_encryption=scram-sha-256
     volumes:
       - blacklist-pgdata:/var/lib/postgresql/data
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/postgres:/run/blacklist/tls:ro
@@ -39,6 +53,17 @@ services:
   blacklist-redis:
     container_name: blacklist-redis
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    pids_limit: 100
+    mem_limit: 512m
     networks:
       - blacklist-net
     command:
@@ -77,6 +102,12 @@ services:
   blacklist-collector:
     container_name: blacklist-collector
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 1g
     networks:
       - blacklist-net
     extra_hosts:
@@ -103,11 +134,13 @@ services:
       COLLECTION_INTERVAL: 86400
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}
+      COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:?COLLECTOR_AUTH_TOKEN is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
       WARP_ENABLED: ${WARP_ENABLED:-false}
       WARP_PROXY_URL: ${WARP_PROXY_URL:-}
+      FORTIGATE_CA_CERT: /run/blacklist/fortigate/ca.crt
+      FORTIGATE_SSH_KNOWN_HOSTS: /run/blacklist/fortigate/known_hosts
       REGTECH_RATE_INITIAL: ${REGTECH_RATE_INITIAL:-}
       REGTECH_RATE_MIN: ${REGTECH_RATE_MIN:-}
       REGTECH_RATE_MAX: ${REGTECH_RATE_MAX:-}
@@ -118,7 +151,8 @@ services:
       TZ: Asia/Seoul
     volumes:
       - blacklist-collector-data:/app/data
-      - blacklist-logs:/app/logs
+      - blacklist-collector-logs:/app/logs
+      - ${FORTIGATE_TRUST_DIR:-/etc/blacklist/fortigate}:/run/blacklist/fortigate:ro
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/collector:/run/blacklist/tls:ro
     healthcheck:
@@ -131,6 +165,12 @@ services:
   blacklist-app:
     container_name: blacklist-app
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 1g
     networks:
       - blacklist-net
     depends_on:
@@ -157,9 +197,18 @@ services:
       BLACKLIST_API_URL: https://blacklist-app:2542/api
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?CREDENTIAL_MASTER_KEY is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:?FLASK_SECRET_KEY is required}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY is required}
+      COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:?COLLECTOR_AUTH_TOKEN is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
+      TRUSTED_PROXY_NETWORKS: ${TRUSTED_PROXY_NETWORKS:-172.30.0.10/32}
+      FORTINET_FEED_TOKEN: ${FORTINET_FEED_TOKEN:-}
+      FORTINET_FEED_ALLOWED_NETWORKS: ${FORTINET_FEED_ALLOWED_NETWORKS:-}
+      FORTIGATE_ALLOWED_NETWORKS: ${FORTIGATE_ALLOWED_NETWORKS:-}
+      FORTIGATE_CA_CERT: /run/blacklist/fortigate/ca.crt
+      FORTIGATE_SSH_KNOWN_HOSTS: /run/blacklist/fortigate/known_hosts
       # Generated on the TARGET host by install.sh and never shipped in the bundle.
       # Without these the app falls back to a login it can never satisfy.
       ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME is required}
@@ -169,6 +218,7 @@ services:
       - blacklist-logs:/app/logs
       - blacklist-uploads:/app/uploads
       - blacklist-app-data:/app/data
+      - ${FORTIGATE_TRUST_DIR:-/etc/blacklist/fortigate}:/run/blacklist/fortigate:ro
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/app:/run/blacklist/tls:ro
     healthcheck:
@@ -181,8 +231,15 @@ services:
   blacklist-frontend:
     container_name: blacklist-frontend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 200
+    mem_limit: 768m
     networks:
-      - blacklist-net
+      blacklist-net:
+        ipv4_address: ${FRONTEND_INTERNAL_IP:-172.30.0.10}
     ports:
       - "443:3000"
     depends_on:
@@ -195,10 +252,12 @@ services:
       NODE_OPTIONS: --require=/run/blacklist/frontend-internal-tls.cjs
       PORT: 3000
       HOSTNAME: "0.0.0.0"
+      FRONTEND_TLS_MODE: ${FRONTEND_TLS_MODE:-provided}
       TZ: Asia/Seoul
     volumes:
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro
       - ./frontend-internal-tls.cjs:/run/blacklist/frontend-internal-tls.cjs:ro
+      - ${BLACKLIST_FRONTEND_TLS_DIR:-/etc/blacklist/frontend-tls}:/app/ssl
     healthcheck:
       test:
         - CMD-SHELL
@@ -217,6 +276,7 @@ volumes:
   blacklist-pgdata:
   blacklist-redis-data:
   blacklist-collector-data:
+  blacklist-collector-logs:
   blacklist-logs:
   blacklist-uploads:
   blacklist-app-data:
@@ -224,3 +284,6 @@ volumes:
 networks:
   blacklist-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: ${BLACKLIST_NETWORK_SUBNET:-172.30.0.0/24}

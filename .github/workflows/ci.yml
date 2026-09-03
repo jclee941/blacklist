@@ -150,7 +150,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -r app/requirements.txt pytest-cov
+      - run: pip install -r app/requirements-dev.txt
       - name: Run tests with coverage
         run: |
           python -m pytest tests/unit --ignore=tests/unit/collector -v \
@@ -242,7 +242,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -r app/requirements.txt pytest
+      - run: pip install -r app/requirements-dev.txt
       - name: Run integration tests
         run: |
           python -m pytest tests/integration -v \

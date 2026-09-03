@@ -36,8 +36,8 @@ def test_collector_auth_secret_is_wired_to_both_services() -> None:
     collector_service = _service_block("blacklist-collector")
     app_service = _service_block("blacklist-app")
 
-    assert "COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}" in collector_service
-    assert "COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:-}" in app_service
+    assert "COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:?" in collector_service
+    assert "COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:?" in app_service
 
 
 def test_collector_auth_secret_example_is_an_empty_placeholder() -> None:

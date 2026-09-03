@@ -49,9 +49,10 @@ def test_postgres_rejects_plaintext_on_fresh_and_existing_databases() -> None:
     entrypoint = POSTGRES_TLS_ENTRYPOINT.read_text(encoding="utf-8")
     tls_config = POSTGRES_TLS_CONFIG.read_text(encoding="utf-8")
     assert "configure-postgres-tls" in entrypoint
-    assert "hostssl all all 0.0.0.0/0 md5" in tls_config
+    assert "local all all trust" not in tls_config
+    assert "hostssl all all 0.0.0.0/0 scram-sha-256" in tls_config
     assert "hostnossl all all 0.0.0.0/0 reject" in tls_config
-    assert "hostssl all all ::/0 md5" in tls_config
+    assert "hostssl all all ::/0 scram-sha-256" in tls_config
     assert "hostnossl all all ::/0 reject" in tls_config
     assert "ENTRYPOINT [\"tls-entrypoint.sh\"]" in POSTGRES_DOCKERFILE
     assert "/docker-entrypoint-initdb.d/00-configure-tls.sh" in POSTGRES_DOCKERFILE

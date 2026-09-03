@@ -13,7 +13,10 @@ REQUIRED_ENV_KEYS = {
     "COLLECTOR_AUTH_TOKEN",
     "CREDENTIAL_MASTER_KEY",
     "SECRET_KEY",
+    "FLASK_SECRET_KEY",
+    "JWT_SECRET_KEY",
     "CREDENTIAL_ENCRYPTION_KEY",
+    "SETTINGS_ENCRYPTION_KEY",
     "ENCRYPTION_SALT",
     "POSTGRES_PASSWORD",
     "REDIS_PASSWORD",
@@ -142,7 +145,10 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
         (
             'CREDENTIAL_MASTER_KEY="local-credential-master-key-0123456789"',
             "SECRET_KEY='local-secret-key-0123456789'",
+            "FLASK_SECRET_KEY='local-flask-secret-key-0123456789'",
+            "JWT_SECRET_KEY='local-jwt-secret-key-0123456789'",
             'CREDENTIAL_ENCRYPTION_KEY="local-credential-encryption-key-0123456789"',
+            'SETTINGS_ENCRYPTION_KEY="local-settings-encryption-key-0123456789"',
             "ENCRYPTION_SALT='local-encryption-salt-0123456789'",
             'POSTGRES_PASSWORD="local-postgres-password-0123456789"',
             'REDIS_PASSWORD="local-redis-password-0123456789"',
@@ -229,7 +235,10 @@ def test_starts_compose_without_pulling_images() -> None:
     installer_source = INSTALLER.read_text(encoding="utf-8")
 
     # When: the Compose startup command is inspected.
-    startup_command = 'docker compose --env-file "${ENV_FILE}" up -d --pull never'
+    startup_command = (
+        'docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" '
+        "up -d --pull never"
+    )
 
     # Then: startup is constrained to the images loaded from the release bundle.
     assert startup_command in installer_source

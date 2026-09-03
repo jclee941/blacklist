@@ -157,7 +157,7 @@ def test_generated_env_contains_unique_high_entropy_admin_passwords(tmp_path: Pa
     assert first_password != second_password
 
 
-def test_admin_password_is_displayed_once_without_other_secrets(tmp_path: Path) -> None:
+def test_admin_password_is_never_written_to_standard_output(tmp_path: Path) -> None:
     bundle_dir = tmp_path / "bundle"
     env_file, environment = prepare_bundle(bundle_dir)
 
@@ -168,20 +168,18 @@ def test_admin_password_is_displayed_once_without_other_secrets(tmp_path: Path) 
     assert first_result.returncode == 0, first_result.stdout + first_result.stderr
     assert second_result.returncode == 0, second_result.stdout + second_result.stderr
     admin_password = generated_values["ADMIN_PASSWORD"]
-    assert admin_password in first_result.stdout
+    assert admin_password not in first_result.stdout
     assert admin_password not in second_result.stdout
     assert all(generated_values[key] not in first_result.stdout for key in NON_ADMIN_SECRET_KEYS)
 
 
-def test_initial_admin_password_is_shown_after_health_checks() -> None:
+def test_initial_admin_password_is_written_to_protected_file_not_stdout() -> None:
     installer_source = INSTALLER.read_text(encoding="utf-8")
     main_body = installer_source.split("\nmain() {", 1)[1]
 
-    health_index = main_body.rfind("health_checks")
-    completion_index = main_body.rfind('log_success "Installation completed!"')
-    password_index = main_body.rfind("show_initial_admin_password")
-
-    assert health_index < completion_index < password_index
+    assert "show_initial_admin_password" not in main_body
+    assert "INITIAL_ADMIN_PASSWORD_FILE" in installer_source
+    assert "chmod 600" in installer_function("write_initial_admin_password_file")
 
 
 def test_health_regex_rejects_error_payload() -> None:
@@ -233,6 +231,19 @@ def test_images_are_not_retagged_latest() -> None:
     # Then: no image is aliased to latest and Compose receives the bundle version.
     assert 'docker tag "$loaded_image" "${repo}:latest"' not in installer_source
     assert "BLACKLIST_VERSION=${VERSION}" in generated_env_body
+
+
+def test_loaded_images_and_collector_volumes_match_runtime_identity() -> None:
+    # Given: the image loader and collector volume preparation functions.
+    load_body = installer_function("load_images")
+    volume_body = installer_function("prepare_collector_volumes")
+
+    # When/Then: a mismatched tag is fatal and persistent paths are writable by UID 10001.
+    assert '"blacklist-${name}:${VERSION}"' in load_body
+    assert "Loaded image tag mismatch" in load_body
+    assert "blacklist_blacklist-collector-data" in volume_body
+    assert "blacklist_blacklist-collector-logs" in volume_body
+    assert "chown -R 10001:10001" in volume_body
 
 
 def test_generated_environment_defaults_warp_to_disabled() -> None:
