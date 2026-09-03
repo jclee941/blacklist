@@ -1,6 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useIPForm } from '@/app/ip-management/hooks/use-ip-form';
+import { isValidIPv4 } from '@/lib/ip-address';
+
+describe('IPv4 validation', () => {
+  it.each(['10.0.0.1', '192.168.1.1', '255.255.255.255'])('accepts %s', (address) => {
+    expect(isValidIPv4(address)).toBe(true);
+  });
+
+  it.each(['', '999.999.999.999', '1.2.3', '1.2.3.4.5', '1.2.3.-1', '../ssl/server.key'])(
+    'rejects %s',
+    (address) => {
+      expect(isValidIPv4(address)).toBe(false);
+    }
+  );
+});
 
 describe('useIPForm', () => {
   it('initializes with default values', () => {

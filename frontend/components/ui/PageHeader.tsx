@@ -21,7 +21,7 @@ export default function PageHeader({ title, description, icon: Icon, actions }: 
           )}
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-            <p className="text-gray-600 mt-1">{description}</p>
+            <p className="mt-1 break-keep text-gray-600">{description}</p>
           </div>
         </div>
         {actions && <div className="flex items-center space-x-3">{actions}</div>}

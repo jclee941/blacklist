@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import { IPManagementFormModal } from '@/app/ip-management/components/IPManagementFormModal';
 import type { IPFormData, TabType } from '@/app/ip-management/components/types';
 
@@ -40,6 +41,14 @@ describe('IPManagementFormModal', () => {
     it('renders when open', () => {
       render(<IPManagementFormModal {...defaultProps} />);
       expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('focuses the IP input and uses the shared modal backdrop spacing', () => {
+      render(<IPManagementFormModal {...defaultProps} />);
+
+      expect(screen.getByLabelText(/IP 주소/)).toHaveFocus();
+      expect(screen.getByLabelText('Close modal backdrop')).toHaveClass('bg-black/50');
+      expect(screen.getByRole('dialog').parentElement).toHaveClass('p-4');
     });
   });
 
@@ -94,6 +103,22 @@ describe('IPManagementFormModal', () => {
         target: { value: '10.0.0.1' },
       });
       expect(onFormChange).toHaveBeenCalled();
+    });
+
+    it('keeps focus in the edited field when form state rerenders', () => {
+      function StatefulModal() {
+        const [formData, setFormData] = useState(makeFormData());
+        return (
+          <IPManagementFormModal {...defaultProps} formData={formData} onFormChange={setFormData} />
+        );
+      }
+
+      render(<StatefulModal />);
+      const reason = screen.getByLabelText(/사유/);
+      reason.focus();
+      fireEvent.change(reason, { target: { value: '보안 검증' } });
+
+      expect(reason).toHaveFocus();
     });
 
     it('renders reason input', () => {
@@ -181,9 +206,47 @@ describe('IPManagementFormModal', () => {
 
     it('calls onSubmit when clicked', () => {
       const onSubmit = vi.fn();
-      render(<IPManagementFormModal {...defaultProps} onSubmit={onSubmit} />);
+      render(
+        <IPManagementFormModal
+          {...defaultProps}
+          formData={makeFormData({ ip_address: '10.0.0.1' })}
+          onSubmit={onSubmit}
+        />
+      );
       fireEvent.click(screen.getByText('추가'));
       expect(onSubmit).toHaveBeenCalled();
+    });
+
+    it('blocks an invalid IP address and exposes the validation error', () => {
+      const onSubmit = vi.fn();
+      render(
+        <IPManagementFormModal
+          {...defaultProps}
+          formData={makeFormData({ ip_address: '999.999.999.999' })}
+          onSubmit={onSubmit}
+        />
+      );
+
+      fireEvent.click(screen.getByText('추가'));
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert')).toHaveTextContent('유효한 IPv4 주소를 입력하세요');
+      expect(screen.getByLabelText(/IP 주소/)).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByLabelText(/IP 주소/)).toHaveFocus();
+    });
+
+    it('clears validation feedback after close and reopen', () => {
+      const invalidData = makeFormData({ ip_address: '999.999.999.999' });
+      const { rerender } = render(
+        <IPManagementFormModal {...defaultProps} formData={invalidData} />
+      );
+      fireEvent.click(screen.getByText('추가'));
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      rerender(<IPManagementFormModal {...defaultProps} formData={invalidData} isOpen={false} />);
+      rerender(<IPManagementFormModal {...defaultProps} formData={invalidData} isOpen />);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('is disabled when submitting', () => {
@@ -233,7 +296,9 @@ describe('IPManagementFormModal', () => {
     it('has aria-labelledby pointing to title', () => {
       render(<IPManagementFormModal {...defaultProps} />);
       const dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveAttribute('aria-labelledby', 'form-modal-title');
+      const titleId = dialog.getAttribute('aria-labelledby');
+      expect(titleId).not.toBeNull();
+      expect(screen.getByText('블랙리스트 추가')).toHaveAttribute('id', titleId);
     });
   });
 });

@@ -2,7 +2,13 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { parse } = require('url');
+const {
+  createProxyHeaders,
+  parseNextUrl,
+  resolveProxyTarget,
+  resolveStaticTarget,
+  setSecurityHeaders,
+} = require('./server-routing');
 
 // SSL Configuration with fallback paths
 const SSL_PATHS = [
@@ -52,22 +58,22 @@ const nextServer = new NextServer({
 
 const handler = nextServer.getRequestHandler();
 
-const getContentType = (ext) => ({
-  '.js': 'application/javascript',
-  '.css': 'text/css',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.json': 'application/json',
-}[ext] || 'application/octet-stream');
+const getContentType = (extension) =>
+  ({
+    '.css': 'text/css',
+    '.ico': 'image/x-icon',
+    '.js': 'application/javascript',
+    '.json': 'application/json',
+    '.jpg': 'image/jpeg',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+  })[extension] || 'application/octet-stream';
 
 const proxyRequest = (req, res, targetPath) => {
   const parsedApi = new URL(apiUrl);
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() 
-    || req.socket?.remoteAddress 
+  const clientIp = req.socket?.remoteAddress
     || req.connection?.remoteAddress 
     || '0.0.0.0';
   
@@ -76,12 +82,7 @@ const proxyRequest = (req, res, targetPath) => {
     port: parsedApi.port || 80,
     path: targetPath,
     method: req.method,
-    headers: { 
-      ...req.headers, 
-      host: parsedApi.host,
-      'x-forwarded-for': clientIp,
-      'x-real-ip': clientIp,
-    },
+    headers: createProxyHeaders(req.headers, clientIp, parsedApi.host),
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
@@ -119,19 +120,17 @@ const loadRedirects = () => {
 const redirects = loadRedirects();
 
 const requestHandler = async (req, res) => {
-  const parsedUrl = parse(req.url, true);
+  const parsedUrl = parseNextUrl(req.url);
+  if (parsedUrl === null) {
+    res.statusCode = 400;
+    res.end('Bad Request');
+    return;
+  }
   const { pathname } = parsedUrl;
+  setSecurityHeaders(res);
 
-  if (pathname.startsWith('/api/')) {
-    return proxyRequest(req, res, req.url);
-  }
-
-  if (pathname === '/health' || pathname === '/metrics') {
-    return proxyRequest(req, res, pathname);
-  }
-
-  if (pathname.startsWith('/uiview/')) {
-    const targetPath = pathname.replace('/uiview', '');
+  const targetPath = resolveProxyTarget(req.url);
+  if (targetPath !== null) {
     return proxyRequest(req, res, targetPath);
   }
 
@@ -144,27 +143,24 @@ const requestHandler = async (req, res) => {
     }
   }
 
-  if (pathname.startsWith('/_next/static/')) {
-    const relativePath = pathname.replace('/_next/static/', '');
-    const filePath = path.join(__dirname, '.next', 'static', relativePath);
-    
-    if (fs.existsSync(filePath)) {
-      const ext = path.extname(filePath);
-      res.setHeader('Content-Type', getContentType(ext));
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      fs.createReadStream(filePath).pipe(res);
-      return;
-    }
-  }
-
-  if (pathname.startsWith('/') && !pathname.startsWith('/_next') && !pathname.startsWith('/api')) {
-    const publicPath = path.join(__dirname, 'public', pathname);
-    if (fs.existsSync(publicPath) && fs.statSync(publicPath).isFile()) {
-      const ext = path.extname(publicPath);
-      res.setHeader('Content-Type', getContentType(ext));
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      fs.createReadStream(publicPath).pipe(res);
-      return;
+  const staticTarget = resolveStaticTarget(__dirname, req.url);
+  if (staticTarget !== null) {
+    try {
+      const realBase = fs.realpathSync(staticTarget.base);
+      const realFile = fs.realpathSync(staticTarget.candidate);
+      if (
+        realFile.startsWith(`${realBase}${path.sep}`) &&
+        fs.statSync(realFile).isFile()
+      ) {
+        res.setHeader('Content-Type', getContentType(path.extname(realFile)));
+        res.setHeader('Cache-Control', staticTarget.cacheControl);
+        fs.createReadStream(realFile).pipe(res);
+        return;
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') {
+        throw error;
+      }
     }
   }
 

@@ -1,6 +1,9 @@
 'use client';
 
-import { IPFormData, TabType } from './types';
+import { useEffect, useRef, useState } from 'react';
+import Modal from '@/components/ui/Modal';
+import { formatIPv4Input, isValidIPv4 } from '@/lib/ip-address';
+import type { IPFormData, TabType } from './types';
 
 interface IPManagementFormModalProps {
   isOpen: boolean;
@@ -25,6 +28,15 @@ export function IPManagementFormModal({
   onSubmit,
   onClose,
 }: IPManagementFormModalProps) {
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const ipInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const isBlacklist = listType === 'blacklist' || activeTab === 'blacklist';
@@ -33,14 +45,25 @@ export function IPManagementFormModal({
     : `${activeTab === 'whitelist' ? '화이트리스트' : '블랙리스트'} 추가`;
 
   const handleIPChange = (value: string) => {
-    const formatted = value.replace(
-      /(\d{1,3})\.?(\d{1,3})?\.?(\d{1,3})?\.?(\d{1,3})?/,
-      (_match, p1, p2, p3, p4) => {
-        const parts = [p1, p2, p3, p4].filter(Boolean);
-        return parts.join('.');
-      }
-    );
+    const formatted = formatIPv4Input(value);
     onFormChange({ ...formData, ip_address: formatted });
+  };
+
+  const ipAddressValid = isValidIPv4(formData.ip_address);
+
+  const handleSubmit = () => {
+    setHasAttemptedSubmit(true);
+    if (ipAddressValid) {
+      onSubmit();
+    } else {
+      ipInputRef.current?.focus();
+    }
+  };
+
+  const handleClose = () => {
+    if (!isSubmitting) {
+      onClose();
+    }
   };
 
   const handleDetectionDateChange = (detectionDate: string) => {
@@ -55,32 +78,38 @@ export function IPManagementFormModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="form-modal-title"
-      onKeyDown={(e) => e.key === 'Escape' && !isSubmitting && onClose()}
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={title}
+      showCloseButton={false}
+      initialFocusRef={ipInputRef}
     >
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <h2 id="form-modal-title" className="text-xl font-bold mb-4">
-          {title}
-        </h2>
-
+      <div className="max-h-[calc(100dvh-8rem)] overflow-y-auto">
         <div className="space-y-4">
           <div>
             <label htmlFor="ip-address" className="block text-sm font-medium text-gray-700 mb-1">
               IP 주소 *
             </label>
             <input
+              ref={ipInputRef}
               id="ip-address"
               type="text"
               value={formData.ip_address}
               onChange={(e) => handleIPChange(e.target.value)}
               placeholder="192.168.1.1"
+              aria-describedby={
+                hasAttemptedSubmit && !ipAddressValid ? 'ip-address-error' : undefined
+              }
+              aria-invalid={hasAttemptedSubmit && !ipAddressValid}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               required
             />
+            {hasAttemptedSubmit && !ipAddressValid && (
+              <p id="ip-address-error" role="alert" className="mt-1 text-sm text-red-600">
+                유효한 IPv4 주소를 입력하세요
+              </p>
+            )}
           </div>
 
           <div>
@@ -184,7 +213,7 @@ export function IPManagementFormModal({
 
         <div className="flex gap-3 mt-6">
           <button
-            onClick={onSubmit}
+            onClick={handleSubmit}
             disabled={isSubmitting}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
@@ -219,7 +248,7 @@ export function IPManagementFormModal({
             )}
           </button>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSubmitting}
             className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:opacity-50"
           >
@@ -227,6 +256,6 @@ export function IPManagementFormModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

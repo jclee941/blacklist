@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useId, useRef } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -11,6 +11,7 @@ interface ModalProps {
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showCloseButton?: boolean;
+  initialFocusRef?: RefObject<HTMLElement | null>;
 }
 
 const sizeClasses = {
@@ -27,20 +28,23 @@ export default function Modal({
   children,
   size = 'md',
   showCloseButton = true,
+  initialFocusRef,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const previousOverflowRef = useRef('');
   const titleId = useId();
 
-  const handleEscape = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose]
-  );
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  const handleEscape = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      onCloseRef.current();
+    }
+  }, []);
 
   const handleTab = useCallback((event: KeyboardEvent) => {
     if (event.key !== 'Tab' || !dialogRef.current) return;
@@ -50,6 +54,7 @@ export default function Modal({
     );
     const firstElement = focusableElements[0];
     const lastElement = focusableElements[focusableElements.length - 1];
+    const activeElement = document.activeElement;
 
     if (!firstElement || !lastElement) {
       event.preventDefault();
@@ -57,23 +62,38 @@ export default function Modal({
       return;
     }
 
-    if (event.shiftKey && document.activeElement === firstElement) {
+    if (
+      event.shiftKey &&
+      (activeElement === firstElement ||
+        activeElement === dialogRef.current ||
+        !dialogRef.current.contains(activeElement))
+    ) {
       event.preventDefault();
       lastElement.focus();
-    } else if (!event.shiftKey && document.activeElement === lastElement) {
+    } else if (
+      !event.shiftKey &&
+      (activeElement === lastElement ||
+        activeElement === dialogRef.current ||
+        !dialogRef.current.contains(activeElement))
+    ) {
       event.preventDefault();
       firstElement.focus();
     }
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      previousActiveElementRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      previousOverflowRef.current = document.body.style.overflow;
-      document.addEventListener('keydown', handleEscape);
-      document.addEventListener('keydown', handleTab);
-      document.body.style.overflow = 'hidden';
+    if (!isOpen) {
+      return;
+    }
+    previousActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    previousOverflowRef.current = document.body.style.overflow;
+    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleTab);
+    document.body.style.overflow = 'hidden';
+    if (initialFocusRef?.current) {
+      initialFocusRef.current.focus();
+    } else {
       dialogRef.current?.focus();
     }
     return () => {
@@ -82,7 +102,7 @@ export default function Modal({
       document.body.style.overflow = previousOverflowRef.current;
       previousActiveElementRef.current?.focus();
     };
-  }, [isOpen, handleEscape, handleTab]);
+  }, [isOpen, handleEscape, handleTab, initialFocusRef]);
 
   if (!isOpen) return null;
 

@@ -67,8 +67,10 @@ export default function CollectionHistoryClient() {
     setError(null);
     try {
       // Build query params
-      const params = new URLSearchParams();
-      params.append('limit', String(ITEMS_PER_PAGE));
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        per_page: String(ITEMS_PER_PAGE),
+      });
       if (sourceFilter) params.append('source', sourceFilter);
 
       const data = await getCollectionHistory(params.toString());
@@ -100,7 +102,7 @@ export default function CollectionHistoryClient() {
     } finally {
       setLoading(false);
     }
-  }, [sourceFilter, statusFilter]);
+  }, [currentPage, sourceFilter, statusFilter]);
 
   useEffect(() => {
     fetchCollectionHistory();

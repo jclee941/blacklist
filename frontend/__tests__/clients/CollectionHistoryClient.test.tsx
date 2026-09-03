@@ -157,4 +157,26 @@ describe('CollectionHistoryClient', () => {
       expect(rows.length).toBeGreaterThan(0);
     });
   });
+
+  it('requests the selected server page', async () => {
+    const history = Array.from({ length: 20 }, (_, index) => ({
+      ...mockHistoryData.data.history[0],
+      id: index + 1,
+    }));
+    vi.mocked(getCollectionHistory).mockResolvedValue({
+      success: true,
+      data: { history, total: 21, filtered: 20 },
+    });
+    render(<CollectionHistoryClient />);
+    await waitFor(() => {
+      expect(screen.queryByText('데이터 로딩 중...')).not.toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('icon-right'));
+
+    await waitFor(() => {
+      expect(getCollectionHistory).toHaveBeenLastCalledWith(
+        expect.stringMatching(/page=2.*per_page=20|per_page=20.*page=2/)
+      );
+    });
+  });
 });

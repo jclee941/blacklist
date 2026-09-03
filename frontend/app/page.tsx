@@ -303,20 +303,10 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {statCards.map((card, index) => (
-            <div
-              key={index}
-              className="group relative bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden"
-            >
-              {/* Gradient background overlay */}
-              <div
-                className={`absolute inset-0 bg-gradient-to-br ${card.bgGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-              ></div>
-
+            <div key={index} className="relative overflow-hidden rounded-xl bg-white shadow-lg">
               <div className="relative p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div
-                    className={`${card.iconBg} p-3 rounded-lg text-white shadow-lg transform group-hover:scale-110 transition-transform duration-300`}
-                  >
+                  <div className={`${card.iconBg} p-3 rounded-lg text-white shadow-lg`}>
                     <card.icon className="h-6 w-6" />
                   </div>
                 </div>
@@ -332,10 +322,12 @@ export default function Dashboard() {
 
       {/* Last Update Info */}
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 mb-8 border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Clock className="h-5 w-5 text-gray-600" />
-            <span className="text-sm text-gray-600 font-medium">마지막 업데이트:</span>
+            <span className="whitespace-nowrap text-sm text-gray-600 font-medium">
+              마지막 업데이트:
+            </span>
             <span className="text-sm font-semibold text-gray-900">
               {stats?.last_update ? new Date(stats.last_update).toLocaleString('ko-KR') : 'N/A'}
             </span>
@@ -350,7 +342,7 @@ export default function Dashboard() {
       {/* Quick Actions with Modern Cards */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">빠른 작업</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {quickActions.map((action, index) => (
             <Link
               key={index}
@@ -362,21 +354,21 @@ export default function Dashboard() {
                 className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}
               ></div>
 
-              <div className="relative flex items-center space-x-4">
+              <div className="relative flex min-w-0 items-center space-x-4">
                 <div
                   className={`${action.iconBg} p-4 rounded-xl text-white shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}
                 >
                   <action.icon className="h-8 w-8" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 text-lg mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300">
+                <div className="min-w-0 flex-1">
+                  <h3 className="break-keep font-bold text-gray-900 text-lg mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300">
                     {action.title}
                   </h3>
-                  <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">
+                  <p className="break-keep text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">
                     {action.description}
                   </p>
                 </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute right-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                   <svg
                     className="w-6 h-6 text-gray-400"
                     fill="none"

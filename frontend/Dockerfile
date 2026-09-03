@@ -16,12 +16,7 @@ WORKDIR /app
 
 COPY frontend/package*.json ./
 
-RUN set -e && \
-    for i in 1 2 3; do \
-        if npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps; then break; \
-        else echo "Attempt $i failed, retrying..." && sleep 5; fi; \
-        [ $i -eq 3 ] && exit 1; \
-    done
+RUN npm ci --legacy-peer-deps
 
 COPY frontend/ .
 
@@ -38,17 +33,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Non-root user with privileged port capability (443)
+# Non-root runtime user; Compose maps host 443 to unprivileged container port 3000.
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs && \
-    apk add --no-cache libcap && \
-    setcap 'cap_net_bind_service=+ep' /usr/local/bin/node
+    adduser --system --uid 1001 nextjs
 
 # Copy build artifacts
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/server-routing.js ./server-routing.js
 COPY frontend/entrypoint.sh ./entrypoint.sh
 
 # Keep openssl for runtime SSL cert generation (entrypoint.sh)
@@ -61,7 +55,7 @@ RUN apk upgrade --no-cache && apk add --no-cache openssl && \
 
 USER nextjs
 
-EXPOSE 443
+EXPOSE 3000
 
 ARG APP_VERSION="0.0.0-dev"
 ARG GIT_COMMIT="unknown"
@@ -73,7 +67,7 @@ LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.title="blacklist-frontend"
 LABEL org.opencontainers.image.description="Blacklist Next.js Frontend"
 
-ENV PORT=443
+ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 # SSL file paths for self-signed cert generated in this image (not secrets)
 ENV SSL_KEY_PATH=/app/ssl/server.key

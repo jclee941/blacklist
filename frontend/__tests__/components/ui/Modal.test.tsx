@@ -63,6 +63,56 @@ describe('Modal', () => {
       expect(trigger).toHaveFocus();
       trigger.remove();
     });
+
+    it('cycles backward from the dialog container to the last action', () => {
+      render(
+        <Modal {...defaultProps} title="Test Title">
+          <button type="button">First action</button>
+          <button type="button">Last action</button>
+        </Modal>
+      );
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveFocus();
+      fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
+      expect(screen.getByRole('button', { name: 'Last action' })).toHaveFocus();
+    });
+
+    it('preserves focused fields when the onClose callback changes', () => {
+      const { rerender } = render(
+        <Modal {...defaultProps} onClose={vi.fn()}>
+          <input aria-label="Editable field" />
+        </Modal>
+      );
+      const field = screen.getByLabelText('Editable field');
+      field.focus();
+
+      rerender(
+        <Modal {...defaultProps} onClose={vi.fn()}>
+          <input aria-label="Editable field" />
+        </Modal>
+      );
+
+      expect(field).toHaveFocus();
+    });
+
+    it('restores focus to the trigger from each open cycle', () => {
+      const firstTrigger = document.createElement('button');
+      const secondTrigger = document.createElement('button');
+      document.body.append(firstTrigger, secondTrigger);
+      firstTrigger.focus();
+      const { rerender } = render(<Modal {...defaultProps} />);
+
+      rerender(<Modal {...defaultProps} isOpen={false} />);
+      expect(firstTrigger).toHaveFocus();
+      secondTrigger.focus();
+      rerender(<Modal {...defaultProps} />);
+      rerender(<Modal {...defaultProps} isOpen={false} />);
+
+      expect(secondTrigger).toHaveFocus();
+      firstTrigger.remove();
+      secondTrigger.remove();
+    });
   });
 
   describe('title', () => {

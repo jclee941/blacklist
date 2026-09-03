@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { formatIPv4Input } from '@/lib/ip-address';
 
 export interface IPFormData {
   ip_address: string;
@@ -36,13 +37,7 @@ export function useIPForm() {
   }, []);
 
   const formatIPAddress = useCallback((value: string): string => {
-    return value.replace(
-      /(\d{1,3})\.?(\d{1,3})?\.?(\d{1,3})?\.?(\d{1,3})?/,
-      (_, p1, p2, p3, p4) => {
-        const parts = [p1, p2, p3, p4].filter(Boolean);
-        return parts.join('.');
-      }
-    );
+    return formatIPv4Input(value);
   }, []);
 
   const handleIPChange = useCallback(

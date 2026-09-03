@@ -57,8 +57,8 @@ const endpointTests = () => {
       .mockResolvedValueOnce({ data: { success: true } });
     await getStats();
     await getSystemStatus();
-    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(1, '/web-stats');
-    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(2, '/connection/status');
+    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(1, '/dashboard/stats');
+    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(2, '/dashboard/status');
   });
 
   it('maps list retrieval endpoints with optional query params', async () => {
