@@ -3,6 +3,7 @@
 # pyright: reportMissingModuleSource=false
 
 import logging
+import os
 import socket
 from typing import Optional
 
@@ -25,9 +26,14 @@ class FortiGateSSHClient:
 
     def connect(self) -> bool:
         """Establish the SSH connection."""
+        known_hosts = os.getenv("FORTIGATE_SSH_KNOWN_HOSTS", "")
+        if not known_hosts or not os.path.isfile(known_hosts):
+            logger.error("FortiGate SSH trust is not configured; set FORTIGATE_SSH_KNOWN_HOSTS")
+            return False
         try:
             self._client = paramiko.SSHClient()
-            self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self._client.load_host_keys(known_hosts)
+            self._client.set_missing_host_key_policy(paramiko.RejectPolicy())
             self._client.connect(
                 hostname=self.host,
                 port=self.port,

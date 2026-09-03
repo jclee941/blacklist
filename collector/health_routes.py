@@ -16,18 +16,13 @@ def register_health_routes(server):
 
     @app.route("/health", methods=["GET"])
     def health():
-        return jsonify(
-            {
-                "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
-                "collectors": server._get_collector_status(),
-            }
-        )
+        return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
     @app.route("/status", methods=["GET"])
     def status():
         return jsonify(
             {
+                "status": "healthy",
                 "collectors": server._get_collector_status(),
                 "timestamp": datetime.now().isoformat(),
             }
@@ -60,12 +55,12 @@ def register_health_routes(server):
 
             result = server.scheduler.force_collection(source)
             if not result.get("success"):
-                return _failure_response(result.get("error", "Collection failed"), 500)
+                return _failure_response("Collection failed", 500)
 
             return jsonify({"success": True, "result": result, "timestamp": datetime.now().isoformat()})
-        except Exception as e:
-            logger.error("Manual trigger error: %s", e)
-            return _failure_response(str(e), 500)
+        except Exception:
+            logger.exception("Manual collection failed")
+            return _failure_response("Collection failed", 500)
 
     @app.route("/api/test-auth/<source>", methods=["POST"])
     def test_authentication(source):
@@ -102,9 +97,9 @@ def register_health_routes(server):
 
             logger.warning("❌ %s authentication failed", source_upper)
             return jsonify({"success": False, "error": "인증 실패", "timestamp": test_timestamp.isoformat()})
-        except Exception as e:
-            logger.error("Error testing authentication for %s: %s", source, e)
-            return _failure_response(str(e), 200)
+        except Exception:
+            logger.exception("Credential test failed for %s", source)
+            return _failure_response("Credential test failed", 200)
 
     @app.route("/api/force-collection/<source>", methods=["POST"])
     def force_collection(source):
@@ -133,10 +128,10 @@ def register_health_routes(server):
             return jsonify(
                 {
                     "success": False,
-                    "error": result.get("error", "수집 실패"),
+                    "error": "Collection failed",
                     "timestamp": datetime.now().isoformat(),
                 }
             ), 500
-        except Exception as e:
-            logger.error("Error forcing collection for %s: %s", source, e)
-            return _failure_response(str(e), 500)
+        except Exception:
+            logger.exception("Forced collection failed for %s", source)
+            return _failure_response("Collection failed", 500)

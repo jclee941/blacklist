@@ -27,6 +27,9 @@ class CollectorConfig:
 
     ARCHIVE_DIR = os.getenv("COLLECTOR_ARCHIVE_DIR", "/app/data/archive")
     ARCHIVE_ENABLED = os.getenv("COLLECTOR_ARCHIVE_ENABLED", "true").lower() == "true"
+    MAX_ARCHIVE_BYTES = int(os.getenv("COLLECTOR_MAX_ARCHIVE_BYTES", str(512 * 1024 * 1024)))
+    ARCHIVE_RETENTION_DAYS = int(os.getenv("COLLECTOR_ARCHIVE_RETENTION_DAYS", "30"))
+    MAX_DOWNLOAD_BYTES = int(os.getenv("COLLECTOR_MAX_DOWNLOAD_BYTES", str(100 * 1024 * 1024)))
 
     # 인증정보 캐시 (DB 조회 최소화)
     # SECURITY: Credentials are decrypted from DB and cached in memory for runtime use.
@@ -84,8 +87,11 @@ class CollectorConfig:
                     from cryptography.hazmat.primitives import hashes
                     import base64
 
-                    salt_env = os.getenv("ENCRYPTION_SALT")
-                    salt = salt_env.encode() if salt_env else b"blacklist-regtech-salt-2025"
+                    salt_env = os.getenv("ENCRYPTION_SALT", "")
+                    if not salt_env:
+                        logger.error("Encrypted REGTECH credentials require ENCRYPTION_SALT")
+                        continue
+                    salt = salt_env.encode()
                     kdf = PBKDF2HMAC(
                         algorithm=hashes.SHA256(),
                         length=32,
@@ -172,6 +178,8 @@ class CollectorConfig:
 
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     LOG_FORMAT = os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    LOG_MAX_BYTES = int(os.getenv("COLLECTOR_LOG_MAX_BYTES", str(10 * 1024 * 1024)))
+    LOG_BACKUP_COUNT = int(os.getenv("COLLECTOR_LOG_BACKUP_COUNT", "5"))
 
     ENABLE_PERFORMANCE_METRICS = os.getenv("ENABLE_PERFORMANCE_METRICS", "true").lower() == "true"
     METRICS_COLLECTION_INTERVAL = int(os.getenv("METRICS_COLLECTION_INTERVAL", "60"))

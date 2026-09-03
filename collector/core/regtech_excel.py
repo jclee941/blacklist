@@ -7,11 +7,15 @@ Extracted from: regtech_collector.py
 """
 
 import logging
+import math
 import os
 import subprocess
+import tempfile
 import urllib.parse
 from typing import List, Dict, Any, Optional
 import pandas as pd
+
+from collector.config import CollectorConfig
 
 from .regtech_parsers import parse_date, is_valid_ip
 
@@ -62,15 +66,20 @@ def download_excel_data(
         if cookie_header:
             headers_list.extend(["-H", f"Cookie: {cookie_header}"])
 
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as temporary_file:
+            temporary_path = temporary_file.name
+
         curl_cmd = (
             [
-                "curl",
+                "/usr/bin/curl",
                 "-s",
                 "-X",
                 "POST",
                 download_url,
                 "-o",
-                "/tmp/regtech_data.xlsx",
+                temporary_path,
+                "--max-filesize",
+                str(CollectorConfig.MAX_DOWNLOAD_BYTES),
             ]
             + headers_list
             + [
@@ -84,26 +93,28 @@ def download_excel_data(
 
         logger.info(f"📥 Excel 다운로드 시작: {start_date} ~ {end_date}")
 
-        result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=120)
+        try:
+            result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=120)
+            if result.returncode != 0:
+                logger.error(f"❌ Excel 다운로드 실패: {result.stderr}")
+                return []
 
-        if result.returncode != 0:
-            logger.error(f"❌ Excel 다운로드 실패: {result.stderr}")
-            return []
+            if not os.path.exists(temporary_path):
+                logger.error("❌ Excel 파일이 생성되지 않음")
+                return []
 
-        if not os.path.exists("/tmp/regtech_data.xlsx"):
-            logger.error("❌ Excel 파일이 생성되지 않음")
-            return []
+            file_size = os.path.getsize(temporary_path)
+            logger.info(f"📊 Excel 파일 크기: {file_size} bytes")
+            if file_size < 1000:
+                logger.warning("⚠️ Excel 다운로드 응답이 최소 파일 크기보다 작음")
+                return []
 
-        file_size = os.path.getsize("/tmp/regtech_data.xlsx")
-        logger.info(f"📊 Excel 파일 크기: {file_size} bytes")
-
-        if file_size < 1000:
-            with open("/tmp/regtech_data.xlsx", "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read(500)
-                logger.warning(f"⚠️ 작은 파일 내용: {content[:200]}")
-            return []
-
-        return parse_excel_file("/tmp/regtech_data.xlsx")
+            return parse_excel_file(temporary_path)
+        finally:
+            try:
+                os.unlink(temporary_path)
+            except FileNotFoundError:
+                pass
 
     except Exception as e:
         logger.error(f"❌ Excel 다운로드 중 오류: {e}")
@@ -126,7 +137,7 @@ def parse_excel_file(file_path: str) -> List[Dict[str, Any]]:
                 ip_column = col
                 break
 
-        if not ip_column and len(df.columns) > 0:
+        if ip_column is None and len(df.columns) > 0:
             ip_column = df.columns[0]
 
         if ip_column is None:
@@ -146,7 +157,7 @@ def parse_excel_file(file_path: str) -> List[Dict[str, Any]]:
             for col in df.columns:
                 col_lower = str(col).lower()
                 val = row.get(col)
-                if pd.isna(val):
+                if val is None or val is pd.NA or (isinstance(val, float) and math.isnan(val)):
                     continue
                 val_str = str(val).strip()
 

@@ -14,12 +14,41 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from collector.config import CollectorConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_archive_component(value: str, fallback: str) -> str:
+    component = os.path.basename(value.replace("\\", "/"))
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", component).strip("._")
+    return sanitized or fallback
+
+
+def _prune_and_measure_archive() -> int:
+    cutoff = datetime.now() - timedelta(days=CollectorConfig.ARCHIVE_RETENTION_DAYS)
+    total_bytes = 0
+    for root, _directories, filenames in os.walk(CollectorConfig.ARCHIVE_DIR):
+        for filename in filenames:
+            path = os.path.join(root, filename)
+            try:
+                if datetime.fromtimestamp(os.path.getmtime(path)) < cutoff:
+                    os.remove(path)
+                    continue
+                total_bytes += os.path.getsize(path)
+            except OSError as exc:
+                logger.warning("archive.inspect_failed: path=%s error=%s", path, exc)
+    return total_bytes
+
+
+def _has_archive_capacity(incoming_bytes: int) -> bool:
+    if incoming_bytes > CollectorConfig.MAX_ARCHIVE_BYTES:
+        return False
+    return _prune_and_measure_archive() + incoming_bytes <= CollectorConfig.MAX_ARCHIVE_BYTES
 
 
 def generate_archive_filename(
@@ -43,14 +72,15 @@ def generate_archive_filename(
         생성된 아카이브 파일명
     """
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-    parts = [source.upper(), timestamp]
+    safe_source = _safe_archive_component(source, "UNKNOWN").upper()
+    parts = [safe_source, timestamp]
 
     if period_start or period_end:
         start = _normalize_date(period_start) if period_start else "unknown"
         end = _normalize_date(period_end) if period_end else "unknown"
         parts.append(f"P{start}-{end}")
 
-    parts.append(original_name)
+    parts.append(_safe_archive_component(original_name, "archive"))
     return "_".join(parts)
 
 
@@ -63,7 +93,7 @@ def _normalize_date(date_str: str) -> str:
     # 8자리 숫자가 아닌 경우 원본 반환 (안전 폴백)
     if len(cleaned) == 8 and cleaned.isdigit():
         return cleaned
-    return date_str.strip()
+    return _safe_archive_component(date_str, "unknown")
 
 
 def archive_file(
@@ -92,8 +122,20 @@ def archive_file(
         logger.warning("archive.source_not_found: path=%s", src_path)
         return None
 
+    try:
+        if not _has_archive_capacity(os.path.getsize(src_path)):
+            logger.warning("archive.capacity_exceeded: source=%s", source)
+            return None
+    except OSError as exc:
+        logger.warning("archive.inspect_failed: path=%s error=%s", src_path, exc)
+        return None
+
     today = datetime.now().strftime("%Y-%m-%d")
-    archive_dir = os.path.join(CollectorConfig.ARCHIVE_DIR, source.lower(), today)
+    archive_dir = os.path.join(
+        CollectorConfig.ARCHIVE_DIR,
+        _safe_archive_component(source, "unknown").lower(),
+        today,
+    )
 
     try:
         os.makedirs(archive_dir, exist_ok=True)
@@ -136,8 +178,17 @@ def archive_content(
     if not CollectorConfig.ARCHIVE_ENABLED:
         return None
 
+    content_bytes = len(content.encode("utf-8"))
+    if not _has_archive_capacity(content_bytes):
+        logger.warning("archive.capacity_exceeded: source=%s", source)
+        return None
+
     today = datetime.now().strftime("%Y-%m-%d")
-    archive_dir = os.path.join(CollectorConfig.ARCHIVE_DIR, source.lower(), today)
+    archive_dir = os.path.join(
+        CollectorConfig.ARCHIVE_DIR,
+        _safe_archive_component(source, "unknown").lower(),
+        today,
+    )
 
     try:
         os.makedirs(archive_dir, exist_ok=True)

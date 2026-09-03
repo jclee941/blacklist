@@ -1,10 +1,10 @@
 from typing import Any, TypedDict
 from flask import Flask
+import importlib
 import threading
 import logging
 import os
 from collections import deque
-from werkzeug.serving import make_server
 from .core.database import DatabaseService
 from .core.control_auth import register_control_auth
 from .health_routes import register_health_routes
@@ -90,14 +90,11 @@ class HealthServer:
     def _run_server(self):
         certificate = os.environ.get("INTERNAL_TLS_CERT", "/run/blacklist/tls/tls.crt")
         private_key = os.environ.get("INTERNAL_TLS_KEY", "/run/blacklist/tls/tls.key")
-        server = make_server(
-            "0.0.0.0",
-            self.port,
-            self.app,
-            ssl_context=(certificate, private_key),
-            threaded=True,
-        )
-        server.serve_forever()
+        wsgi = importlib.import_module("cheroot.wsgi")
+        ssl_builtin = importlib.import_module("cheroot.ssl.builtin")
+        server = wsgi.Server(("0.0.0.0", self.port), self.app, numthreads=4)
+        server.ssl_adapter = ssl_builtin.BuiltinSSLAdapter(certificate, private_key)
+        server.start()
 
 
 def start_health_server():

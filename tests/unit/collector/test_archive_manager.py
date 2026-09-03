@@ -24,6 +24,15 @@ class TestGenerateArchiveFilename:
         name = generate_archive_filename("REGTECH", "page1.html")
         assert "P" not in name.split("_", 2)[2] or name.count("_") == 2
 
+    def test_path_components_cannot_escape_archive_root(self):
+        from collector.core.archive_manager import generate_archive_filename
+
+        name = generate_archive_filename("../outside", "../../payload.html")
+
+        assert "/" not in name
+        assert "\\" not in name
+        assert ".." not in name
+
 
 class TestNormalizeDate:
     def test_hyphenated(self):
@@ -46,10 +55,10 @@ class TestNormalizeDate:
 
         assert _normalize_date("20260201") == "20260201"
 
-    def test_non_standard_passthrough(self):
+    def test_non_standard_date_is_filename_safe(self):
         from collector.core.archive_manager import _normalize_date
 
-        assert _normalize_date("Feb 2026") == "Feb 2026"
+        assert _normalize_date("Feb 2026") == "Feb_2026"
 
 
 class TestArchiveFile:
@@ -75,6 +84,8 @@ class TestArchiveFile:
 
         mock_config.ARCHIVE_ENABLED = True
         mock_config.ARCHIVE_DIR = str(tmp_path / "archive")
+        mock_config.MAX_ARCHIVE_BYTES = 1024
+        mock_config.ARCHIVE_RETENTION_DAYS = 30
 
         src = tmp_path / "original.html"
         src.write_text("data")
@@ -100,6 +111,8 @@ class TestArchiveContent:
 
         mock_config.ARCHIVE_ENABLED = True
         mock_config.ARCHIVE_DIR = str(tmp_path / "archive")
+        mock_config.MAX_ARCHIVE_BYTES = 1024
+        mock_config.ARCHIVE_RETENTION_DAYS = 30
 
         result = archive_content("REGTECH", "<html>test</html>", "page1.html", "2026-01-01", "2026-01-31")
 
@@ -107,3 +120,20 @@ class TestArchiveContent:
         assert os.path.exists(result)
         with open(result, "r") as f:
             assert f.read() == "<html>test</html>"
+
+    @patch("collector.core.archive_manager.CollectorConfig")
+    def test_archive_content_rejects_write_beyond_capacity(self, mock_config, tmp_path):
+        # Given: an archive with a ten-byte hard capacity.
+        from collector.core.archive_manager import archive_content
+
+        mock_config.ARCHIVE_ENABLED = True
+        mock_config.ARCHIVE_DIR = str(tmp_path / "archive")
+        mock_config.MAX_ARCHIVE_BYTES = 10
+        mock_config.ARCHIVE_RETENTION_DAYS = 30
+
+        # When: content larger than the configured capacity is archived.
+        result = archive_content("REGTECH", "x" * 11, "page.html")
+
+        # Then: no archive path is created.
+        assert result is None
+        assert not (tmp_path / "archive").exists()

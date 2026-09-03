@@ -5,6 +5,7 @@ Blacklist Collector Main Entry Point
 """
 
 import logging
+from logging.handlers import RotatingFileHandler
 import signal
 import sys
 import threading
@@ -28,7 +29,10 @@ except ImportError:
 def setup_logging():
     """로깅 설정"""
     log_format = CollectorConfig.LOG_FORMAT
-    log_level = getattr(logging, CollectorConfig.LOG_LEVEL.upper(), logging.INFO)
+    log_level_name = CollectorConfig.LOG_LEVEL.upper()
+    if log_level_name not in {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}:
+        raise ValueError(f"Unsupported LOG_LEVEL: {CollectorConfig.LOG_LEVEL}")
+    log_level = getattr(logging, log_level_name)
 
     # 기본 로거 설정
     logging.basicConfig(
@@ -36,7 +40,12 @@ def setup_logging():
         format=log_format,
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler("/app/logs/collector.log", encoding="utf-8"),
+            RotatingFileHandler(
+                "/app/logs/collector.log",
+                maxBytes=CollectorConfig.LOG_MAX_BYTES,
+                backupCount=CollectorConfig.LOG_BACKUP_COUNT,
+                encoding="utf-8",
+            ),
         ],
     )
 
@@ -60,7 +69,12 @@ class CollectorApplication:
         try:
             self.logger.info("🚀 Starting Blacklist Collector")
             self.logger.info(f"📅 Startup time: {self.startup_time}")
-            self.logger.info(f"🔧 Configuration: {CollectorConfig.to_dict()}")
+            self.logger.info(
+                "Collector configuration loaded: interval=%s max_pages=%s archive_enabled=%s",
+                CollectorConfig.COLLECTION_INTERVAL,
+                CollectorConfig.MAX_PAGES_PER_COLLECTION,
+                CollectorConfig.ARCHIVE_ENABLED,
+            )
 
             # 시그널 핸들러 등록
             signal.signal(signal.SIGINT, self._signal_handler)

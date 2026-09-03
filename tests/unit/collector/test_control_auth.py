@@ -134,17 +134,45 @@ def test_trigger_propagates_collection_failure(
 
     assert response.status_code == 500
     assert response.get_json()["success"] is False
-    assert response.get_json()["error"] == "page 17 failed"
+    assert response.get_json()["error"] == "Collection failed"
+    assert "page 17 failed" not in response.get_data(as_text=True)
 
 
-@pytest.mark.parametrize("path", ["/health", "/status", "/logs"])
-def test_read_only_endpoint_remains_open_without_token(
+def test_health_endpoint_remains_open_with_coarse_status(
+    server: tuple[HealthServer, SchedulerFake],
+) -> None:
+    health_server, _scheduler = server
+
+    response = health_server.app.test_client().get("/health")
+
+    assert response.status_code == 200
+    assert set(response.get_json()) == {"status", "timestamp"}
+
+
+@pytest.mark.parametrize("path", ["/status", "/logs"])
+def test_operational_endpoint_rejects_missing_authorization(
     server: tuple[HealthServer, SchedulerFake],
     path: str,
 ) -> None:
     health_server, _scheduler = server
 
     response = health_server.app.test_client().get(path)
+
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Unauthorized"}
+
+
+@pytest.mark.parametrize("path", ["/status", "/logs"])
+def test_operational_endpoint_accepts_control_bearer(
+    server: tuple[HealthServer, SchedulerFake],
+    path: str,
+) -> None:
+    health_server, _scheduler = server
+
+    response = health_server.app.test_client().get(
+        path,
+        headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+    )
 
     assert response.status_code == 200
 

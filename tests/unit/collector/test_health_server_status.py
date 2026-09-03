@@ -1,4 +1,7 @@
+from types import SimpleNamespace
+
 import pytest
+from flask import Flask
 
 from collector.health_server import CollectorStatus, HealthServer
 
@@ -41,8 +44,9 @@ class HealthServerHarness(HealthServer):
 class ServerFake:
     def __init__(self) -> None:
         self.served = False
+        self.ssl_adapter: tuple[str, str] | None = None
 
-    def serve_forever(self) -> None:
+    def start(self) -> None:
         self.served = True
 
 
@@ -64,25 +68,27 @@ def test_collector_status_uses_database_run_totals(
 
 def test_health_server_serves_tls_on_the_container_network(monkeypatch: pytest.MonkeyPatch) -> None:
     server_fake = ServerFake()
-    calls: list[tuple[str, int, object, tuple[str, str], bool]] = []
+    calls: list[tuple[tuple[str, int], Flask, int]] = []
 
     def make_server(
-        host: str,
-        port: int,
-        app: object,
-        *,
-        ssl_context: tuple[str, str],
-        threaded: bool,
+        address: tuple[str, int],
+        app: Flask,
+        numthreads: int,
     ) -> ServerFake:
-        calls.append((host, port, app, ssl_context, threaded))
+        calls.append((address, app, numthreads))
         return server_fake
 
-    monkeypatch.setattr("collector.health_server.make_server", make_server)
+    modules = {
+        "cheroot.wsgi": SimpleNamespace(Server=make_server),
+        "cheroot.ssl.builtin": SimpleNamespace(BuiltinSSLAdapter=lambda cert, key: (cert, key)),
+    }
+    monkeypatch.setattr("collector.health_server.importlib.import_module", modules.__getitem__)
     monkeypatch.setenv("INTERNAL_TLS_CERT", "/probe/tls.crt")
     monkeypatch.setenv("INTERNAL_TLS_KEY", "/probe/tls.key")
     server = HealthServerHarness(collectors_ref={}, port=8545)
 
     server.run_server()
 
-    assert calls == [("0.0.0.0", 8545, server.app, ("/probe/tls.crt", "/probe/tls.key"), True)]
+    assert calls == [(("0.0.0.0", 8545), server.app, 4)]
+    assert server_fake.ssl_adapter == ("/probe/tls.crt", "/probe/tls.key")
     assert server_fake.served is True

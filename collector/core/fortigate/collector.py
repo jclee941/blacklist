@@ -4,6 +4,7 @@ Collects active session data from FortiGate devices via SSH or API.
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -47,6 +48,7 @@ class FortiGateCollector:
         self.use_api = use_api
         self.vdom = vdom
         self.port = port or (self.DEFAULT_API_PORT if use_api else self.DEFAULT_SSH_PORT)
+        self._ca_cert = os.getenv("FORTIGATE_CA_CERT", "")
 
         self._ssh_client: Optional[FortiGateSSHClient] = None
         self._authenticated = False
@@ -89,13 +91,16 @@ class FortiGateCollector:
 
     def _authenticate_api(self) -> bool:
         """Authenticate via REST API."""
+        if not self._ca_cert or not os.path.isfile(self._ca_cert):
+            logger.error("FortiGate API trust is not configured; set FORTIGATE_CA_CERT to a readable CA bundle")
+            return False
         try:
             logger.info(f"Connecting to FortiGate {self.host} via API...")
             response = requests.get(
                 f"{self._base_url}/monitor/system/status",
                 headers=self._api_headers(include_content_type=True),
                 auth=(self.username, self.password) if not self.api_token else None,
-                verify=False,
+                verify=self._ca_cert,
                 timeout=self.API_TIMEOUT,
             )
 
@@ -160,7 +165,7 @@ class FortiGateCollector:
                 headers=self._api_headers(include_content_type=True),
                 auth=(self.username, self.password) if not self.api_token else None,
                 params={"vdom": self.vdom},
-                verify=False,
+                verify=self._ca_cert,
                 timeout=self.API_TIMEOUT,
             )
 
@@ -247,7 +252,7 @@ class FortiGateCollector:
                 headers=self._api_headers(),
                 auth=(self.username, self.password) if not self.api_token else None,
                 params={"vdom": self.vdom},
-                verify=False,
+                verify=self._ca_cert,
                 timeout=self.API_TIMEOUT,
             )
             if response.status_code == 200:

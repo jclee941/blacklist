@@ -5,6 +5,7 @@ import pytest
 
 from collector.config import CollectorConfig
 from collector.core.database.service import DatabaseService
+from collector.exceptions import MissingMasterKeyError
 
 
 class CredentialCursor:
@@ -53,6 +54,7 @@ def encrypted_password() -> str:
 def test_database_lookup_rejects_wrong_key_without_returning_ciphertext(monkeypatch: pytest.MonkeyPatch) -> None:
     password = encrypted_password()
     monkeypatch.setenv("CREDENTIAL_MASTER_KEY", "wrong-master-key")
+    monkeypatch.setenv("ENCRYPTION_SALT", "test-encryption-salt")
     service = DatabaseService()
     config: dict[str, str] = {}
     row: tuple[object, ...] = ("REGTECH", "collector-user", password, True, True, 3600, None, config)
@@ -69,6 +71,7 @@ def test_database_lookup_rejects_wrong_key_without_returning_ciphertext(monkeypa
 def test_config_rejects_wrong_key_without_caching_ciphertext(monkeypatch: pytest.MonkeyPatch) -> None:
     password = encrypted_password()
     monkeypatch.setenv("CREDENTIAL_MASTER_KEY", "wrong-master-key")
+    monkeypatch.setenv("ENCRYPTION_SALT", "test-encryption-salt")
     config: dict[str, str] = {}
     connection = CredentialConnection(("REGTECH", "collector-user", password, config, True))
 
@@ -81,3 +84,13 @@ def test_config_rejects_wrong_key_without_caching_ciphertext(monkeypatch: pytest
         _ = CollectorConfig.get_regtech_credentials()
 
     assert "REGTECH" not in getattr(CollectorConfig, "_credentials_cache")
+
+
+def test_database_service_disables_decryption_without_salt(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CREDENTIAL_MASTER_KEY", "configured-master-key")
+    monkeypatch.delenv("ENCRYPTION_SALT", raising=False)
+
+    service = DatabaseService()
+
+    with pytest.raises(MissingMasterKeyError):
+        service._decrypt_password("ciphertext", "REGTECH")

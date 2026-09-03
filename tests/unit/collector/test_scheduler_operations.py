@@ -219,17 +219,17 @@ def test_operations_preserves_legacy_type_exports() -> None:
     assert exported["Protocol"] is Protocol
 
 
-def test_run_manual_collection_requests_unbounded_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_manual_collection_applies_configured_page_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     requested_max_pages: list[int | None] = []
 
     monkeypatch.setattr(operations, "db_service", CredentialsDatabaseFake())
 
     operations.run_manual_collection(SchedulerFake(requested_max_pages))
 
-    assert requested_max_pages == [None]
+    assert requested_max_pages == [20]
 
 
-def test_force_collection_requests_unbounded_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_force_collection_applies_configured_page_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     requested_max_pages: list[int | None] = []
     monkeypatch.setattr(manager, "db_service", CredentialsDatabaseFake())
     scheduler = CollectionScheduler()
@@ -238,7 +238,7 @@ def test_force_collection_requests_unbounded_pages(monkeypatch: pytest.MonkeyPat
     result = scheduler.force_collection("REGTECH")
 
     assert result["success"] is True
-    assert requested_max_pages == [None]
+    assert requested_max_pages == [20]
 
 
 def test_force_collection_admission_is_atomic(monkeypatch: pytest.MonkeyPatch) -> None:

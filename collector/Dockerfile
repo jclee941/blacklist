@@ -18,7 +18,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 COPY collector/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ---- Stage 2: Runtime (minimal) ----
 FROM python:3.11-slim-bookworm
@@ -26,6 +25,8 @@ FROM python:3.11-slim-bookworm
 ARG APP_VERSION="0.0.0-dev"
 ARG BUILD_DATE=""
 ARG GIT_COMMIT="unknown"
+ARG UID=10001
+ARG GID=10001
 
 LABEL org.opencontainers.image.version=${APP_VERSION}
 LABEL org.opencontainers.image.revision=${GIT_COMMIT}
@@ -47,8 +48,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # Copy pre-built Python packages from builder stage
 COPY --from=builder /install /usr/local
 
-# Upgrade pip/setuptools/wheel to patch CVEs from base image
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Copy entire collector package preserving structure
 COPY collector/ /app/collector/
@@ -66,7 +65,12 @@ ENV PYTHONPATH=/app:/app/collector \
     COLLECTOR_PORT=8545 \
     LOG_LEVEL=INFO
 
-RUN mkdir -p /app/logs
+RUN groupadd --gid "${GID}" collector \
+    && useradd --uid "${UID}" --gid "${GID}" --no-create-home --shell /usr/sbin/nologin collector \
+    && mkdir -p /app/data /app/logs \
+    && chown -R collector:collector /app/data /app/logs
+
+USER collector
 
 EXPOSE 8545
 

@@ -8,6 +8,8 @@ from flask.typing import ResponseReturnValue
 
 CONTROL_ROUTES: Final[frozenset[str]] = frozenset(
     {
+        "/logs",
+        "/status",
         "/trigger",
         "/api/test-auth/<source>",
         "/api/force-collection/<source>",

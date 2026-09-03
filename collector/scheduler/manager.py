@@ -231,7 +231,11 @@ class CollectionScheduler:
 
             logger.info("🔑 Using %s credentials from database: %s", source, username)
             if source == "REGTECH":
-                return self._collect_regtech_data(username, password, max_pages=None)
+                return self._collect_regtech_data(
+                    username,
+                    password,
+                    max_pages=CollectorConfig.MAX_PAGES_PER_COLLECTION,
+                )
 
             return {"success": False, "error": f"Unknown source: {source}", "collected_count": 0}
         except Exception as exc:

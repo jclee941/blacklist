@@ -58,7 +58,11 @@ class DatabaseService(DatabaseQueryMixin):
                 return
 
             salt_env = os.getenv("ENCRYPTION_SALT")
-            salt = salt_env.encode() if salt_env else b"blacklist-regtech-salt-2025"
+            if not salt_env:
+                logger.error("ENCRYPTION_SALT is required when CREDENTIAL_MASTER_KEY is configured")
+                self._cipher_suite = None
+                return
+            salt = salt_env.encode()
 
             kdf = PBKDF2HMAC(
                 algorithm=hashes.SHA256(),
