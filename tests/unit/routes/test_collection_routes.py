@@ -187,17 +187,20 @@ class TestCollectionHistory:
 
     def test_history_success(self, client, app):
         """GET /api/collection/history returns collection history"""
-        app.extensions["db_service"].query.return_value = [
-            {
-                "id": 1,
-                "service_name": "REGTECH",
-                "collection_date": datetime(2026, 1, 1, 12, 0),
-                "items_collected": 500,
-                "success": True,
-                "duration_seconds": 10.5,
-                "error_message": None,
-                "metadata": {"new_count": 400, "updated_count": 100},
-            }
+        app.extensions["db_service"].query.side_effect = [
+            [
+                {
+                    "id": 1,
+                    "service_name": "REGTECH",
+                    "collection_date": datetime(2026, 1, 1, 12, 0),
+                    "items_collected": 500,
+                    "success": True,
+                    "duration_seconds": 10.5,
+                    "error_message": None,
+                    "metadata": {"new_count": 400, "updated_count": 100},
+                }
+            ],
+            [{"total": 1}],
         ]
 
         response = client.get("/api/collection/history")
@@ -213,6 +216,30 @@ class TestCollectionHistory:
 
         response = client.get("/api/collection/history?source=REGTECH")
         assert response.status_code == 200
+
+    def test_history_applies_page_offset_and_returns_total(self, client, app):
+        rows = [
+            {
+                "id": index,
+                "service_name": "REGTECH",
+                "collection_date": datetime(2026, 1, 1, 12, 0),
+                "items_collected": 1,
+                "success": True,
+                "duration_seconds": 1.0,
+                "error_message": None,
+                "metadata": {},
+            }
+            for index in range(20)
+        ]
+        app.extensions["db_service"].query.side_effect = [rows, [{"total": 45}]]
+
+        response = client.get("/api/collection/history?source=REGTECH&page=2&per_page=20")
+
+        assert response.status_code == 200
+        assert response.get_json()["data"]["total"] == 45
+        query, params = app.extensions["db_service"].query.call_args_list[0].args
+        assert "OFFSET %s" in query
+        assert params == ("REGTECH", 20, 20)
 
     def test_history_invalid_limit(self, client):
         """GET /api/collection/history?limit=500 returns 400"""
@@ -339,6 +366,7 @@ class TestCollectionStatus:
         data = response.get_json()
         assert data["success"] is True
         assert "collectors" in data["data"]
+        mock_call.assert_called_once_with("/status")
 
     @patch("core.routes.api.collection.status.call_collector_api")
     def test_status_collector_unavailable(self, mock_call, client):
@@ -383,6 +411,7 @@ class TestCollectionStatus:
         assert response.status_code == 200
         data = response.get_json()
         assert data["data"]["status"] == "unhealthy"
+        assert "Network error" not in response.get_data(as_text=True)
 
     @patch("core.routes.api.collection.status.call_collector_api")
     def test_health_error_graceful(self, mock_call, client, app):

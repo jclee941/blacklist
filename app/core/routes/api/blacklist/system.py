@@ -9,6 +9,7 @@ from datetime import datetime
 import logging
 import os
 from ....config import config
+from ....services.database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +49,10 @@ def get_system_containers():
         try:
             db_service = current_app.extensions.get("db_service")
             if db_service:
-                conn = db_service.get_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT 1")
-                cursor.close()
-                db_service.return_connection(conn)
+                with connection_lease(db_service) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT 1")
+                    cursor.close()
         except Exception as e:
             logger.warning("Database health check failed: %s", e)
             services["blacklist-postgres"]["health"] = "unhealthy"

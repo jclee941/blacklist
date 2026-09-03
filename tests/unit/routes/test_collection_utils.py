@@ -100,7 +100,7 @@ class TestCallCollectorApi:
 
         assert result["success"] is False
         assert result["error"] == "Collector API error: 503"
-        assert result["details"] == "service unavailable"
+        assert "details" not in result
 
     @patch("core.routes.api.collection.utils.requests.get")
     @patch("core.routes.api.collection.utils.requests.post")
@@ -125,7 +125,7 @@ class TestCallCollectorApi:
 
         assert result["success"] is False
         assert result["error"] == "Cannot connect to collector service"
-        assert "connection refused" in result["details"]
+        assert "details" not in result
         assert mock_get.call_count == 3
         assert mock_sleep.call_count == 2
 
@@ -141,7 +141,7 @@ class TestCallCollectorApi:
 
         assert result["success"] is False
         assert result["error"] == "Cannot connect to collector service"
-        assert "timed out" in result["details"]
+        assert "details" not in result
         assert mock_get.call_count == 3
         assert mock_sleep.call_count == 2
 
@@ -196,4 +196,4 @@ class TestCallCollectorApi:
 
         result = call_collector_api("/health")
 
-        assert result == {"success": False, "error": "boom"}
+        assert result == {"success": False, "error": "Collector request failed"}

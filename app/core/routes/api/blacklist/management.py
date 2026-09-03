@@ -11,6 +11,8 @@ from ....exceptions import BadRequestError, ConflictError, NotFoundError
 import re
 
 from core.utils.rate_limit import rate_limit
+from core.services.database_lease import connection_lease
+from core.utils.ip_cache import invalidate_ip_caches
 
 logger = logging.getLogger(__name__)
 
@@ -66,21 +68,19 @@ def manual_add_ip():
             )
 
         # DB에 저장
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            INSERT INTO blacklist_ips
-            (ip_address, source, country, detection_date, last_seen, detection_count, created_at, updated_at)
-            VALUES (%s, %s, %s, CURRENT_DATE, NOW(), 1, NOW(), NOW())
-        """,
-            (ip_address, "MANUAL", country),
-        )
-
-        conn.commit()
-        cursor.close()
-        db_service.return_connection(conn)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO blacklist_ips
+                (ip_address, source, country, detection_date, last_seen, detection_count, created_at, updated_at)
+                VALUES (%s, %s, %s, CURRENT_DATE, NOW(), 1, NOW(), NOW())
+                """,
+                (ip_address, "MANUAL", country),
+            )
+            conn.commit()
+            cursor.close()
+        invalidate_ip_caches((ip_address,))
 
         logger.info(f"✅ Manual IP added to blacklist: {ip_address} (country: {country})")
 
@@ -132,14 +132,12 @@ def manual_remove_ip(ip_address):
             )
 
         # DB에서 삭제
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("DELETE FROM blacklist_ips WHERE ip_address = %s", (ip_address,))
-
-        conn.commit()
-        cursor.close()
-        db_service.return_connection(conn)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM blacklist_ips WHERE ip_address = %s", (ip_address,))
+            conn.commit()
+            cursor.close()
+        invalidate_ip_caches((ip_address,))
 
         logger.info(f"✅ Manual IP removed from blacklist: {ip_address}")
 
@@ -194,21 +192,19 @@ def manual_add_whitelist_ip():
             )
 
         # DB에 저장
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            INSERT INTO whitelist_ips
-            (ip_address, source, country, reason, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, NOW(), NOW())
-        """,
-            (ip_address, "MANUAL", country, reason),
-        )
-
-        conn.commit()
-        cursor.close()
-        db_service.return_connection(conn)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO whitelist_ips
+                (ip_address, source, country, reason, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, NOW(), NOW())
+                """,
+                (ip_address, "MANUAL", country, reason),
+            )
+            conn.commit()
+            cursor.close()
+        invalidate_ip_caches((ip_address,))
 
         logger.info(f"✅ Manual IP added to whitelist: {ip_address} (country: {country}, reason: {reason})")
 

@@ -7,6 +7,8 @@ from flask import Flask, g
 def make_app():
     app = Flask(__name__)
     app.config["TESTING"] = True
+    app.config["FORTIGATE_CA_CERT"] = __file__
+    app.config["FORTIGATE_ALLOWED_NETWORKS"] = ("10.0.0.0/24",)
 
     from core.routes.api.fortinet.management import fortinet_management_bp
     from core.errors.handlers import register_error_handlers
@@ -103,8 +105,9 @@ class TestRegisterToFortigate:
 
     @patch("core.routes.api.fortinet.management.requests")
     def test_register_success(self, mock_requests, client, app):
-        app.extensions["db_service"].query.return_value = [
-            {"ip_address": "1.2.3.4", "reason": "malware", "confidence_level": 90}
+        app.extensions["db_service"].query.side_effect = [
+            [{"ip_address": "1.2.3.4", "reason": "malware", "confidence_level": 90}],
+            [{"device_ip": "10.0.0.1"}],
         ]
         mock_check = MagicMock()
         mock_check.status_code = 200
@@ -129,8 +132,9 @@ class TestRegisterToFortigate:
 
     @patch("core.routes.api.fortinet.management.requests")
     def test_register_creates_group_on_404(self, mock_requests, client, app):
-        app.extensions["db_service"].query.return_value = [
-            {"ip_address": "1.2.3.4", "reason": "malware", "confidence_level": 90}
+        app.extensions["db_service"].query.side_effect = [
+            [{"ip_address": "1.2.3.4", "reason": "malware", "confidence_level": 90}],
+            [{"device_ip": "10.0.0.1"}],
         ]
         mock_check = MagicMock()
         mock_check.status_code = 404
@@ -157,8 +161,9 @@ class TestRegisterToFortigate:
     def test_register_connection_error(self, mock_requests, client, app):
         import requests as real_requests
 
-        app.extensions["db_service"].query.return_value = [
-            {"ip_address": "1.2.3.4", "reason": "malware", "confidence_level": 90}
+        app.extensions["db_service"].query.side_effect = [
+            [{"ip_address": "1.2.3.4", "reason": "malware", "confidence_level": 90}],
+            [{"device_ip": "10.0.0.1"}],
         ]
         mock_requests.get.side_effect = real_requests.exceptions.ConnectionError("timeout")
         mock_requests.exceptions = real_requests.exceptions
@@ -169,3 +174,16 @@ class TestRegisterToFortigate:
             content_type="application/json",
         )
         assert response.status_code == 500
+
+    def test_register_rejects_unregistered_device(self, client, app):
+        app.extensions["db_service"].query.side_effect = [
+            [{"ip_address": "1.2.3.4", "reason": "malware", "confidence_level": 90}],
+            [],
+        ]
+
+        response = client.post(
+            "/api/fortinet/register",
+            json={"device_ip": "10.0.0.1", "username": "admin", "password": "pass"},
+        )
+
+        assert response.status_code == 400

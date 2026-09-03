@@ -5,13 +5,32 @@ These endpoints are attached directly to api_bp.
 
 from unittest.mock import MagicMock
 from flask import Flask, g
+from flask.testing import FlaskClient
+
+
+class FlaskRouteTest:
+    @property
+    def app(self) -> Flask:
+        return self.__dict__["app"]
+
+    @app.setter
+    def app(self, value: Flask) -> None:
+        self.__dict__["app"] = value
+
+    @property
+    def client(self) -> FlaskClient:
+        return self.__dict__["client"]
+
+    @client.setter
+    def client(self, value: FlaskClient) -> None:
+        self.__dict__["client"] = value
 
 
 def _create_app():
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    from core.routes.api_routes import api_bp
+    from core.routes.api import api_bp
 
     app.register_blueprint(api_bp)
 
@@ -26,7 +45,7 @@ def _create_app():
     return app
 
 
-class TestApiDocs:
+class TestApiDocs(FlaskRouteTest):
     """GET /api/docs"""
 
     def setup_method(self):
@@ -59,7 +78,7 @@ class TestApiDocs:
         assert "timestamp" in data
 
 
-class TestServiceHealth:
+class TestServiceHealth(FlaskRouteTest):
     """GET /api/health"""
 
     def setup_method(self):
@@ -74,11 +93,8 @@ class TestServiceHealth:
         resp = self.client.get("/api/health")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["success"] is True
-        assert data["data"]["status"] == "healthy"
-        assert data["data"]["total_ips"] == 500
-        assert data["data"]["active_ips"] == 400
-        assert data["data"]["database_connected"] is True
+        assert data["status"] == "healthy"
+        assert set(data) == {"status", "timestamp"}
 
     def test_health_unhealthy_on_exception(self):
         """Health endpoint always returns 200 with unhealthy status on error."""
@@ -89,9 +105,9 @@ class TestServiceHealth:
         resp = self.client.get("/api/health")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["data"]["status"] == "unhealthy"
-        assert data["data"]["database_connected"] is False
-        assert "DB down" in data["data"]["error"]
+        assert data["status"] == "unhealthy"
+        assert set(data) == {"status", "timestamp"}
+        assert "DB down" not in resp.get_data(as_text=True)
 
     def test_health_missing_service(self):
         """When blacklist_service not in extensions, returns unhealthy."""
@@ -99,4 +115,5 @@ class TestServiceHealth:
         resp = self.client.get("/api/health")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["data"]["status"] == "unhealthy"
+        assert data["status"] == "unhealthy"
+        assert set(data) == {"status", "timestamp"}

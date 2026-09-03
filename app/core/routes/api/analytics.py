@@ -6,6 +6,7 @@ Updated: 2025-11-21 (Error Handling Standardization - HIGH PRIORITY #4)
 """
 
 import logging
+from contextlib import ExitStack
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g, render_template, current_app
 from ...exceptions import (
@@ -13,6 +14,7 @@ from ...exceptions import (
     DatabaseError,
     InternalServerError,
 )
+from ...services.database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -87,10 +89,11 @@ def get_detection_timeline():
 
     format_type = request.args.get("format", "json")  # json or chart
 
+    connections = ExitStack()
     try:
         db_service = current_app.extensions["db_service"]
 
-        conn = db_service.get_connection()
+        conn = connections.enter_context(connection_lease(db_service))
         cursor = conn.cursor()
 
         # 날짜별 수집 통계 (View 사용 - 3개월 자동 비활성화 로직 적용)
@@ -201,7 +204,6 @@ def get_detection_timeline():
             source_stats.append(source_data)
 
         cursor.close()
-        conn.close()
 
         # 로그 출력 (탐지일 데이터 분석)
         period_str = "전체" if days_back is None else f"{days_back}일"
@@ -261,14 +263,9 @@ def get_detection_timeline():
 
     except Exception as e:
         logger.error(f"Detection timeline analysis error: {e}", exc_info=True)
-        raise DatabaseError(
-            message="Failed to analyze detection timeline",
-            details={
-                "days": days_back,
-                "format": format_type,
-                "error_type": type(e).__name__,
-            },
-        )
+        raise DatabaseError(message="Failed to analyze detection timeline") from e
+    finally:
+        connections.close()
 
 
 @detection_bp.route("/detection-chart")
@@ -285,10 +282,7 @@ def detection_chart_page():
         return render_template("detection_chart.html")
     except Exception as e:
         logger.error(f"Detection chart page error: {e}", exc_info=True)
-        raise InternalServerError(
-            message="Failed to load detection chart page",
-            details={"error_type": type(e).__name__},
-        )
+        raise InternalServerError(message="Failed to load detection chart page") from e
 
 
 @detection_bp.route("/real-time-log", methods=["GET"])
@@ -301,11 +295,12 @@ def get_real_time_detection_log():
     Raises:
         DatabaseError: Database query failed
     """
+    connections = ExitStack()
     try:
         db_service = current_app.extensions["db_service"]
 
         # 최근 24시간 내 수집된 데이터 로그
-        conn = db_service.get_connection()
+        conn = connections.enter_context(connection_lease(db_service))
         cursor = conn.cursor()
 
         cursor.execute(
@@ -338,7 +333,6 @@ def get_real_time_detection_log():
             log_entries.append(entry)
 
         cursor.close()
-        conn.close()
 
         # 실시간 로그 출력
         logger.info(f"📡 실시간 탐지 로그: 최근 24시간 {len(log_entries)}건")
@@ -363,7 +357,6 @@ def get_real_time_detection_log():
 
     except Exception as e:
         logger.error(f"Real-time detection log error: {e}", exc_info=True)
-        raise DatabaseError(
-            message="Failed to retrieve real-time detection log",
-            details={"error_type": type(e).__name__},
-        )
+        raise DatabaseError(message="Failed to retrieve real-time detection log") from e
+    finally:
+        connections.close()

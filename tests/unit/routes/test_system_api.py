@@ -8,14 +8,33 @@ Covers: /api/monitoring/dashboard, /api/system-stats, /api/chart/data,
 import os
 from unittest.mock import MagicMock, patch, mock_open
 from flask import Flask, g
+from flask.testing import FlaskClient
 from datetime import datetime, date
+
+
+class FlaskRouteTest:
+    @property
+    def app(self) -> Flask:
+        return self.__dict__["app"]
+
+    @app.setter
+    def app(self, value: Flask) -> None:
+        self.__dict__["app"] = value
+
+    @property
+    def client(self) -> FlaskClient:
+        return self.__dict__["client"]
+
+    @client.setter
+    def client(self, value: FlaskClient) -> None:
+        self.__dict__["client"] = value
 
 
 def _create_app():
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    from core.routes.api_routes import api_bp
+    from core.routes.api import api_bp
 
     app.register_blueprint(api_bp)
 
@@ -49,7 +68,7 @@ def _mock_db_service_with_cursor(cursor_results):
 # ─── Monitoring Dashboard ──────────────────────────────────────────
 
 
-class TestMonitoringDashboard:
+class TestMonitoringDashboard(FlaskRouteTest):
     """GET /api/monitoring/dashboard"""
 
     def setup_method(self):
@@ -97,7 +116,7 @@ class TestMonitoringDashboard:
 # ─── System Stats ──────────────────────────────────────────────────
 
 
-class TestSystemStats:
+class TestSystemStats(FlaskRouteTest):
     """GET /api/system-stats"""
 
     def setup_method(self):
@@ -150,7 +169,7 @@ class TestSystemStats:
 # ─── Chart Data ────────────────────────────────────────────────────
 
 
-class TestChartData:
+class TestChartData(FlaskRouteTest):
     """GET /api/chart/data"""
 
     def setup_method(self):
@@ -203,7 +222,7 @@ class TestChartData:
 # ─── System Logs ───────────────────────────────────────────────────
 
 
-class TestSystemLogs:
+class TestSystemLogs(FlaskRouteTest):
     """GET /api/logs"""
 
     def setup_method(self):
@@ -236,7 +255,7 @@ class TestSystemLogs:
 # ─── Auth Status ───────────────────────────────────────────────────
 
 
-class TestAuthStatus:
+class TestAuthStatus(FlaskRouteTest):
     """GET /api/auth/status"""
 
     def setup_method(self):
@@ -286,7 +305,7 @@ class TestAuthStatus:
 # ─── Reset Database ────────────────────────────────────────────────
 
 
-class TestResetDatabase:
+class TestResetDatabase(FlaskRouteTest):
     """POST /api/reset-database"""
 
     def setup_method(self):
@@ -346,7 +365,7 @@ class TestResetDatabase:
 # ─── Database Schema ───────────────────────────────────────────────
 
 
-class TestDatabaseSchema:
+class TestDatabaseSchema(FlaskRouteTest):
     """GET /api/database/schema"""
 
     def setup_method(self):
@@ -393,7 +412,7 @@ class TestDatabaseSchema:
         assert resp.status_code == 500
 
 
-class TestSchemaUpdate:
+class TestSchemaUpdate(FlaskRouteTest):
     """POST /api/database/schema/update"""
 
     def setup_method(self):
@@ -419,7 +438,7 @@ class TestSchemaUpdate:
         assert resp.status_code == 500
 
 
-class TestSchemaFix:
+class TestSchemaFix(FlaskRouteTest):
     """POST /api/database/schema/fix"""
 
     def setup_method(self):

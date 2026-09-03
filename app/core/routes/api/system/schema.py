@@ -1,6 +1,7 @@
 """Database schema endpoints for the shared system API blueprint."""
 
 from . import common
+from ....services.database_lease import connection_lease
 
 
 @common.api_bp.route("/database/schema", methods=["GET"])
@@ -26,10 +27,8 @@ def get_database_schema():
     """
     try:
         db_service = common.current_app.extensions["db_service"]
-        conn = db_service.get_connection()
-        cursor = conn.cursor(cursor_factory=common.RealDictCursor)
-
-        try:
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor(cursor_factory=common.RealDictCursor)
             cursor.execute(
                 """
                 SELECT table_name, column_name, data_type, is_nullable
@@ -53,9 +52,7 @@ def get_database_schema():
                     }
                 )
 
-        finally:
             cursor.close()
-            db_service.return_connection(conn)
 
         return common.jsonify(
             {

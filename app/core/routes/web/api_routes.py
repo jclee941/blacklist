@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from . import web_bp
 from .blacklist_api_routes import api_blacklist_export, api_blacklist_export_raw, api_blacklist_list
+from ...services.database_lease import connection_lease
 
 BLACKLIST_API_HANDLERS = (api_blacklist_list, api_blacklist_export, api_blacklist_export_raw)
 
@@ -27,7 +28,7 @@ def api_search_ip(ip):
         db_service = current_app.extensions["db_service"]
 
         # IP 주소로 블랙리스트 검색
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -79,7 +80,7 @@ def api_stats():
     try:
         db_service = current_app.extensions["db_service"]
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 # 기본 통계
                 cur.execute(
@@ -93,6 +94,8 @@ def api_stats():
                 """
                 )
                 stats = cur.fetchone()
+                if stats is None:
+                    raise RuntimeError("Blacklist statistics query returned no row")
 
                 # 소스별 통계
                 cur.execute(
@@ -145,7 +148,7 @@ def api_collection_stats():
     try:
         db_service = current_app.extensions["db_service"]
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 # 최근 수집 통계
                 cur.execute(
@@ -160,6 +163,8 @@ def api_collection_stats():
                 """
                 )
                 stats = cur.fetchone()
+                if stats is None:
+                    raise RuntimeError("Collection statistics query returned no row")
 
         return jsonify(
             {
@@ -189,7 +194,7 @@ def api_chart_data():
 
         chart_type = request.args.get("type", "daily")
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 if chart_type == "daily":
                     # 일별 추가된 IP 수

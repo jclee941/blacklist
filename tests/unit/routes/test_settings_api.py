@@ -48,6 +48,17 @@ class TestSettingsGet:
         response = client.get("/settings?category=general")
         assert response.status_code == 200
 
+    def test_get_all_settings_never_decrypts_secrets(self, client, app):
+        app.extensions["settings_service"].get_all_settings.return_value = []
+
+        response = client.get("/settings?include_encrypted=true")
+
+        assert response.status_code == 200
+        app.extensions["settings_service"].get_all_settings.assert_called_once_with(
+            category=None,
+            include_encrypted=False,
+        )
+
     def test_get_setting_by_key(self, client, app):
         """GET /settings/<key> returns single setting."""
         app.extensions["settings_service"].get_setting.return_value = "test-value"
@@ -62,6 +73,14 @@ class TestSettingsGet:
         app.extensions["settings_service"].get_setting.return_value = None
         response = client.get("/settings/nonexistent")
         assert response.status_code == 404
+
+    def test_get_sensitive_setting_is_forbidden(self, client, app):
+        app.extensions["settings_service"].get_setting.return_value = "sensitive-password"
+
+        response = client.get("/settings/admin_password")
+
+        assert response.status_code == 403
+        app.extensions["settings_service"].get_setting.assert_not_called()
 
     def test_get_grouped_settings(self, client, app):
         """GET /settings/grouped returns categorized settings."""
@@ -109,6 +128,12 @@ class TestSettingsModify:
         response = client.put("/settings/site_name", json={})
         assert response.status_code == 400
 
+    def test_update_admin_setting_is_forbidden(self, client, app):
+        response = client.put("/settings/admin_password", json={"value": "replacement"})
+
+        assert response.status_code == 403
+        app.extensions["settings_service"].set_setting.assert_not_called()
+
     def test_create_setting(self, client, app):
         """POST /settings creates new setting."""
         app.extensions["settings_service"].create_setting.return_value = True
@@ -126,6 +151,15 @@ class TestSettingsModify:
         """POST /settings without required fields returns 400."""
         response = client.post("/settings", json={"key": "only_key"})
         assert response.status_code == 400
+
+    def test_create_admin_setting_is_forbidden(self, client, app):
+        response = client.post(
+            "/settings",
+            json={"key": "admin_password", "value": "replacement", "type": "password"},
+        )
+
+        assert response.status_code == 403
+        app.extensions["settings_service"].create_setting.assert_not_called()
 
     def test_delete_setting(self, client, app):
         """DELETE /settings/<key> removes setting."""

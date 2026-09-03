@@ -11,6 +11,8 @@ from datetime import datetime
 from flask import current_app, jsonify, request, send_file
 
 from . import web_bp
+from ...services.database_lease import connection_lease
+from ...utils.csv_security import neutralize_csv_row, parse_export_limit
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +59,7 @@ def api_blacklist_list():
         where_conditions, params = _build_blacklist_where_clause(source, active_only)
         where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 query = f"""
                     SELECT
@@ -73,7 +75,8 @@ def api_blacklist_list():
 
                 count_query = f"SELECT COUNT(*) FROM blacklist_ips {where_clause}"
                 cur.execute(count_query, params)
-                total_count = cur.fetchone()[0]
+                total_row = cur.fetchone()
+                total_count = total_row[0] if total_row else 0
 
         blacklist_data = []
         for row in results:
@@ -115,6 +118,7 @@ def api_blacklist_list():
 @web_bp.route("/api/blacklist/export", methods=["GET"])
 def api_blacklist_export():
     """블랙리스트 데이터 CSV 내보내기 API"""
+    export_limit = parse_export_limit(request.args.get("limit"))
     try:
         db_service = current_app.extensions["db_service"]
 
@@ -122,7 +126,7 @@ def api_blacklist_export():
         where_conditions, params = _build_blacklist_where_clause(source, active_only)
         where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 export_query = f"""
                     SELECT
@@ -131,8 +135,9 @@ def api_blacklist_export():
                     FROM blacklist_ips
                     {where_clause}
                     ORDER BY created_at DESC
+                    LIMIT %s
                 """
-                cur.execute(export_query, params)
+                cur.execute(export_query, [*params, export_limit])
                 results = cur.fetchall()
 
         output = io.StringIO()
@@ -155,19 +160,21 @@ def api_blacklist_export():
 
         for row in results:
             writer.writerow(
-                [
-                    row[0],
-                    row[1],
-                    row[2] or "",
-                    row[3].strftime("%Y-%m-%d") if row[3] else "",
-                    row[4].strftime("%Y-%m-%d") if row[4] else "",
-                    row[5],
-                    row[6],
-                    row[7],
-                    "Yes" if row[8] else "No",
-                    row[9].strftime("%Y-%m-%d %H:%M:%S") if row[9] else "",
-                    row[10].strftime("%Y-%m-%d %H:%M:%S") if row[10] else "",
-                ]
+                neutralize_csv_row(
+                    [
+                        row[0],
+                        row[1],
+                        row[2] or "",
+                        row[3].strftime("%Y-%m-%d") if row[3] else "",
+                        row[4].strftime("%Y-%m-%d") if row[4] else "",
+                        row[5],
+                        row[6],
+                        row[7],
+                        "Yes" if row[8] else "No",
+                        row[9].strftime("%Y-%m-%d %H:%M:%S") if row[9] else "",
+                        row[10].strftime("%Y-%m-%d %H:%M:%S") if row[10] else "",
+                    ]
+                )
             )
 
         _ = output.seek(0)
@@ -179,14 +186,15 @@ def api_blacklist_export():
             download_name=f"blacklist_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         )
 
-    except Exception as e:
-        logger.error(f"Blacklist export API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception:
+        logger.exception("Blacklist export API error")
+        return jsonify({"success": False, "error": "Blacklist export failed"}), 500
 
 
 @web_bp.route("/api/blacklist/export-raw", methods=["GET"])
 def api_blacklist_export_raw():
     """블랙리스트 Raw 데이터 CSV 내보내기 API (수집 근거 포함)"""
+    export_limit = parse_export_limit(request.args.get("limit"))
     try:
         db_service = current_app.extensions["db_service"]
 
@@ -195,7 +203,7 @@ def api_blacklist_export_raw():
         where_conditions, params = _build_blacklist_where_clause(source, active_only, include_empty)
         where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 export_query = f"""
                     SELECT
@@ -212,8 +220,9 @@ def api_blacklist_export_raw():
                     FROM blacklist_ips
                     {where_clause}
                     ORDER BY created_at DESC
+                    LIMIT %s
                 """
-                cur.execute(export_query, params)
+                cur.execute(export_query, [*params, export_limit])
                 results = cur.fetchall()
 
         output = io.StringIO()
@@ -250,20 +259,22 @@ def api_blacklist_export_raw():
                     raw_data_str = str(row[11]) if row[11] else ""
 
             writer.writerow(
-                [
-                    row[0],
-                    row[1],
-                    row[2] or "",
-                    row[3].strftime("%Y-%m-%d") if row[3] else "",
-                    row[4].strftime("%Y-%m-%d") if row[4] else "",
-                    row[5],
-                    row[6],
-                    row[7],
-                    "Yes" if row[8] else "No",
-                    row[9].strftime("%Y-%m-%d %H:%M:%S") if row[9] else "",
-                    row[10].strftime("%Y-%m-%d %H:%M:%S") if row[10] else "",
-                    raw_data_str,
-                ]
+                neutralize_csv_row(
+                    [
+                        row[0],
+                        row[1],
+                        row[2] or "",
+                        row[3].strftime("%Y-%m-%d") if row[3] else "",
+                        row[4].strftime("%Y-%m-%d") if row[4] else "",
+                        row[5],
+                        row[6],
+                        row[7],
+                        "Yes" if row[8] else "No",
+                        row[9].strftime("%Y-%m-%d %H:%M:%S") if row[9] else "",
+                        row[10].strftime("%Y-%m-%d %H:%M:%S") if row[10] else "",
+                        raw_data_str,
+                    ]
+                )
             )
 
         _ = output.seek(0)
@@ -275,6 +286,6 @@ def api_blacklist_export_raw():
             download_name=f"blacklist_raw_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         )
 
-    except Exception as e:
-        logger.error(f"Blacklist raw export API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception:
+        logger.exception("Blacklist raw export API error")
+        return jsonify({"success": False, "error": "Blacklist export failed"}), 500

@@ -83,7 +83,6 @@ class TestManageCredentials:
         return app.test_client()
 
     def test_get_credentials_success(self, client, app):
-        """GET /api/collection/credentials/regtech returns masked credentials"""
         svc = app.extensions["secure_credential_service"]
         svc.get_credentials.return_value = {
             "service_name": "REGTECH",
@@ -99,7 +98,7 @@ class TestManageCredentials:
         data = response.get_json()
         assert data["success"] is True
         assert data["data"]["username"] == "admin"
-        assert data["data"]["password"] == "***masked***"
+        assert "password" not in data["data"]
         assert data["data"]["configured"] is True
 
     def test_get_credentials_invalid_source(self, client):
@@ -121,6 +120,7 @@ class TestManageCredentials:
         assert data["data"]["enabled"] is False
         assert data["data"]["connection_status"] == "unknown"
         assert data["data"]["configured"] is False
+        assert "password" not in data["data"]
 
     def test_put_credentials_success(self, client, app):
         """PUT /api/collection/credentials/regtech updates credentials"""
@@ -137,6 +137,7 @@ class TestManageCredentials:
             assert response.status_code == 200
             data = response.get_json()
             assert data["success"] is True
+            mock_api.assert_not_called()
 
     def test_put_credentials_missing_username(self, client):
         """PUT /api/collection/credentials/regtech without username returns 400"""

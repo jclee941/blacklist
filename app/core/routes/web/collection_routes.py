@@ -7,6 +7,7 @@ from flask import render_template, jsonify, request, current_app
 import logging
 from datetime import datetime
 from . import web_bp
+from ...services.database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ def api_collection_history():
         per_page = int(request.args.get("per_page", 20))
         offset = (page - 1) * per_page
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 # 전체 수집 이력 조회
                 cur.execute(
@@ -200,7 +201,10 @@ def api_collection_history():
 
                 # 전체 레코드 수
                 cur.execute("SELECT COUNT(*) FROM collection_history")
-                total_count = cur.fetchone()[0]
+                count_row = cur.fetchone()
+                if count_row is None:
+                    raise RuntimeError("Collection history count query returned no row")
+                total_count = count_row[0]
 
         # 응답 데이터 구성
         history_list = []

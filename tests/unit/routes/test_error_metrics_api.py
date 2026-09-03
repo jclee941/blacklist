@@ -5,13 +5,32 @@ These endpoints are attached directly to api_bp and use lazy imports.
 
 from unittest.mock import MagicMock, patch
 from flask import Flask, g
+from flask.testing import FlaskClient
+
+
+class FlaskRouteTest:
+    @property
+    def app(self) -> Flask:
+        return self.__dict__["app"]
+
+    @app.setter
+    def app(self, value: Flask) -> None:
+        self.__dict__["app"] = value
+
+    @property
+    def client(self) -> FlaskClient:
+        return self.__dict__["client"]
+
+    @client.setter
+    def client(self, value: FlaskClient) -> None:
+        self.__dict__["client"] = value
 
 
 def _create_app():
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    from core.routes.api_routes import api_bp
+    from core.routes.api import api_bp
 
     app.register_blueprint(api_bp)
 
@@ -55,7 +74,7 @@ def _mock_success_response():
     return success_response
 
 
-class TestErrorStatistics:
+class TestErrorStatistics(FlaskRouteTest):
     """GET /api/monitoring/errors/stats"""
 
     def setup_method(self):
@@ -88,9 +107,7 @@ class TestErrorStatistics:
         assert resp.status_code == 500
 
 
-class TestRecentErrors:
-    """GET /api/monitoring/errors/recent and /api/errors"""
-
+class TestRecentErrors(FlaskRouteTest):
     def setup_method(self):
         self.app = _create_app()
         self.client = self.app.test_client()
@@ -109,10 +126,9 @@ class TestRecentErrors:
         resp = self.client.get("/api/monitoring/errors/recent?limit=0")
         assert resp.status_code == 400
 
-    def test_errors_alias_endpoint(self):
-        """GET /api/errors should route to same handler."""
+    def test_errors_alias_endpoint_is_unreachable(self):
         resp = self.client.get("/api/errors?limit=abc")
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
     def test_recent_errors_success_with_defaults(self):
         """When error_metrics is available (in Docker), returns 200 with defaults."""
@@ -121,7 +137,7 @@ class TestRecentErrors:
         assert resp.status_code in (200, 500)
 
 
-class TestErrorTrends:
+class TestErrorTrends(FlaskRouteTest):
     """GET /api/monitoring/errors/trends"""
 
     def setup_method(self):
@@ -151,7 +167,7 @@ class TestErrorTrends:
         assert resp.status_code in (200, 500)
 
 
-class TestTopErrors:
+class TestTopErrors(FlaskRouteTest):
     """GET /api/monitoring/errors/top"""
 
     def setup_method(self):

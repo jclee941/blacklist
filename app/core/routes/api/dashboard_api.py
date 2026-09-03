@@ -9,6 +9,7 @@ Provides simplified endpoints for frontend dashboard:
 from flask import Blueprint, jsonify, current_app
 from datetime import datetime
 from psycopg2.extras import RealDictCursor
+from ...services.database_lease import connection_lease
 
 dashboard_bp = Blueprint("dashboard_api", __name__)
 
@@ -19,7 +20,7 @@ def get_db_connection():
         # Correct key is 'db_service'
         db_service = current_app.extensions.get("db_service")
         if db_service:
-            return db_service.get_connection()
+            return connection_lease(db_service)
     except Exception as e:
         current_app.logger.error(f"Failed to get db_service: {e}")
         pass
@@ -40,83 +41,66 @@ def get_dashboard_stats():
         - whitelisted_ips: Whitelisted IP count
         - last_update: Last update timestamp
     """
-    conn = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        # Total IPs
-        cursor.execute("SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive")
-        row = cursor.fetchone()
-        total_ips = row["count"] if row else 0
-
-        # Active IPs
-        cursor.execute("SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive WHERE is_active = true")
-        row = cursor.fetchone()
-        active_ips = row["count"] if row else 0
-
-        cursor.execute(
-            """
-            SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive
-            WHERE last_seen >= CURRENT_DATE - INTERVAL '1 day'
-        """
-        )
-        row = cursor.fetchone()
-        recent_additions = row["count"] if row else 0
-
-        # Whitelisted IPs
-        cursor.execute("SELECT COUNT(*) as count FROM whitelist_ips")
-        row = cursor.fetchone()
-        whitelisted_ips = row["count"] if row else 0
-
-        # Last update
-        cursor.execute(
-            """
-            SELECT MAX(last_seen) as last_update
-            FROM blacklist_ips_with_auto_inactive
-        """
-        )
-        last_update_row = cursor.fetchone()
-        last_update = (
-            last_update_row["last_update"].isoformat()
-            if last_update_row and last_update_row["last_update"]
-            else datetime.now().isoformat()
-        )
-
-        # Stats by data_source (REGTECH, MANUAL, etc.)
-        cursor.execute(
-            """
-            SELECT COALESCE(data_source, 'UNKNOWN') as source, COUNT(*) as count
-            FROM blacklist_ips_with_auto_inactive
-            WHERE is_active = true
-            GROUP BY data_source
-        """
-        )
-        by_source = {row["source"]: row["count"] for row in cursor.fetchall()}
-
-        # Stats by country
-        cursor.execute(
-            """
-            SELECT COALESCE(country, 'UNKNOWN') as country, COUNT(*) as count
-            FROM blacklist_ips_with_auto_inactive
-            WHERE is_active = true
-            GROUP BY country
-        """
-        )
-        by_country = {row["country"]: row["count"] for row in cursor.fetchall()}
-
-        # Stats by reason (threat type)
-        cursor.execute(
-            """
-            SELECT COALESCE(source, 'UNKNOWN') as reason, COUNT(*) as count
-            FROM blacklist_ips_with_auto_inactive
-            WHERE is_active = true
-            GROUP BY source
-        """
-        )
-        by_reason = {row["reason"]: row["count"] for row in cursor.fetchall()}
-
-        cursor.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive")
+            row = cursor.fetchone()
+            total_ips = row["count"] if row else 0
+            cursor.execute("SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive WHERE is_active = true")
+            row = cursor.fetchone()
+            active_ips = row["count"] if row else 0
+            cursor.execute(
+                """
+                SELECT COUNT(*) as count FROM blacklist_ips_with_auto_inactive
+                WHERE last_seen >= CURRENT_DATE - INTERVAL '1 day'
+                """
+            )
+            row = cursor.fetchone()
+            recent_additions = row["count"] if row else 0
+            cursor.execute("SELECT COUNT(*) as count FROM whitelist_ips")
+            row = cursor.fetchone()
+            whitelisted_ips = row["count"] if row else 0
+            cursor.execute(
+                """
+                SELECT MAX(last_seen) as last_update
+                FROM blacklist_ips_with_auto_inactive
+                """
+            )
+            last_update_row = cursor.fetchone()
+            last_update = (
+                last_update_row["last_update"].isoformat()
+                if last_update_row and last_update_row["last_update"]
+                else datetime.now().isoformat()
+            )
+            cursor.execute(
+                """
+                SELECT COALESCE(data_source, 'UNKNOWN') as source, COUNT(*) as count
+                FROM blacklist_ips_with_auto_inactive
+                WHERE is_active = true
+                GROUP BY data_source
+                """
+            )
+            by_source = {row["source"]: row["count"] for row in cursor.fetchall()}
+            cursor.execute(
+                """
+                SELECT COALESCE(country, 'UNKNOWN') as country, COUNT(*) as count
+                FROM blacklist_ips_with_auto_inactive
+                WHERE is_active = true
+                GROUP BY country
+                """
+            )
+            by_country = {row["country"]: row["count"] for row in cursor.fetchall()}
+            cursor.execute(
+                """
+                SELECT COALESCE(source, 'UNKNOWN') as reason, COUNT(*) as count
+                FROM blacklist_ips_with_auto_inactive
+                WHERE is_active = true
+                GROUP BY source
+                """
+            )
+            by_reason = {row["reason"]: row["count"] for row in cursor.fetchall()}
+            cursor.close()
         return jsonify(
             {
                 "success": True,
@@ -150,9 +134,6 @@ def get_dashboard_stats():
                 "timestamp": datetime.now().isoformat(),
             }
         ), 200
-    finally:
-        if conn:
-            current_app.extensions["db_service"].return_connection(conn)
 
 
 @dashboard_bp.route("/status", methods=["GET"])
@@ -166,13 +147,11 @@ def get_system_status():
         - collection: Collection service status
     """
     try:
-        # Check database
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT 1")
-        cursor.close()
-        # conn.close()
-        current_app.extensions["db_service"].return_connection(conn)
+        db_service = current_app.extensions["db_service"]
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT 1")
+            cursor.close()
         db_status = "healthy"
     except Exception as e:
         current_app.logger.error(f"Database health check failed: {e}")

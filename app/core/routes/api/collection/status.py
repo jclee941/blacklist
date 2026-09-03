@@ -5,6 +5,7 @@ Handles collection status and health checks
 
 import logging
 from datetime import datetime
+from typing import TypedDict
 from flask import Blueprint, jsonify, g, current_app
 from core.exceptions import ServiceUnavailableError, ExternalAPIError
 from .utils import call_collector_api
@@ -14,7 +15,13 @@ logger = logging.getLogger(__name__)
 collection_status_bp = Blueprint("collection_status", __name__)
 
 
-def _check_if_actively_collecting(collectors: dict) -> bool:
+class CollectorState(TypedDict, total=False):
+    enabled: bool
+    last_run: str | None
+    interval_seconds: int
+
+
+def _check_if_actively_collecting(collectors: dict[str, CollectorState]) -> bool:
     from datetime import timedelta
 
     now = datetime.now()
@@ -39,21 +46,20 @@ def get_collection_status():
     """
     Get overall collection status for all sources
     """
-    health = call_collector_api("/health")
+    health = call_collector_api("/status")
 
     # Check if API call failed (connection error)
     if health.get("success") is False:
         error_msg = health.get("error", "Unknown error")
         if "Cannot connect" in error_msg:
             raise ServiceUnavailableError(
-                service="Collector",
-                details={"error": error_msg, "details": health.get("details")},
+                message=error_msg,
+                service_name="Collector",
             )
         else:
             raise ExternalAPIError(
-                service="Collector",
                 message=error_msg,
-                details=health.get("details", {}),
+                api_name="Collector",
             )
 
     # Check if collector responded successfully
@@ -126,7 +132,7 @@ def collection_health():
         return jsonify(
             {
                 "success": True,
-                "data": {"status": "unhealthy", "error": str(e)},
+                "data": {"status": "unhealthy"},
                 "timestamp": datetime.now().isoformat(),
                 "request_id": g.request_id,
             }

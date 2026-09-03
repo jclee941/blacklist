@@ -14,6 +14,7 @@ from datetime import datetime
 import logging
 
 from ..config import config
+from ..services.database_lease import connection_lease
 
 logger = logging.getLogger(__name__)
 
@@ -74,31 +75,33 @@ def dashboard():
 
         if db_service:
             try:
-                conn = db_service.get_connection()
-                cursor = conn.cursor()
+                with connection_lease(db_service) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive")
+                    total_row = cursor.fetchone()
+                    if total_row is None:
+                        raise RuntimeError("Blacklist total query returned no row")
+                    total_ips = total_row[0] or 0
+                    cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive WHERE is_active = true")
+                    active_row = cursor.fetchone()
+                    if active_row is None:
+                        raise RuntimeError("Active blacklist query returned no row")
+                    active_ips = active_row[0] or 0
+                    cursor.execute("""
+                        SELECT data_source, COUNT(*) as count
+                        FROM blacklist_ips_with_auto_inactive
+                        WHERE is_active = true
+                        GROUP BY data_source
+                    """)
+                    results = cursor.fetchall()
 
-                cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive")
-                total_ips = cursor.fetchone()[0] or 0
+                    for row in results:
+                        src = row[0] or "UNKNOWN"
+                        cnt = row[1] or 0
+                        pct = round((cnt / total_ips * 100), 1) if total_ips > 0 else 0
+                        source_distribution[src] = {"count": cnt, "percentage": pct}
 
-                cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive WHERE is_active = true")
-                active_ips = cursor.fetchone()[0] or 0
-
-                cursor.execute("""
-                    SELECT data_source, COUNT(*) as count
-                    FROM blacklist_ips_with_auto_inactive
-                    WHERE is_active = true
-                    GROUP BY data_source
-                """)
-                results = cursor.fetchall()
-
-                for row in results:
-                    src = row[0] or "UNKNOWN"
-                    cnt = row[1] or 0
-                    pct = round((cnt / total_ips * 100), 1) if total_ips > 0 else 0
-                    source_distribution[src] = {"count": cnt, "percentage": pct}
-
-                cursor.close()
-                db_service.return_connection(conn)
+                    cursor.close()
             except Exception as db_err:
                 logger.warning(f"Dashboard DB query failed: {db_err}")
                 source_distribution = {"REGTECH": {"count": 0, "percentage": 0}}

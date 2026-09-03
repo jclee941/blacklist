@@ -68,14 +68,14 @@ def forward_to_backend(endpoint: str, method: str | None = None):
         try:
             return response.json(), response.status_code
         except ValueError:
-            return {"success": False, "error": response.text}, response.status_code
+            return {"success": False, "error": "Backend returned a non-JSON response"}, response.status_code
 
     except requests.exceptions.ConnectionError:
         logger.error(f"Cannot connect to backend API: {url}")
         return jsonify({"success": False, "error": "Backend API unavailable"}), 503
-    except Exception as e:
-        logger.error(f"Proxy error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception:
+        logger.exception("Proxy request failed")
+        return jsonify({"success": False, "error": "Proxy request failed"}), 500
 
 
 @proxy_bp.route("/collection/status", methods=["GET"])
@@ -111,13 +111,13 @@ def proxy_trigger_collection(source: str):
         try:
             return response.json(), response.status_code
         except ValueError:
-            return {"success": False, "error": response.text}, response.status_code
+            return {"success": False, "error": "Collector returned a non-JSON response"}, response.status_code
     except requests.exceptions.ConnectionError:
         logger.error(f"Cannot connect to collector service: {COLLECTOR_SERVICE_URL}")
         return jsonify({"success": False, "error": "Collector service unavailable"}), 503
-    except Exception as e:
-        logger.error(f"Collector proxy error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception:
+        logger.exception("Collector request failed")
+        return jsonify({"success": False, "error": "Collector request failed"}), 500
 
 
 @proxy_bp.route("/collection/history", methods=["GET"])

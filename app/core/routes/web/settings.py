@@ -9,6 +9,7 @@ from datetime import datetime
 
 from core.auth.decorators import public
 from ...services.settings_service import settings_service
+from ...services.database_lease import connection_lease
 # from ...services.database_service import DatabaseService
 
 logger = logging.getLogger(__name__)
@@ -227,17 +228,15 @@ def get_all_credentials():
     """Get all collection credentials"""
     try:
         db_service = current_app.extensions["db_service"]
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT service_name, username, is_active, created_at, updated_at, config
-            FROM collection_credentials
-            ORDER BY service_name
-        """)
-
-        rows = cursor.fetchall()
-        cursor.close()
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT service_name, username, is_active, created_at, updated_at, config
+                FROM collection_credentials
+                ORDER BY service_name
+            """)
+            rows = cursor.fetchall()
+            cursor.close()
 
         credentials = []
         for row in rows:
@@ -270,7 +269,6 @@ def update_credentials(service_name):
         "config": {...}
     }
     """
-    conn = None  # Initialize conn for exception handling
     try:
         data = request.get_json()
 
@@ -278,10 +276,6 @@ def update_credentials(service_name):
             return jsonify({"success": False, "error": "Missing request body"}), 400
 
         db_service = current_app.extensions["db_service"]
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
-        # Build dynamic UPDATE query
         update_fields = []
         params = []
 
@@ -314,11 +308,12 @@ def update_credentials(service_name):
             WHERE service_name = %s
             RETURNING service_name
         """
-
-        cursor.execute(query, params)
-        result = cursor.fetchone()
-        conn.commit()
-        cursor.close()
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            conn.commit()
+            cursor.close()
 
         if result:
             logger.info(f"Credentials updated: {service_name}")
@@ -334,8 +329,6 @@ def update_credentials(service_name):
 
     except Exception as e:
         logger.error(f"Error updating credentials for {service_name}: {e}")
-        if conn:
-            conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -350,7 +343,6 @@ def create_credentials():
         "config": {...}
     }
     """
-    conn = None  # Initialize conn for exception handling
     try:
         data = request.get_json()
 
@@ -360,32 +352,30 @@ def create_credentials():
                 return jsonify({"success": False, "error": f"Missing required field: {field}"}), 400
 
         db_service = current_app.extensions["db_service"]
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            INSERT INTO collection_credentials
-            (service_name, username, password, config, is_active)
-            VALUES (%s, %s, %s, %s, true)
-            ON CONFLICT (service_name) DO UPDATE
-            SET username = EXCLUDED.username,
-                password = EXCLUDED.password,
-                config = EXCLUDED.config,
-                updated_at = CURRENT_TIMESTAMP
-            RETURNING service_name
-        """,
-            (
-                data["service_name"],
-                data["username"],
-                data["password"],
-                data.get("config", {}),
-            ),
-        )
-
-        result = cursor.fetchone()
-        conn.commit()
-        cursor.close()
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO collection_credentials
+                (service_name, username, password, config, is_active)
+                VALUES (%s, %s, %s, %s, true)
+                ON CONFLICT (service_name) DO UPDATE
+                SET username = EXCLUDED.username,
+                    password = EXCLUDED.password,
+                    config = EXCLUDED.config,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING service_name
+                """,
+                (
+                    data["service_name"],
+                    data["username"],
+                    data["password"],
+                    data.get("config", {}),
+                ),
+            )
+            result = cursor.fetchone()
+            conn.commit()
+            cursor.close()
 
         if result:
             logger.info(f"Credentials created/updated: {data['service_name']}")
@@ -401,8 +391,6 @@ def create_credentials():
 
     except Exception as e:
         logger.error(f"Error creating credentials: {e}")
-        if conn:
-            conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -414,12 +402,11 @@ def settings_health():
     try:
         # Test database connection (simple query)
         db_service = current_app.extensions["db_service"]
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        cursor.close()
-        db_service.return_connection(conn)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
 
         return jsonify(
             {

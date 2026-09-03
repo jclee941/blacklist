@@ -17,6 +17,8 @@ from ....exceptions import (
 )
 
 from core.utils.rate_limit import rate_limit
+from core.services.database_lease import connection_lease
+from core.utils.csv_security import neutralize_csv_row, parse_export_limit
 
 logger = logging.getLogger(__name__)
 
@@ -235,7 +237,7 @@ def get_blacklist_json():
     # 페이지네이션 파라미터
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 100, type=int)
-
+    db_service = current_app.extensions["db_service"]
     # Validate pagination parameters (before database access)
     if page < 1:
         raise ValidationError(
@@ -252,31 +254,25 @@ def get_blacklist_json():
 
     try:
         # Use dependency injection via app.extensions
-        db_service = current_app.extensions["db_service"]
         offset = (page - 1) * per_page
 
         # 데이터베이스 연결 시도
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
-        # 전체 카운트
-        cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive")
-        total = cursor.fetchone()[0]
-
-        # 데이터 조회
-        cursor.execute(
-            """
-            SELECT ip_address, source, detection_date, updated_at, confidence_level
-            FROM blacklist_ips_with_auto_inactive
-            ORDER BY updated_at DESC
-            LIMIT %s OFFSET %s
-        """,
-            (per_page, offset),
-        )
-
-        results = cursor.fetchall()
-        cursor.close()
-        db_service.return_connection(conn)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM blacklist_ips_with_auto_inactive")
+            total_row = cursor.fetchone()
+            total = total_row[0] if total_row else 0
+            cursor.execute(
+                """
+                SELECT ip_address, source, detection_date, updated_at, confidence_level
+                FROM blacklist_ips_with_auto_inactive
+                ORDER BY updated_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                (per_page, offset),
+            )
+            results = cursor.fetchall()
+            cursor.close()
 
         return jsonify(
             {
@@ -334,6 +330,7 @@ def export_raw_data():
     import json
     from flask import send_file
 
+    export_limit = parse_export_limit(request.args.get("limit"))
     try:
         db_service = current_app.extensions["db_service"]
 
@@ -341,7 +338,7 @@ def export_raw_data():
         active_only = request.args.get("active_only", "true").lower() == "true"
         include_empty = request.args.get("include_empty", "false").lower() == "true"
 
-        with db_service.get_connection() as conn:
+        with connection_lease(db_service) as conn:
             with conn.cursor() as cur:
                 where_conditions = []
                 params = []
@@ -369,8 +366,9 @@ def export_raw_data():
                     FROM blacklist_ips_with_auto_inactive
                     {where_clause}
                     ORDER BY created_at DESC
+                    LIMIT %s
                 """
-                cur.execute(export_query, params)
+                cur.execute(export_query, [*params, export_limit])
                 results = cur.fetchall()
 
         output = io.StringIO()
@@ -443,26 +441,28 @@ def export_raw_data():
                     raw_reason = str(row[11])[:200] if row[11] else ""
 
             writer.writerow(
-                [
-                    row[0],
-                    row[1],
-                    row[2] or "",
-                    row[3].strftime("%Y-%m-%d") if row[3] else "",
-                    row[4].strftime("%Y-%m-%d") if row[4] else "",
-                    row[5],
-                    row[6],
-                    row[7],
-                    "Yes" if row[8] else "No",
-                    row[9].strftime("%Y-%m-%d %H:%M:%S") if row[9] else "",
-                    row[10].strftime("%Y-%m-%d %H:%M:%S") if row[10] else "",
-                    raw_no,
-                    raw_ip,
-                    raw_detection_date,
-                    raw_removal_date,
-                    raw_reason,
-                    raw_country,
-                    collection_ts,
-                ]
+                neutralize_csv_row(
+                    [
+                        row[0],
+                        row[1],
+                        row[2] or "",
+                        row[3].strftime("%Y-%m-%d") if row[3] else "",
+                        row[4].strftime("%Y-%m-%d") if row[4] else "",
+                        row[5],
+                        row[6],
+                        row[7],
+                        "Yes" if row[8] else "No",
+                        row[9].strftime("%Y-%m-%d %H:%M:%S") if row[9] else "",
+                        row[10].strftime("%Y-%m-%d %H:%M:%S") if row[10] else "",
+                        raw_no,
+                        raw_ip,
+                        raw_detection_date,
+                        raw_removal_date,
+                        raw_reason,
+                        raw_country,
+                        collection_ts,
+                    ]
+                )
             )
 
         output.seek(0)
@@ -474,6 +474,6 @@ def export_raw_data():
             download_name=f"blacklist_raw_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         )
 
-    except Exception as e:
-        logger.error(f"Blacklist raw export API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception:
+        logger.exception("Blacklist raw export API error")
+        return jsonify({"success": False, "error": "Blacklist export failed"}), 500

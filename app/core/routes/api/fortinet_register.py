@@ -5,6 +5,7 @@ Push blacklist IPs to FortiGate devices
 
 from flask import Blueprint, jsonify, request, g, current_app
 import logging
+import os
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime
@@ -113,13 +114,19 @@ def register_to_fortigate():
         base_url = f"https://{device_ip}/api/v2"
         group_url = f"{base_url}/cmdb/firewall/addrgrp"
         address_url = f"{base_url}/cmdb/firewall/address"
+        ca_cert = current_app.config.get("FORTIGATE_CA_CERT") or os.getenv("FORTIGATE_CA_CERT", "")
+        if not ca_cert or not os.path.isfile(ca_cert):
+            raise InternalServerError(
+                message="FortiGate HTTPS trust is not configured",
+                cause="Set FORTIGATE_CA_CERT to a readable CA bundle",
+            )
 
         # Check if group exists
         check_response = requests.get(
             f"{group_url}/{address_group}",
             auth=HTTPBasicAuth(username, password),
             params={"vdom": vdom},
-            verify=False,
+            verify=ca_cert,
             timeout=30,
         )
 
@@ -136,14 +143,14 @@ def register_to_fortigate():
                 auth=HTTPBasicAuth(username, password),
                 params={"vdom": vdom},
                 json=group_data,
-                verify=False,
+                verify=ca_cert,
                 timeout=30,
             )
 
             if create_response.status_code not in [200, 201]:
                 raise InternalServerError(
                     message=f"Failed to create address group: {create_response.text}",
-                    details={"status_code": create_response.status_code},
+                    cause=f"status_code={create_response.status_code}",
                 )
 
         # Register IPs
@@ -166,7 +173,7 @@ def register_to_fortigate():
                 auth=HTTPBasicAuth(username, password),
                 params={"vdom": vdom},
                 json=address_obj,
-                verify=False,
+                verify=ca_cert,
                 timeout=10,
             )
 
@@ -185,7 +192,7 @@ def register_to_fortigate():
                 auth=HTTPBasicAuth(username, password),
                 params={"vdom": vdom},
                 json={"member": member_names},
-                verify=False,
+                verify=ca_cert,
                 timeout=30,
             )
 
@@ -213,7 +220,7 @@ def register_to_fortigate():
         logger.error(f"FortiGate API error: {e}", exc_info=True)
         raise InternalServerError(
             message=f"Failed to communicate with FortiGate: {str(e)}",
-            details={"device_ip": device_ip},
+            cause=f"device_ip={device_ip}",
         )
     except ValidationError:
         raise
@@ -221,5 +228,5 @@ def register_to_fortigate():
         logger.error(f"Error registering to FortiGate: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to register blacklist to FortiGate",
-            details={"error": str(e)},
+            cause=str(e),
         )

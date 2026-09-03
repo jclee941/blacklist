@@ -42,7 +42,6 @@ def call_collector_api(
     timeout: Optional[int] = None,
 ) -> Dict[str, Any]:
     url = f"{COLLECTOR_SERVICE_URL}{endpoint}"
-    last_error: Optional[Exception] = None
     if method not in ("GET", "POST"):
         return {"success": False, "error": f"Unsupported method: {method}"}
 
@@ -65,11 +64,9 @@ def call_collector_api(
                 return {
                     "success": False,
                     "error": f"Collector API error: {response.status_code}",
-                    "details": response.text,
                 }
 
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-            last_error = e
             if attempt < max_attempts:
                 delay = BACKOFF_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
@@ -86,10 +83,9 @@ def call_collector_api(
                 logger.error("Collector %s %s failed after %d attempts: %s", method, endpoint, max_attempts, e)
         except Exception as e:
             logger.error("Collector API call failed for %s %s: %s", method, endpoint, e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Collector request failed"}
 
     return {
         "success": False,
         "error": "Cannot connect to collector service",
-        "details": f"Collector container may be down or unhealthy: {last_error}",
     }

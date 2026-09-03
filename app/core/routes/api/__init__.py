@@ -32,15 +32,11 @@ from .fortinet import (
     fortinet_management_bp,
     fortinet_feed_bp,
 )
-from .fortinet_register import fortinet_register_bp
 
 api_bp.register_blueprint(fortinet_core_bp, url_prefix="/fortinet")
 api_bp.register_blueprint(fortinet_logs_bp, url_prefix="/fortinet")
 api_bp.register_blueprint(fortinet_management_bp, url_prefix="/fortinet")
 api_bp.register_blueprint(fortinet_feed_bp, url_prefix="/fortinet")
-api_bp.register_blueprint(fortinet_register_bp, url_prefix="/fortinet")
-from . import migration
-
 from .analytics import detection_bp
 
 api_bp.register_blueprint(detection_bp)
@@ -55,7 +51,7 @@ api_bp.register_blueprint(settings_api_bp)
 
 from .collection.credentials import collection_credentials_bp
 
-api_bp.register_blueprint(collection_credentials_bp)
+api_bp.register_blueprint(collection_credentials_bp, url_prefix="/collection")
 
 from .collection.status import collection_status_bp
 from .collection.trigger import collection_trigger_bp

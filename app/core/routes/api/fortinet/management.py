@@ -4,10 +4,12 @@ Handles device management and push registration
 """
 
 import logging
+import os
 import requests
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g, current_app
 from requests.auth import HTTPBasicAuth
+from ....auth.fortigate import FortiGateTargetError, parse_fortigate_target
 from ....exceptions import ValidationError, DatabaseError, InternalServerError
 
 logger = logging.getLogger(__name__)
@@ -87,7 +89,13 @@ def register_to_fortigate():
             details={"missing_fields": missing_fields},
         )
 
-    device_ip = data["device_ip"]
+    try:
+        device_ip = parse_fortigate_target(
+            data["device_ip"],
+            current_app.config.get("FORTIGATE_ALLOWED_NETWORKS", ()),
+        )
+    except (AttributeError, FortiGateTargetError) as error:
+        raise ValidationError(message=str(error), field="device_ip") from error
     username = data["username"]
     password = data["password"]
     vdom = data.get("vdom", "root")
@@ -134,16 +142,29 @@ def register_to_fortigate():
                 }
             ), 200
 
+        registered_devices = db_service.query(
+            "SELECT device_ip FROM fortigate_devices WHERE device_ip = %s AND is_active = true",
+            (device_ip,),
+        )
+        if not registered_devices:
+            raise ValidationError(message="FortiGate device is not registered or active", field="device_ip")
+
         base_url = f"https://{device_ip}/api/v2"
         group_url = f"{base_url}/cmdb/firewall/addrgrp"
         address_url = f"{base_url}/cmdb/firewall/address"
+        ca_cert = current_app.config.get("FORTIGATE_CA_CERT") or os.getenv("FORTIGATE_CA_CERT", "")
+        if not ca_cert or not os.path.isfile(ca_cert):
+            raise InternalServerError(
+                message="FortiGate HTTPS trust is not configured",
+                cause="Set FORTIGATE_CA_CERT to a readable CA bundle",
+            )
 
         # Check if group exists
         check_response = requests.get(
             f"{group_url}/{address_group}",
             auth=HTTPBasicAuth(username, password),
             params={"vdom": vdom},
-            verify=False,
+            verify=ca_cert,
             timeout=30,
         )
 
@@ -159,7 +180,7 @@ def register_to_fortigate():
                 auth=HTTPBasicAuth(username, password),
                 params={"vdom": vdom},
                 json=group_data,
-                verify=False,
+                verify=ca_cert,
                 timeout=30,
             )
             if create_response.status_code not in [200, 201]:
@@ -188,7 +209,7 @@ def register_to_fortigate():
                 auth=HTTPBasicAuth(username, password),
                 params={"vdom": vdom},
                 json=address_obj,
-                verify=False,
+                verify=ca_cert,
                 timeout=10,
             )
 
@@ -207,7 +228,7 @@ def register_to_fortigate():
                 auth=HTTPBasicAuth(username, password),
                 params={"vdom": vdom},
                 json={"member": member_names},
-                verify=False,
+                verify=ca_cert,
                 timeout=30,
             )
 

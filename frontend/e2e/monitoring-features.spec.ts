@@ -123,7 +123,7 @@ test.describe('Monitoring & Metrics', () => {
     });
 
     test('일반 에러 엔드포인트 조회', async ({ request }) => {
-      const response = await authenticatedGet(request, '/api/errors');
+      const response = await authenticatedGet(request, '/api/monitoring/errors/recent');
 
       expect([200, 404, 503]).toContain(response.status());
 

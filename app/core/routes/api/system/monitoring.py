@@ -1,7 +1,9 @@
 """Monitoring and statistics endpoints for the shared system API blueprint."""
 
+from contextlib import ExitStack
 from datetime import timedelta
 
+from ....services.database_lease import connection_lease
 from . import common
 
 
@@ -27,9 +29,10 @@ def get_monitoring_dashboard():
     Raises:
         DatabaseError: Database query failed
     """
+    connections = ExitStack()
     try:
         db_service = common.current_app.extensions["db_service"]
-        conn = db_service.get_connection()
+        conn = connections.enter_context(connection_lease(db_service))
         cursor = conn.cursor(cursor_factory=common.RealDictCursor)
 
         try:
@@ -53,7 +56,6 @@ def get_monitoring_dashboard():
 
         finally:
             cursor.close()
-            db_service.return_connection(conn)
 
         return common.jsonify(
             {
@@ -82,6 +84,8 @@ def get_monitoring_dashboard():
             message="Failed to retrieve monitoring dashboard data",
             details={"error_type": type(e).__name__},
         )
+    finally:
+        connections.close()
 
 
 @common.api_bp.route("/system-stats", methods=["GET"])
@@ -110,9 +114,10 @@ def get_system_stats():
     Raises:
         DatabaseError: Database query failed
     """
+    connections = ExitStack()
     try:
         db_service = common.current_app.extensions["db_service"]
-        conn = db_service.get_connection()
+        conn = connections.enter_context(connection_lease(db_service))
         cursor = conn.cursor(cursor_factory=common.RealDictCursor)
 
         try:
@@ -163,7 +168,6 @@ def get_system_stats():
 
         finally:
             cursor.close()
-            db_service.return_connection(conn)
 
         return common.jsonify(
             {
@@ -193,6 +197,8 @@ def get_system_stats():
             message="Failed to retrieve system statistics",
             details={"error_type": type(e).__name__},
         )
+    finally:
+        connections.close()
 
 
 @common.api_bp.route("/chart/data", methods=["GET"])
@@ -215,9 +221,10 @@ def get_chart_data():
     Raises:
         DatabaseError: Database query failed
     """
+    connections = ExitStack()
     try:
         db_service = common.current_app.extensions["db_service"]
-        conn = db_service.get_connection()
+        conn = connections.enter_context(connection_lease(db_service))
         cursor = conn.cursor(cursor_factory=common.RealDictCursor)
 
         try:
@@ -245,7 +252,6 @@ def get_chart_data():
 
         finally:
             cursor.close()
-            db_service.return_connection(conn)
 
         return common.jsonify(
             {
@@ -262,3 +268,5 @@ def get_chart_data():
             message="Failed to retrieve chart data",
             details={"error_type": type(e).__name__},
         )
+    finally:
+        connections.close()

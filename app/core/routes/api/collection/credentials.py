@@ -102,7 +102,6 @@ def manage_credentials(source: str):
                             "service_name": source_upper,
                             "configured": False,
                             "username": "",
-                            "password": "",
                             "config": {},
                             "enabled": False,
                             "collection_interval": "daily",
@@ -118,7 +117,6 @@ def manage_credentials(source: str):
                 "service_name": credentials["service_name"],
                 "configured": True,
                 "username": credentials["username"],
-                "password": "***masked***",
                 "config": credentials.get("config", {}),
                 "enabled": credentials.get("enabled", True),
                 "collection_interval": interval_seconds_to_string(credentials.get("collection_interval", 86400)),
@@ -222,15 +220,11 @@ def manage_credentials(source: str):
 
             logger.info(f"✅ Updated credentials for {source_upper}")
 
-            # Restart scheduler to pick up new credentials
-            restart_result = call_collector_api("/api/scheduler/restart", method="POST")
-
             return jsonify(
                 {
                     "success": True,
                     "data": {
                         "message": f"Credentials updated for {source_upper}",
-                        "scheduler_restart": restart_result.get("success", False),
                     },
                     "timestamp": datetime.now().isoformat(),
                     "request_id": g.request_id,

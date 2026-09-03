@@ -7,6 +7,8 @@ from flask import Flask, g
 def make_app():
     app = Flask(__name__)
     app.config["TESTING"] = True
+    app.config["FORTINET_FEED_TOKEN"] = "unit-feed-token"
+    app.config["FORTINET_FEED_ALLOWED_NETWORKS"] = ("203.0.113.0/24",)
 
     from core.routes.api.fortinet.threat_feed import fortinet_feed_bp
     from core.errors.handlers import register_error_handlers
@@ -23,6 +25,14 @@ def make_app():
     return app
 
 
+def feed_get(client, path):
+    return client.get(
+        path,
+        headers={"Authorization": "Bearer unit-feed-token"},
+        environ_base={"REMOTE_ADDR": "203.0.113.10"},
+    )
+
+
 @pytest.fixture
 def app():
     return make_app()
@@ -34,12 +44,35 @@ def client(app):
 
 
 class TestThreatFeed:
+    def test_threat_feed_requires_token(self, client, app):
+        response = client.get(
+            "/api/fortinet/threat-feed",
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
+
+        assert response.status_code == 401
+        app.extensions["db_service"].query.assert_not_called()
+
+    def test_threat_feed_rejects_source_outside_configured_policy(self, client, app):
+        response = client.get(
+            "/api/fortinet/threat-feed",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "198.51.100.10"},
+        )
+
+        assert response.status_code == 403
+        app.extensions["db_service"].query.assert_not_called()
+
     def test_threat_feed_json_default(self, client, app):
         app.extensions["db_service"].query.return_value = [
             {"ip_address": "1.2.3.4"},
             {"ip_address": "5.6.7.8"},
         ]
-        response = client.get("/api/fortinet/threat-feed")
+        response = client.get(
+            "/api/fortinet/threat-feed",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 200
         data = response.get_json()
         assert data["commands"][0]["command"] == "snapshot"
@@ -48,14 +81,22 @@ class TestThreatFeed:
 
     def test_threat_feed_add_command(self, client, app):
         app.extensions["db_service"].query.return_value = [{"ip_address": "1.2.3.4"}]
-        response = client.get("/api/fortinet/threat-feed?command=add")
+        response = client.get(
+            "/api/fortinet/threat-feed?command=add",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 200
         data = response.get_json()
         assert data["commands"][0]["command"] == "add"
 
     def test_threat_feed_remove_command(self, client, app):
         app.extensions["db_service"].query.return_value = []
-        response = client.get("/api/fortinet/threat-feed?command=remove")
+        response = client.get(
+            "/api/fortinet/threat-feed?command=remove",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 200
         data = response.get_json()
         assert data["commands"][0]["command"] == "remove"
@@ -64,32 +105,61 @@ class TestThreatFeed:
         app.extensions["db_service"].query.return_value = [
             {"ip_address": "1.2.3.4"},
         ]
-        response = client.get("/api/fortinet/threat-feed?format=text")
+        response = client.get(
+            "/api/fortinet/threat-feed?format=text",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 200
         assert response.content_type == "text/plain; charset=utf-8"
         assert b"1.2.3.4" in response.data
 
     def test_threat_feed_invalid_command(self, client, app):
-        response = client.get("/api/fortinet/threat-feed?command=invalid")
+        response = client.get(
+            "/api/fortinet/threat-feed?command=invalid",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 400
 
     def test_threat_feed_invalid_format(self, client, app):
-        response = client.get("/api/fortinet/threat-feed?format=xml")
+        response = client.get(
+            "/api/fortinet/threat-feed?format=xml",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 400
 
     def test_threat_feed_text_db_error(self, client, app):
         app.extensions["db_service"].query.side_effect = RuntimeError("fail")
-        response = client.get("/api/fortinet/threat-feed?format=text")
+        response = client.get(
+            "/api/fortinet/threat-feed?format=text",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 500
         assert b"Error" in response.data
+        assert b"fail" not in response.data
 
     def test_threat_feed_json_db_error(self, client, app):
         app.extensions["db_service"].query.side_effect = RuntimeError("fail")
-        response = client.get("/api/fortinet/threat-feed?format=json")
+        response = client.get(
+            "/api/fortinet/threat-feed?format=json",
+            headers={"Authorization": "Bearer unit-feed-token"},
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
         assert response.status_code == 500
 
 
 class TestJsonConnector:
+    def test_json_connector_requires_token(self, client, app):
+        response = client.get(
+            "/api/fortinet/json-connector",
+            environ_base={"REMOTE_ADDR": "203.0.113.10"},
+        )
+
+        assert response.status_code == 401
+
     def test_json_connector_success(self, client, app):
         app.extensions["db_service"].query.side_effect = [
             [
@@ -104,7 +174,7 @@ class TestJsonConnector:
             ],
             [{"count": 50}],
         ]
-        response = client.get("/api/fortinet/json-connector")
+        response = feed_get(client, "/api/fortinet/json-connector")
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] is True
@@ -126,7 +196,7 @@ class TestJsonConnector:
             ],
             [{"count": 100}],
         ]
-        response = client.get("/api/fortinet/json-connector?limit=10")
+        response = feed_get(client, "/api/fortinet/json-connector?limit=10")
         assert response.status_code == 200
         data = response.get_json()
         assert data["data"]["results"][0]["risk_level"] == "medium"
@@ -136,7 +206,7 @@ class TestJsonConnector:
             [],
             [{"count": 0}],
         ]
-        response = client.get("/api/fortinet/json-connector?risk_level=high")
+        response = feed_get(client, "/api/fortinet/json-connector?risk_level=high")
         assert response.status_code == 200
         data = response.get_json()
         assert data["data"]["metadata"]["filters"]["risk_level"] == "high"
@@ -146,7 +216,7 @@ class TestJsonConnector:
             [],
             [{"count": 0}],
         ]
-        response = client.get("/api/fortinet/json-connector?country=kr")
+        response = feed_get(client, "/api/fortinet/json-connector?country=kr")
         assert response.status_code == 200
         data = response.get_json()
         assert data["data"]["metadata"]["filters"]["country"] == "KR"
@@ -165,7 +235,7 @@ class TestJsonConnector:
             ],
             [{"count": 1}],
         ]
-        response = client.get("/api/fortinet/json-connector")
+        response = feed_get(client, "/api/fortinet/json-connector")
         assert response.status_code == 200
         data = response.get_json()
         result = data["data"]["results"][0]
@@ -174,18 +244,18 @@ class TestJsonConnector:
         assert result["reason"] == "unspecified"
 
     def test_json_connector_invalid_limit(self, client, app):
-        response = client.get("/api/fortinet/json-connector?limit=0")
+        response = feed_get(client, "/api/fortinet/json-connector?limit=0")
         assert response.status_code == 400
 
     def test_json_connector_limit_over_10000(self, client, app):
-        response = client.get("/api/fortinet/json-connector?limit=10001")
+        response = feed_get(client, "/api/fortinet/json-connector?limit=10001")
         assert response.status_code == 400
 
     def test_json_connector_invalid_risk_level(self, client, app):
-        response = client.get("/api/fortinet/json-connector?risk_level=critical")
+        response = feed_get(client, "/api/fortinet/json-connector?risk_level=critical")
         assert response.status_code == 400
 
     def test_json_connector_db_error(self, client, app):
         app.extensions["db_service"].query.side_effect = Exception("DB error")
-        response = client.get("/api/fortinet/json-connector")
+        response = feed_get(client, "/api/fortinet/json-connector")
         assert response.status_code == 500

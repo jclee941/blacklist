@@ -10,6 +10,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 settings_api_bp = Blueprint("settings_api", __name__)
+SENSITIVE_SETTING_PREFIXES = ("admin_",)
+
+
+def _is_sensitive_setting(key: str) -> bool:
+    return key.lower().startswith(SENSITIVE_SETTING_PREFIXES)
+
+
+def _forbidden_setting_response():
+    return jsonify({"success": False, "error": "Setting is managed by a dedicated security endpoint"}), 403
 
 
 @settings_api_bp.route("/settings", methods=["GET"])
@@ -24,15 +33,14 @@ def get_all_settings():
     try:
         settings_service = current_app.extensions["settings_service"]
         category = request.args.get("category")
-        include_encrypted = request.args.get("include_encrypted", "false").lower() == "true"
-
-        settings = settings_service.get_all_settings(category=category, include_encrypted=include_encrypted)
+        settings = settings_service.get_all_settings(category=category, include_encrypted=False)
+        settings = [setting for setting in settings if not _is_sensitive_setting(setting["key"])]
 
         return jsonify({"success": True, "count": len(settings), "settings": settings})
 
     except Exception as e:
         logger.error(f"Error getting settings: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Settings operation failed"}), 500
 
 
 @settings_api_bp.route("/settings/grouped", methods=["GET"])
@@ -41,17 +49,24 @@ def get_settings_grouped():
     try:
         settings_service = current_app.extensions["settings_service"]
         grouped = settings_service.get_settings_by_category()
+        grouped = {
+            category: [setting for setting in settings if not _is_sensitive_setting(setting["key"])]
+            for category, settings in grouped.items()
+        }
 
         return jsonify({"success": True, "categories": list(grouped.keys()), "settings": grouped})
 
     except Exception as e:
         logger.error(f"Error getting grouped settings: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Settings operation failed"}), 500
 
 
 @settings_api_bp.route("/settings/<key>", methods=["GET"])
 def get_setting(key):
     """Get a specific setting by key"""
+    if _is_sensitive_setting(key):
+        return _forbidden_setting_response()
+
     try:
         settings_service = current_app.extensions["settings_service"]
         value = settings_service.get_setting(key)
@@ -63,7 +78,7 @@ def get_setting(key):
 
     except Exception as e:
         logger.error(f"Error getting setting {key}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Settings operation failed"}), 500
 
 
 @settings_api_bp.route("/settings/<key>", methods=["PUT"])
@@ -72,6 +87,9 @@ def update_setting(key):
     Update a setting value
     Body: { "value": "...", "encrypt": false }
     """
+    if _is_sensitive_setting(key):
+        return _forbidden_setting_response()
+
     try:
         settings_service = current_app.extensions["settings_service"]
         data = request.get_json()
@@ -91,7 +109,7 @@ def update_setting(key):
 
     except Exception as e:
         logger.error(f"Error updating setting {key}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Settings operation failed"}), 500
 
 
 @settings_api_bp.route("/settings", methods=["POST"])
@@ -110,6 +128,9 @@ def create_setting():
     try:
         settings_service = current_app.extensions["settings_service"]
         data = request.get_json()
+
+        if data and _is_sensitive_setting(data.get("key", "")):
+            return _forbidden_setting_response()
 
         required_fields = ["key", "value", "type"]
         for field in required_fields:
@@ -138,12 +159,15 @@ def create_setting():
 
     except Exception as e:
         logger.error(f"Error creating setting: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Settings operation failed"}), 500
 
 
 @settings_api_bp.route("/settings/<key>", methods=["DELETE"])
 def delete_setting(key):
     """Soft delete a setting (set is_active = false)"""
+    if _is_sensitive_setting(key):
+        return _forbidden_setting_response()
+
     try:
         settings_service = current_app.extensions["settings_service"]
         success = settings_service.delete_setting(key)
@@ -155,7 +179,7 @@ def delete_setting(key):
 
     except Exception as e:
         logger.error(f"Error deleting setting {key}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Settings operation failed"}), 500
 
 
 @settings_api_bp.route("/settings/batch", methods=["PUT"])
@@ -182,6 +206,10 @@ def batch_update_settings():
         for setting in data["settings"]:
             if "key" not in setting or "value" not in setting:
                 failed.append({"setting": setting, "error": "Missing key or value"})
+                continue
+
+            if _is_sensitive_setting(setting["key"]):
+                failed.append({"key": setting["key"], "error": "Setting is managed by a dedicated security endpoint"})
                 continue
 
             success = settings_service.set_setting(

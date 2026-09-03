@@ -138,6 +138,8 @@ class TestForwardToBackend:
         assert resp.status_code == 500
         data = resp.get_json()
         assert data["success"] is False
+        assert data["error"] == "Proxy request failed"
+        assert "boom" not in resp.get_data(as_text=True)
 
     @patch("core.routes.proxy_routes.requests")
     def test_proxy_non_json_response(self, mock_requests):
@@ -225,6 +227,8 @@ class TestTriggerProxy:
             resp = self.client.post("/api/proxy/collection/trigger/regtech", json={})
 
         assert resp.status_code == 500
+        assert resp.get_json()["error"] == "Collector request failed"
+        assert "unexpected" not in resp.get_data(as_text=True)
 
     @patch("core.routes.proxy_routes.requests")
     def test_trigger_non_json_collector_response(self, mock_requests):

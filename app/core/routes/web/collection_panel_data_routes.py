@@ -4,6 +4,8 @@ import logging
 
 from flask import current_app, jsonify, request
 
+from ...services.database_lease import connection_lease
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,28 +80,33 @@ def register_collection_panel_data_routes(bp, csrf):
         """실시간 통계 데이터"""
         try:
             db_service = current_app.extensions["db_service"]
-            conn = db_service.get_connection()
-            cur = conn.cursor()
-
-            try:
+            with connection_lease(db_service) as conn:
+                cur = conn.cursor()
                 cur.execute("SELECT COUNT(*) FROM blacklist_ips")
-                total_ips = cur.fetchone()[0]
+                total_row = cur.fetchone()
+                if total_row is None:
+                    raise RuntimeError("Blacklist total query returned no row")
+                total_ips = total_row[0]
                 cur.execute("SELECT COUNT(*) FROM blacklist_ips WHERE is_active = true")
-                active_ips = cur.fetchone()[0]
+                active_row = cur.fetchone()
+                if active_row is None:
+                    raise RuntimeError("Active blacklist query returned no row")
+                active_ips = active_row[0]
                 cur.execute("SELECT data_source, COUNT(*) FROM blacklist_ips GROUP BY data_source")
                 source_stats = dict(cur.fetchall())
                 cur.execute(
                     "SELECT COUNT(*) FROM collection_credentials WHERE username IS NOT NULL AND password IS NOT NULL"
                 )
-                active_services = cur.fetchone()[0]
+                services_row = cur.fetchone()
+                if services_row is None:
+                    raise RuntimeError("Active services query returned no row")
+                active_services = services_row[0]
                 cur.execute("SELECT MAX(last_seen) FROM blacklist_ips")
                 last_collection_result = cur.fetchone()
                 last_collection = "Never"
                 if last_collection_result and last_collection_result[0]:
                     last_collection = last_collection_result[0].strftime("%Y-%m-%d %H:%M")
-            finally:
                 cur.close()
-                db_service.return_connection(conn)
 
             return jsonify(
                 {

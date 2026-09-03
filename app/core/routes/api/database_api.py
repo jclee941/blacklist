@@ -10,6 +10,7 @@ from datetime import datetime
 import logging
 from psycopg2.extras import RealDictCursor
 from psycopg2 import sql
+from ...services.database_lease import connection_lease
 from ...exceptions import (
     BadRequestError,
     ValidationError,
@@ -19,6 +20,16 @@ from ...exceptions import (
 logger = logging.getLogger(__name__)
 
 database_api_bp = Blueprint("database_api", __name__, url_prefix="/database")
+BROWSABLE_TABLES = (
+    "blacklist_ips",
+    "whitelist_ips",
+    "collection_history",
+    "collection_status",
+    "system_logs",
+    "monitoring_data",
+    "pipeline_metrics",
+    "collection_metrics",
+)
 
 
 @database_api_bp.route("/connection", methods=["GET"])
@@ -82,8 +93,10 @@ def get_database_schema():
             LEFT JOIN pg_class ON pg_class.relname = t.table_name
             WHERE table_schema = 'public'
             AND table_type = 'BASE TABLE'
+            AND table_name <> 'collection_credentials'
             ORDER BY table_name
         """)
+        tables = [table for table in tables if table.get("name") != "collection_credentials"]
 
         return jsonify(
             {
@@ -98,7 +111,7 @@ def get_database_schema():
         logger.error(f"Schema query error: {e}", exc_info=True)
         raise DatabaseError(
             message="Failed to retrieve database schema",
-            details={"error_type": type(e).__name__},
+            query="database_schema",
         )
 
 
@@ -128,22 +141,10 @@ def get_table_data(table_name: str):
         DatabaseError: Database query failed
     """
     # SQL Injection prevention: only allow whitelisted tables
-    allowed_tables = [
-        "blacklist_ips",
-        "whitelist_ips",
-        "collection_credentials",
-        "collection_history",
-        "collection_status",
-        "system_logs",
-        "monitoring_data",
-        "pipeline_metrics",
-        "collection_metrics",
-    ]
-
-    if table_name not in allowed_tables:
+    if table_name not in BROWSABLE_TABLES:
         raise BadRequestError(
             message=f"Table '{table_name}' is not allowed for querying",
-            details={"table": table_name, "allowed_tables": allowed_tables},
+            details={"table": table_name, "allowed_tables": BROWSABLE_TABLES},
         )
 
     # Get and validate pagination parameters
@@ -175,15 +176,11 @@ def get_table_data(table_name: str):
         offset = (page - 1) * limit
 
         db_service = current_app.extensions["db_service"]
-        conn = db_service.get_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        try:
-            # Total row count (using sql.Identifier for safe table name interpolation)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute(sql.SQL("SELECT COUNT(*) as total FROM {}").format(sql.Identifier(table_name)))
-            total = cursor.fetchone()["total"]
-
-            # Column list (filter hidden columns for UI)
+            total_row = cursor.fetchone()
+            total = total_row["total"] if total_row else 0
             cursor.execute(
                 """
                 SELECT column_name
@@ -193,8 +190,6 @@ def get_table_data(table_name: str):
             """,
                 (table_name,),
             )
-
-            # Hide specified columns from UI
             hidden_columns = [
                 "created_at",
                 "registered_at",
@@ -203,8 +198,6 @@ def get_table_data(table_name: str):
             ]
             all_columns = [row["column_name"] for row in cursor.fetchall()]
             columns = [col for col in all_columns if col not in hidden_columns]
-
-            # Query data (using sql.Identifier for safe table name)
             cursor.execute(
                 sql.SQL("""
                     SELECT * FROM {}
@@ -221,26 +214,17 @@ def get_table_data(table_name: str):
                 """).format(sql.Identifier(table_name)),
                 (table_name, table_name, limit, offset),
             )
-
             data = cursor.fetchall()
-
-            # Convert data for JSON serialization and filter hidden columns
             serialized_data = []
             for row in data:
                 row_dict = dict(row)
-                # Remove hidden columns from response
                 for hidden_col in hidden_columns:
                     row_dict.pop(hidden_col, None)
-                # Convert datetime objects to ISO format
                 for key, value in row_dict.items():
                     if hasattr(value, "isoformat"):
                         row_dict[key] = value.isoformat()
-                    # JSONB fields remain as dict
                 serialized_data.append(row_dict)
-
-        finally:
             cursor.close()
-            db_service.return_connection(conn)
 
         return jsonify(
             {
@@ -269,12 +253,7 @@ def get_table_data(table_name: str):
         logger.error(f"Table data query error for {table_name}: {e}", exc_info=True)
         raise DatabaseError(
             message=f"Failed to retrieve data from table '{table_name}'",
-            details={
-                "table": table_name,
-                "page": page,
-                "limit": limit,
-                "error_type": type(e).__name__,
-            },
+            table=table_name,
         )
 
 
@@ -306,31 +285,16 @@ def get_column_stats(table_name: str, column_name: str):
         DatabaseError: Database query failed
     """
     # SQL Injection prevention: only allow whitelisted tables
-    allowed_tables = [
-        "blacklist_ips",
-        "whitelist_ips",
-        "collection_credentials",
-        "collection_history",
-        "collection_status",
-        "system_logs",
-        "monitoring_data",
-        "pipeline_metrics",
-        "collection_metrics",
-    ]
-
-    if table_name not in allowed_tables:
+    if table_name not in BROWSABLE_TABLES:
         raise BadRequestError(
             message=f"Table '{table_name}' is not allowed for querying",
-            details={"table": table_name, "allowed_tables": allowed_tables},
+            details={"table": table_name, "allowed_tables": BROWSABLE_TABLES},
         )
 
     try:
         db_service = current_app.extensions["db_service"]
-        conn = db_service.get_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        try:
-            # Column statistics (using sql.Identifier for safe interpolation)
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute(
                 sql.SQL("""
                     SELECT
@@ -344,11 +308,8 @@ def get_column_stats(table_name: str, column_name: str):
                     sql.Identifier(table_name),
                 )
             )
-
             stats = cursor.fetchone()
-        finally:
             cursor.close()
-            db_service.return_connection(conn)
 
         return jsonify(
             {
@@ -367,9 +328,5 @@ def get_column_stats(table_name: str, column_name: str):
         logger.error(f"Column stats error for {table_name}.{column_name}: {e}", exc_info=True)
         raise DatabaseError(
             message=f"Failed to retrieve statistics for column '{column_name}' in table '{table_name}'",
-            details={
-                "table": table_name,
-                "column": column_name,
-                "error_type": type(e).__name__,
-            },
+            table=table_name,
         )

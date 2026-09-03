@@ -5,7 +5,7 @@ Error Metrics API
 Created: 2026-01-05 (Technical Debt Resolution)
 """
 
-from . import api_bp
+from ..api_routes import api_bp
 from flask import request
 import logging
 from ...exceptions import (
@@ -29,12 +29,10 @@ def get_error_statistics():
         logger.error(f"Error statistics retrieval failed: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to retrieve error statistics",
-            details={"error_type": type(e).__name__},
         )
 
 
 @api_bp.route("/monitoring/errors/recent", methods=["GET"])
-@api_bp.route("/errors", methods=["GET"])
 def get_recent_errors():
     try:
         from core.monitoring import error_metrics
@@ -75,7 +73,6 @@ def get_recent_errors():
         logger.error(f"Recent errors retrieval failed: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to retrieve recent errors",
-            details={"error_type": type(e).__name__},
         )
 
 
@@ -127,7 +124,6 @@ def get_error_trends():
         logger.error(f"Error trends retrieval failed: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to retrieve error trends",
-            details={"error_type": type(e).__name__},
         )
 
 
@@ -171,5 +167,4 @@ def get_top_errors():
         logger.error(f"Top errors retrieval failed: {e}", exc_info=True)
         raise InternalServerError(
             message="Failed to retrieve top errors",
-            details={"error_type": type(e).__name__},
         )

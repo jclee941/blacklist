@@ -43,6 +43,23 @@ class TestBatchAdd:
         assert data["summary"]["total_requested"] == 2
 
     @patch("core.routes.api.blacklist.batch.rate_limit", lambda *a, **kw: lambda f: f)
+    def test_batch_add_uses_blacklist_composite_conflict_target(self, client, app):
+        # Given
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.rowcount = 1
+        app.extensions["db_service"].get_connection.return_value = mock_conn
+
+        # When
+        response = client.post("/blacklist/batch/add", json={"ips": ["192.0.2.1"]})
+
+        # Then
+        assert response.status_code == 200
+        insert_query = mock_cursor.execute.call_args.args[0]
+        assert "ON CONFLICT (ip_address, source)" in insert_query
+
+    @patch("core.routes.api.blacklist.batch.rate_limit", lambda *a, **kw: lambda f: f)
     def test_batch_add_empty_list(self, client, app):
         response = client.post("/blacklist/batch/add", json={"ips": []})
         assert response.status_code == 400
@@ -53,7 +70,7 @@ class TestBatchAdd:
         assert response.status_code == 400
 
     @patch("core.routes.api.blacklist.batch.rate_limit", lambda *a, **kw: lambda f: f)
-    def test_batch_add_invalid_ips_filtered(self, client, app):
+    def test_batch_add_invalid_ips_rejected(self, client, app):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
@@ -66,9 +83,8 @@ class TestBatchAdd:
                 "ips": ["1.2.3.4", "not-an-ip", "999.999.999.999"],
             },
         )
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["summary"]["invalid"] == 2
+        assert response.status_code == 400
+        mock_cursor.execute.assert_not_called()
 
 
 class TestBatchRemove:

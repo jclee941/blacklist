@@ -2,7 +2,7 @@ import logging
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
-from ....exceptions import BadRequestError, DatabaseError, NotFoundError
+from ....exceptions import DatabaseError, NotFoundError
 from .handlers import (
     deleted_response,
     paginated_response,
@@ -12,6 +12,8 @@ from .handlers import (
     validate_pagination,
 )
 from .repository import IPManagementRepository
+from .policy import parse_blacklist_create, parse_update_payload, parse_whitelist_create
+from ....utils.ip_cache import invalidate_ip_caches
 
 logger = logging.getLogger(__name__)
 
@@ -96,19 +98,20 @@ def get_whitelist() -> tuple[Response, int]:
 
 @ip_management_api_bp.route("/whitelist", methods=["POST"])
 def create_whitelist() -> tuple[Response, int]:
-    data = request.get_json() or {}
-
-    if not data or "ip_address" not in data:
-        raise BadRequestError(message="ip_address is required", details={"parameter": "ip_address"})
+    data = parse_whitelist_create(request.get_json(silent=True) or {})
 
     try:
         repo = _get_repository()
         result = repo.create_whitelist(
-            ip_address=data["ip_address"],
-            reason=data.get("reason", "VIP Protection"),
-            source=data.get("source", "MANUAL"),
-            country=data.get("country"),
+            ip_address=data.ip_address,
+            reason=data.reason,
+            source=data.source,
+            country=data.country,
         )
+        result_ip = result.get("ip_address")
+        if not isinstance(result_ip, str):
+            raise DatabaseError(message="Whitelist upsert returned an invalid IP", table="whitelist_ips")
+        invalidate_ip_caches((result_ip,))
         response, _ = success_response(result, 201)
         return jsonify(response), 201
 
@@ -122,10 +125,7 @@ def create_whitelist() -> tuple[Response, int]:
 
 @ip_management_api_bp.route("/whitelist/<int:id>", methods=["PUT"])
 def update_whitelist(id: int) -> tuple[Response, int]:
-    data = request.get_json() or {}
-
-    if not data:
-        raise BadRequestError(message="No data provided for update", details={"parameter": "body"})
+    data = parse_update_payload(request.get_json(silent=True) or {}, "whitelist")
 
     try:
         repo = _get_repository()
@@ -134,6 +134,10 @@ def update_whitelist(id: int) -> tuple[Response, int]:
         if not result:
             raise NotFoundError(message=f"Whitelist entry with id={id} not found", details={"id": id})
 
+        result_ip = result.get("ip_address")
+        if not isinstance(result_ip, str):
+            raise DatabaseError(message="Whitelist update returned an invalid IP", table="whitelist_ips")
+        invalidate_ip_caches((result_ip,))
         response, status = success_response(result)
         return jsonify(response), status
 
@@ -156,6 +160,7 @@ def delete_whitelist(id: int) -> tuple[Response, int]:
         if not deleted_ip:
             raise NotFoundError(message=f"Whitelist entry with id={id} not found", details={"id": id})
 
+        invalidate_ip_caches((deleted_ip,))
         response, status = deleted_response(deleted_ip)
         return jsonify(response), status
 
@@ -191,24 +196,25 @@ def get_blacklist() -> tuple[Response, int]:
 
 @ip_management_api_bp.route("/blacklist", methods=["POST"])
 def create_blacklist() -> tuple[Response, int]:
-    data = request.get_json() or {}
-
-    if not data or "ip_address" not in data:
-        raise BadRequestError(message="ip_address is required", details={"parameter": "ip_address"})
+    data = parse_blacklist_create(request.get_json(silent=True) or {})
 
     try:
         repo = _get_repository()
         result = repo.create_blacklist(
-            ip_address=data["ip_address"],
-            reason=data.get("reason", "Malicious Activity"),
-            source=data.get("source", "MANUAL"),
-            confidence_level=data.get("confidence_level", 50),
-            detection_count=data.get("detection_count", 1),
-            is_active=data.get("is_active", True),
-            country=data.get("country"),
-            detection_date=data.get("detection_date"),
-            removal_date=data.get("removal_date"),
+            ip_address=data.ip_address,
+            reason=data.reason,
+            source=data.source,
+            confidence_level=data.confidence_level,
+            detection_count=data.detection_count,
+            is_active=data.is_active,
+            country=data.country,
+            detection_date=data.detection_date,
+            removal_date=data.removal_date,
         )
+        result_ip = result.get("ip_address")
+        if not isinstance(result_ip, str):
+            raise DatabaseError(message="Blacklist upsert returned an invalid IP", table="blacklist_ips")
+        invalidate_ip_caches((result_ip,))
         response, _ = success_response(result, 201)
         return jsonify(response), 201
 
@@ -222,10 +228,7 @@ def create_blacklist() -> tuple[Response, int]:
 
 @ip_management_api_bp.route("/blacklist/<int:id>", methods=["PUT"])
 def update_blacklist(id: int) -> tuple[Response, int]:
-    data = request.get_json() or {}
-
-    if not data:
-        raise BadRequestError(message="No data provided for update", details={"parameter": "body"})
+    data = parse_update_payload(request.get_json(silent=True) or {}, "blacklist")
 
     try:
         repo = _get_repository()
@@ -234,6 +237,10 @@ def update_blacklist(id: int) -> tuple[Response, int]:
         if not result:
             raise NotFoundError(message=f"Blacklist entry with id={id} not found", details={"id": id})
 
+        result_ip = result.get("ip_address")
+        if not isinstance(result_ip, str):
+            raise DatabaseError(message="Blacklist update returned an invalid IP", table="blacklist_ips")
+        invalidate_ip_caches((result_ip,))
         response, status = success_response(result)
         return jsonify(response), status
 
@@ -256,6 +263,7 @@ def delete_blacklist(id: int) -> tuple[Response, int]:
         if not deleted_ip:
             raise NotFoundError(message=f"Blacklist entry with id={id} not found", details={"id": id})
 
+        invalidate_ip_caches((deleted_ip,))
         response, status = deleted_response(deleted_ip)
         return jsonify(response), status
 

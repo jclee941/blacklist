@@ -7,9 +7,14 @@ Routes: /blacklist/batch/add, /blacklist/batch/remove, /blacklist/batch/update
 from flask import Blueprint, jsonify, request, current_app
 from datetime import datetime
 import logging
-import re
 
+import psycopg2
+import redis
 from core.utils.rate_limit import rate_limit
+from core.services.database_lease import connection_lease
+from core.utils.input_security import parse_ip_batch
+from core.utils.ip_cache import invalidate_ip_caches
+from core.exceptions import APIError, BadRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -26,37 +31,21 @@ def batch_add_blacklist():
         db_service = current_app.extensions["db_service"]
 
         data = request.get_json() or {}
-        ips = data.get("ips", [])
+        ips = parse_ip_batch(data.get("ips", []))
         reason = data.get("reason", "Batch import")
         country = data.get("country", "UNKNOWN")
 
-        if not ips or not isinstance(ips, list):
-            return jsonify({"success": False, "error": "IPs list is required"}), 400
-
-        # Validate all IPs
-        ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
-        valid_ips = []
-        invalid_ips = []
-
-        for ip in ips:
-            if re.match(ip_pattern, str(ip).strip()):
-                octets = str(ip).strip().split(".")
-                if all(0 <= int(octet) <= 255 for octet in octets):
-                    valid_ips.append(str(ip).strip())
-                else:
-                    invalid_ips.append(ip)
-            else:
-                invalid_ips.append(ip)
+        if not isinstance(reason, str) or not reason.strip() or len(reason) > 1000:
+            raise BadRequestError("Invalid batch reason", details={"field": "reason"})
+        if not isinstance(country, str) or not country.strip() or len(country) > 10:
+            raise BadRequestError("Invalid batch country", details={"field": "country"})
 
         # Batch insert valid IPs
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
-
         added_count = 0
         duplicate_count = 0
-
-        for ip in valid_ips:
-            try:
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            for ip in ips:
                 cursor.execute(
                     """
                     INSERT INTO blacklist_ips
@@ -66,20 +55,18 @@ def batch_add_blacklist():
                         created_at, updated_at
                     )
                     VALUES (%s, %s, %s, %s, CURRENT_DATE, NOW(), 1, NOW(), NOW())
-                    ON CONFLICT (ip_address) DO NOTHING
-                """,
-                    (ip, "BATCH", country, reason),
+                    ON CONFLICT (ip_address, source) DO NOTHING
+                    """,
+                    (ip, "BATCH", country.strip().upper(), reason.strip()),
                 )
                 if cursor.rowcount > 0:
                     added_count += 1
                 else:
                     duplicate_count += 1
-            except Exception as e:
-                logger.warning(f"Failed to add IP {ip}: {e}")
 
-        conn.commit()
-        cursor.close()
-        db_service.return_connection(conn)
+            conn.commit()
+            cursor.close()
+        invalidate_ip_caches(ips)
 
         logger.info(f"✅ Batch added {added_count} IPs to blacklist")
 
@@ -91,16 +78,20 @@ def batch_add_blacklist():
                     "total_requested": len(ips),
                     "added": added_count,
                     "duplicates": duplicate_count,
-                    "invalid": len(invalid_ips),
+                    "invalid": 0,
                 },
-                "invalid_ips": invalid_ips,
+                "invalid_ips": [],
                 "timestamp": datetime.now().isoformat(),
             }
         )
 
-    except Exception as e:
-        logger.error(f"Batch add failed: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+    except APIError:
+        raise
+    except (psycopg2.Error, redis.RedisError):
+        logger.exception("Batch add failed")
+        return jsonify(
+            {"success": False, "error": "Batch operation failed", "timestamp": datetime.now().isoformat()}
+        ), 500
 
 
 @blacklist_batch_bp.route("/blacklist/batch/remove", methods=["POST"])
@@ -112,25 +103,18 @@ def batch_remove_blacklist():
         db_service = current_app.extensions["db_service"]
 
         data = request.get_json() or {}
-        ips = data.get("ips", [])
-
-        if not ips or not isinstance(ips, list):
-            return jsonify({"success": False, "error": "IPs list is required"}), 400
-
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
+        ips = parse_ip_batch(data.get("ips", []))
 
         removed_count = 0
-        for ip in ips:
-            try:
-                cursor.execute("DELETE FROM blacklist_ips WHERE ip_address = %s", (str(ip).strip(),))
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            for ip in ips:
+                cursor.execute("DELETE FROM blacklist_ips WHERE ip_address = %s", (ip,))
                 removed_count += cursor.rowcount
-            except Exception as e:
-                logger.warning(f"Failed to remove IP {ip}: {e}")
 
-        conn.commit()
-        cursor.close()
-        db_service.return_connection(conn)
+            conn.commit()
+            cursor.close()
+        invalidate_ip_caches(ips)
 
         logger.info(f"✅ Batch removed {removed_count} IPs from blacklist")
 
@@ -143,9 +127,13 @@ def batch_remove_blacklist():
             }
         )
 
-    except Exception as e:
-        logger.error(f"Batch remove failed: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+    except APIError:
+        raise
+    except (psycopg2.Error, redis.RedisError):
+        logger.exception("Batch remove failed")
+        return jsonify(
+            {"success": False, "error": "Batch operation failed", "timestamp": datetime.now().isoformat()}
+        ), 500
 
 
 @blacklist_batch_bp.route("/blacklist/batch/update", methods=["POST"])
@@ -157,47 +145,42 @@ def batch_update_blacklist():
         db_service = current_app.extensions["db_service"]
 
         data = request.get_json() or {}
-        ips = data.get("ips", [])
+        ips = parse_ip_batch(data.get("ips", []))
         reason = data.get("reason")
         country = data.get("country")
-
-        if not ips or not isinstance(ips, list):
-            return jsonify({"success": False, "error": "IPs list is required"}), 400
 
         if not reason and not country:
             return jsonify(
                 {"success": False, "error": "At least one field (reason or country) is required for update"}
             ), 400
-
-        conn = db_service.get_connection()
-        cursor = conn.cursor()
+        if reason is not None and (not isinstance(reason, str) or not reason.strip() or len(reason) > 1000):
+            raise BadRequestError("Invalid batch reason", details={"field": "reason"})
+        if country is not None and (not isinstance(country, str) or not country.strip() or len(country) > 10):
+            raise BadRequestError("Invalid batch country", details={"field": "country"})
 
         updated_count = 0
-        for ip in ips:
-            try:
-                # Build dynamic UPDATE query
+        with connection_lease(db_service) as conn:
+            cursor = conn.cursor()
+            for ip in ips:
                 update_fields = []
                 update_values = []
 
                 if reason:
                     update_fields.append("reason = %s")
-                    update_values.append(reason)
+                    update_values.append(reason.strip())
                 if country:
                     update_fields.append("country = %s")
-                    update_values.append(country)
+                    update_values.append(country.strip().upper())
 
                 update_fields.append("updated_at = NOW()")
-                update_values.append(str(ip).strip())
-
+                update_values.append(ip)
                 query = f"UPDATE blacklist_ips SET {', '.join(update_fields)} WHERE ip_address = %s"
                 cursor.execute(query, tuple(update_values))
                 updated_count += cursor.rowcount
-            except Exception as e:
-                logger.warning(f"Failed to update IP {ip}: {e}")
 
-        conn.commit()
-        cursor.close()
-        db_service.return_connection(conn)
+            conn.commit()
+            cursor.close()
+        invalidate_ip_caches(ips)
 
         logger.info(f"✅ Batch updated {updated_count} IPs in blacklist")
 
@@ -210,6 +193,10 @@ def batch_update_blacklist():
             }
         )
 
-    except Exception as e:
-        logger.error(f"Batch update failed: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+    except APIError:
+        raise
+    except (psycopg2.Error, redis.RedisError):
+        logger.exception("Batch update failed")
+        return jsonify(
+            {"success": False, "error": "Batch operation failed", "timestamp": datetime.now().isoformat()}
+        ), 500

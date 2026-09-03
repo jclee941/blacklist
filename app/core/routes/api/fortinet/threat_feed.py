@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from flask import Blueprint, jsonify, request, g, current_app, Response
 from core.auth.decorators import public
+from core.auth.feed import feed_access_required
 from core.exceptions import ValidationError, DatabaseError
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ fortinet_feed_bp = Blueprint("fortinet_feed", __name__)
 
 @fortinet_feed_bp.route("/threat-feed", methods=["GET"])
 @public
+@feed_access_required
 def get_threat_feed():
     """
     FortiGate Push API - Threat Feed Format (JSON)
@@ -89,20 +91,17 @@ def get_threat_feed():
     except Exception as e:
         logger.error(f"Error generating threat feed: {e}", exc_info=True)
         if output_format == "text":
-            return Response(f"# Error: {str(e)}\n", mimetype="text/plain", status=500)
+            return Response("# Error: feed unavailable\n", mimetype="text/plain", status=500)
         else:
             raise DatabaseError(
                 message="Failed to generate threat feed",
-                details={
-                    "command": command,
-                    "format": output_format,
-                    "error_type": type(e).__name__,
-                },
+                query="fortinet_threat_feed",
             )
 
 
 @fortinet_feed_bp.route("/json-connector", methods=["GET"])
 @public
+@feed_access_required
 def get_json_connector():
     """
     FortiGate JSON Connector Format with metadata
@@ -222,10 +221,5 @@ def get_json_connector():
         logger.error(f"Error generating JSON connector data: {e}", exc_info=True)
         raise DatabaseError(
             message="Failed to generate FortiGate JSON connector data",
-            details={
-                "limit": limit,
-                "risk_level": risk_level,
-                "country": country_filter,
-                "error_type": type(e).__name__,
-            },
+            query="fortinet_json_connector",
         )

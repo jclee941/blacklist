@@ -3,12 +3,17 @@ IP Management Repository Layer - Raw SQL queries for whitelist/blacklist operati
 Extracted from ip_management_api.py for separation of concerns.
 """
 
-from datetime import datetime
+from collections.abc import Mapping, Sequence
+from datetime import date, datetime
+from contextlib import ExitStack
 from typing import Any, Optional
 from psycopg2.extras import RealDictCursor
 import logging
 
+from core.services.database_lease import connection_lease
+
 logger = logging.getLogger(__name__)
+RowValue = str | int | float | bool | date | datetime | None
 
 
 class IPManagementRepository:
@@ -31,17 +36,17 @@ class IPManagementRepository:
     def __init__(self, db_service: Any):
         self.db_service = db_service
 
-    def _get_connection(self):
-        return self.db_service.get_connection()
+    def _get_connection(self, connections: ExitStack):
+        return connections.enter_context(connection_lease(self.db_service))
 
-    def _serialize_row(self, row: dict) -> dict:
+    def _serialize_row(self, row: Mapping[str, RowValue]) -> dict[str, RowValue]:
         result = dict(row)
         for key, value in result.items():
             if isinstance(value, datetime):
                 result[key] = value.isoformat()
         return result
 
-    def _serialize_rows(self, rows: list[dict]) -> list[dict]:
+    def _serialize_rows(self, rows: Sequence[Mapping[str, RowValue]]) -> list[dict[str, RowValue]]:
         return [self._serialize_row(row) for row in rows]
 
     def get_unified_list(
@@ -52,10 +57,11 @@ class IPManagementRepository:
         search_ip: Optional[str] = None,
         is_active: Optional[bool] = True,
         source: Optional[str] = None,
-    ) -> tuple[list[dict], int]:
+    ) -> tuple[list[dict[str, RowValue]], int]:
         """Get unified IP list with pagination. Returns (items, total_count)."""
         offset = (page - 1) * limit
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -120,39 +126,54 @@ class IPManagementRepository:
             data = cursor.fetchall()
 
             cursor.close()
-            conn.close()
 
             return self._serialize_rows(data), total
 
         except Exception as e:
             logger.error("get_unified_list failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
-    def get_statistics(self) -> list[dict]:
-        """Get unified IP statistics from view."""
-        conn = self._get_connection()
-
+    def get_statistics(self) -> list[dict[str, RowValue]]:
+        """Get unified IP statistics from the canonical IP tables."""
         try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("SELECT * FROM unified_ip_statistics ORDER BY list_type, source")
-            stats = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            with connection_lease(self.db_service) as conn:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                cursor.execute("""
+                    SELECT
+                        'blacklist' AS list_type,
+                        source,
+                        COUNT(*) AS count,
+                        COUNT(*) FILTER (WHERE is_active = true) AS active_count,
+                        MAX(updated_at) AS last_updated
+                    FROM blacklist_ips
+                    GROUP BY source
+                    UNION ALL
+                    SELECT
+                        'whitelist' AS list_type,
+                        source,
+                        COUNT(*) AS count,
+                        COUNT(*) FILTER (WHERE is_active = true) AS active_count,
+                        MAX(updated_at) AS last_updated
+                    FROM whitelist_ips
+                    GROUP BY source
+                    ORDER BY list_type, source
+                """)
+                stats = cursor.fetchall()
+                cursor.close()
 
             return self._serialize_rows(stats)
 
         except Exception as e:
             logger.error("get_statistics failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
 
-    def get_whitelist(self, page: int, limit: int) -> tuple[list[dict], int]:
+    def get_whitelist(self, page: int, limit: int) -> tuple[list[dict[str, RowValue]], int]:
         """Get whitelist entries with pagination. Returns (items, total_count)."""
         offset = (page - 1) * limit
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -173,15 +194,14 @@ class IPManagementRepository:
             data = cursor.fetchall()
 
             cursor.close()
-            conn.close()
 
             return self._serialize_rows(data), total
 
         except Exception as e:
             logger.error("get_whitelist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
     def create_whitelist(
         self,
@@ -189,9 +209,10 @@ class IPManagementRepository:
         reason: str = "VIP Protection",
         source: str = "MANUAL",
         country: Optional[str] = None,
-    ) -> dict:
+    ) -> dict[str, RowValue]:
         """Create or update whitelist entry (upsert on ip_address+source)."""
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
         now = datetime.now()
 
         try:
@@ -214,19 +235,22 @@ class IPManagementRepository:
             result = cursor.fetchone()
             conn.commit()
             cursor.close()
-            conn.close()
+
+            if result is None:
+                raise RuntimeError("Whitelist upsert returned no row")
 
             return self._serialize_row(result)
 
         except Exception as e:
             logger.error("create_whitelist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
-    def update_whitelist(self, id: int, data: dict) -> Optional[dict]:
+    def update_whitelist(self, id: int, data: Mapping[str, RowValue]) -> Optional[dict[str, RowValue]]:
         """Update whitelist entry. Returns updated entry or None if not found."""
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -258,22 +282,21 @@ class IPManagementRepository:
             if result:
                 conn.commit()
                 cursor.close()
-                conn.close()
                 return self._serialize_row(result)
 
             cursor.close()
-            conn.close()
             return None
 
         except Exception as e:
             logger.error("update_whitelist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
     def delete_whitelist(self, id: int) -> Optional[str]:
         """Delete whitelist entry. Returns deleted IP or None if not found."""
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -287,23 +310,22 @@ class IPManagementRepository:
             if result:
                 conn.commit()
                 cursor.close()
-                conn.close()
                 return result["ip_address"]
 
             cursor.close()
-            conn.close()
             return None
 
         except Exception as e:
             logger.error("delete_whitelist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
-    def get_blacklist(self, page: int, limit: int) -> tuple[list[dict], int]:
+    def get_blacklist(self, page: int, limit: int) -> tuple[list[dict[str, RowValue]], int]:
         """Get blacklist entries with pagination. Returns (items, total_count)."""
         offset = (page - 1) * limit
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -327,15 +349,14 @@ class IPManagementRepository:
             data = cursor.fetchall()
 
             cursor.close()
-            conn.close()
 
             return self._serialize_rows(data), total
 
         except Exception as e:
             logger.error("get_blacklist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
     def create_blacklist(
         self,
@@ -349,9 +370,10 @@ class IPManagementRepository:
         country: Optional[str] = None,
         detection_date: Optional[str] = None,
         removal_date: Optional[str] = None,
-    ) -> dict:
+    ) -> dict[str, RowValue]:
         """Create or update blacklist entry (upsert on ip_address+source)."""
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
         now = datetime.now()
 
         try:
@@ -400,19 +422,22 @@ class IPManagementRepository:
             result = cursor.fetchone()
             conn.commit()
             cursor.close()
-            conn.close()
+
+            if result is None:
+                raise RuntimeError("Blacklist upsert returned no row")
 
             return self._serialize_row(result)
 
         except Exception as e:
             logger.error("create_blacklist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
-    def update_blacklist(self, id: int, data: dict) -> Optional[dict]:
+    def update_blacklist(self, id: int, data: Mapping[str, RowValue]) -> Optional[dict[str, RowValue]]:
         """Update blacklist entry. Returns updated entry or None if not found."""
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -447,22 +472,21 @@ class IPManagementRepository:
             if result:
                 conn.commit()
                 cursor.close()
-                conn.close()
                 return self._serialize_row(result)
 
             cursor.close()
-            conn.close()
             return None
 
         except Exception as e:
             logger.error("update_blacklist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()
 
     def delete_blacklist(self, id: int) -> Optional[str]:
         """Delete blacklist entry. Returns deleted IP or None if not found."""
-        conn = self._get_connection()
+        connections = ExitStack()
+        conn = self._get_connection(connections)
 
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -476,15 +500,13 @@ class IPManagementRepository:
             if result:
                 conn.commit()
                 cursor.close()
-                conn.close()
                 return result["ip_address"]
 
             cursor.close()
-            conn.close()
             return None
 
         except Exception as e:
             logger.error("delete_blacklist failed: %s", e)
-            if conn:
-                conn.rollback()
             raise
+        finally:
+            connections.close()

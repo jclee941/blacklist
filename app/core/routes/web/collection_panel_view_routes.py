@@ -93,14 +93,14 @@ def register_collection_panel_view_routes(bp, csrf):
             secure_credential_service = current_app.extensions["secure_credential_service"]
             regtech_creds = secure_credential_service.get_credentials("REGTECH")
             regtech_username = regtech_creds.get("username", "") if regtech_creds else ""
-            regtech_password = regtech_creds.get("password", "") if regtech_creds else ""
+            has_password = bool(regtech_creds and regtech_creds.get("password"))
 
             return jsonify(
                 {
                     "success": True,
                     "credentials": {
                         "regtech_username": regtech_username,
-                        "regtech_password": regtech_password,
+                        "has_password": has_password,
                     },
                 }
             )
