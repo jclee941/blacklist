@@ -19,6 +19,12 @@ def test_ci_e2e_supplies_every_required_authentication_secret() -> None:
         assert f"{key}=" in CI
 
 
+def test_ci_builds_scans_and_publishes_all_five_exact_images() -> None:
+    assert CI.count("service: [frontend, app, collector, postgres, redis]") >= 2
+    assert "Build datastore images" not in CI
+    assert "from-artifact: false" not in CI
+
+
 def test_release_tests_and_scans_the_exact_publishable_images() -> None:
     assert "  test-release:" in RELEASE
     assert "  scan-release-images:" in RELEASE
