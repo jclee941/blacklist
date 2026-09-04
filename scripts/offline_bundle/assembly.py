@@ -33,7 +33,10 @@ OPERATOR_DOCUMENTS: Final[tuple[tuple[str, str], ...]] = (
     ("screenshots/database.png", "screenshots/database.png"),
 )
 SOURCE_ROOTS: Final[tuple[str, ...]] = ("app", "collector", "frontend", "postgres")
-SOURCE_EXCLUSIONS: Final[tuple[str, ...]] = (":(exclude)frontend/.env.e2e",)
+SOURCE_EXCLUSIONS: Final[tuple[str, ...]] = (
+    ":(exclude)frontend/.env.e2e",
+    ":(glob,exclude)**/AGENTS.md",
+)
 
 
 def prereq_gaps(prereqs_dir: Path) -> list[str]:

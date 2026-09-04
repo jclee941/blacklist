@@ -235,3 +235,12 @@ def test_bundle_ships_operator_documentation(tmp_path: Path) -> None:
     }
     packaged_documents = {path.name for path in (bundle / "docs").iterdir()}
     assert expected_documents <= packaged_documents
+
+
+def test_bundle_excludes_agent_instruction_files(tmp_path: Path) -> None:
+    builder = load_builder()
+    bundle = tmp_path / "bundle"
+
+    builder.assemble(REPO_ROOT, bundle, builder.resolve_version(REPO_ROOT))
+
+    assert list((bundle / "source").rglob("AGENTS.md")) == []
