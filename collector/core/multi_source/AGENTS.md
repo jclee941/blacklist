@@ -6,11 +6,11 @@ Async multi-source ingestion framework. Aggregates threat data from 14 source ty
 
 ## FILES
 
-| File | LOC | Role |
-| -------------- | --- | --- |
+| File           | LOC | Role                                                           |
+| -------------- | --- | -------------------------------------------------------------- |
 | `collector.py` | 410 | async orchestration, source registry, `asyncio.gather` + merge |
-| `parsers.py`   | 200 | text/JSON parser mixins for different feed formats |
-| `models.py`    | 47  | `SourceType` enum (14 types), `SourceConfig` dataclass |
+| `parsers.py`   | 200 | text/JSON parser mixins for different feed formats             |
+| `models.py`    | 47  | `SourceType` enum (14 types), `SourceConfig` dataclass         |
 
 ## SOURCE TYPES
 
@@ -31,8 +31,8 @@ Async multi-source ingestion framework. Aggregates threat data from 14 source ty
 
 ## CODE MAP
 
-| Symbol | Type | Location | Refs | Role |
-| --- | --- | --- | --- | --- |
-| `MultiSourceCollector` | class | `collector.py` | high | async orchestration + `asyncio.gather` merge |
-| `SourceType` | enum | `models.py:*` | high | 14 source type definitions |
-| `SourceConfig` | dataclass | `models.py:*` | med | per-source rate limit + priority config |
+| Symbol                 | Type      | Location       | Refs | Role                                         |
+| ---------------------- | --------- | -------------- | ---- | -------------------------------------------- |
+| `MultiSourceCollector` | class     | `collector.py` | high | async orchestration + `asyncio.gather` merge |
+| `SourceType`           | enum      | `models.py:*`  | high | 14 source type definitions                   |
+| `SourceConfig`         | dataclass | `models.py:*`  | med  | per-source rate limit + priority config      |

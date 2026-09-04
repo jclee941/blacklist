@@ -6,16 +6,16 @@ Collection scheduling package. `manager.py` owns the scheduler loop, the adaptiv
 
 ## FILES
 
-| File | Role |
-| --- | --- |
-| `manager.py` | `CollectionScheduler`: main loop, interval adaptation, `force_collection` duplicate guard (`_active_collections`/`_active_collections_lock`) |
-| `operations.py` | facade re-exports with call-time dependency injection (test monkeypatch seam) |
-| `manual.py` | `collect_regtech_data` (shared REGTECH trigger for manual + force) and `run_manual_collection` |
-| `scheduled.py` | scheduled daily/adaptive collection runs, 1-day window |
-| `cleanup.py` | midnight stale-IP eviction (expired `removal_date`) |
-| `stats.py` | startup stats load into scheduler state |
-| `operation_support.py` | shared save-result normalization + elapsed-time helpers |
-| `dependencies.py` | lazy import helper (package / `PYTHONPATH=collector` / Docker `/app` layouts) |
+| File                   | Role                                                                                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manager.py`           | `CollectionScheduler`: main loop, interval adaptation, `force_collection` duplicate guard (`_active_collections`/`_active_collections_lock`) |
+| `operations.py`        | facade re-exports with call-time dependency injection (test monkeypatch seam)                                                                |
+| `manual.py`            | `collect_regtech_data` (shared REGTECH trigger for manual + force) and `run_manual_collection`                                               |
+| `scheduled.py`         | daily full-data collection and separate adaptive 1-day collection helper                                                                     |
+| `cleanup.py`           | midnight stale-IP eviction (expired `removal_date`)                                                                                          |
+| `stats.py`             | startup stats load into scheduler state                                                                                                      |
+| `operation_support.py` | shared save-result normalization + elapsed-time helpers                                                                                      |
+| `dependencies.py`      | lazy import helper (package / `PYTHONPATH=collector` / Docker `/app` layouts)                                                                |
 
 ## COLLECTION PATHS AND PAGE LIMITS
 
