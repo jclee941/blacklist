@@ -31,14 +31,10 @@ class TestCredentialServiceInit:
 
 
 class TestSetupDatabase:
-    def test_setup_creates_table(self):
+    def test_runtime_schema_creation_is_not_exposed(self):
         svc, mock_db = _make_service()
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_db.get_connection.return_value = mock_conn
-        svc._setup_database()
-        mock_cursor.execute.assert_called()
+        assert not hasattr(svc, "_setup_database")
+        mock_db.get_connection.assert_not_called()
 
 
 class TestSaveCredentials:
@@ -51,15 +47,13 @@ class TestSaveCredentials:
         result = svc.save_credentials("user123", "pass456")
         assert result is True
 
-    def test_save_credentials_db_failure_falls_back(self):
+    def test_save_credentials_db_failure_does_not_fall_back(self, tmp_path):
         svc, mock_db = _make_service()
+        svc.credentials_file = tmp_path / "credentials.enc"
         mock_db.get_connection.side_effect = Exception("DB down")
-        # Should fall back to file or memory
-        with patch.object(Path, "write_text"):
-            with patch.object(Path, "exists", return_value=True):
-                result = svc.save_credentials("user123", "pass456")
-        # Even with fallback it should return True or handle gracefully
-        assert isinstance(result, bool)
+        result = svc.save_credentials("user123", "pass456")
+        assert result is False
+        assert not svc.credentials_file.exists()
 
 
 class TestLoadCredentials:

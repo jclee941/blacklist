@@ -23,41 +23,24 @@ class TestCredentialServiceExtended:
         svc = CredentialService(db_service=mock_db)
         return svc, mock_db, mock_conn, mock_cursor
 
-    def test_ensure_table_no_db(self):
+    def test_runtime_table_creation_is_not_exposed(self):
         svc = CredentialService(db_service=None)
-        svc._ensure_table()
+        assert not hasattr(svc, "_ensure_table")
 
-    def test_ensure_table_success(self):
+    def test_save_credentials_db_success_has_no_file_backup(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        svc._ensure_table()
-        mock_cursor.execute.assert_called()
-        mock_conn.commit.assert_called()
-
-    def test_ensure_table_exception(self):
-        svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        mock_cursor.execute.side_effect = Exception("table error")
-        svc._ensure_table()
-
-    def test_save_credentials_db_success_file_backup(self):
-        svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        with patch("builtins.open", mock_open()):
+        with patch("builtins.open", mock_open()) as file_open:
             result = svc.save_credentials("user", "pass")
         assert result is True
         mock_conn.commit.assert_called()
+        file_open.assert_not_called()
 
-    def test_save_credentials_db_fail_file_fallback(self):
+    def test_save_credentials_db_failure_is_fatal(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()
         mock_cursor.execute.side_effect = Exception("DB error")
-        with patch("builtins.open", mock_open()):
-            result = svc.save_credentials("user", "pass")
-        assert result is True
-
-    def test_save_credentials_all_fail_memory(self):
-        svc, mock_db, mock_conn, mock_cursor = self._make_service()
-        mock_cursor.execute.side_effect = Exception("DB error")
-        with patch("builtins.open", side_effect=IOError("no file")):
-            result = svc.save_credentials("user", "pass")
-        assert result is True
+        result = svc.save_credentials("user", "pass")
+        assert result is False
+        assert svc._temp_credentials is None
 
     def test_load_credentials_from_db(self):
         svc, mock_db, mock_conn, mock_cursor = self._make_service()

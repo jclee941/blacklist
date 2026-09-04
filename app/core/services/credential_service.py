@@ -44,34 +44,6 @@ class CredentialService:
         self.cipher_suite = encryption_service.fernet
         logger.info("✅ 통합 암호화 서비스(CredentialEncryption) 연동 완료")
 
-        self._setup_database()
-
-    def _setup_database(self):
-        """데이터베이스 테이블 초기화"""
-        try:
-            if not self.db_service:
-                return
-
-            with connection_lease(self.db_service) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS credentials (
-                        id SERIAL PRIMARY KEY,
-                        service_name VARCHAR(50) NOT NULL,
-                        encrypted_data TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE(service_name)
-                    )
-                    """
-                )
-                conn.commit()
-                cursor.close()
-
-        except Exception as e:
-            logger.error(f"데이터베이스 초기화 실패: {e}")
-
     def _ensure_key(self):
         """암호화 키 생성 또는 로드"""
         try:
@@ -112,35 +84,6 @@ class CredentialService:
             logger.error(f"❌ 암호화 키 처리 실패: {e}")
             raise
 
-    def _ensure_table(self):
-        """인증정보 테이블 생성"""
-        try:
-            if not self.db_service:
-                logger.warning("db_service not available, skipping table creation")
-                return
-
-            with connection_lease(self.db_service) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS credentials (
-                        id SERIAL PRIMARY KEY,
-                        service_name VARCHAR(50) NOT NULL,
-                        encrypted_data TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE(service_name)
-                    )
-                    """
-                )
-                conn.commit()
-                cursor.close()
-
-            logger.info("✅ 인증정보 테이블 확인/생성 완료")
-
-        except Exception as e:
-            logger.warning(f"⚠️ 데이터베이스 테이블 생성 실패, 파일 기반으로 대체: {e}")
-
     def save_credentials(self, regtech_id, regtech_pw):
         """인증정보 저장 (데이터베이스에 암호화)"""
         try:
@@ -178,31 +121,11 @@ class CredentialService:
 
                 logger.info(f"✅ 인증정보 데이터베이스 저장 완료: {regtech_id}")
 
-                # 백업으로 파일에도 저장 (실패해도 DB 저장 성공이면 성공 처리)
-                try:
-                    with open(self.credentials_file, "wb") as f:
-                        f.write(encrypted_data)
-                    logger.info("✅ 파일 백업 저장 완료")
-                except (PermissionError, OSError) as file_error:
-                    logger.warning(f"⚠️ 파일 백업 실패 (DB 저장은 성공): {file_error}")
-
                 return True
 
             except Exception as db_error:
-                logger.warning(f"⚠️ 데이터베이스 저장 실패, 파일로만 저장: {db_error}")
-
-                # 파일로 저장 (백업)
-                try:
-                    with open(self.credentials_file, "wb") as f:
-                        f.write(encrypted_data)
-                    logger.info(f"✅ 인증정보 파일 저장 완료: {regtech_id}")
-                    return True
-                except (PermissionError, OSError) as file_error:
-                    logger.error(f"❌ 파일 저장도 실패 - 프로덕션 환경에서는 임시 메모리 저장: {file_error}")
-                    # 프로덕션 환경에서는 메모리에 임시 저장
-                    self._temp_credentials = credentials
-                    logger.warning("⚠️ 메모리에 임시 저장됨 (재시작시 소실)")
-                    return True
+                logger.error(f"❌ 데이터베이스 저장 실패: {db_error}")
+                return False
 
         except Exception as e:
             logger.error(f"❌ 인증정보 저장 실패: {e}")
