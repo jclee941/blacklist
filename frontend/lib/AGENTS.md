@@ -32,6 +32,4 @@ Relative `/api/*` calls resolve differently per environment:
 
 ## ANTI-PATTERNS
 
-- Direct `fetch()` calls in app runtime code; route requests through this client.
-- Creating additional `axios.create()` instances.
 - Ignoring rejected API promises; callers must handle API errors.
