@@ -178,6 +178,7 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
         "APP_DB_PASSWORD=",
         "COLLECTOR_DB_USER=",
         "COLLECTOR_DB_PASSWORD=",
+        "DB_OWNER_ROLE=",
     )
     surviving_secrets = [line for line in body.splitlines() if not line.startswith(runtime_settings)]
     assert surviving_secrets == original.splitlines()

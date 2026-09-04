@@ -15,8 +15,11 @@ ENV_EXAMPLE = Path(__file__).parents[2] / "deploy" / ".env.example"
 PRE_REDIS_REQUIRED_SECRETS = {
     "CREDENTIAL_MASTER_KEY": "local-credential-master-key-0123456789",
     "SECRET_KEY": "local-secret-key-0123456789",
+    "FLASK_SECRET_KEY": "local-flask-secret-key-0123456789",
+    "JWT_SECRET_KEY": "local-jwt-secret-key-0123456789",
     "CREDENTIAL_ENCRYPTION_KEY": "local-credential-encryption-key-0123456789",
     "ENCRYPTION_SALT": "local-encryption-salt-0123456789",
+    "SETTINGS_ENCRYPTION_KEY": "local-settings-encryption-key-0123456789",
     "POSTGRES_PASSWORD": "local-postgres-password-0123456789",
 }
 REQUIRED_SECRETS_WITHOUT_COLLECTOR = {
@@ -211,3 +214,31 @@ def test_production_warp_stays_disabled_when_proxy_is_bridge_reachable(tmp_path:
     generated_values = parse_env(env_file)
     assert generated_values["WARP_ENABLED"] == "false"
     assert generated_values["WARP_PROXY_URL"] == ""
+
+
+@pytest.mark.parametrize(
+    "updates",
+    (
+        {"POSTGRES_USER": "blacklist_app", "APP_DB_USER": "blacklist_app"},
+        {"POSTGRES_USER": "blacklist_collector", "COLLECTOR_DB_USER": "blacklist_collector"},
+        {"APP_DB_USER": "blacklist_runtime", "COLLECTOR_DB_USER": "blacklist_runtime"},
+    ),
+)
+def test_installer_rejects_database_role_name_collisions(tmp_path: Path, updates: dict[str, str]) -> None:
+    env_file = tmp_path / "etc" / "blacklist" / ".env"
+    env_file.parent.mkdir(parents=True)
+    values = {
+        **REQUIRED_SECRETS,
+        "DB_OWNER_ROLE": "blacklist_owner",
+        "APP_DB_USER": "blacklist_app",
+        "APP_DB_PASSWORD": "local-app-db-password",
+        "COLLECTOR_DB_USER": "blacklist_collector",
+        "COLLECTOR_DB_PASSWORD": "local-collector-db-password",
+        **updates,
+    }
+    _ = env_file.write_text("\n".join(f"{key}={value}" for key, value in values.items()) + "\n", encoding="utf-8")
+
+    result = run_secret_check(tmp_path, env_file)
+
+    assert result.returncode != 0
+    assert "must be unique" in result.stdout + result.stderr

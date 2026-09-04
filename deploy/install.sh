@@ -69,6 +69,7 @@ readonly LEGACY_REQUIRED_SECRET_KEYS=(
 )
 readonly REQUIRED_SECRET_KEYS=(
     "${LEGACY_REQUIRED_SECRET_KEYS[@]}"
+    "DB_OWNER_ROLE"
     "APP_DB_USER"
     "APP_DB_PASSWORD"
     "COLLECTOR_DB_USER"
@@ -602,6 +603,7 @@ CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
 ENCRYPTION_SALT=${encryption_salt}
 SETTINGS_ENCRYPTION_KEY=${settings_encryption_key}
 POSTGRES_PASSWORD=${pg_password}
+DB_OWNER_ROLE=blacklist_owner
 APP_DB_USER=blacklist_app
 APP_DB_PASSWORD=${app_db_password}
 COLLECTOR_DB_USER=blacklist_collector
@@ -700,9 +702,12 @@ sync_frontend_tls_settings() {
 
 sync_database_role_secrets() {
     local env_file="$1"
-    local app_user="blacklist_app" collector_user="blacklist_collector"
+    local db_owner="blacklist_owner" app_user="blacklist_app" collector_user="blacklist_collector"
     local app_password collector_password temp_file line
 
+    if read_required_secret_value "${env_file}" "DB_OWNER_ROLE"; then
+        db_owner="${DOTENV_NORMALIZED_VALUE}"
+    fi
     if read_required_secret_value "${env_file}" "APP_DB_USER"; then
         app_user="${DOTENV_NORMALIZED_VALUE}"
     fi
@@ -724,7 +729,7 @@ sync_database_role_secrets() {
     chmod 600 "${temp_file}" || log_error "Unable to protect database role secrets."
     while IFS= read -r line || [ -n "${line}" ]; do
         case "${line}" in
-            APP_DB_USER=*|APP_DB_PASSWORD=*|COLLECTOR_DB_USER=*|COLLECTOR_DB_PASSWORD=*)
+            DB_OWNER_ROLE=*|APP_DB_USER=*|APP_DB_PASSWORD=*|COLLECTOR_DB_USER=*|COLLECTOR_DB_PASSWORD=*)
                 ;;
             *)
                 printf '%s\n' "${line}" >> "${temp_file}" || log_error "Unable to stage database role secrets."
@@ -732,6 +737,7 @@ sync_database_role_secrets() {
         esac
     done < "${env_file}"
     {
+        printf 'DB_OWNER_ROLE=%s\n' "${db_owner}"
         printf 'APP_DB_USER=%s\n' "${app_user}"
         printf 'APP_DB_PASSWORD=%s\n' "${app_password}"
         printf 'COLLECTOR_DB_USER=%s\n' "${collector_user}"
@@ -763,6 +769,29 @@ validate_secret_keys() {
     done
     if [ "${#invalid_keys[@]}" -gt 0 ]; then
         log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in ${env_file}."
+    fi
+}
+
+validate_database_role_names() {
+    local env_file="$1"
+    local bootstrap_owner="postgres" db_owner app_user collector_user
+
+    if read_required_secret_value "${env_file}" "POSTGRES_USER"; then
+        bootstrap_owner="${DOTENV_NORMALIZED_VALUE}"
+    fi
+    read_required_secret_value "${env_file}" "DB_OWNER_ROLE" || log_error "DB_OWNER_ROLE is required."
+    db_owner="${DOTENV_NORMALIZED_VALUE}"
+    read_required_secret_value "${env_file}" "APP_DB_USER" || log_error "APP_DB_USER is required."
+    app_user="${DOTENV_NORMALIZED_VALUE}"
+    read_required_secret_value "${env_file}" "COLLECTOR_DB_USER" || log_error "COLLECTOR_DB_USER is required."
+    collector_user="${DOTENV_NORMALIZED_VALUE}"
+    if [ "${bootstrap_owner}" = "${db_owner}" ] ||
+       [ "${bootstrap_owner}" = "${app_user}" ] ||
+       [ "${bootstrap_owner}" = "${collector_user}" ] ||
+       [ "${db_owner}" = "${app_user}" ] ||
+       [ "${db_owner}" = "${collector_user}" ] ||
+       [ "${app_user}" = "${collector_user}" ]; then
+        log_error "POSTGRES_USER, DB_OWNER_ROLE, APP_DB_USER, and COLLECTOR_DB_USER must be unique."
     fi
 }
 
@@ -819,6 +848,7 @@ setup_secrets() {
 
     validate_secret_keys "${env_file}" "${LEGACY_REQUIRED_SECRET_KEYS[@]}"
     sync_database_role_secrets "${env_file}"
+    validate_database_role_names "${env_file}"
     validate_secret_keys "${env_file}" "${REQUIRED_SECRET_KEYS[@]}"
 
     log_success "Secret validation passed (${env_file})"
