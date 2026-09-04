@@ -26,6 +26,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-blacklist}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      APP_DB_USER: ${APP_DB_USER:-blacklist_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}
+      COLLECTOR_DB_USER: ${COLLECTOR_DB_USER:-blacklist_collector}
+      COLLECTOR_DB_PASSWORD: ${COLLECTOR_DB_PASSWORD:?COLLECTOR_DB_PASSWORD is required}
       TZ: Asia/Seoul
     command:
       - postgres
@@ -110,8 +114,6 @@ services:
     mem_limit: 1g
     networks:
       - blacklist-net
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       blacklist-postgres:
         condition: service_healthy
@@ -121,8 +123,8 @@ services:
       POSTGRES_HOST: blacklist-postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-blacklist}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${COLLECTOR_DB_USER:-blacklist_collector}
+      POSTGRES_PASSWORD: ${COLLECTOR_DB_PASSWORD:?COLLECTOR_DB_PASSWORD is required}
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
@@ -137,8 +139,8 @@ services:
       COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:?COLLECTOR_AUTH_TOKEN is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
-      WARP_ENABLED: ${WARP_ENABLED:-false}
-      WARP_PROXY_URL: ${WARP_PROXY_URL:-}
+      WARP_ENABLED: "false"
+      WARP_PROXY_URL: ""
       FORTIGATE_CA_CERT: /run/blacklist/fortigate/ca.crt
       FORTIGATE_SSH_KNOWN_HOSTS: /run/blacklist/fortigate/known_hosts
       REGTECH_RATE_INITIAL: ${REGTECH_RATE_INITIAL:-}
@@ -184,8 +186,8 @@ services:
       POSTGRES_HOST: blacklist-postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-blacklist}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${APP_DB_USER:-blacklist_app}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}
       REDIS_HOST: blacklist-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}

@@ -13,6 +13,8 @@ ARG APP_VERSION="0.0.0-dev"
 ARG BUILD_DATE=""
 ARG GIT_COMMIT="unknown"
 
+ENV APP_VERSION=${APP_VERSION}
+
 LABEL org.opencontainers.image.version=${APP_VERSION}
 LABEL org.opencontainers.image.revision=${GIT_COMMIT}
 LABEL org.opencontainers.image.created=${BUILD_DATE}
@@ -27,10 +29,14 @@ COPY initdb/ /docker-entrypoint-initdb.d/
 COPY migrations/ /migrations/
 COPY configure-tls.sh /usr/local/bin/configure-postgres-tls
 COPY configure-tls.sh /docker-entrypoint-initdb.d/00-configure-tls.sh
+COPY configure-runtime-roles.sh /usr/local/bin/configure-runtime-roles.sh
+COPY configure-runtime-roles.sh /docker-entrypoint-initdb.d/04-runtime-roles.sh
 COPY tls-entrypoint.sh /usr/local/bin/tls-entrypoint.sh
 RUN chmod 755 \
     /usr/local/bin/configure-postgres-tls \
+    /usr/local/bin/configure-runtime-roles.sh \
     /docker-entrypoint-initdb.d/00-configure-tls.sh \
+    /docker-entrypoint-initdb.d/04-runtime-roles.sh \
     /usr/local/bin/tls-entrypoint.sh
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \

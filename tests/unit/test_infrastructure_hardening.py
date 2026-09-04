@@ -147,12 +147,36 @@ def test_python_runtime_images_remove_packaging_toolchains() -> None:
         assert "site-packages/wheel*" in dockerfile
 
 
+def test_runtime_images_export_the_build_version() -> None:
+    dockerfiles = (
+        ROOT / "app/Dockerfile",
+        ROOT / "collector/Dockerfile",
+        ROOT / "frontend/Dockerfile",
+        ROOT / "postgres/Dockerfile",
+        ROOT / "deploy/redis/Dockerfile",
+    )
+
+    for dockerfile in dockerfiles:
+        assert "ENV APP_VERSION=${APP_VERSION}" in dockerfile.read_text(encoding="utf-8")
+
+
 def test_postgres_replaces_vulnerable_gosu_runtime() -> None:
     dockerfile = (ROOT / "postgres" / "Dockerfile").read_text(encoding="utf-8")
 
     assert "apk upgrade --no-cache" in dockerfile
     assert "apk add --no-cache su-exec" in dockerfile
     assert "rm -f /usr/local/bin/gosu" in dockerfile
+
+
+def test_postgres_keeps_bootstrap_owner_and_creates_separate_runtime_roles() -> None:
+    compose = (ROOT / "deploy/base.yml").read_text(encoding="utf-8")
+    role_script = (ROOT / "postgres/configure-runtime-roles.sh").read_text(encoding="utf-8")
+
+    assert "APP_DB_USER" in compose
+    assert "COLLECTOR_DB_USER" in compose
+    assert "NOBYPASSRLS" in role_script
+    assert "GRANT USAGE, CREATE ON SCHEMA public" in role_script
+    assert "GRANT SELECT, INSERT, UPDATE, DELETE" in role_script
 
 
 def test_frontend_runner_contains_custom_server_dependencies() -> None:

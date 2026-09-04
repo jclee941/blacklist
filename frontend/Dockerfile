@@ -61,6 +61,8 @@ ARG APP_VERSION="0.0.0-dev"
 ARG GIT_COMMIT="unknown"
 ARG BUILD_DATE=""
 
+ENV APP_VERSION=${APP_VERSION}
+
 LABEL org.opencontainers.image.version=${APP_VERSION}
 LABEL org.opencontainers.image.revision=${GIT_COMMIT}
 LABEL org.opencontainers.image.created=${BUILD_DATE}

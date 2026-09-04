@@ -28,6 +28,8 @@ ARG GIT_COMMIT="unknown"
 ARG UID=10001
 ARG GID=10001
 
+ENV APP_VERSION=${APP_VERSION}
+
 LABEL org.opencontainers.image.version=${APP_VERSION}
 LABEL org.opencontainers.image.revision=${GIT_COMMIT}
 LABEL org.opencontainers.image.created=${BUILD_DATE}
