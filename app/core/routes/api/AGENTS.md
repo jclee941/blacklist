@@ -19,19 +19,10 @@ routes/api/
 └── system_api.py, core_api.py, dashboard_api.py, analytics.py, database_api.py, settings_api.py, error_metrics_api.py
 ```
 
-## CONVENTIONS
+## LOCAL RULES
 
 - `blacklist/` registers itself via `register_blacklist_routes(app)`; every other API sub-blueprint is registered onto `api_bp` inside `routes/api/__init__.py`.
-- All responses: RFC 7807 errors via `APIError` subclasses.
-- Services accessed via `current_app.extensions['service_name']`.
-- Handlers are dispatchers only — delegate to service layer.
 - No runtime DDL/schema-mutation endpoints exist; `database_api.py` exposes read/status operations only.
-
-## ANTI-PATTERNS
-
-- Business logic in route handlers.
-- Direct DB queries in routes (use service layer).
-- Manual error dict construction (raise typed exception).
 
 ## NOTES
 
@@ -41,7 +32,7 @@ routes/api/
 
 | Symbol                        | Type     | Location                     | Refs | Role                                            |
 | -------------------------------- | -------- | -------------------------------- | ---- | -------------------------------------------------- |
-| `register_blacklist_routes`   | function | `blacklist/__init__.py:25`   | high | registers 5 blacklist/whitelist blueprints + error handlers |
-| `register_error_handlers`     | function | `blacklist/__init__.py:60`   | med  | global 404/500 JSON handlers                    |
-| `api_bp`                      | Blueprint | `api_routes.py`             | high | unified blueprint; absorbs all sub-package blueprints in `__init__.py` |
-| `auth_bp`                     | Blueprint | `auth_routes.py:15`         | high | `/api/auth/{login,logout,me,verify,password}`   |
+| `register_blacklist_routes`   | function | `blacklist/__init__.py` | high | registers 5 blacklist/whitelist blueprints + error handlers |
+| `register_error_handlers`     | function | `blacklist/__init__.py` | med  | global 404/500 JSON handlers                    |
+| `api_bp`                      | Blueprint | `../api_routes.py`       | high | created one level up; `routes/api/__init__.py` absorbs sub-blueprints |
+| `auth_bp`                     | Blueprint | `auth_routes.py`         | high | `/api/auth/{login,logout,me,verify,password}`   |

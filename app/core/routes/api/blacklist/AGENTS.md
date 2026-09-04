@@ -17,7 +17,7 @@ Core blacklist API package. 5 blueprints registered via `__init__.py`.
 
 ## CONVENTIONS
 
-- All endpoints under `/api/blacklist/`.
+- Registered under `/api`, not a dedicated `/api/blacklist` prefix: `core.py`/`management.py`/`batch.py` mostly use `/blacklist/*` and `/whitelist/*` paths, but `core.py` also exposes `/json`, `system.py` exposes `/system/containers`, `/credential/status`, `/credentials/regtech`, `/database/tables`, and `collection.py` exposes `/collection/regtech/trigger`.
 - CSRF exemptions applied at `__init__.py` level.
 
 ## KNOWN ISSUES
@@ -29,8 +29,8 @@ Core blacklist API package. 5 blueprints registered via `__init__.py`.
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `register_blacklist_routes` | function | `__init__.py:25` | high | 5 blueprint registration + CSRF exemptions |
-| `blacklist_core_bp` | Blueprint | `core.py:25` | high | list/stats/check/export endpoints |
-| `blacklist_management_bp` | Blueprint | `management.py:18` | med | manual add/remove/whitelist |
-| `blacklist_batch_bp` | Blueprint | `batch.py:17` | med | bulk add/remove/update |
-| `blacklist_system_bp` | Blueprint | `system.py:15` | med | system containers/credentials/tables |
+| `register_blacklist_routes` | function | `__init__.py` | high | 5 blueprint registration + CSRF exemptions |
+| `blacklist_core_bp` | Blueprint | `core.py` | high | list/stats/check/export endpoints |
+| `blacklist_management_bp` | Blueprint | `management.py` | med | manual add/remove/whitelist |
+| `blacklist_batch_bp` | Blueprint | `batch.py` | med | bulk add/remove/update |
+| `blacklist_system_bp` | Blueprint | `system.py` | med | system containers/credentials/tables |

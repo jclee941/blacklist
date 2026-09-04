@@ -2,16 +2,17 @@
 
 ## OVERVIEW
 
-Repository-driven API package for whitelist/blacklist management. This package is the only API subtree with explicit `routes` + `handlers` + `repository` layering.
+Repository-driven API package for whitelist/blacklist management. This package is the only API subtree with explicit `routes` + `handlers` + `repository` + `policy` layering.
 
 ## FILES
 
-| File            | LOC | Role                                                         |
-| --------------- | --- | ------------------------------------------------------------ |
-| `routes.py`     | 89  | blueprint routes and query/body extraction                   |
-| `handlers.py`   | 179 | request orchestration + service/repository dispatch          |
-| `repository.py` | 490 | raw SQL access for unified list, whitelist, blacklist, stats |
-| `__init__.py`   | 21  | package exports                                              |
+| File            | Role                                                         |
+| --------------- | ------------------------------------------------------------ |
+| `routes.py`     | blueprint routes and query/body extraction                   |
+| `handlers.py`   | request orchestration + service/repository dispatch          |
+| `repository.py` | raw SQL access for unified list, whitelist, blacklist, stats |
+| `policy.py`     | field allowlists (`WHITELIST_CREATE_FIELDS`, `BLACKLIST_CREATE_FIELDS`, etc.), payload dataclasses, and `parse_whitelist_create`/`parse_blacklist_create`/`parse_update_payload` |
+| `__init__.py`   | package exports                                              |
 
 ## CONVENTIONS
 
@@ -35,8 +36,9 @@ Repository-driven API package for whitelist/blacklist management. This package i
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `IPManagementRepository` | class | `repository.py:14` | high | raw SQL for unified/whitelist/blacklist |
-| `ip_management_api_bp` | Blueprint | `routes.py:18` | high | REST routes under /ip-management/ |
-| `ip_management_legacy_bp` | Blueprint | `routes.py:20` | med | legacy /ip/ compatibility routes |
-| `validate_pagination` | function | `handlers.py:9` | med | page/limit validation |
-| `paginated_response` | function | `handlers.py:55` | med | standard paginated JSON builder |
+| `IPManagementRepository` | class | `repository.py` | high | raw SQL for unified/whitelist/blacklist |
+| `ip_management_api_bp` | Blueprint | `routes.py` | high | REST routes under /ip-management/ |
+| `ip_management_legacy_bp` | Blueprint | `routes.py` | med | legacy /ip/ compatibility routes |
+| `validate_pagination` | function | `handlers.py` | med | page/limit validation |
+| `parse_blacklist_create` | function | `policy.py` | med | validated payload -> `BlacklistCreate` |
+| `parse_whitelist_create` | function | `policy.py` | med | validated payload -> `WhitelistCreate` |

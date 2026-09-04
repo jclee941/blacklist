@@ -37,6 +37,6 @@ app/core/routes/
 
 | Symbol                         | Type     | Location                 | Refs | Role                          |
 | -------------------------------- | -------- | --------------------------- | ---- | -------------------------------- |
-| `register_websocket_handlers`  | function | `websocket_routes.py:16`  | med  | SocketIO event handler wiring |
+| `register_websocket_handlers`  | function | `websocket_routes.py`  | med  | SocketIO event handler wiring |
 
 Route-specific CODE MAPs in `api/AGENTS.md` and `web/AGENTS.md`.
