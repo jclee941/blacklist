@@ -184,8 +184,8 @@ def main() -> None:
                 "release script does not select the VERSION file automatically",
             ),
             (
-                "docker compose exec -T blacklist-app test -d /app/tests" in release_script,
-                "release script treats production images without tests as failed test runs",
+                "No CI run found for HEAD" in release_script and "Falling back to local tests" not in release_script,
+                "release script does not require successful exact-HEAD remote CI",
             ),
             (
                 f'CI_WORKFLOW="{PRIMARY_CI_WORKFLOW}"' in release_script,

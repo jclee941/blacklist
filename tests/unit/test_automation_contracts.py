@@ -103,6 +103,7 @@ if [[ \"$BUMP_TYPE\" != \"current\" && \"$BUMP_TYPE\" != \"auto\" ]]; then
 CI_WORKFLOW=\"CI\"
 gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
 docker compose exec -T blacklist-app test -d /app/tests
+No CI run found for HEAD
 """,
         ".github/docker-compose.ci.yml": """
 services:
@@ -234,8 +235,8 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             "scripts/release.sh",
-            "docker compose exec -T blacklist-app test -d /app/tests",
-            "release script treats production images without tests as failed test runs",
+            "No CI run found for HEAD",
+            "release script does not require successful exact-HEAD remote CI",
         ),
         (
             ".github/workflows/release.yml",
