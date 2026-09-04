@@ -241,7 +241,7 @@ services:
       blacklist-net:
         ipv4_address: ${FRONTEND_INTERNAL_IP:-172.30.0.10}
     ports:
-      - "443:3000"
+      - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:443:3000"
     depends_on:
       blacklist-app:
         condition: service_healthy
@@ -253,6 +253,7 @@ services:
       PORT: 3000
       HOSTNAME: "0.0.0.0"
       FRONTEND_TLS_MODE: ${FRONTEND_TLS_MODE:-provided}
+      FRONTEND_TLS_SERVER_NAME: ${FRONTEND_TLS_SERVER_NAME:-}
       TZ: Asia/Seoul
     volumes:
       - ${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}/ca/ca.crt:/run/blacklist/ca.crt:ro

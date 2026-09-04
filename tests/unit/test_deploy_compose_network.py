@@ -71,7 +71,7 @@ def test_frontend_publishes_only_the_https_port() -> None:
 
     # When: its listener and host publication are inspected.
     # Then: host HTTPS reaches an unprivileged container port.
-    assert '"443:3000"' in frontend_service
+    assert ':443:3000"' in frontend_service
     assert "PORT: 3000" in frontend_service
     assert "PORT: 443" not in frontend_service
 
