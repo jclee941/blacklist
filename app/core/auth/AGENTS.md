@@ -1,51 +1,49 @@
 # AUTH KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
-
 ## OVERVIEW
 
-JWT authentication layer. 163 lines across 4 files. **CRITICAL: middleware currently DISABLED.**
+JWT authentication layer. 500 lines across 8 files. Global JWT enforcement is **active**: `app.before_request(jwt_required_hook)` runs on every request except static assets and `@public`-marked endpoints. Admin credential and session-version state live in `core/services/auth_state_service.py` (see `services/AGENTS.md`), not in this package.
 
 ## FILES
 
-| File             | LOC | Role                                     |
-| ---------------- | --- | ---------------------------------------- |
-| `jwt_service.py` | 65  | HS256 token create/verify, 8hr expiry    |
-| `middleware.py`  | 52  | `before_request` hook for JWT validation |
-| `decorators.py`  | 30  | `@public` decorator to exempt routes     |
-| `__init__.py`    | 16  | re-exports                               |
+| File              | LOC | Role                                                       |
+| ----------------- | --- | ------------------------------------------------------------ |
+| `security.py`     | 154 | bcrypt password hashing/policy, login lockout, JWT revocation store |
+| `jwt_service.py`  | 114 | HS256 encode/decode/validate with `jti` + `session_version` claims |
+| `middleware.py`   | 80  | `before_request` hook enforcing JWT on all non-public routes |
+| `proxy.py`        | 57  | `TrustedProxyMiddleware` — honors `X-Forwarded-*` only from trusted peers |
+| `feed.py`         | 40  | `feed_access_required` — Fortinet feed token + source-network check |
+| `decorators.py`   | 22  | `@public` decorator to exempt routes from JWT                |
+| `fortigate.py`    | 22  | `parse_fortigate_target` — validates FortiGate push target against allowlist |
+| `__init__.py`     | 11  | re-exports `JWTService`, `jwt_required_hook`, `public`        |
 
 ## CODE MAP
 
-| Symbol              | Type      | Location            | Refs | Role                                     |
-| ------------------- | --------- | ------------------- | ---- | ---------------------------------------- |
-| `JWTService`        | class     | `jwt_service.py:23` | med  | HS256 encode/decode/validate, 8hr expiry |
-| `jwt_required_hook` | function  | `middleware.py:23`  | med  | `before_request` JWT validation hook     |
-| `public`            | decorator | `decorators.py`     | med  | exempts route from JWT requirement       |
-| `_auth_error`       | function  | `middleware.py:60`  | low  | RFC 7807 auth error response builder     |
+| Symbol                 | Type      | Location             | Refs | Role                                              |
+| ----------------------- | --------- | --------------------- | ---- | -------------------------------------------------- |
+| `JWTService`            | class     | `jwt_service.py:29`  | high | HS256 encode/decode/validate, revocation + session-version checks |
+| `jwt_required_hook`     | function  | `middleware.py:25`   | high | `before_request` JWT validation hook              |
+| `AuthSecurity`          | class     | `security.py:116`    | med  | login lockout (5 failures/15min) + token revocation store |
+| `hash_password`/`verify_password` | function | `security.py:93,100` | med  | bcrypt hashing, 12-72 byte policy, legacy-hash upgrade |
+| `public`                | decorator | `decorators.py:12`   | med  | exempts route from JWT requirement                |
+| `TrustedProxyMiddleware`| class     | `proxy.py:12`        | med  | WSGI-level trusted-proxy header handling          |
+| `feed_access_required`  | decorator | `feed.py:12`         | low  | bearer-token + source-network guard for Fortinet feeds |
 
 ## TOKEN PAYLOAD
 
 ```json
-{ "sub": "user_id", "role": "admin", "iat": 1234567890, "exp": 1234596690 }
+{ "sub": "user_id", "role": "admin", "jti": "uuid", "session_version": 1, "iat": 1234567890, "exp": 1234596690 }
 ```
+
+`session_version` is compared against `AuthStateService.current_session_version()` on every validation; rotating the admin password bumps the version and invalidates all prior tokens.
 
 ## PUBLIC ENDPOINTS (no JWT required)
 
-- `/health`, `/api/health`, `/metrics`
-- `/api/auth/login`
-- `/api/fortinet/threat-feed`, `/api/fortinet/json-connector`
+- Path prefixes: `/static/`, `/favicon.ico`, `/robots.txt`.
+- `@public`-decorated: `/health`, `/api/auth/login`, `/metrics`, `/api/fortinet/threat-feed`, `/api/fortinet/json-connector`, plus a few web-context health checks.
 
-## STATUS
+## CONVENTIONS
 
-- Middleware DISABLED at `app/core/app.py:155` (commented out `before_request` hook).
-- All routes currently accessible without JWT.
-
-## KNOWN GAPS
-
-- No refresh token mechanism.
-- No rate limiting on `/api/auth/login`.
-- No token revocation / blacklist.
-- No password policy enforcement.
+- `/api/auth/login` and `/api/auth/password` are both rate-limited (`5 per minute`) via `core/utils/rate_limit.py`.
+- Login failures are tracked per `(username, client_ip)` and per-account in Redis via `AuthSecurity`; 5 failures locks for 15 minutes.
+- Token revocation and session-version invalidation are the only logout/rotation mechanisms — there is no separate refresh-token flow.

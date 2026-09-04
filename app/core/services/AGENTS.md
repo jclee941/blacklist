@@ -1,60 +1,56 @@
 # SERVICES KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 5.0.0
-
 ## OVERVIEW
 
-14 services, manual DI via `ServiceFactory` (`service_factory.py`, 278L). All registered on `current_app.extensions['service_name']`.
+14 services, manual DI via `initialize_services()` (`service_factory.py`, 218L). All registered on `current_app.extensions['service_name']`.
 
 ## INIT ORDER (STRICT)
 
-1. **Infra**: `database_service`, `redis_service`
-2. **Dependents**: `blacklist_service`, `analytics_service`
-3. **Collection**: `collection_service`, `collection_history`, `collection_status`
-4. **Integration**: `fortigate_service`
-5. **Config**: `credential_service`, `secure_credential_service`
-6. **Business**: `scoring_service`, `export_service`
-7. **Admin**: `admin_service`, `monitoring_service`
+1. **Core infra**: `db_service`
+2. **Depends on db_service**: `blacklist_service`, `analytics_service`
+3. **Collection**: `collection_service`, `scheduler_service`
+4. **Integration**: `cloudflare_service`
+5. **Configuration**: `secure_credential_service`, `regtech_config_service`, `settings_service`, `auth_state_service`
+6. **Business logic**: `scoring_service`, `expiry_service`, `ab_test_service`, `optimized_blacklist_service`
+
+Services outside category 1-2 fail soft (logged, service omitted from container) except `db_service`, `blacklist_service`, `collection_service`, and `secure_credential_service`, which raise on failure.
 
 ## KEY FILES
 
-| File                           | Role                                                          |
-| ------------------------------ | ------------------------------------------------------------- |
-| `blacklist_service.py`         | core service: cache, queries, whitelist, stats (mixin host)   |
-| `blacklist_service_collection.py` | collection/sync mixin (extracted)                            |
-| `blacklist_service_health.py`  | health/stats mixin (extracted)                                |
-| `blacklist_service_sync.py`    | collector sync + bulk upsert                                  |
-| `collection_service.py`        | collection orchestration                                      |
-| `database_service.py`          | raw SQL query execution                                       |
-| `secure_credential_service.py` | AES-256-GCM credential storage                                |
-| `settings_service.py`          | system_settings CRUD + cache (DB-over-env precedence for admin credentials) |
-| `service_factory.py`           | DI container, init ordering                                   |
+| File                               | Role                                                          |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `service_factory.py`               | `initialize_services()` DI container, strict init order       |
+| `blacklist_service.py`             | core service: cache, queries, whitelist, stats (mixin host)   |
+| `blacklist_service_collection.py`  | collection/sync mixin (extracted)                              |
+| `blacklist_service_health.py`      | health/stats mixin (extracted)                                 |
+| `blacklist_service_sync.py`        | collector sync + bulk upsert                                   |
+| `auth_state_service.py`            | transactional admin credential + session-version state (fails closed) |
+| `collection_service.py`            | collection orchestration                                       |
+| `database_service.py`              | raw SQL query execution                                        |
+| `secure_credential_service.py`     | AES-256-GCM credential storage                                 |
+| `settings_service.py`              | non-auth `system_settings` CRUD + cache                         |
+
+## CODE MAP
+
+| Symbol                    | Type     | Location                    | Refs | Role                                             |
+| -------------------------- | -------- | ----------------------------- | ---- | -------------------------------------------------- |
+| `initialize_services`     | function | `service_factory.py:36`      | high | DI container, strict init order                  |
+| `BlacklistService`        | class    | `blacklist_service.py:37`    | high | core CRUD + sync + system stats                  |
+| `AuthStateService`        | class    | `auth_state_service.py:31`   | high | transactional password/session read+rotate, fails closed via `AuthStateUnavailableError` |
+| `CollectionService`       | class    | `collection_service.py:31`   | high | collection orchestration across sources          |
+| `SecureCredentialService` | class    | `secure_credential_service.py:30` | high | AES-256-GCM credential storage                   |
+| `SettingsService`         | class    | `settings_service.py:21`     | med  | system settings CRUD                              |
+| `ThreatScoringService`    | class    | `scoring_service.py:14`      | med  | IP threat scoring engine                          |
 
 ## CONVENTIONS
 
 - Access: `current_app.extensions['service_name']` — never import directly.
 - Init order violations cause runtime errors (dependency not yet registered).
-- Services receive dependencies via constructor injection from `ServiceFactory`.
+- Services receive dependencies via constructor injection from `service_factory.initialize_services()`.
+- `AuthStateService` writes go through `pg_advisory_xact_lock` + a single DB transaction; DB errors raise `AuthStateUnavailableError` and never fall back to env credentials.
 
 ## ANTI-PATTERNS
 
 - `from app.core.services import X` in route code (circular import risk).
 - Direct instantiation in request handlers (bypass DI container).
-- Changing init order without verifying dependency graph.
-
-## NOTES
-
-
-
-## CODE MAP
-
-| Symbol | Type | Location | Refs | Role |
-| --- | --- | --- | --- | --- |
-| `BlacklistService` | class | `blacklist_service.py:37` | high | core CRUD + sync + system stats (complexity 39.43) |
-| `CollectionService` | class | `collection_service.py:31` | high | collection orchestration across sources |
-| `SecureCredentialService` | class | `secure_credential_service.py:30` | high | AES-256-GCM credential storage (624L) |
-| `SettingsService` | class | `settings_service.py:21` | med | system settings CRUD |
-| `ThreatScoringService` | class | `scoring_service.py:14` | med | IP threat scoring engine |
-| `initialize_services` | function | `service_factory.py:37` | high | DI container, strict init order |
+- Changing init order without verifying the dependency graph in `service_factory.py`.
