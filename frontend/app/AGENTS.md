@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Next.js 15 App Router pages: eight route directories plus the root dashboard. Every `page.tsx` in this tree starts with `'use client'`; stateful domains still split a thin client `page.tsx` from a heavier client `*Client.tsx` component wrapped in `Suspense`.
+Next.js 15 App Router pages: eight route directories plus the root dashboard. Every `page.tsx` starts with `'use client'`; collection, database, Fortinet, and IP-management split a thin page from a heavier `*Client.tsx` component wrapped in `Suspense`, while other pages render directly.
 
 ## STRUCTURE
 
@@ -55,7 +55,7 @@ app/
 
 ## CONVENTIONS
 
-- `page.tsx` is a client component (`'use client'`) that wraps the heavier `*Client.tsx` component in `Suspense`; it is not a server component.
+- Every page is a client component; only collection, database, Fortinet, and IP-management use the `Suspense` + `*Client.tsx` split.
 - Tailwind CSS + shadcn/ui components.
 - Korean labels in UI, English in code.
 

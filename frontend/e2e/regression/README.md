@@ -8,7 +8,7 @@
 
 ## 파일 명명 규칙
 
-```
+```text
 issue-{NUMBER}-{short-description}.spec.ts
 ```
 
