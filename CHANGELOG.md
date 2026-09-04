@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.1] - 2026-09-04
 
+### Breaking
+- 배포 환경에 서로 분리된 `FLASK_SECRET_KEY`, `JWT_SECRET_KEY`, `SETTINGS_ENCRYPTION_KEY`가 필요하며 기존 JWT 세션은 업그레이드 후 다시 로그인해야 합니다.
+- 외부 frontend TLS와 FortiGate 연동은 명시적인 trust material 및 허용 네트워크 설정이 없으면 fail closed 합니다.
+- Collector는 UID/GID `10001`로 실행되고 PostgreSQL·Redis·내부 HTTP 구간은 TLS 인증을 요구합니다.
+
 ### Added
 - feat(release): include application source in bundle
 
