@@ -1,63 +1,41 @@
-# POSTGRES KNOWLEDGE BASE
+# Postgres Directory Guide
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
+## Overview
 
-## OVERVIEW
+Raw SQL migrations plus schema init, no ORM. Database roles are configured by `configure-runtime-roles.sh` at container startup, not baked into `initdb`.
 
-Raw SQL migrations + schema initialization. No ORM — project policy.
+## Structure
 
-## STRUCTURE
+- `initdb/01-extensions.sql` - `pg_trgm`, `uuid-ossp`.
+- `initdb/02-schema.sql` - 14 tables, 49 indexes; base schema source of truth.
+- `initdb/03-migrations.sql` (156 lines) - bootstrap migration state applied on fresh DBs.
+- `migrations/001..008_*.sql` - sequential, additive-only files using `IF NOT EXISTS` / `ON CONFLICT DO UPDATE`.
+- `configure-runtime-roles.sh` - applies migrations 007 and 008, then bootstraps roles; idempotent, runs on every container start.
+- `configure-tls.sh` - writes `pg_hba.conf` forcing `hostssl scram-sha-256` and rejecting `hostnossl`.
+- `tls-entrypoint.sh`, `Dockerfile` - TLS-enabled Postgres 15 image.
 
-```text
-postgres/
-├── initdb/
-│   ├── 01-extensions.sql    # pg_trgm, uuid-ossp
-│   ├── 02-schema.sql        # 17 tables, 50+ indexes
-│   └── 03-migrations.sql    # bootstrap migrations
-└── migrations/
-    ├── 001_*.sql
-    ├── 002_*.sql
-    └── ... through 006_*.sql
-```
+## Role Model (`configure-runtime-roles.sh`)
 
-## INIT SEQUENCE
+Runs after `blacklist-postgres` reports healthy:
 
-`01-extensions.sql` → `02-schema.sql` → `03-migrations.sql` (run once on fresh DB).
+- `blacklist_owner` - `NOLOGIN`, owns every table, view, and sequence; never connects directly.
+- `blacklist_app` - `LOGIN`, `SELECT`/`INSERT`/`UPDATE`/`DELETE` on all tables plus full sequence usage.
+- `blacklist_collector` - `LOGIN`, scoped grants only: full DML on `blacklist_ips`; `SELECT` on `collector_regtech_credentials`; `SELECT`/`INSERT`/`UPDATE` on `collection_history`, `collection_stats`, `collection_status`; `SELECT`/`INSERT` on `regtech_monitoring`, `regtech_alerts`.
+- `PUBLIC` and both app roles are denied `CREATE` on schema `public`; default privileges revoke collector access to any future app-owned object.
+- The script rejects duplicate role names and is safe to re-run.
 
-## MIGRATION STRATEGY
+## Migrations 007/008
 
-- Sequential numbered: `NNN_description.sql` (001–006).
-- Additive only — no `DROP` statements in migrations.
-- `IF NOT EXISTS` for idempotent table/index creation.
-- `ON CONFLICT DO UPDATE` for seed data.
+- `007_align_ip_schema_contracts.sql` - adds `is_active NOT NULL DEFAULT TRUE` to `whitelist_ips` and `blacklist_ips`; adds a unique index on `whitelist_ips.ip_address` and on `blacklist_ips(ip_address, source)`.
+- `008_add_regtech_monitoring.sql` - adds `regtech_monitoring`/`regtech_alerts`; creates `collector_regtech_credentials` as a `security_barrier` view over `collection_credentials` filtered to `service_name = 'REGTECH'`. This view is the only path `blacklist_collector` has to REGTECH credentials.
 
-## CORE TABLES
+## Conventions
 
-`blacklist_ips`, `collection_history`, `collection_credentials`, `collection_status`, `credentials` (AES-256-GCM), `whitelist_ips`, `unified_ip_list`, `fortigate_devices`, `fortigate_pull_logs`, `system_settings`, plus monitoring/metrics tables.
+- Additive only; migrations never contain `DROP`.
+- `IF NOT EXISTS` / `ON CONFLICT DO UPDATE` for idempotency.
+- No runtime DDL from app or collector code; schema changes go through numbered migration files applied by `configure-runtime-roles.sh`.
+- Raw SQL with parameterized `%s` queries in application code.
 
-## EXTENSIONS
+## Notes
 
-- `pg_trgm` — trigram text search.
-- `uuid-ossp` — UUID generation.
-
-## CONVENTIONS
-
-- Raw SQL only, parameterized `%s`.
-- All queries use `IF NOT EXISTS` guards.
-- `ON CONFLICT DO UPDATE` for upserts.
-
-## NOTES
-
-- Separate from `app/core/database/` (connection management) and `collector/core/database.py` (collector connections).
-- 17 tables with 50+ indexes defined in `02-schema.sql`.
-
-
-## CODE MAP
-
-| Symbol | Type | Location | Refs | Role |
-| --- | --- | --- | --- | --- |
-| `02-schema.sql` | DDL | `initdb/02-schema.sql` | high | 17 tables + 50 indexes (source of truth) |
-| `01-extensions.sql` | DDL | `initdb/01-extensions.sql` | med | pg_trgm + uuid-ossp bootstrap |
-| `03-migrations.sql` | DDL | `initdb/03-migrations.sql` | med | initial migration state |
+- Separate from `app/core/database/` (app connection pooling) and `collector/core/database/` (collector connections); this directory owns only DDL and roles, not runtime query code.
