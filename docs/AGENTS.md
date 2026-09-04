@@ -15,7 +15,7 @@ Operator documentation. `manual/` is the current truth; `wiki/` and `deliverable
 | `blacklist-operations-guide.md` | day-2 operations |
 | `blacklist-<version>-release-notes.md` | per-release notes; current file must match root `VERSION` |
 | `blacklist-release-signing-key-v1.asc` / `.fingerprint` | release signing public key and fingerprint |
-| `security-remediation-*` | remediation review, checklist, validation report (`.md` and `.html`) |
+| `security-remediation-*.md` | remediation review, checklist, and validation reports |
 | `screenshots/` | guide images, regenerated from the live dashboard |
 
 ## RULES

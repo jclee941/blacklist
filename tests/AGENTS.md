@@ -9,6 +9,7 @@ Multi-layer testing: pytest (backend) + Vitest (frontend unit) + Playwright (E2E
 ```text
 tests/
 ├── unit/
+│   ├── test_*.py      # installer, deploy, release, workflow-contract tests
 │   ├── routes/       # Flask route tests
 │   ├── services/     # application service tests
 │   ├── collector/    # isolated collector tests
@@ -31,13 +32,12 @@ tests/
 ## CONVENTIONS
 
 - File naming: `test_*.py` (pytest), `*.test.tsx` (Vitest), `*.spec.ts` (Playwright).
-- Credentials: `MOCK_CREDENTIALS` from `test_config.py` — never real credentials.
 - Playwright tests live in `frontend/e2e/` and use Chromium plus optional WebKit.
 - E2E regression format: `issue-{NUMBER}-{description}.spec.ts` with `PROBLEM`/`ROOT CAUSE`/`FIX` comments.
 
 ## ANTI-PATTERNS
 
-- Real credentials in test code (use `MOCK_CREDENTIALS`).
+- Real credentials in test code; use non-secret placeholders or runtime injection.
 - Skipping `yield` cleanup in fixtures.
 - Deleting failing tests to "pass".
 
