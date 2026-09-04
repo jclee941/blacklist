@@ -1,56 +1,47 @@
-# DEPLOYMENT KNOWLEDGE BASE
+# Deploy Directory Guide
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 5.0.0
+## Overview
 
-## OVERVIEW
+Compose inheritance for offline/air-gapped deployment. `base.yml` is the source of truth for all five services (postgres, redis, collector, app, frontend); `docker-compose.yml` and `docker-compose.release.yml` extend it for dev and prod.
 
-Deployment layer for offline/air-gapped environments. Compose inheritance pattern.
+## Files
 
-## FILES
+- `base.yml` (293 lines) - shared service definitions, internal TLS everywhere, source of truth.
+- `docker-compose.yml` (97 lines) - dev overlay: extends base, adds build contexts, WARP proxy on by default.
+- `docker-compose.release.yml` (49 lines) - prod overlay: extends base, uses pre-built GHCR images, WARP forced off.
+- `install.sh` (1363 lines) - offline installer: bundle/image integrity checks, Docker install, TLS provisioning, secrets, PostgreSQL bootstrap, health checks.
+- `init-secrets.sh` - generates `CREDENTIAL_MASTER_KEY`/`SECRET_KEY`/`CREDENTIAL_ENCRYPTION_KEY` once on first boot and persists them to a shared volume for reuse.
+- `.env.example` (104 lines) - required secrets template.
+- `redis/Dockerfile` - builds the TLS-only Redis image (see Redis below).
+- `prereqs/docker.service` - systemd unit for offline Docker installs.
 
-| File                         | LOC | Role                                                                                            |
-| ---------------------------- | --- | ----------------------------------------------------------------------------------------------- |
-| `base.yml`                   | 226 | shared service definitions (5 services: app, collector, postgres, redis, frontend; internal TLS everywhere)  |
-| `docker-compose.yml`         | 61  | dev extends base (adds build contexts)                                                          |
-| `docker-compose.release.yml` | 40  | prod extends base (pre-built GHCR images)                                                       |
-| `install.sh`                 | 1147 | offline installer: integrity verify, Docker/Compose install, image loading, internal TLS, secrets, health checks |
-| `.env.example`               | 113 | required secrets template                                                                       |
-| `prereqs/docker.service`     | 43  | systemd service for offline Docker                                                              |
+## Network And TLS
 
-## COMPOSE INHERITANCE
+Only `blacklist-frontend` publishes a host port (`443` -> container `3000`). Postgres, Redis, the collector, and the app publish nothing; every service talks over the `blacklist-net` bridge using certificates under `BLACKLIST_TLS_DIR` (default `/etc/blacklist/tls`).
 
-```
-base.yml (source of truth)
-├── docker-compose.yml (dev: extends base + build contexts)
-└── docker-compose.release.yml (prod: extends base + GHCR images)
-```
+- Frontend: `FRONTEND_TLS_MODE=provided` requires an operator certificate/key at `FRONTEND_TLS_DIR` matching `FRONTEND_TLS_SERVER_NAME`; `install.sh` checks expiry, hostname match, and that the key matches the cert. `self-signed` mode is loopback-only and for development.
+- Internal traffic (Postgres, Redis, collector, app): install-generated CA. Postgres uses `sslmode=verify-full`; Redis is TLS-only (`tls-auth-clients no`, plaintext port disabled).
 
-## CONVENTIONS
+## WARP
+
+Development-only. `docker-compose.yml` defaults `WARP_ENABLED=true` against a host proxy at `host.docker.internal:40000`. `base.yml`, `docker-compose.release.yml`, and `install.sh` force `WARP_ENABLED=false` for release and the installed bundle.
+
+## Install Flow (`install.sh`)
+
+1. Verify the detached manifest signature, `MANIFEST.sha256`, and image `checksums.sha256` before mutation.
+2. Install Docker/Compose if missing.
+3. Load images and provision internal + frontend TLS material.
+4. Start `blacklist-postgres` alone, wait for its health check, then run `configure-runtime-roles.sh` inside the container to bootstrap DB roles.
+5. Start the remaining services and wait for every container to report healthy.
+
+## Conventions
 
 - All services attach to the `blacklist-net` bridge and address peers by Compose service name.
-- `base.yml` and both extending Compose files declare `blacklist-net` at the top level.
-- Published-port inventory: only `blacklist-frontend` publishes host port `443` to container port `3000`; PostgreSQL, Redis, collector, and Flask publish no host ports.
-- Redis requires `REDIS_PASSWORD`; its health check plus the app and collector environments receive the same secret.
-- Internal service traffic is TLS: PostgreSQL `sslmode=verify-full`, Redis/Flask/Collector HTTPS with the install-generated CA (`/etc/blacklist/tls`).
-- WARP is development-only: `docker-compose.yml` enables the host proxy, while `base.yml`, the release overlay, and installer force it off.
-- `base.yml` keeps production WARP disabled and passes through `REGTECH_RATE_*`/`REGTECH_BLOCK_THRESHOLD` (empty = collector defaults).
-- Health checks mandatory on every service.
-- `VERSION` + tag consistency enforced by release pipeline.
-- `make build` requires clean working tree.
+- Health checks are mandatory on every service.
+- Redis requires `REDIS_PASSWORD`, shared by its own health check plus the app and collector environments.
+- `make build` requires a clean working tree; `VERSION` and tag consistency are enforced by the release pipeline.
 
-## KNOWN ISSUES
-- Collector API base URL must be provided via `BLACKLIST_API_URL` (legacy `BACKEND_API_URL` is unsupported).
-- Collector API base URL must be provided via `BLACKLIST_API_URL` (legacy `BACKEND_API_URL` is unsupported).
-- Admin credentials must be set explicitly (`ADMIN_USERNAME`/`ADMIN_PASSWORD`) before production deployment.
+## Known Issues
 
-
-## CODE MAP
-
-| Symbol | Type | Location | Refs | Role |
-| --- | --- | --- | --- | --- |
-| `install.sh` | script | `install.sh:1` | high | offline installer: Docker, images, SSL, secrets, rollback (412L) |
-| `base.yml` | compose | `base.yml:1` | high | 5 service definitions (source of truth) |
-| `docker-compose.yml` | compose | `docker-compose.yml:1` | med | dev extends base + build contexts |
-| `docker-compose.release.yml` | compose | `docker-compose.release.yml:1` | med | prod extends base + GHCR images |
+- Collector API base URL must be set via `BLACKLIST_API_URL`; the legacy `BACKEND_API_URL` is not read.
+- `ADMIN_USERNAME`/`ADMIN_PASSWORD` must be set explicitly before production deployment; there is no fallback login.
