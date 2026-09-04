@@ -93,6 +93,11 @@ class TestAppConfigDefaults:
         assert cfg.VERSION == "unknown"
         assert cfg.VCS_REF == "unknown"
 
+    @patch.dict(os.environ, {"APP_VERSION": "5.1.2"}, clear=True)
+    def test_runtime_version_uses_app_version(self):
+        cfg = AppConfig()
+        assert cfg.VERSION == "5.1.2"
+
     @patch.dict(os.environ, {}, clear=True)
     def test_service_name_default(self):
         cfg = AppConfig()

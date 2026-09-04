@@ -167,7 +167,7 @@ class AppConfig(DatastoreConfig):
 
     @property
     def VERSION(self) -> str:
-        return os.getenv("VERSION", "unknown")
+        return self.APP_VERSION or "unknown"
 
     @property
     def VCS_REF(self) -> str:

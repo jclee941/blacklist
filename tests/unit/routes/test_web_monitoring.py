@@ -60,7 +60,7 @@ class TestDashboardDataApi:
 
 
 class TestMonitoringDashboard:
-    @patch.dict("os.environ", {"VERSION": "2.0.0"})
+    @patch.dict("os.environ", {"APP_VERSION": "2.0.0"})
     @patch("core.routes.web.monitoring.render_template")
     def test_success(self, mock_render):
         mock_render.return_value = "<html>dashboard</html>"
@@ -105,7 +105,7 @@ class TestMonitoringDashboard:
 
         assert resp.status_code == 200
 
-    @patch.dict("os.environ", {"VERSION": "2.0.0"})
+    @patch.dict("os.environ", {"APP_VERSION": "2.0.0"})
     @patch("core.routes.web.monitoring.render_template")
     def test_exception_fallback(self, mock_render):
         mock_render.return_value = "<html>fallback</html>"

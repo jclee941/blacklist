@@ -16,9 +16,8 @@ def create_app():
 class TestSystemLogs:
     """GET /api/system/logs — returns real system metrics via psutil."""
 
-    def setup_method(self):
-        self.app = create_app()
-        self.client = self.app.test_client()
+    app = create_app()
+    client = app.test_client()
 
     def test_logs_success(self):
         mock_psutil = MagicMock()
@@ -75,9 +74,8 @@ class TestSystemLogs:
 class TestSystemStatus:
     """GET /api/system/status — returns hardcoded system status."""
 
-    def setup_method(self):
-        self.app = create_app()
-        self.client = self.app.test_client()
+    app = create_app()
+    client = app.test_client()
 
     def test_status_success(self):
         with self.app.app_context():
@@ -95,9 +93,8 @@ class TestSystemStatus:
 class TestDetailedHealth:
     """GET /api/system/health — returns detailed health check."""
 
-    def setup_method(self):
-        self.app = create_app()
-        self.client = self.app.test_client()
+    app = create_app()
+    client = app.test_client()
 
     def test_health_success(self):
         with self.app.app_context():
@@ -115,9 +112,8 @@ class TestDetailedHealth:
 class TestEnvCheck:
     """GET /api/system/env-check — checks environment variable configuration."""
 
-    def setup_method(self):
-        self.app = create_app()
-        self.client = self.app.test_client()
+    app = create_app()
+    client = app.test_client()
 
     @patch.dict(
         "os.environ",
@@ -127,7 +123,7 @@ class TestEnvCheck:
             "GITHUB_TOKEN": "ghp_xxx",
             "GITHUB_REPO_OWNER": "org",
             "GITHUB_REPO_NAME": "repo",
-            "VERSION": "3.5.60",
+            "APP_VERSION": "3.5.60",
             "BUILD_NUMBER": "42",
             "VCS_REF": "abc1234def",
         },
