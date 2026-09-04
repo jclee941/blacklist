@@ -58,6 +58,7 @@ def main() -> None:
     frontend_dockerfile = read("frontend/Dockerfile")
     guide_capture = read("frontend/e2e/helpers/capture-guide-screenshots.mjs")
     reusable_node = read(".github/workflows/_ci-node.yml")
+    security = read(".github/workflows/security.yml")
     dependabot = read(".github/dependabot.yml")
     gitignore = read(".gitignore")
 
@@ -75,6 +76,9 @@ def main() -> None:
             ("vars.RUNNER" not in reusable_node, "reusable PR CI can use a persistent self-hosted runner"),
             ("vars.RUNNER" not in build_images, "reusable image builds can use an untrusted persistent runner"),
             ("vars.RUNNER" not in release, "release jobs can share an untrusted persistent runner"),
+            ("pull_request:" in security, "security workflow does not scan pull requests"),
+            ("vars.RUNNER" not in security, "PR security workflow can use a persistent self-hosted runner"),
+            ("runs-on: ubuntu-latest" in security, "PR security workflow is not GitHub-hosted"),
             ('node-version: "24"' in ci, "CI frontend lint does not use Node 24"),
             ("node-version: 24" in ci, "CI frontend test or E2E does not use Node 24"),
             ('default: "24"' in reusable_node, "reusable Node workflow does not default to Node 24"),

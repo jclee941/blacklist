@@ -46,6 +46,10 @@ workflow_run:
 github.event.workflow_run.conclusion == 'success'
 run-id: ${{ github.event.workflow_run.id }}
 """,
+        ".github/workflows/security.yml": """
+pull_request:
+runs-on: ubuntu-latest
+""",
         ".github/workflows/release.yml": """
 Release notes file not found
 if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
