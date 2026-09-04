@@ -6,15 +6,15 @@ PostgreSQL connection management layer. psycopg2 direct — no ORM.
 
 ## CONNECTION MANAGERS
 
-| Class                         | Features                                          |
-| ----------------------------- | ------------------------------------------------- |
-| `SmartConnectionManager`      | backoff 60s, cached stats 300s, max 5 error logs  |
-| `PostgreSQLConnectionManager` | basic env-var driven, simpler fallback            |
+| Class                         | Features                                         |
+| ----------------------------- | ------------------------------------------------ |
+| `SmartConnectionManager`      | backoff 60s, cached stats 300s, max 5 error logs |
+| `PostgreSQLConnectionManager` | basic env-var driven, simpler fallback           |
 
 ## CODE MAP
 
-| Symbol                        | Type     | Location                        | Refs | Role                                     |
-| ----------------------------- | -------- | ------------------------------- | ---- | ---------------------------------------- |
+| Symbol                        | Type     | Location                     | Refs | Role                                     |
+| ----------------------------- | -------- | ---------------------------- | ---- | ---------------------------------------- |
 | `SmartConnectionManager`      | class    | `connection_pool_manager.py` | high | pooled connections + exponential backoff |
 | `PostgreSQLConnectionManager` | class    | `connection_recovery.py`     | med  | basic recovery + reconnection fallback   |
 | `get_db_connection`           | function | `connection.py`              | high | connection factory entry point           |

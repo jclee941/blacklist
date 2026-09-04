@@ -2,20 +2,20 @@
 
 ## OVERVIEW
 
-Prometheus metrics infrastructure. 1124 lines across 3 modules + `__init__.py`.
+Prometheus metrics infrastructure across three modules plus `__init__.py`.
 
 ## FILES
 
-| File               | LOC | Role                                                  |
-| ------------------ | --- | ----------------------------------------------------- |
-| `metrics.py`       | 412 | Counter, Histogram, Gauge for API/DB/collection ops   |
-| `cache_metrics.py` | 397 | Redis hit/miss tracking, cache invalidation metrics   |
-| `error_metrics.py` | 289 | `ErrorMetricsCollector` — error rate by type/endpoint |
+| File               | Role                                                  |
+| ------------------ | ----------------------------------------------------- |
+| `metrics.py`       | Counter, Histogram, Gauge for API/DB/collection ops   |
+| `cache_metrics.py` | Redis hit/miss tracking, cache invalidation metrics   |
+| `error_metrics.py` | `ErrorMetricsCollector` — error rate by type/endpoint |
 
 ## CODE MAP
 
-| Symbol                  | Type      | Location              | Refs | Role                                          |
-| ----------------------- | --------- | --------------------- | ---- | --------------------------------------------- |
+| Symbol                  | Type      | Location           | Refs | Role                                          |
+| ----------------------- | --------- | ------------------ | ---- | --------------------------------------------- |
 | `CacheMetricsCollector` | class     | `cache_metrics.py` | med  | singleton Redis hit/miss/invalidation tracker |
 | `ErrorMetricsCollector` | class     | `error_metrics.py` | med  | singleton error rate by type/endpoint         |
 | `CacheEvent`            | dataclass | `cache_metrics.py` | med  | cache operation event data carrier            |

@@ -6,7 +6,7 @@ Typed exception hierarchy for RFC 7807 error responses. 8 modules under `app/cor
 
 ## HIERARCHY
 
-```
+```text
 BlacklistError (base_exceptions.py): root, logs on construction
 ├── APIError (base_exceptions.py): +status_code, +error_code, RFC 7807 `to_api_response`
 │   └── ExternalAPIError (base_exceptions.py) [502]
@@ -23,15 +23,15 @@ Everything else above extends `BlacklistError` directly, isn't RFC 7807 shaped, 
 
 ## CODE MAP
 
-| Symbol                | Type  | Location                          | Refs | Role                                  |
-| --------------------- | ----- | ---------------------------------- | ---- | ------------------------------------- |
-| `BlacklistError`      | class | `base_exceptions.py`             | high | root exception for all project errors |
-| `APIError`            | class | `base_exceptions.py`             | high | RFC 7807 base (+status_code, +error_code) |
-| `ExternalAPIError`    | class | `base_exceptions.py`             | med  | external service failure wrapper (502) |
-| `ValidationError`     | class | `validation_exceptions.py`       | high | 400 input validation                  |
-| `NotFoundError`       | class | `validation_exceptions.py`       | med  | 404 resource not found                |
-| `DatabaseError`       | class | `infrastructure_exceptions.py`   | med  | database operation failure            |
-| `AuthenticationError` | class | `auth_exceptions.py`             | med  | auth flow failure                     |
+| Symbol                | Type  | Location                       | Refs | Role                                      |
+| --------------------- | ----- | ------------------------------ | ---- | ----------------------------------------- |
+| `BlacklistError`      | class | `base_exceptions.py`           | high | root exception for all project errors     |
+| `APIError`            | class | `base_exceptions.py`           | high | RFC 7807 base (+status_code, +error_code) |
+| `ExternalAPIError`    | class | `base_exceptions.py`           | med  | external service failure wrapper (502)    |
+| `ValidationError`     | class | `validation_exceptions.py`     | high | 400 input validation                      |
+| `NotFoundError`       | class | `validation_exceptions.py`     | med  | 404 resource not found                    |
+| `DatabaseError`       | class | `infrastructure_exceptions.py` | med  | database operation failure                |
+| `AuthenticationError` | class | `auth_exceptions.py`           | med  | auth flow failure                         |
 
 ## CONVENTIONS
 
