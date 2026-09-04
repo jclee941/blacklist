@@ -1,29 +1,27 @@
 # Blacklist 관리자 가이드
 
-**버전:** 저장소 루트 [`VERSION`](../../VERSION) 기준
+**버전:** 저장소 루트 `VERSION` 기준
 
-이 문서는 Blacklist 운영 관리자를 위한 안내서입니다. 일반 조회 사용법은 [사용자 가이드](blacklist-user-guide.md), 설치·무결성 절차는 [오프라인 설치 가이드](blacklist-offline-installation-guide.md)를 참조하십시오.
+이 문서는 Blacklist 운영 관리자를 위한 안내서입니다. 조회는 사용자 가이드, 설치는 오프라인 가이드를 참조하십시오.
 
 ## 1. 관리자 계정
 
-- 최초 설치 시 설치 프로그램이 대상 호스트에서 관리자 자격증명(`ADMIN_USERNAME`/`ADMIN_PASSWORD`)을 생성해 한 번만 표시합니다. 반드시 안전한 곳에 보관하십시오.
-- 대시보드와 애플리케이션 API는 JWT 인증이 기본입니다. 로그인·health·metrics·정적 자산·명시적 공개 피드만 인증 없이 접근됩니다.
-- 계정 비밀번호는 DB 설정(`system_settings.admin_password`, 암호화 저장)이 환경변수보다 우선합니다. 설정값이 있으면 환경변수 변경만으로는 바뀌지 않으므로, 환경변수 기준으로 되돌리려면 해당 설정 행을 비활성화하십시오.
+- 설치 프로그램은 관리자 자격증명(`ADMIN_USERNAME`/`ADMIN_PASSWORD`)을 한 번만 표시합니다. 안전하게 보관하십시오.
+- 대시보드와 API는 JWT 인증이 기본입니다. Fortinet feed는 관리자 JWT 대신 feed token과 network 검사를 사용합니다.
+- 관리자 password hash와 session generation은 PostgreSQL `system_settings`에서 한 트랜잭션으로 갱신됩니다. 환경변수는 DB 행이 없을 때만 bootstrap에 사용되며 DB 오류에서는 fail closed 합니다.
 
 ## 2. 데이터 수집 관리
 
-![데이터 수집](screenshots/collection.png)
+![데이터 수집](screenshots/collection.png){ width=45% }
 
 `데이터 수집` 페이지에서 수집기를 등록·점검·실행합니다.
 
 ### 수집기 카드 항목
 
-| 항목        | 의미                            |
-| ----------- | ------------------------------- |
-| 수집된 IP   | 해당 소스에서 누적 수집한 IP 수 |
-| 수집 간격   | 스케줄 주기 (REGTECH 기본 1일)  |
-| 마지막 수집 | 최근 수집 완료 시각             |
-| 인증정보    | 소스 자격증명 등록 여부         |
+- 수집된 IP: 해당 소스에서 누적 수집한 IP 수
+- 수집 간격: 스케줄 주기 (REGTECH 기본 1일)
+- 마지막 수집: 최근 수집 완료 시각
+- 인증정보: 소스 자격증명 등록 여부
 
 ### 작업
 
@@ -34,34 +32,34 @@
 
 ### 수집 페이싱 (REGTECH WAF 대응)
 
-원격 소스의 WAF가 IP당 요청 쿼터를 적용하므로, 수집 속도를 무리하게 올리면 출발 IP가 차단됩니다. 기본값은 5초에 1페이지(0.2 req/s)이며, 환경변수로 조정할 수 있습니다.
+원격 WAF는 IP당 요청 쿼터를 적용합니다. 기본값은 5초마다 1페이지(0.2 req/s)이며 환경변수로 조정합니다.
 
-| 변수                                    | 기본값    | 의미                                                          |
-| --------------------------------------- | --------- | ------------------------------------------------------------- |
-| `REGTECH_RATE_INITIAL`                  | 0.2       | 초기 요청 속도 (req/s)                                        |
-| `REGTECH_RATE_MIN` / `REGTECH_RATE_MAX` | 0.1 / 0.5 | 적응형 속도 하한·상한                                         |
-| `REGTECH_RATE_BURST`                    | 1         | 버스트 허용량                                                 |
-| `REGTECH_BLOCK_THRESHOLD`               | 3         | 연속 차단 신호 허용 횟수. 도달 시 수집을 즉시 중단하고 쿨다운 |
+| 변수                                    | 기본값    | 의미                                              |
+| --------------------------------------- | --------- | ------------------------------------------------- |
+| `REGTECH_RATE_INITIAL`                  | 0.2       | 초기 요청 속도 (req/s)                            |
+| `REGTECH_RATE_MIN` / `REGTECH_RATE_MAX` | 0.1 / 0.5 | 적응형 속도 하한·상한                             |
+| `REGTECH_RATE_BURST`                    | 1         | 버스트 허용량                                     |
+| `REGTECH_BLOCK_THRESHOLD`               | 3         | 연속 차단 신호 한계. 도달하면 실행 중단 후 쿨다운 |
 
-빈 응답·403·429가 연속 감지되면 수집기는 차단으로 판단해 즉시 중단합니다. 이 경우 수분~수시간 쿨다운 후 다시 실행하십시오. 반복 차단 시 속도를 더 낮추거나 WARP 프록시 경유를 검토하십시오.
+빈 응답·403·429가 연속되면 수집을 중단합니다. 쿨다운 후 재실행하고, 반복되면 속도를 낮추거나 WARP를 검토합니다.
 
 ## 3. FortiGate 연동
 
-![FortiGate](screenshots/fortinet.png)
+![FortiGate](screenshots/fortinet.png){ width=45% }
 
-FortiGate 방화벽에 블랙리스트를 연동(외부 위협 피드)합니다. 장치 등록·연결 상태·푸시 결과를 이 화면에서 관리합니다. 장치 자격증명은 암호화되어 저장됩니다.
+FortiGate에 외부 위협 피드를 연동합니다. 장치 상태와 푸시 결과를 관리하며 인증정보는 암호화되어 저장됩니다.
 
 ## 4. Cloudflare 연동
 
-![Cloudflare 연동](screenshots/cloudflare.png)
+![Cloudflare 연동](screenshots/cloudflare.png){ width=45% }
 
-Cloudflare 계정의 IP 리스트로 블랙리스트를 푸시합니다. API 토큰과 리스트 매핑을 설정하고, 푸시 이력과 오류를 확인할 수 있습니다.
+Cloudflare IP 리스트로 블랙리스트를 푸시합니다. API 토큰, 리스트 매핑, 푸시 이력과 오류를 확인합니다.
 
 ## 5. 데이터베이스
 
-![데이터베이스](screenshots/database.png)
+![데이터베이스](screenshots/database.png){ width=45% }
 
-테이블 현황과 저장 상태를 조회합니다. 운영 DB는 PostgreSQL이며, 업그레이드 시 **기존 암호화 키를 반드시 유지**해야 저장된 수집 자격증명을 계속 복호화할 수 있습니다.
+테이블과 저장 상태를 확인합니다. 운영 DB는 PostgreSQL입니다. 업그레이드할 때 암호화 키를 유지해 자격증명을 복호화합니다.
 
 ## 6. 운영 점검
 
@@ -78,14 +76,14 @@ docker logs blacklist-collector --tail 100
 ### 상태 확인 포인트
 
 - 대시보드 우측 배지 `정상`과 수집 카드의 `수집 상태`
-- 수집 직후 최대 5분간은 상태가 `수집 중`으로 표시될 수 있습니다(시각 기반 추정). 실제 진행 여부는 수집기 로그로 확인하십시오.
-- Collector의 `/health`만 인증 없이 사용할 수 있습니다. `/status`, `/logs`, `/trigger`, `/api/test-auth/<source>`, `/api/force-collection/<source>`는 `COLLECTOR_AUTH_TOKEN` Bearer 토큰이 필요하며, Collector 포트는 호스트에 공개되지 않습니다.
+- 수집 직후 최대 5분간 `수집 중`으로 표시될 수 있습니다. 실제 상태는 수집기 로그에서 확인합니다.
+- Collector 포트는 내부 전용입니다. `/health` 외의 API에는 `COLLECTOR_AUTH_TOKEN` Bearer 토큰이 필요합니다.
 
 ### 백업 권장 대상
 
 - `/etc/blacklist/.env` (비밀값·암호화 키)
 - PostgreSQL 볼륨 (`blacklist-pgdata`) — 블랙리스트·설정·수집 이력
-- `/etc/blacklist/tls/` (남부 TLS 인증서)
+- `/etc/blacklist/tls/` (내부 TLS 인증서)
 
 ## 7. 장애 대응 요약
 
