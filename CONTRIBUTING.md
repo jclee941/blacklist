@@ -23,11 +23,11 @@ Thank you for your interest in contributing! This project follows standard open-
 
 ### Automated Checks
 
-All PRs are automatically checked by:
+All PRs must pass:
 
-- **pr-checks.yml**: PR size, title, branch name validation
-- **gitleaks.yml**: Secret scanning
-- **jclee-bot**: AI code review (Korean responses)
+- **ci.yml**: lint, tests, documentation checks, image build/scan, E2E, and `ci-gate`
+- **security.yml**: Trivy filesystem dependency scan
+- **jclee-bot**: `secret-scan` and `actionlint` required checks
 
 ---
 
@@ -54,6 +54,6 @@ All PRs are automatically checked by:
 
 모든 PR은 다음 자동 검증을 통과해야 합니다:
 
-- **pr-checks.yml**: PR 크기, 제목, 브랜치 이름 검증
-- **gitleaks.yml**: 민감정보 스캔
-- **jclee-bot**: AI 코드 리뷰 (한국어 응답)
+- **ci.yml**: lint, 테스트, 문서 검사, 이미지 build/scan, E2E, `ci-gate`
+- **security.yml**: Trivy 파일시스템 의존성 검사
+- **jclee-bot**: `secret-scan`, `actionlint` 필수 검사
