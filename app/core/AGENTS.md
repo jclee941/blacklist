@@ -24,18 +24,18 @@ app/core/
 
 ## CODE MAP
 
-| Symbol                   | Type     | Location                                 | Refs | Role                                    |
-| ------------------------ | -------- | ------------------------------------------ | ---- | ---------------------------------------- |
-| `create_app`             | function | `app.py`                                 | high | factory + middleware + blueprint wiring |
-| `AppConfig`              | class    | `config.py`                              | high | env-to-config mapping                   |
-| `initialize_services`    | function | `services/service_factory.py`            | high | DI container init, 14 services          |
-| `APIError`               | class    | `exceptions/base_exceptions.py`          | high | RFC 7807 error base class               |
-| `SmartConnectionManager` | class    | `database/connection_pool_manager.py`    | high | PostgreSQL pooling + backoff            |
+| Symbol                   | Type     | Location                              | Refs | Role                                    |
+| ------------------------ | -------- | ------------------------------------- | ---- | --------------------------------------- |
+| `create_app`             | function | `app.py`                              | high | factory + middleware + blueprint wiring |
+| `AppConfig`              | class    | `config.py`                           | high | env-to-config mapping                   |
+| `initialize_services`    | function | `services/service_factory.py`         | high | DI container init, 14 services          |
+| `APIError`               | class    | `exceptions/base_exceptions.py`       | high | RFC 7807 error base class               |
+| `SmartConnectionManager` | class    | `database/connection_pool_manager.py` | high | PostgreSQL pooling + backoff            |
 
 ## WHERE TO LOOK
 
 | Task                | Location    | Notes                                               |
-| ------------------- | ----------- | ----------------------------------------------------- |
+| ------------------- | ----------- | --------------------------------------------------- |
 | App initialization  | `app.py`    | middleware order, route registration, startup hooks |
 | Env/config behavior | `config.py` | URL/DB/Redis/defaults and secret requirements       |
 | API/web composition | `routes/`   | API + web package split and blueprint boundaries    |

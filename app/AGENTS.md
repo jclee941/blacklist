@@ -28,22 +28,22 @@ app/
 
 ## WHERE TO LOOK
 
-| Task                     | Location                           | Notes                                                 |
-| ------------------------ | ----------------------------------- | ----------------------------------------------------- |
-| App factory + middleware | `core/app.py`                      | csrf, JWT hook, request_id, security headers, compression |
+| Task                     | Location                           | Notes                                                                                             |
+| ------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| App factory + middleware | `core/app.py`                      | csrf, JWT hook, request_id, security headers, compression                                         |
 | Blueprint registration   | `core/app.py`                      | mix of `register_blacklist_routes(app)`, direct `app.register_blueprint(auth_bp/api_bp/proxy_bp)` |
-| Core package topology    | `core/AGENTS.md`                   | boundaries across routes/services/auth/db/utils       |
-| Config properties        | `core/config.py`                   | DB, Redis, URLs, secrets, admin, JWT, collection      |
-| DI container             | `core/services/service_factory.py` | strict init order, `current_app.extensions[...]`      |
+| Core package topology    | `core/AGENTS.md`                   | boundaries across routes/services/auth/db/utils                                                   |
+| Config properties        | `core/config.py`                   | DB, Redis, URLs, secrets, admin, JWT, collection                                                  |
+| DI container             | `core/services/service_factory.py` | strict init order, `current_app.extensions[...]`                                                  |
 
 ## MAINTENANCE HOTSPOTS
 
-| File                                         | Concern                        |
-| -------------------------------------------- | ------------------------------ |
-| `core/app.py`                                | app factory, middleware, blueprint wiring |
+| File                                         | Concern                                              |
+| -------------------------------------------- | ---------------------------------------------------- |
+| `core/app.py`                                | app factory, middleware, blueprint wiring            |
 | `core/services/secure_credential_service.py` | Fernet-based credential storage (PBKDF2-derived key) |
-| `core/services/auth_state_service.py`        | transactional admin password/session state |
-| `core/services/blacklist_service.py`         | blacklist query and mutation   |
+| `core/services/auth_state_service.py`        | transactional admin password/session state           |
+| `core/services/blacklist_service.py`         | blacklist query and mutation                         |
 
 ## NOTES
 
