@@ -8,7 +8,7 @@ Release and offline-bundle automation. Entry points: `release.sh` (versioned rel
 
 | File | Role |
 | --- | --- |
-| `release.sh` | release entry (`scripts/release.sh $TYPE $DRY_RUN`, invoked by `make release`/`make release-dry`): clean-`master` + exact-HEAD-CI check, bump `VERSION`/`CHANGELOG.md`/`frontend/package.json`+`package-lock.json`, commit, annotated `v<version>` tag, push |
+| `release.sh` | release entry (`scripts/release.sh $TYPE $DRY_RUN`, invoked by `make release`/`make release-dry`): clean-`master` + exact-HEAD CI check via `gh run list` against the remote `CI` workflow run for `HEAD_SHA` — requires an authenticated `gh` CLI and a `success` conclusion, with no local/offline fallback; then bumps `VERSION`/`CHANGELOG.md`/`frontend/package.json`+`package-lock.json`, commits, creates an annotated `v<version>` tag, and pushes
 | `build_offline_bundle.py` | local bundle build: `--build` (rebuild all images), `--skip-images`, `--output` |
 | `offline_bundle/assembly.py` | copies compose/installer/docs (guides + screenshots + PDFs) + bind-mount assets, fail-closed on missing |
 | `offline_bundle/images.py` | per-service docker build (`blacklist-<svc>:<version>`) and `docker save` export |

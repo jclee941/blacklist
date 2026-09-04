@@ -8,7 +8,7 @@ Repository-local GitHub Actions automation: CI, security scanning, image publish
 
 | Workflow | Trigger | `runs-on` | Key jobs (order) |
 | --- | --- | --- | --- |
-| `ci.yml` | push/PR to `master` | `ubuntu-latest` | `detect-changes` → lint/test (frontend, backend, collector, integration) → `build` (5-image matrix, artifact-only) → `validate-automation`, `scan-images`, `e2e`, `coverage-report` → `ci-gate` |
+| `ci.yml` | push/PR to `master` | `ubuntu-latest` | `detect-changes` → lint/test (frontend, backend, collector, integration) → `build` (5-image matrix, artifact-only, needs all lint/test) → `scan-images`, `e2e` (need `build`) → `ci-gate`. `validate-automation` and `coverage-report` run independently — `validate-automation` has no `needs` and starts immediately; `coverage-report` needs only the three `test-*` jobs, not `build`. `ci-gate` needs every job above.
 | `security.yml` | push/PR to `master` | `ubuntu-latest` | `dependency-scan` (Trivy fs scan, CRITICAL only) |
 | `publish-latest.yml` | `workflow_run` on CI `completed` | `ubuntu-latest` | `publish` — gated on `conclusion == success`, `event == push`, `head_branch == master`; downloads the triggering run's artifacts (no rebuild) and pushes `:latest` to GHCR |
 | `build-images.yml` | `workflow_call` / manual dispatch | `ubuntu-latest` | `build` — 5-image matrix, `push: false`, artifact upload only; reused by `release.yml` |
@@ -34,7 +34,7 @@ Repository-local GitHub Actions automation: CI, security scanning, image publish
 ## REQUIRED AUTOMATION CHECKS
 
 - `ci.yml` job `validate-automation` runs `python .github/scripts/validate_automation_contracts.py` on every push/PR — keep workflow/script contracts in sync with this validator.
-- Repository ruleset requires `jclee-bot / pr-metadata`, `jclee-bot / secret-scan`, and `jclee-bot / actionlint` external checks (not internal job names) — see `.github/WORKFLOWS.md` for the current ruleset list.
+- Live required checks (branch protection on `master`): `jclee-bot / secret-scan`, `jclee-bot / actionlint` (external checks), and `ci-gate` (this repo's own aggregate job) — `pr-metadata` is no longer required. See `.github/WORKFLOWS.md` for narrative detail.
 - Run `python3 .github/scripts/validate_automation_contracts.py`, `actionlint`, and the applicable Compose config render locally before changing any workflow.
 
 ## ANTI-PATTERNS

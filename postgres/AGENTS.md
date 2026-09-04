@@ -16,7 +16,7 @@ Raw SQL migrations plus schema init, no ORM. Database roles are configured by `c
 
 ## Role Model (`configure-runtime-roles.sh`)
 
-Runs after `blacklist-postgres` reports healthy:
+Runs once on first `initdb`, and again on each `install.sh` deployment after `blacklist-postgres` reports healthy:
 
 - `blacklist_owner` - `NOLOGIN`, owns every table, view, and sequence; never connects directly.
 - `blacklist_app` - `LOGIN`, `SELECT`/`INSERT`/`UPDATE`/`DELETE` on all tables plus full sequence usage.
