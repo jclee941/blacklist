@@ -103,24 +103,6 @@ if git tag -l "v${NEW_VERSION}" | grep -q .; then
 fi
 
 ok "Validation passed"
-info "Checking exact-HEAD CI status..."
-
-HEAD_SHA=$(git rev-parse HEAD)
-CI_WORKFLOW="CI"
-if ! command -v gh &>/dev/null || ! gh auth status &>/dev/null 2>&1; then
-  error "Authenticated gh CLI is required to verify exact-HEAD CI before releasing."
-fi
-CI_CONCLUSION=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json conclusion,status --jq '.[0].conclusion // empty' 2>/dev/null || true)
-CI_STATUS=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json status --jq '.[0].status // empty' 2>/dev/null || true)
-if [[ "$CI_CONCLUSION" == "success" ]]; then
-  ok "CI passed on HEAD ($HEAD_SHA)"
-elif [[ "$CI_STATUS" == "in_progress" || "$CI_STATUS" == "queued" ]]; then
-  error "CI is still running on HEAD ($HEAD_SHA). Wait for completion before releasing."
-elif [[ -n "$CI_CONCLUSION" ]]; then
-  error "CI failed on HEAD ($HEAD_SHA) with conclusion: ${CI_CONCLUSION}. Fix before releasing."
-else
-  error "No CI run found for HEAD ($HEAD_SHA). Push the commit and wait for CI before releasing."
-fi
 
 # --- Summary ---
 echo ""
@@ -215,6 +197,10 @@ if [[ "$DRY_RUN" == "true" ]]; then
   exit 0
 fi
 
+if ! command -v gh &>/dev/null || ! gh auth status &>/dev/null 2>&1; then
+  error "Authenticated gh CLI is required to verify the release commit CI before tagging."
+fi
+
 # --- Execute Release ---
 echo ""
 info "Executing release..."
@@ -270,15 +256,33 @@ else
   ok "Current version metadata already committed; skipping release metadata commit"
 fi
 
-# 4. Tag
+info "Pushing release commit to origin..."
+git push origin master
+HEAD_SHA=$(git rev-parse HEAD)
+CI_WORKFLOW="CI"
+CI_VERIFIED=false
+for attempt in $(seq 1 90); do
+  CI_CONCLUSION=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // empty' 2>/dev/null || true)
+  CI_STATUS=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --limit 1 --json status --jq '.[0].status // empty' 2>/dev/null || true)
+  if [[ "$CI_CONCLUSION" == "success" ]]; then
+    CI_VERIFIED=true
+    ok "CI passed on release commit ($HEAD_SHA)"
+    break
+  fi
+  if [[ -n "$CI_CONCLUSION" && "$CI_CONCLUSION" != "success" ]]; then
+    error "CI failed on release commit ($HEAD_SHA) with conclusion: ${CI_CONCLUSION}. No tag was created."
+  fi
+  info "Waiting for release commit CI (${CI_STATUS:-not started}, attempt ${attempt}/90)..."
+  sleep 10
+done
+if [[ "$CI_VERIFIED" != "true" ]]; then
+  error "Timed out waiting for CI on release commit ($HEAD_SHA). No tag was created."
+fi
+
 git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
 ok "Tag v${NEW_VERSION} created"
-
-# 5. Push
-info "Pushing to origin..."
-git push origin master
 git push origin "v${NEW_VERSION}"
-ok "Pushed to origin (master + v${NEW_VERSION})"
+ok "Pushed tag v${NEW_VERSION} to origin"
 
 # --- Done ---
 echo ""

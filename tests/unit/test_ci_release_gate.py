@@ -21,6 +21,13 @@ def test_ci_e2e_supplies_every_required_authentication_secret() -> None:
         assert f"{key}=" in CI
 
 
+def test_docs_check_is_enforced_by_ci_and_release() -> None:
+    assert "  docs-check:" in CI
+    assert "make docs-check" in CI
+    assert "docs-check," in CI.split("  ci-gate:", 1)[1]
+    assert "make docs-check" in RELEASE.split("  test-release:", 1)[1].split("  scan-release-images:", 1)[0]
+
+
 def test_ci_builds_scans_and_publishes_all_five_exact_images() -> None:
     assert CI.count("service: [frontend, app, collector, postgres, redis]") >= 2
     assert "Build datastore images" not in CI
@@ -77,7 +84,16 @@ def test_release_script_updates_lockfile_and_breaking_changes() -> None:
 
 
 def test_release_script_requires_successful_remote_exact_head_ci() -> None:
-    assert "No CI run found for HEAD" in RELEASE_SCRIPT
+    assert "Timed out waiting for CI on release commit" in RELEASE_SCRIPT
     assert "Falling back to local tests" not in RELEASE_SCRIPT
     assert "Backend tests passed (docker)" not in RELEASE_SCRIPT
     assert "Backend tests passed (local)" not in RELEASE_SCRIPT
+
+
+def test_release_commit_passes_ci_before_tag_creation() -> None:
+    commit_index = RELEASE_SCRIPT.index('git commit -m "chore(release):')
+    push_index = RELEASE_SCRIPT.index("git push origin master")
+    ci_index = RELEASE_SCRIPT.index('CI passed on release commit')
+    tag_index = RELEASE_SCRIPT.index('git tag -a "v${NEW_VERSION}"')
+
+    assert commit_index < push_index < ci_index < tag_index

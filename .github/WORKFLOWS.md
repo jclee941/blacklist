@@ -27,7 +27,7 @@ make release TYPE=patch
 make release-dry TYPE=minor
 ```
 
-Before releasing, create, add, and commit `docs/manual/blacklist-<next-version>-release-notes.md`. `scripts/release.sh` checks the branch, working tree, test status, and that the versioned release note is non-empty and tracked before changing metadata. It then updates version metadata, generates a changelog entry, commits the release, creates an annotated tag, and pushes. The tag invokes `release.yml`. That workflow validates `VERSION`, `CHANGELOG.md`, and the versioned release note before building images, packages release artifacts, creates the GitHub Release, and publishes five images to GHCR.
+Before releasing, create, add, and commit `docs/manual/blacklist-<next-version>-release-notes.md`. `scripts/release.sh` validates the branch, clean worktree, and tracked release note; updates version metadata and changelog; commits and pushes that release candidate to `master`; waits for successful CI on the new commit; then creates and pushes the annotated tag. A failed candidate CI leaves no tag. The tag invokes `release.yml`, which runs its own build/test/scan/E2E/package gate before signing and publication.
 
 The protected `production` environment must provide `RELEASE_GPG_PRIVATE_KEY`, optional `RELEASE_GPG_PASSPHRASE`, and the matching uppercase 40-character `RELEASE_GPG_FINGERPRINT` variable. After test, scan, E2E, unsigned-package, and release gates pass, `sign-package` imports the private key into an ephemeral runner-local GnuPG home, verifies the fingerprint, signs both `MANIFEST.sha256` and the final tarball, and removes the GnuPG home before the job exits.
 
@@ -39,4 +39,4 @@ Pull-request workflows use GitHub-hosted runners with read-only tokens and no in
 - Use least-privilege `permissions` and preserve concurrency controls.
 - Keep CI and release behavior aligned with both `scripts/release.sh` and the workflow source.
 - Don't add secrets or webhook values to tracked workflow files. Use repository secrets or variables.
-- Run `python3 .github/scripts/validate_automation_contracts.py`, `actionlint`, and the applicable Compose config render before changing automation.
+- Run `python3 .github/scripts/validate_automation_contracts.py`, `make docs-check`, `actionlint`, and the applicable Compose config render before changing automation.
