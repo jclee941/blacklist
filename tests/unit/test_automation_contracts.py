@@ -29,7 +29,7 @@ jobs:
   scan-images:
     steps:
       - with:
-          skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json
+          skip-files: ${{ matrix.service == 'postgres' && 'usr/local/bin/gosu' || '' }}
   e2e:
     timeout-minutes: 60
   ci-gate:
@@ -254,8 +254,8 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             ".github/workflows/ci.yml",
-            "skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json",
-            "CI Trivy scan does not exclude pip's vendored dependency SBOM",
+            "skip-files: ${{ matrix.service == 'postgres' && 'usr/local/bin/gosu' || '' }}",
+            "CI Trivy scan does not apply the verified PostgreSQL gosu false-positive exclusion",
         ),
         (
             ".github/workflows/ci.yml",
