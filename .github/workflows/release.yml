@@ -68,11 +68,9 @@ jobs:
     needs: validate
     permissions:
       contents: read
-      packages: write
     uses: ./.github/workflows/build-images.yml
     with:
       version: ${{ needs.validate.outputs.version }}
-      push: false
 
   test-release:
     needs: validate
@@ -185,6 +183,7 @@ jobs:
             "$CI_ENV_FILE" "$BLACKLIST_TLS_DIR" "$BLACKLIST_FRONTEND_TLS_DIR" "$ADMIN_PASSWORD" >> "$GITHUB_ENV"
           cat > "$CI_ENV_FILE" <<EOF
           POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          DB_OWNER_ROLE=blacklist_owner
           APP_DB_USER=blacklist_app
           APP_DB_PASSWORD=$(openssl rand -hex 24)
           COLLECTOR_DB_USER=blacklist_collector

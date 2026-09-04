@@ -10,18 +10,11 @@ on:
         description: 'Image version tag'
         type: string
         default: 'latest'
-      push:
-        description: 'Push to GHCR after build'
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       version:
         type: string
         default: 'latest'
-      push:
-        type: boolean
-        default: false
 
 concurrency:
   group: build-images-${{ github.ref }}
@@ -33,7 +26,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -58,35 +50,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
-      - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
-        if: inputs.push
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set image tags
         id: meta
         run: |
           SERVICE="${{ matrix.service }}"
           VERSION="${{ inputs.version }}"
-          if [ "${{ inputs.push }}" = "true" ]; then
-            REGISTRY="ghcr.io/${{ github.repository }}"
-            TAGS="${REGISTRY}/blacklist-${SERVICE}:${VERSION}"
-            if [ "${VERSION}" != "latest" ]; then
-              TAGS="${TAGS},${REGISTRY}/blacklist-${SERVICE}:latest"
-            fi
-          else
-            TAGS="blacklist-${SERVICE}:${VERSION}"
-          fi
+          TAGS="blacklist-${SERVICE}:${VERSION}"
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          push: ${{ inputs.push }}
-          load: ${{ !inputs.push }}
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             APP_VERSION=${{ inputs.version }}
@@ -96,13 +73,11 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Export image
-        if: ${{ !inputs.push }}
         run: |
           docker save blacklist-${{ matrix.service }}:${{ inputs.version }} | \
             gzip > blacklist-${{ matrix.service }}.tar.gz
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ !inputs.push }}
         with:
           name: image-${{ matrix.service }}
           path: blacklist-${{ matrix.service }}.tar.gz
