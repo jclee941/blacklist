@@ -4,16 +4,16 @@
 
 ## 주요 변경 사항
 
-| 영역 | 변경 내용 |
-| --- | --- |
-| 관리자 인증 | 로그인 속도 제한과 계정 잠금, bcrypt 전환, JWT `jti` 폐기 및 사용자별 세션 버전을 적용했습니다. |
-| 세션 종료 | UI 로그아웃이 서버 토큰을 폐기하며, 비밀번호 변경 시 기존 세션이 모두 무효화됩니다. |
-| Redis | 인증 폐기 상태를 AOF/RDB로 유지하고 `noeviction` 정책을 적용했습니다. |
-| 데이터베이스 | 연결 풀 반환 경로를 통합하고 기존 볼륨에 IP 상태 컬럼과 upsert 고유 인덱스를 자동 적용합니다. |
-| API 입력 | IP, batch, CSV 입력 크기와 형식을 검증하고 CSV formula injection 및 cache stale-data 경로를 차단했습니다. |
-| FortiGate | 허용 네트워크, 등록 장비, CA와 SSH `known_hosts` 검증을 필수화했습니다. |
-| 프론트엔드 | 정적 파일 path traversal, 신뢰되지 않은 forwarding header, 공개 metrics proxy를 제거했습니다. |
-| 컨테이너 | 외부 포트를 HTTPS 443 하나로 제한하고 non-root 실행, 내부 TLS, SCRAM과 capability 축소를 적용했습니다. |
+| 영역            | 변경 내용                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------ |
+| 관리자 인증     | 로그인 속도 제한과 계정 잠금, bcrypt 전환, JWT `jti` 폐기 및 사용자별 세션 버전을 적용했습니다.              |
+| 세션 종료       | UI 로그아웃이 서버 토큰을 폐기하며, 비밀번호 변경 시 기존 세션이 모두 무효화됩니다.                          |
+| Redis           | 인증 폐기 상태를 AOF/RDB로 유지하고 `noeviction` 정책을 적용했습니다.                                        |
+| 데이터베이스    | 연결 풀 반환 경로를 통합하고 기존 볼륨에 IP 상태 컬럼과 upsert 고유 인덱스를 자동 적용합니다.                |
+| API 입력        | IP, batch, CSV 입력 크기와 형식을 검증하고 CSV formula injection 및 cache stale-data 경로를 차단했습니다.    |
+| FortiGate       | 허용 네트워크, 등록 장비, CA와 SSH `known_hosts` 검증을 필수화했습니다.                                      |
+| 프론트엔드      | 정적 파일 path traversal, 신뢰되지 않은 forwarding header, 공개 metrics proxy를 제거했습니다.                |
+| 컨테이너        | 외부 포트를 HTTPS 443 하나로 제한하고 non-root 실행, 내부 TLS, SCRAM과 capability 축소를 적용했습니다.       |
 | 오프라인 릴리스 | 내부 manifest와 최종 tarball을 fingerprint 고정 GPG 키로 서명하며, 압축 해제 전에 tarball 서명을 검증합니다. |
 
 ## 업그레이드 주의사항
