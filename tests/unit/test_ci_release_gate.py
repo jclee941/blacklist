@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 CI = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 RELEASE = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+BUILD_IMAGES = (ROOT / ".github/workflows/build-images.yml").read_text(encoding="utf-8")
 RELEASE_SCRIPT = (ROOT / "scripts/release.sh").read_text(encoding="utf-8")
 
 
@@ -23,6 +24,15 @@ def test_ci_builds_scans_and_publishes_all_five_exact_images() -> None:
     assert CI.count("service: [frontend, app, collector, postgres, redis]") >= 2
     assert "Build datastore images" not in CI
     assert "from-artifact: false" not in CI
+    assert "dockerfile: deploy/redis/Dockerfile" in CI
+
+
+def test_manual_build_workflow_is_artifact_only() -> None:
+    assert "inputs.push" not in BUILD_IMAGES
+    assert "packages: write" not in BUILD_IMAGES
+    assert "docker/login-action" not in BUILD_IMAGES
+    assert "push: false" in BUILD_IMAGES
+    assert "actions/upload-artifact" in BUILD_IMAGES
 
 
 def test_release_tests_and_scans_the_exact_publishable_images() -> None:
