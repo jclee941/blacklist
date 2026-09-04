@@ -1,7 +1,5 @@
 # TESTS KNOWLEDGE BASE
 
-**Version:** `5.0.0`
-
 ## OVERVIEW
 
 Multi-layer testing: pytest (backend) + Vitest (frontend unit) + Playwright (E2E). Coverage target: 80% on `app/core/`.
@@ -29,8 +27,6 @@ tests/
 - No `conftest.py` — inline fixtures with `yield` cleanup.
 - Coverage: `--cov-fail-under=80`.
 - Shared case-data modules (no tests inside): `unit/services/blacklist_service_extended_cases.py`, `frontend/__tests__/lib/api-*.cases.ts`.
-- No `conftest.py` — inline fixtures with `yield` cleanup.
-- Coverage: `--cov-fail-under=80`.
 
 ## CONVENTIONS
 
