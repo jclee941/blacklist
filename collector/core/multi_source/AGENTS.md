@@ -33,6 +33,6 @@ Async multi-source ingestion framework. Aggregates threat data from 14 source ty
 
 | Symbol | Type | Location | Refs | Role |
 | --- | --- | --- | --- | --- |
-| `MultiSourceCollector` | class | `collector.py:15` | high | async orchestration + `asyncio.gather` merge |
+| `MultiSourceCollector` | class | `collector.py` | high | async orchestration + `asyncio.gather` merge |
 | `SourceType` | enum | `models.py:*` | high | 14 source type definitions |
 | `SourceConfig` | dataclass | `models.py:*` | med | per-source rate limit + priority config |

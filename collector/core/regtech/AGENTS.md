@@ -35,4 +35,3 @@ The remote WAF quota-bans IPs for fast paging (empty bodies → blackhole). Curr
 
 - Skipping auth cache validation (forces re-auth).
 - Raising request rate to "finish faster" — this is what got the egress IP banned.
-- Imports from `app/` (collector isolation).

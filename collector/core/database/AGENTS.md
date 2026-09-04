@@ -41,4 +41,3 @@ Schema changes belong in `postgres/migrations/`; the collector role cannot `CREA
 - Adding a credential fallback (env var, file, hardcoded default) outside `collector_regtech_credentials`.
 - Writing to `collector_regtech_credentials` from collector code — the grant is read-only by design.
 - Running DDL/`ALTER TABLE` from collector code at runtime; schema changes go in `postgres/` migrations.
-- Importing `app/core/services/database_service.py` — separate role, separate pool, collector isolation.
