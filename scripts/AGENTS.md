@@ -1,7 +1,5 @@
 # SCRIPTS KNOWLEDGE BASE
 
-**Version:** 5.0.0
-
 ## OVERVIEW
 
 Release and offline-bundle automation. Entry points: `release.sh` (versioned release) and `build_offline_bundle.py` (air-gapped package).
@@ -10,12 +8,14 @@ Release and offline-bundle automation. Entry points: `release.sh` (versioned rel
 
 | File | Role |
 | --- | --- |
-| `release.sh` | release entry: clean-master check, VERSION/CHANGELOG/package.json bump, annotated tag, push |
+| `release.sh` | release entry (`scripts/release.sh $TYPE $DRY_RUN`, invoked by `make release`/`make release-dry`): clean-`master` + exact-HEAD-CI check, bump `VERSION`/`CHANGELOG.md`/`frontend/package.json`+`package-lock.json`, commit, annotated `v<version>` tag, push |
 | `build_offline_bundle.py` | local bundle build: `--build` (rebuild all images), `--skip-images`, `--output` |
 | `offline_bundle/assembly.py` | copies compose/installer/docs (guides + screenshots + PDFs) + bind-mount assets, fail-closed on missing |
 | `offline_bundle/images.py` | per-service docker build (`blacklist-<svc>:<version>`) and `docker save` export |
 | `offline_bundle/integrity.py` | version resolution, manifest/checksum writing, packing |
 | `migrate_env_credentials_to_db.py` | one-off credential migration utility |
+
+`make release` defaults `TYPE=patch` (Makefile); `release.sh` itself defaults to `auto` (reuse current `VERSION`/existing CHANGELOG entry) when invoked directly with no argument — always go through `make release[-dry] TYPE=...` to get the patch default. Valid `TYPE` values: `auto`, `patch`, `minor`, `major`, `current`.
 
 ## CONVENTIONS
 
@@ -27,3 +27,4 @@ Release and offline-bundle automation. Entry points: `release.sh` (versioned rel
 
 - Releasing outside `scripts/release.sh` (version/changelog drift).
 - Editing bundle contents after `pack` — rebuild instead.
+- Duplicating `.github/workflows/release.yml` gate/sign/publish logic here — `release.sh` only prepares and tags `master`; see `.github/AGENTS.md` for what the tag push triggers.
