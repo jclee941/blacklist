@@ -328,7 +328,7 @@ deploy: ## Deploy to production (builds, starts, verifies health)
 	@echo "✅ Production deployment completed"
 
 # Release automation
-TYPE ?= auto
+TYPE ?= patch
 
 release: check-clean ## Release: auto-select VERSION or bump/tag and push (TYPE=auto|patch|minor|major|current)
 	@bash scripts/release.sh $(TYPE) false
