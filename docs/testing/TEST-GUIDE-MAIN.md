@@ -1,24 +1,24 @@
 # Blacklist Platform - Testing Guide
 
-| 항목 | 내용 |
-|------|------|
-| **버전** | 4.1.0 |
-| **최종수정** | 2026-07-29 |
-| **범위** | Backend/collector Pytest, frontend Vitest, and Playwright scenarios |
+| 항목         | 내용                                                                |
+| ------------ | ------------------------------------------------------------------- |
+| **버전**     | 4.1.0                                                               |
+| **최종수정** | 2026-07-29                                                          |
+| **범위**     | Backend/collector Pytest, frontend Vitest, and Playwright scenarios |
 
 ---
 
 ## Quick Reference
 
-| Test Type | Framework | Location | Command | Notes |
-|-----------|-----------|----------|---------|-------|
-| Backend Unit | Pytest | `tests/unit/` except `tests/unit/collector/` | `make test-backend-unit` | Enforces 80% app coverage |
-| Collector Unit | Pytest | `tests/unit/collector/` | `make test-collector-unit` | Uses the isolated collector import path |
-| Backend Integration | Pytest | `tests/integration/` | `make test-backend-integration` | Credential persistence scenarios |
-| Frontend Unit | Vitest | `frontend/__tests__/` | `make test-frontend-unit` | Runs Vitest once |
-| E2E | Playwright | `frontend/e2e/` | `make test-frontend-e2e` | Separate from `make test`; CI budget is 60 minutes |
-| Backend Coverage | Pytest+cov | application unit suite | `make test-backend-coverage` | Writes terminal, HTML, and XML reports |
-| **Unit + integration** | **Multiple** | **repository** | **`make test`** | **Backend, collector, integration, and Vitest; excludes Playwright** |
+| Test Type              | Framework    | Location                                     | Command                         | Notes                                                                |
+| ---------------------- | ------------ | -------------------------------------------- | ------------------------------- | -------------------------------------------------------------------- |
+| Backend Unit           | Pytest       | `tests/unit/` except `tests/unit/collector/` | `make test-backend-unit`        | Enforces 80% app coverage                                            |
+| Collector Unit         | Pytest       | `tests/unit/collector/`                      | `make test-collector-unit`      | Uses the isolated collector import path                              |
+| Backend Integration    | Pytest       | `tests/integration/`                         | `make test-backend-integration` | Credential persistence scenarios                                     |
+| Frontend Unit          | Vitest       | `frontend/__tests__/`                        | `make test-frontend-unit`       | Runs Vitest once                                                     |
+| E2E                    | Playwright   | `frontend/e2e/`                              | `make test-frontend-e2e`        | Separate from `make test`; CI budget is 60 minutes                   |
+| Backend Coverage       | Pytest+cov   | application unit suite                       | `make test-backend-coverage`    | Writes terminal, HTML, and XML reports                               |
+| **Unit + integration** | **Multiple** | **repository**                               | **`make test`**                 | **Backend, collector, integration, and Vitest; excludes Playwright** |
 
 ---
 
@@ -66,7 +66,8 @@ docker compose exec -T blacklist-app python -m pytest tests/unit -v --tb=short
 ```
 
 **Test locations:**
-```
+
+```text
 tests/
 ├── unit/
 │   ├── auth/           # JWT and middleware tests
@@ -97,7 +98,8 @@ cd frontend && npm run test -- --watch
 ```
 
 **Test locations:**
-```
+
+```text
 frontend/
 ├── __tests__/          # Vitest unit tests
 │   ├── clients/        # Client component tests
@@ -126,7 +128,8 @@ cd frontend && npx playwright test --debug
 ```
 
 **Test locations:**
-```
+
+```text
 frontend/
 ├── e2e/                # Feature, smoke, regression, and visual scenarios
 └── playwright.config.ts
@@ -185,7 +188,7 @@ describe('Dashboard', () => {
 
 Tests run automatically via GitHub Actions (`ci.yml`):
 
-```
+```text
 Push/PR to master
   → detect-changes (what changed?)
   → lint-backend (Ruff) + lint-frontend (tsc)
@@ -198,10 +201,10 @@ Push/PR to master
 
 ### Coverage Requirements
 
-| Scope | Target | Tool |
-|-------|--------|------|
-| Backend (`app/core/`) | 80%+ | pytest-cov |
-| Frontend | Tracked | Vitest coverage |
+| Scope                 | Target  | Tool            |
+| --------------------- | ------- | --------------- |
+| Backend (`app/core/`) | 80%+    | pytest-cov      |
+| Frontend              | Tracked | Vitest coverage |
 
 Coverage below 80% on backend **fails the CI pipeline**.
 
@@ -271,4 +274,4 @@ cd frontend && npm run test
 
 ---
 
-**문서 끝**
+## 문서 끝

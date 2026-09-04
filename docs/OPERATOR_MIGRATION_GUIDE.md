@@ -11,12 +11,13 @@
 Starting with version 3.6.0, the Blacklist Intelligence Platform **no longer supports storing credentials in environment variables**. All credentials must be managed through the **PostgreSQL database** and configured via the **web API**.
 
 ### What Changed?
-| Before (3.5.x) | After (3.6.0+) |
-|---|---|
+
+| Before (3.5.x)                                            | After (3.6.0+)                                       |
+| --------------------------------------------------------- | ---------------------------------------------------- |
 | Credentials in `.env` file (REGTECH_ID, REGTECH_PW, etc.) | Credentials stored in `collection_credentials` table |
-| Manual restart required for credential changes | Changes take effect within next collection cycle |
-| No audit trail for env var credentials | Full audit trail in database |
-| Env vars took priority over DB | DB is the single source of truth |
+| Manual restart required for credential changes            | Changes take effect within next collection cycle     |
+| No audit trail for env var credentials                    | Full audit trail in database                         |
+| Env vars took priority over DB                            | DB is the single source of truth                     |
 
 ---
 
@@ -64,6 +65,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 ### Step 3: Deploy New Version
 
 #### Docker Compose Users
+
 ```bash
 # Download or build 3.6.0 images
 make build  # or docker compose pull
@@ -78,6 +80,7 @@ docker compose logs collector | head -20
 ```
 
 #### Kubernetes Users
+
 ```bash
 # Update image tags in your deployment
 kubectl set image deployment/blacklist-app \
@@ -182,14 +185,15 @@ docker compose logs -f collector | tail -30
 
 ### Web UI Method (Recommended)
 
-1. **Open the web dashboard**: https://your-server/
+1. **Open the web dashboard**: <https://your-server/>
 2. **Navigate to**: Settings → Credentials
 3. **Update REGTECH**: Enter username and password, click Save
-5. **Changes take effect**: Within next collection cycle (no restart needed)
+4. **Changes take effect**: Within next collection cycle (no restart needed)
 
 ### API Method
 
 #### Add/Update REGTECH Credentials
+
 ```bash
 curl -X POST http://localhost:2542/api/credentials \
   -H "Content-Type: application/json" \
@@ -201,12 +205,14 @@ curl -X POST http://localhost:2542/api/credentials \
 ```
 
 #### View Current Credentials (Summary Only)
+
 ```bash
 curl http://localhost:2542/api/credentials \
   -H "Authorization: Bearer $TOKEN" | jq
 ```
 
 #### Delete Credentials
+
 ```bash
 curl -X DELETE http://localhost:2542/api/credentials/regtech \
   -H "Authorization: Bearer $TOKEN"
@@ -218,12 +224,14 @@ curl -X DELETE http://localhost:2542/api/credentials/regtech \
 
 ### Collector Won't Start: "Missing Credentials"
 
-**Error**: 
-```
+**Error**:
+
+```text
 ❌ Missing credentials: REGTECH. Collections will fail.
 ```
 
 **Solution**: Run the migration script from Step 4:
+
 ```bash
 docker compose exec -T blacklist-app python3 scripts/migrate_env_credentials_to_db.py \
     --regtech-id "YOUR_ID" \
@@ -235,6 +243,7 @@ docker compose exec -T blacklist-app python3 scripts/migrate_env_credentials_to_
 **Error**: Collection jobs fail with "credentials not found"
 
 **Solution**:
+
 1. Check database: `SELECT * FROM collection_credentials WHERE enabled = true;`
 2. If empty, run migration script again
 3. If present but collection still fails, credentials may be incorrect
@@ -242,12 +251,14 @@ docker compose exec -T blacklist-app python3 scripts/migrate_env_credentials_to_
 
 ### Decryption Failed: Wrong Master Key
 
-**Error**: 
-```
+**Error**:
+
+```text
 ❌ Credential validation error: Failed to decrypt REGTECH credentials
 ```
 
 **Solution**:
+
 1. Verify `CREDENTIAL_MASTER_KEY` env var matches your database encryption key
 2. If lost, you must re-add credentials (decryption cannot be reversed)
 3. Update via web UI: Settings → Credentials
@@ -258,12 +269,14 @@ If something goes wrong:
 
 1. **Restore database backup** from pre-migration
 2. **Restore old app/collector images**:
+
    ```bash
    git checkout v3.5.64
    make build
    docker compose down
    docker compose up -d
    ```
+
 3. **Re-add env var credentials** to `.env`
 4. **Restart and verify**
 
@@ -277,7 +290,7 @@ After migration, verify everything is working:
 # 1. Check app health
 curl http://localhost:2542/health | jq '.status'
 
-# 2. Check collector health  
+# 2. Check collector health
 curl http://localhost:8545/health | jq '.status'
 
 # 3. Check collector startup logs
@@ -316,19 +329,20 @@ A: It encrypts passwords in the database using AES-256. Store it securely (Vault
 ## Support
 
 For issues:
+
 1. Check logs: `docker compose logs collector`
 2. Run health checks (see above)
 3. Review this guide's Troubleshooting section
 4. Contact your DevOps/Platform team
-5. Open an issue: https://github.com/qws941/blacklist/issues
+5. Open an issue: <https://github.com/qws941/blacklist/issues>
 
 ---
 
 ## Version Info
 
-| Version | Status | Credential Management |
-|---|---|---|
-| < 3.6.0 | Legacy | Env vars (deprecated) |
-| 3.6.0+ | Current | DB-only (required) |
+| Version | Status  | Credential Management |
+| ------- | ------- | --------------------- |
+| < 3.6.0 | Legacy  | Env vars (deprecated) |
+| 3.6.0+  | Current | DB-only (required)    |
 
 **Migrate ASAP** to 3.6.0+ for improved security and operational flexibility.

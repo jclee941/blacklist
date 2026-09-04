@@ -40,7 +40,7 @@ Set the collector's rendered `DISABLE_JWT_AUTH` value to `"false"` and provide t
 ## Follow-up
 
 1. Generate `COLLECTOR_AUTH_TOKEN` in `deploy/install.sh` with the other target-local secrets; do not distribute a value in the bundle.
-2. Reconcile the pre-existing app calls to unregistered `/api/scheduler/restart` and `/api/data` collector routes separately; authentication does not create those routes.
+2. The former `/api/scheduler/restart` app call was removed. Reconcile the remaining app call to the unregistered collector `/api/data` route separately; authentication does not create that route.
 3. Reassess JWT only if the collector later acquires PyJWT for another justified offline-image requirement. The shared bearer mechanism avoids that dependency today.
 
 ## Amendment (2026-09-04)
