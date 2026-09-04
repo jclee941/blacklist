@@ -185,6 +185,10 @@ jobs:
             "$CI_ENV_FILE" "$BLACKLIST_TLS_DIR" "$BLACKLIST_FRONTEND_TLS_DIR" "$ADMIN_PASSWORD" >> "$GITHUB_ENV"
           cat > "$CI_ENV_FILE" <<EOF
           POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          APP_DB_USER=blacklist_app
+          APP_DB_PASSWORD=$(openssl rand -hex 24)
+          COLLECTOR_DB_USER=blacklist_collector
+          COLLECTOR_DB_PASSWORD=$(openssl rand -hex 24)
           REDIS_PASSWORD=$(openssl rand -hex 24)
           SECRET_KEY=$(openssl rand -hex 32)
           FLASK_SECRET_KEY=$(openssl rand -hex 32)
@@ -273,6 +277,11 @@ jobs:
             echo "::error::RELEASE_GPG_PRIVATE_KEY and RELEASE_GPG_FINGERPRINT are required"
             exit 1
           fi
+          TRACKED_FINGERPRINT=$(tr -d '[:space:]' < docs/manual/blacklist-release-signing-key-v1.fingerprint)
+          if [[ "$RELEASE_GPG_FINGERPRINT" != "$TRACKED_FINGERPRINT" ]]; then
+            echo "::error::RELEASE_GPG_FINGERPRINT does not match the tracked release identity"
+            exit 1
+          fi
           install -d -m 700 "$GNUPGHOME"
           cleanup_gnupg() {
             gpgconf --kill all || true
@@ -309,8 +318,8 @@ jobs:
             -czf "${BUNDLE}.tar.gz" -C release-signed "${BUNDLE}"
           sha256sum "${BUNDLE}.tar.gz" > "${BUNDLE}.tar.gz.sha256"
           sign_file "${BUNDLE}.tar.gz" "${BUNDLE}.tar.gz.asc"
-          gpg --batch --armor --export "$RELEASE_GPG_FINGERPRINT" > "${BUNDLE}-release-public-key.asc"
-          printf '%s\n' "$RELEASE_GPG_FINGERPRINT" > "${BUNDLE}-release-key.fingerprint"
+          cp docs/manual/blacklist-release-signing-key-v1.asc "${BUNDLE}-release-public-key.asc"
+          cp docs/manual/blacklist-release-signing-key-v1.fingerprint "${BUNDLE}-release-key.fingerprint"
           cp "docs/manual/blacklist-${RELEASE_VERSION}-release-notes.md" "${BUNDLE}-release-notes.md"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

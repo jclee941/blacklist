@@ -38,6 +38,8 @@ def test_release_signing_keeps_the_passphrase_out_of_process_arguments() -> None
 def test_release_signing_pins_the_expected_key_fingerprint() -> None:
     assert "RELEASE_GPG_FINGERPRINT: ${{ vars.RELEASE_GPG_FINGERPRINT }}" in WORKFLOW
     assert '--local-user "$RELEASE_GPG_FINGERPRINT"' in WORKFLOW
+    assert "blacklist-release-signing-key-v1.fingerprint" in WORKFLOW
+    assert 'RELEASE_GPG_FINGERPRINT" != "$TRACKED_FINGERPRINT' in WORKFLOW
 
 
 def test_release_signs_and_publishes_the_final_tarball() -> None:
