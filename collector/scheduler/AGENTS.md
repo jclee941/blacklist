@@ -19,7 +19,7 @@ Collection scheduling package. `manager.py` owns the scheduler loop, the adaptiv
 
 ## COLLECTION PATHS AND PAGE LIMITS
 
-- Scheduled/daily (`scheduled.py`): `max_pages=1`, ~1-day window, driven by the `schedule` loop in `manager.py`.
+- Scheduled/daily (`scheduled.py` `run_daily_collection`, run by `manager.py`'s `_daily_collection` at 02:00): `max_pages=1`, `start_date=None`/`end_date=None` — a full-data strategy with no date window, not a 1-day range.
 - Manual (`trigger_manual_collection` → `run_manual_collection`): `max_pages=CollectorConfig.MAX_PAGES_PER_COLLECTION` (default 20), ~90-day window. Starts a bare thread — it does NOT go through the duplicate guard below.
 - Force (`force_collection`, `POST /api/force-collection/<source>`): same `MAX_PAGES_PER_COLLECTION` bound as manual, but wrapped in `_active_collections_lock`/`_active_collections` — a second force request for a source already running is rejected instead of racing.
 
@@ -32,4 +32,3 @@ Collection scheduling package. `manager.py` owns the scheduler loop, the adaptiv
 
 - Bypassing `_active_collections_lock` to "force" a run — duplicate collectors corrupt history.
 - Assuming manual collection is unbounded — it shares the same `MAX_PAGES_PER_COLLECTION` cap as force.
-- Importing scheduler modules from `app/` (collector isolation).

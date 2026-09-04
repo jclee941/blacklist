@@ -11,6 +11,7 @@ Core ETL pipeline modules. Collectors, parsers, database, and authentication.
 | `fortigate_collector.py` | FortiGate device collection facade |
 | `rate_limiter.py` | Token-bucket + adaptive limiter; `REGTECH_RATE_*` env knobs with WAF-safe defaults |
 | `bounded_process.py` | Size/time-bounded subprocess runner backing curl downloads (`run_bounded`, `run_text_bounded`) |
+| `control_auth.py` | bearer-token policy for collector control/status/log routes; bypass allowed only in development/testing |
 | `validators.py` | IP and CIDR validation |
 | `archive_manager.py` | Collection archive retention |
 | `data_quality_manager.py` | Collection quality checks |
