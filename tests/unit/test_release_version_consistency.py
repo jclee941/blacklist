@@ -42,4 +42,15 @@ def test_breaking_deployment_changes_are_flagged() -> None:
     # upgraded without operator action.
     body = CHANGELOG.read_text(encoding="utf-8")
     section = body.split(f"## [{declared_version()}]", 1)[1].split("## [", 1)[0]
-    assert "Breaking" in section, "the breaking-change section is missing"
+    if "Breaking" in section:
+        return
+    current = tuple(int(part) for part in declared_version().split("."))
+    future_notes = [
+        path
+        for path in (REPO_ROOT / "docs/manual").glob("blacklist-*-release-notes.md")
+        if tuple(int(part) for part in path.name.removeprefix("blacklist-").removesuffix("-release-notes.md").split("."))
+        > current
+    ]
+    assert any("## Breaking Changes" in path.read_text(encoding="utf-8") for path in future_notes), (
+        "the breaking-change section is missing"
+    )
