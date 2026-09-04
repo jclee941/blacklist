@@ -1,7 +1,7 @@
 # Blacklist Project Guide
 
 **Repository:** `jclee941/blacklist`
-**Current version:** `5.0.0` in `VERSION`
+**Current version:** read the authoritative value from `VERSION`
 
 ## Overview
 
