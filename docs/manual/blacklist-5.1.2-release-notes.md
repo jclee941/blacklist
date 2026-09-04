@@ -11,6 +11,7 @@
 ## 주요 변경 사항
 
 - 관리자 password hash와 session generation을 하나의 PostgreSQL 트랜잭션으로 갱신합니다.
+- PostgreSQL bootstrap owner를 보존하고 app·collector를 별도 least-privilege runtime role로 실행합니다.
 - 인증 DB 장애 시 이전 `ADMIN_PASSWORD` 환경값으로 fallback하지 않고 fail closed 합니다.
 - client `Forwarded`와 모든 `X-Forwarded-*` 헤더를 제거하고 실제 frontend TLS socket 기준으로 재생성합니다.
 - frontend와 Flask에 1 MiB request body 상한을 적용해 chunked body를 포함한 공개 로그인 OOM 경로를 차단합니다.
@@ -18,6 +19,7 @@
 - CI가 전체 push range를 검사하고 release metadata 변경 시 backend, collector, integration, E2E와 image scan을 모두 실행합니다.
 - 릴리스는 동일 이미지의 테스트·Trivy scan·E2E·서명 성공 후에만 GitHub Release와 GHCR을 게시합니다.
 - GitHub Release에 전체 릴리스 노트, 공개키와 fingerprint를 함께 게시합니다.
+- WARP는 개발 overlay에서만 활성화하고 production installer와 release overlay에서는 항상 비활성화합니다.
 
 ## 업그레이드
 
@@ -28,10 +30,10 @@
 
 ## 검증 결과
 
-- Backend 단위 테스트: 1,756개 통과, coverage 85.53%
+- Backend 단위 테스트: 1,764개 통과, coverage 85.51%
 - Backend 통합 테스트: 6개 통과
 - Collector 단위 테스트: 353개 통과
-- Frontend 단위 테스트: 477개 통과
+- Frontend 단위 테스트: 478개 통과
 - Chromium E2E: 209개 통과, 1개 조건부 skip
 - Frontend typecheck, lint, production build: 통과
 - 5개 Docker 이미지 HIGH/CRITICAL Trivy scan: 통과
