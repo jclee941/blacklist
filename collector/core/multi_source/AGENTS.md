@@ -1,24 +1,20 @@
 # MULTI-SOURCE COLLECTOR KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
-
 ## OVERVIEW
 
 Async multi-source ingestion framework. Aggregates threat data from 14 source types.
 
 ## FILES
 
-| File           | LOC | Role                                                           |
-| -------------- | --- | -------------------------------------------------------------- |
-| `collector.py` | 408 | async orchestration, source registry, `asyncio.gather` + merge |
-| `parsers.py`   | 200 | text/JSON parser mixins for different feed formats             |
-| `models.py`    | 47  | `SourceType` enum (14 types), `SourceConfig` dataclass         |
+| File | LOC | Role |
+| -------------- | --- | --- |
+| `collector.py` | 410 | async orchestration, source registry, `asyncio.gather` + merge |
+| `parsers.py`   | 200 | text/JSON parser mixins for different feed formats |
+| `models.py`    | 47  | `SourceType` enum (14 types), `SourceConfig` dataclass |
 
 ## SOURCE TYPES
 
-14 types from `REGTECH` through `JSON_API`. 6 default sources configured with priorities and rate limits.
+14 types from `REGTECH` through `JSON_API`. Seven default sources are configured with priorities and rate limits.
 
 ## CONVENTIONS
 
@@ -32,7 +28,6 @@ Async multi-source ingestion framework. Aggregates threat data from 14 source ty
 - Synchronous HTTP calls (use `aiohttp`).
 - Unbounded concurrency (always use semaphore).
 - Persisting before normalization/deduplication.
-
 
 ## CODE MAP
 
