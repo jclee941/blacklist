@@ -18,30 +18,30 @@ Soft-fail (constructed inside try/except, so an error is logged and the service 
 
 ## KEY FILES
 
-| File                               | Role                                                          |
-| ----------------------------------- | -------------------------------------------------------------- |
-| `service_factory.py`               | `initialize_services()` DI container, strict init order       |
-| `blacklist_service.py`             | core service: cache, queries, whitelist, stats (mixin host)   |
-| `blacklist_service_collection.py`  | collection/sync mixin (extracted)                              |
-| `blacklist_service_health.py`      | health/stats mixin (extracted)                                 |
-| `blacklist_service_sync.py`        | collector sync + bulk upsert                                   |
-| `auth_state_service.py`            | transactional admin credential + session-version state (fails closed) |
-| `collection_service.py`            | collection orchestration                                       |
-| `database_service.py`              | raw SQL query execution                                        |
-| `secure_credential_service.py`     | Fernet-based credential storage                                 |
-| `settings_service.py`              | non-auth `system_settings` CRUD + cache                         |
+| File                              | Role                                                                  |
+| --------------------------------- | --------------------------------------------------------------------- |
+| `service_factory.py`              | `initialize_services()` DI container, strict init order               |
+| `blacklist_service.py`            | core service: cache, queries, whitelist, stats (mixin host)           |
+| `blacklist_service_collection.py` | collection/sync mixin (extracted)                                     |
+| `blacklist_service_health.py`     | health/stats mixin (extracted)                                        |
+| `blacklist_service_sync.py`       | collector sync + bulk upsert                                          |
+| `auth_state_service.py`           | transactional admin credential + session-version state (fails closed) |
+| `collection_service.py`           | collection orchestration                                              |
+| `database_service.py`             | raw SQL query execution                                               |
+| `secure_credential_service.py`    | Fernet-based credential storage                                       |
+| `settings_service.py`             | non-auth `system_settings` CRUD + cache                               |
 
 ## CODE MAP
 
-| Symbol                    | Type     | Location                    | Refs | Role                                             |
-| -------------------------- | -------- | ----------------------------- | ---- | -------------------------------------------------- |
-| `initialize_services`     | function | `service_factory.py`      | high | DI container, strict init order                  |
-| `BlacklistService`        | class    | `blacklist_service.py`    | high | core CRUD + sync + system stats                  |
-| `AuthStateService`        | class    | `auth_state_service.py`   | high | transactional password/session read+rotate, fails closed via `AuthStateUnavailableError` |
-| `CollectionService`       | class    | `collection_service.py`   | high | collection orchestration across sources          |
-| `SecureCredentialService` | class    | `secure_credential_service.py` | high | Fernet-based credential storage                  |
-| `SettingsService`         | class    | `settings_service.py`     | med  | system settings CRUD                              |
-| `ThreatScoringService`    | class    | `scoring_service.py`      | med  | IP threat scoring engine                          |
+| Symbol                    | Type     | Location                       | Refs | Role                                                                                     |
+| ------------------------- | -------- | ------------------------------ | ---- | ---------------------------------------------------------------------------------------- |
+| `initialize_services`     | function | `service_factory.py`           | high | DI container, strict init order                                                          |
+| `BlacklistService`        | class    | `blacklist_service.py`         | high | core CRUD + sync + system stats                                                          |
+| `AuthStateService`        | class    | `auth_state_service.py`        | high | transactional password/session read+rotate, fails closed via `AuthStateUnavailableError` |
+| `CollectionService`       | class    | `collection_service.py`        | high | collection orchestration across sources                                                  |
+| `SecureCredentialService` | class    | `secure_credential_service.py` | high | Fernet-based credential storage                                                          |
+| `SettingsService`         | class    | `settings_service.py`          | med  | system settings CRUD                                                                     |
+| `ThreatScoringService`    | class    | `scoring_service.py`           | med  | IP threat scoring engine                                                                 |
 
 ## CONVENTIONS
 
