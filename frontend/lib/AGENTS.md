@@ -1,12 +1,8 @@
 # FRONTEND LIB KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 5.0.0
-
 ## OVERVIEW
 
-Centralized Axios API client. Single source of truth for all HTTP communication.
+Centralized Axios API client. `lib/api.ts` exports exactly two instances (`api`, `collectionApi`) and is the single source of truth for browser HTTP calls.
 
 ## INSTANCES
 
@@ -17,22 +13,22 @@ Centralized Axios API client. Single source of truth for all HTTP communication.
 
 ## AUTH
 
-- JWT token from `localStorage` key `blacklist_auth_token`.
-- Auto-attached via Axios request interceptor.
-- Login: `POST /api/auth/login`
-- Verify: `GET /api/auth/verify`
-- Protected 401 responses clear the token and dispatch `blacklist:auth-unauthorized`;
-  `AuthGate` subscribes to this event.
+- JWT token stored in `localStorage` under `blacklist_auth_token`.
+- Auto-attached to both instances via a shared Axios request interceptor.
+- Login: `POST /api/auth/login`; Verify: `GET /api/auth/verify`.
+- A 401 on any protected call clears the token and dispatches the `blacklist:auth-unauthorized` window event (`AUTH_UNAUTHORIZED_EVENT`); `components/AuthGate.tsx` listens for it and redirects to `/login`.
 
 ## BASE URL
 
-Relative `/api/*` → Next.js rewrites to `NEXT_PUBLIC_API_URL` (default
-`http://localhost:2542`, configured in `next.config.ts`).
+Relative `/api/*` calls resolve differently per environment:
+
+- Dev (`npm run dev`): `next.config.ts` rewrites `/api/:path*` to `NEXT_PUBLIC_API_URL` (default `http://localhost:2542`).
+- Production (standalone build): `server.js`/`server-routing.js` proxy `/api/*` and `/health` straight to Flask; see `../AGENTS.md`.
 
 ## TESTING
 
-- Unit tests live in `__tests__/lib/`: `api.test.ts` (runner) + `api-auth/endpoints/interceptors.cases.ts` (shared case data) + `api-test-helpers.ts` (mock factory).
-- Case modules export registration functions; do not rename exports.
+- Unit tests live in `__tests__/lib/`: `api.test.ts` is the runner; `api-auth.cases.ts`, `api-endpoints.cases.ts`, and `api-interceptors.cases.ts` hold the shared case data; `api-test-helpers.ts` is the mock factory.
+- Case modules export registration functions; do not rename those exports.
 
 ## ANTI-PATTERNS
 

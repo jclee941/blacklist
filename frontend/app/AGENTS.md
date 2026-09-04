@@ -1,18 +1,14 @@
 # FRONTEND APP KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 5.0.0
-
 ## OVERVIEW
 
-Next.js 15 App Router pages. 7 route groups, each with server page + client component pattern.
+Next.js 15 App Router pages: eight route directories plus the root dashboard. Stateful domains commonly pair a server `page.tsx` with a client `*Client.tsx` component.
 
 ## STRUCTURE
 
 ```text
 app/
-├── page.tsx                 # Dashboard (554L, heaviest page)
+├── page.tsx                 # Dashboard, heaviest page
 ├── layout.tsx               # RootLayout + NavBar
 ├── providers.tsx            # QueryClient provider
 ├── error.tsx                # global error boundary
@@ -41,35 +37,35 @@ app/
 ├── login/
 │   └── page.tsx             # public login (no JWT)
 └── settings/
-    └── page.tsx             # system settings + CloudflareSettings
-    └── page.tsx             # system settings
+    ├── page.tsx             # system settings
+    └── CloudflareSettings.tsx  # Cloudflare credential panel
 ```
 
 ## CODE MAP
 
-| Symbol                       | Type      | Location                                       | Refs | Role                                       |
-| ---------------------------- | --------- | ---------------------------------------------- | ---- | ------------------------------------------ |
-| `Dashboard`                  | component | `page.tsx:44`                                  | high | main dashboard, stat cards + charts (554L) |
-| `RootLayout`                 | component | `layout.tsx:11`                                | high | sidebar nav + metadata                     |
-| `Providers`                  | component | `providers.tsx:6`                              | high | React Query provider wrapper               |
-| `CollectionManagementClient` | component | `collection/CollectionManagementClient.tsx:19` | high | credential CRUD + collection trigger       |
-| `CollectionHistoryClient`    | component | `collection/CollectionHistoryClient.tsx:51`    | med  | history table + filtering                  |
-| `IPManagementClient`         | component | `ip-management/IPManagementClient.tsx:12`      | med  | unified/whitelist/blacklist tabs           |
-| `FortinetClient`             | component | `fortinet/FortinetClient.tsx:25`               | med  | device list + push controls                |
+| Symbol                       | Type      | Location                                       | Refs | Role                                 |
+| ---------------------------- | --------- | ---------------------------------------------- | ---- | ------------------------------------ |
+| `Dashboard`                  | component | `page.tsx:44`                                  | high | main dashboard, stat cards + charts  |
+| `RootLayout`                 | component | `layout.tsx:11`                                | high | sidebar nav + metadata               |
+| `Providers`                  | component | `providers.tsx:6`                              | high | React Query provider wrapper         |
+| `CollectionManagementClient` | component | `collection/CollectionManagementClient.tsx:19` | high | credential CRUD + collection trigger |
+| `CollectionHistoryClient`    | component | `collection/CollectionHistoryClient.tsx:51`    | med  | history table + filtering            |
+| `IPManagementClient`         | component | `ip-management/IPManagementClient.tsx:12`      | med  | unified/whitelist/blacklist tabs     |
+| `FortinetClient`             | component | `fortinet/FortinetClient.tsx:25`               | med  | device list + push controls          |
 
 ## CONVENTIONS
 
 - Server page (`page.tsx`) wraps client component (`*Client.tsx`) with Suspense.
-- All data fetching through `lib/api.ts` — no direct `fetch()`.
+- All data fetching through `lib/api.ts`, no direct `fetch()`.
 - Tailwind CSS + shadcn/ui components.
 - Korean labels in UI, English in code.
 
 ## ANTI-PATTERNS
 
 - Direct API calls bypassing `lib/api.ts`.
-- Server components with `"use client"` that should remain server-rendered.
+- Server components with `"use client"` that should stay server-rendered.
 
 ## NOTES
 
-- `page.tsx` (dashboard) is a complexity hotspot at 554 lines — candidate for component extraction.
+- `page.tsx` (dashboard) is a complexity hotspot and a candidate for component extraction.
 - `collection/` has the deepest component tree (4 sub-components).
