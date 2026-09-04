@@ -7,7 +7,6 @@ ENV ?= development
 PYTHON ?= python3
 BLACKLIST_VERSION ?= $(shell tr -d '[:space:]' < VERSION)
 export BLACKLIST_VERSION
-DOCS_MARKDOWN := $(shell git ls-files '*.md' | grep -Ev '^(docs/wiki|docs/deliverables)/')
 
 # Docker Compose Configuration
 COMPOSE_FILE := deploy/docker-compose.yml
@@ -242,13 +241,13 @@ verify-lint: ## Run linting checks (ruff check + format check)
 	@echo "✅ Lint passed"
 
 docs-format: ## Format current Markdown with Prettier and markdownlint
-	@npx --yes prettier@3.6.2 --write $(DOCS_MARKDOWN)
-	@npx --yes markdownlint-cli2@0.20.0 --fix $(DOCS_MARKDOWN)
-	@npx --yes prettier@3.6.2 --write $(DOCS_MARKDOWN)
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --write --
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes markdownlint-cli2@0.20.0 --fix --
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --write --
 
 docs-check: ## Check current Markdown formatting and lint
-	@npx --yes prettier@3.6.2 --check $(DOCS_MARKDOWN)
-	@npx --yes markdownlint-cli2@0.20.0 $(DOCS_MARKDOWN)
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --check --
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes markdownlint-cli2@0.20.0 --
 
 verify-types: ## Run type checking (mypy) — skipped if mypy not installed
 	@echo "🔍 Checking types..."
