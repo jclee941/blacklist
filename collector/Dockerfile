@@ -47,6 +47,14 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 # Copy pre-built Python packages from builder stage
 COPY --from=builder /install /usr/local
+RUN rm -rf \
+        /usr/local/lib/python3.11/site-packages/pip* \
+        /usr/local/lib/python3.11/site-packages/setuptools* \
+        /usr/local/lib/python3.11/site-packages/wheel* \
+        /usr/local/lib/python3.11/site-packages/pkg_resources \
+        /usr/local/lib/python3.11/site-packages/_distutils_hack \
+        /usr/local/lib/python3.11/site-packages/distutils-precedence.pth \
+    && rm -f /usr/local/bin/pip* /usr/local/bin/wheel
 
 
 # Copy entire collector package preserving structure

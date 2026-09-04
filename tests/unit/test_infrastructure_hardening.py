@@ -109,9 +109,10 @@ def test_frontend_tls_policy_is_explicit_and_persistent() -> None:
     assert 'TLS_MODE" = "self-signed"' in entrypoint
     assert "BLACKLIST_FRONTEND_TLS_DIR" in frontend
     assert ":/app/ssl" in frontend
+    assert "FRONTEND_BIND_ADDRESS" in frontend
     assert "subjectAltName=DNS:localhost,IP:127.0.0.1" in entrypoint
     assert 'openssl x509 -in "$SSL_CERT" -noout -ext subjectAltName' in entrypoint
-    assert 'rm -f "$SSL_KEY" "$SSL_CERT"' in entrypoint
+    assert 'rm -f "$SSL_KEY" "$SSL_CERT"' not in entrypoint
 
 
 def test_production_images_use_production_wsgi_and_lock_only_installation() -> None:
@@ -133,6 +134,25 @@ def test_production_images_use_production_wsgi_and_lock_only_installation() -> N
         package not in app_requirements
         for package in ("pytest==", "pytest-cov==", "pytest-mock==", "black==", "flake8==")
     )
+
+
+def test_python_runtime_images_remove_packaging_toolchains() -> None:
+    app_dockerfile = (ROOT / "app" / "Dockerfile").read_text(encoding="utf-8")
+    collector_dockerfile = (ROOT / "collector" / "Dockerfile").read_text(encoding="utf-8")
+
+    for dockerfile in (app_dockerfile, collector_dockerfile):
+        assert "/usr/local/bin/pip*" in dockerfile
+        assert "site-packages/distutils-precedence.pth" in dockerfile
+        assert "site-packages/setuptools*" in dockerfile
+        assert "site-packages/wheel*" in dockerfile
+
+
+def test_postgres_replaces_vulnerable_gosu_runtime() -> None:
+    dockerfile = (ROOT / "postgres" / "Dockerfile").read_text(encoding="utf-8")
+
+    assert "apk upgrade --no-cache" in dockerfile
+    assert "apk add --no-cache su-exec" in dockerfile
+    assert "rm -f /usr/local/bin/gosu" in dockerfile
 
 
 def test_frontend_runner_contains_custom_server_dependencies() -> None:

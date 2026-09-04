@@ -1,6 +1,12 @@
 # PostgreSQL 15 - Blacklist Intelligence Platform
 FROM postgres:15-alpine
 
+RUN apk upgrade --no-cache \
+    && apk add --no-cache su-exec \
+    && rm -f /usr/local/bin/gosu \
+    && printf '#!/bin/sh\nexec /sbin/su-exec "$@"\n' > /usr/local/bin/gosu \
+    && chmod 755 /usr/local/bin/gosu
+
 LABEL description="PostgreSQL 15 for Blacklist Intelligence Platform"
 
 ARG APP_VERSION="0.0.0-dev"
