@@ -6,16 +6,16 @@ REGTECH (regtech.fsec.or.kr) collection pipeline. Mixin composition on `RegtechC
 
 ## FILES
 
-| File | Role |
-| --- | --- |
-| `collector.py` | orchestration: pagination loop, retry attempts, WAF circuit breaker |
-| `auth.py` | session auth (findMember → addLogin → Korean success text), JWT validity, auth cache |
+| File                 | Role                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `collector.py`       | orchestration: pagination loop, retry attempts, WAF circuit breaker                   |
+| `auth.py`            | session auth (findMember → addLogin → Korean success text), JWT validity, auth cache  |
 | `page_collection.py` | curl page fetch: `-sS --max-time --max-filesize`, `_last_failure_kind` classification |
-| `data_processor.py` | dedupe, post-processing, confidence scoring |
-| `normalization.py` | IP validation, private-IP filtering, date parsing (`_parse_date` → `str \| None`) |
-| `html_parsing.py` | HTML table parsing, country extraction |
-| `date_strategies.py` | collection date-window strategies (전체/사용자 지정/최근 1일/최근 3개월) |
-| `errors.py` | `RegtechPageCollectionError`, `RegtechCollectionBlockedError`, `_env_int` |
+| `data_processor.py`  | dedupe, post-processing, confidence scoring                                           |
+| `normalization.py`   | IP validation, private-IP filtering, date parsing (`_parse_date` → `str \| None`)     |
+| `html_parsing.py`    | HTML table parsing, country extraction                                                |
+| `date_strategies.py` | collection date-window strategies (전체/사용자 지정/최근 1일/최근 3개월)              |
+| `errors.py`          | `RegtechPageCollectionError`, `RegtechCollectionBlockedError`, `_env_int`             |
 
 ## WAF HARDENING
 

@@ -6,10 +6,10 @@ Persistence and credential boundary for the collector. `service.py` owns the poo
 
 ## FILES
 
-| File | Role |
-| --- | --- |
+| File         | Role                                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `service.py` | `DatabaseService`: pooled `psycopg2` connections, credential read/decrypt, `save_blacklist_ips`, `record_collection_history`, stats queries |
-| `queries.py` | `DatabaseQueryMixin`: private/invalid-IP filtering, dedup, batched `ON CONFLICT` upserts |
+| `queries.py` | `DatabaseQueryMixin`: private/invalid-IP filtering, dedup, batched `ON CONFLICT` upserts                                                    |
 
 ## CREDENTIAL BOUNDARY
 
@@ -21,12 +21,12 @@ Persistence and credential boundary for the collector. `service.py` owns the poo
 
 `postgres/configure-runtime-roles.sh` grants the collector's Postgres role explicit per-table ACLs only — no blanket privileges, and `CREATE` on `public` is revoked:
 
-| Table | Grant |
-| --- | --- |
-| `blacklist_ips` | SELECT, INSERT, UPDATE, DELETE |
-| `collector_regtech_credentials` | SELECT only — the collector never writes credentials |
-| `collection_history`, `collection_stats`, `collection_status` | SELECT, INSERT, UPDATE |
-| `regtech_monitoring`, `regtech_alerts` | SELECT, INSERT |
+| Table                                                         | Grant                                                |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| `blacklist_ips`                                               | SELECT, INSERT, UPDATE, DELETE                       |
+| `collector_regtech_credentials`                               | SELECT only — the collector never writes credentials |
+| `collection_history`, `collection_stats`, `collection_status` | SELECT, INSERT, UPDATE                               |
+| `regtech_monitoring`, `regtech_alerts`                        | SELECT, INSERT                                       |
 
 Schema changes belong in `postgres/migrations/`; the collector role cannot `CREATE`/`ALTER` at runtime.
 
