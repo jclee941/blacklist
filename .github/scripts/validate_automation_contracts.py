@@ -77,8 +77,12 @@ def main() -> None:
             ("vars.RUNNER" not in build_images, "reusable image builds can use an untrusted persistent runner"),
             ("vars.RUNNER" not in release, "release jobs can share an untrusted persistent runner"),
             ("pull_request:" in security, "security workflow does not scan pull requests"),
-            ("vars.RUNNER" not in security, "PR security workflow can use a persistent self-hosted runner"),
-            ("runs-on: ubuntu-latest" in security, "PR security workflow is not GitHub-hosted"),
+            (
+                "    runs-on: ubuntu-latest" in job_body(security, "dependency-scan")
+                and "self-hosted" not in job_body(security, "dependency-scan")
+                and "vars.RUNNER" not in job_body(security, "dependency-scan"),
+                "PR security dependency-scan job is not GitHub-hosted",
+            ),
             ('node-version: "24"' in ci, "CI frontend lint does not use Node 24"),
             ("node-version: 24" in ci, "CI frontend test or E2E does not use Node 24"),
             ('default: "24"' in reusable_node, "reusable Node workflow does not default to Node 24"),

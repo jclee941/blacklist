@@ -48,7 +48,9 @@ run-id: ${{ github.event.workflow_run.id }}
 """,
         ".github/workflows/security.yml": """
 pull_request:
-runs-on: ubuntu-latest
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
 """,
         ".github/workflows/release.yml": """
 Release notes file not found
@@ -274,6 +276,11 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             ".github/workflows/ci.yml",
             "skip-files: ${{ matrix.service == 'postgres' && 'usr/local/bin/gosu' || '' }}",
             "CI Trivy scan does not apply the verified PostgreSQL gosu false-positive exclusion",
+        ),
+        (
+            ".github/workflows/security.yml",
+            "runs-on: ubuntu-latest",
+            "PR security dependency-scan job is not GitHub-hosted",
         ),
         (
             ".github/workflows/ci.yml",
