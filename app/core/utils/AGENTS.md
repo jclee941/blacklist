@@ -1,7 +1,5 @@
 # UTILS KNOWLEDGE BASE
 
-**Version:** `4.1.0`
-
 ## OVERVIEW
 
 Cross-cutting utilities for responses, caching, encryption, logging, rate limits, validation, and version lookup.

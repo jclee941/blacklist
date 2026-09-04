@@ -1,9 +1,5 @@
 # EXCEPTIONS KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
-
 ## OVERVIEW
 
 Typed exception hierarchy for RFC 7807 error responses. 619 lines across 9 files.
