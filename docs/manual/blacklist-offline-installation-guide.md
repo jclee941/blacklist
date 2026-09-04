@@ -97,14 +97,14 @@ curl --insecure --fail https://localhost/health
 
 ## 6. WARP 프록시
 
-설치기는 Docker 브리지에서 접근 가능한 호스트 40000 포트를 감지합니다. 접근 가능하면 Collector에 다음 값을 설정합니다.
+WARP는 개발 overlay 전용입니다. `make dev`는 Collector에 다음 값을 전달합니다.
 
 ```text
 WARP_ENABLED=true
 WARP_PROXY_URL=http://host.docker.internal:40000
 ```
 
-WARP가 `127.0.0.1`에만 바인딩되어 Docker에서 접근할 수 없으면 안전하게 비활성화합니다. 운영자가 강제로 `true`로 바꾸기 전에 Collector 컨테이너에서 프록시 연결을 확인해야 합니다.
+호스트 WARP proxy가 Docker 브리지에서 접근 가능해야 합니다. 일반 설치와 release overlay는 WARP를 항상 비활성화하며 운영 수집은 직접 연결을 사용합니다.
 
 ## 7. 업그레이드
 
