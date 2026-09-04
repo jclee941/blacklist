@@ -11,6 +11,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.2] - 2026-09-04
+
+### Breaking
+- 외부 frontend는 기본적으로 `FRONTEND_TLS_MODE=provided`를 사용하며 실제 접속 FQDN 또는 IP와 일치하는 `FRONTEND_TLS_SERVER_NAME`, `server.crt`, `server.key`가 필요합니다.
+- 명시적인 `self-signed` mode는 `127.0.0.1`에만 바인딩되는 개발 전용 경로입니다.
+- 기존 관리자 JWT는 PostgreSQL 기반 session generation으로 전환되므로 업그레이드 후 다시 로그인해야 합니다.
+
+### Fixed
+- fix(collector): route config credentials through the view
+- fix(ci): isolate pull request security scans
+- fix(release): require signing before image publication
+- fix(database): isolate collector credential access
+- fix(release): sign only gated artifacts
+- fix(ci): isolate trusted image publication
+- fix(ci): isolate reusable image builds
+- fix(credentials): fail closed on database writes
+- fix(services): remove runtime blacklist DDL
+- fix(api): remove runtime schema mutation endpoints
+- fix(collector): bound Excel response streams
+- fix(collector): enforce page response byte limits
+- fix(collector): add bounded subprocess output
+- fix(database): complete runtime ACL revocation
+- fix(ci): validate datastore build definitions
+- fix(ci): make reusable image builds artifact-only
+- fix(collector): bound page response downloads
+- fix(collector): remove runtime schema creation
+- fix(installer): reject database role collisions
+- fix(database): constrain runtime role privileges
+- fix(database): move schema upgrades to bootstrap owner
+- fix(changelog): preserve released history
+- fix(release): anchor the signing identity
+- fix(ci): scan every publishable image
+- fix(release): default to patch version bumps
+- fix(deploy): keep WARP development-only
+- fix(installer): provision runtime database roles
+- fix(images): isolate database runtime identities
+- fix(database): preserve bootstrap owner privileges
+- fix(version): use runtime app version consistently
+- fix(auth): bind tokens to credential snapshots
+- fix(proxy): guard terminal response state
+- fix(release): gate publication on exact artifacts
+- fix(ci): validate complete push ranges
+- fix(build): propagate repository version metadata
+- fix(deploy): constrain frontend TLS exposure
+- fix(installer): secure TLS upgrades and verification
+- fix(images): remove vulnerable runtime toolchains
+- fix(frontend): update vulnerable dependencies
+- fix(database): drop runtime superuser privileges
+- fix(services): register auth state authority
+- fix(app): enforce request size and auth wiring
+- fix(auth): enforce durable session invalidation
+- fix(auth): add transactional auth state service
+
+### Other
+- test(ci): validate security runner scope
+- docs(security): record privileged workflow boundaries
+- docs(security): finalize release gate evidence
+- test(ci): enforce trusted workflow boundaries
+- test(ci): block direct image publication
+- docs(security): finalize corrective release evidence
+- docs(installer): clarify production WARP policy
+- docs(deploy): record the WARP environment boundary
+- docs(readme): align the development startup path
+- docs(project): reference the authoritative version file
+- test(ci): enforce image scan parity
+- docs(deploy): document trusted TLS operations
+- docs(release): document v5.1.2 correction
+- docs(security): publish release signing identity
+
+---
+
 ## [5.1.1] - 2026-09-04
 
 ### Added
