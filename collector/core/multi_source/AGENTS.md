@@ -6,11 +6,11 @@ Async multi-source ingestion framework. Aggregates threat data from 14 source ty
 
 ## FILES
 
-| File           | LOC | Role                                                           |
-| -------------- | --- | -------------------------------------------------------------- |
-| `collector.py` | 410 | async orchestration, source registry, `asyncio.gather` + merge |
-| `parsers.py`   | 200 | text/JSON parser mixins for different feed formats             |
-| `models.py`    | 47  | `SourceType` enum (14 types), `SourceConfig` dataclass         |
+| File           | Role                                                           |
+| -------------- | -------------------------------------------------------------- |
+| `collector.py` | async orchestration, source registry, `asyncio.gather` + merge |
+| `parsers.py`   | text/JSON parser mixins for different feed formats             |
+| `models.py`    | `SourceType` enum (14 types), `SourceConfig` dataclass         |
 
 ## SOURCE TYPES
 
