@@ -16,6 +16,9 @@ services:
       file: base.yml
       service: blacklist-collector
     image: blacklist-collector:${BLACKLIST_VERSION:?BLACKLIST_VERSION must be set; it is written into the env file by install.sh}
+    environment:
+      WARP_ENABLED: "false"
+      WARP_PROXY_URL: ""
 
   blacklist-app:
     extends:

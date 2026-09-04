@@ -32,6 +32,11 @@ services:
         APP_VERSION: ${BLACKLIST_VERSION:-0.0.0-dev}
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: blacklist-collector:latest
+    environment:
+      WARP_ENABLED: ${WARP_ENABLED:-true}
+      WARP_PROXY_URL: ${WARP_PROXY_URL:-http://host.docker.internal:40000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Dev-only: REGTECH blocks this network's egress IP, so the collector sends its
     # requests through a WARP proxy on the developer's host. This is an
     # APPLICATION-level proxy, so it affects only the collector's outbound REGTECH
