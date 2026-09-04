@@ -1,7 +1,6 @@
 # Consolidated CI Pipeline
 # Replaces: ci.yml (frontend-only) + ci-new.yml (self-hosted only)
 # Fixes: vitest continue-on-error, missing backend CI
-# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
 name: CI
 
 on:
@@ -19,7 +18,7 @@ concurrency:
 
 jobs:
   detect-changes:
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -67,7 +66,6 @@ jobs:
       working-directory: frontend
       run-lint: true
       run-typecheck: true
-    secrets: inherit
 
   lint-backend:
     needs: detect-changes
@@ -75,7 +73,7 @@ jobs:
       needs.detect-changes.outputs.backend == 'true' ||
       needs.detect-changes.outputs.collector == 'true' ||
       needs.detect-changes.outputs.metadata == 'true'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -93,7 +91,7 @@ jobs:
       always() && !failure() && !cancelled() &&
       (needs.detect-changes.outputs.frontend == 'true' ||
        needs.detect-changes.outputs.metadata == 'true')
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
       run:
@@ -122,7 +120,7 @@ jobs:
       always() && !failure() && !cancelled() &&
       (needs.detect-changes.outputs.backend == 'true' ||
        needs.detect-changes.outputs.metadata == 'true')
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       postgres:
@@ -184,7 +182,7 @@ jobs:
       always() && !failure() && !cancelled() &&
       (needs.detect-changes.outputs.collector == 'true' ||
        needs.detect-changes.outputs.metadata == 'true')
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -216,7 +214,7 @@ jobs:
       always() && !failure() && !cancelled() &&
       (needs.detect-changes.outputs.backend == 'true' ||
        needs.detect-changes.outputs.metadata == 'true')
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       postgres:
@@ -280,7 +278,7 @@ jobs:
        needs.detect-changes.outputs.collector == 'true' ||
        needs.detect-changes.outputs.ci == 'true' ||
        needs.detect-changes.outputs.metadata == 'true')
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -325,7 +323,7 @@ jobs:
           retention-days: 1
 
   validate-automation:
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -334,7 +332,7 @@ jobs:
   scan-images:
     needs: build
     if: always() && needs.build.result == 'success'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -359,7 +357,7 @@ jobs:
   e2e:
     needs: build
     if: always() && needs.build.result == 'success'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -459,7 +457,7 @@ jobs:
   coverage-report:
     needs: [test-frontend, test-backend, test-collector]
     if: always() && !cancelled()
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -500,7 +498,7 @@ jobs:
         coverage-report,
       ]
     if: always() && !cancelled()
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Evaluate job results
@@ -539,38 +537,3 @@ jobs:
           fi
           echo ""
           echo "CI gate PASSED — all jobs succeeded or were skipped."
-
-  push-images:
-    needs: [build, ci-gate]
-    if: >-
-      github.ref == 'refs/heads/master' &&
-      github.event_name == 'push' &&
-      needs.ci-gate.result == 'success'
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 30
-    concurrency:
-      group: deploy-ghcr-master
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [frontend, app, collector, postgres, redis]
-    steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: image-${{ matrix.service }}
-      - name: Load image from artifact
-        run: gunzip -c ${{ matrix.service }}.tar.gz | docker load
-      - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Tag and push to GHCR
-        run: |
-          IMAGE="ghcr.io/${{ github.repository }}/blacklist-${{ matrix.service }}"
-          docker tag "blacklist-${{ matrix.service }}:ci" "${IMAGE}:latest"
-          docker push "${IMAGE}:latest"
