@@ -34,32 +34,32 @@
 
 ## 3. 설치 및 런타임 검증 결과
 
-| 검증 항목 | 결과 | 증거 |
-| --- | --- | --- |
-| 무볼륨 최초 설치 | 통과 | 기존 Blacklist 자원을 제거한 상태에서 tarball만 압축 해제해 설치 성공 |
-| 서비스 상태 | 통과 | app, collector, frontend, postgres, redis 5개 모두 `blacklist-*:5.0.0`, `healthy` |
-| 초기 데이터 | 통과 | 신규 DB의 blacklist IP 수 0건, public 테이블 16개 |
-| 이미지 일치 | 통과 | 패키지 OCI 이미지 ID, 로컬 이미지 ID, 실행 컨테이너 이미지 ID가 5개 모두 일치 |
-| 비밀값 저장 | 통과 | `/etc/blacklist/.env` 생성, 디렉터리 700·파일 600, 필수 비밀값 대상 호스트 생성 |
-| HTTPS health | 통과 | `GET https://localhost/health` → 200 |
-| 로그인 화면 | 통과 | `GET https://localhost/login` → 200 |
-| 미인증 보호 API | 통과 | `GET https://localhost/api/auth/me` → 401 |
-| WARP 자동 판정 | 통과 | 호스트 WARP가 `127.0.0.1:40000`에만 바인딩되어 브리지에서 접근 불가하므로 `WARP_ENABLED=false`, URL 공백 기록 |
-| 오프라인 패키지 | 통과 | 설치 중 레지스트리 pull 없이 패키지 내 `5.0.0` 이미지로 기동 |
+| 검증 항목        | 결과 | 증거                                                                                                          |
+| ---------------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| 무볼륨 최초 설치 | 통과 | 기존 Blacklist 자원을 제거한 상태에서 tarball만 압축 해제해 설치 성공                                         |
+| 서비스 상태      | 통과 | app, collector, frontend, postgres, redis 5개 모두 `blacklist-*:5.0.0`, `healthy`                             |
+| 초기 데이터      | 통과 | 신규 DB의 blacklist IP 수 0건, public 테이블 16개                                                             |
+| 이미지 일치      | 통과 | 패키지 OCI 이미지 ID, 로컬 이미지 ID, 실행 컨테이너 이미지 ID가 5개 모두 일치                                 |
+| 비밀값 저장      | 통과 | `/etc/blacklist/.env` 생성, 디렉터리 700·파일 600, 필수 비밀값 대상 호스트 생성                               |
+| HTTPS health     | 통과 | `GET https://localhost/health` → 200                                                                          |
+| 로그인 화면      | 통과 | `GET https://localhost/login` → 200                                                                           |
+| 미인증 보호 API  | 통과 | `GET https://localhost/api/auth/me` → 401                                                                     |
+| WARP 자동 판정   | 통과 | 호스트 WARP가 `127.0.0.1:40000`에만 바인딩되어 브리지에서 접근 불가하므로 `WARP_ENABLED=false`, URL 공백 기록 |
+| 오프라인 패키지  | 통과 | 설치 중 레지스트리 pull 없이 패키지 내 `5.0.0` 이미지로 기동                                                  |
 
 ## 4. 가이드 조치 이행 판정
 
 ### 4.1 심각 등급
 
-| 항목 | 판정 | 검증 결과 |
-| --- | --- | --- |
-| C-01 체크섬 검증 fail-open | 이행 | 목록 누락·빈 목록·파일 누락·검증 0건·해시 불일치를 모두 중단 처리 |
-| C-02 무검증 특권 바이너리 설치 | 이행 | Docker·Compose 반영 직전 재검증, 미등재 또는 변조 파일 거부 |
-| C-03 매니페스트 미검증·미서명 | 부분 이행 | `MANIFEST.sha256` 전체 검증과 `--require-signature` 구현. CI detached signature 생성은 조직 GPG 키 발급 후 활성화 필요 |
-| C-04 호스트 네트워킹 노출 | 이행 | 내부 bridge 전환, 호스트 공개 포트는 frontend HTTPS 443만 유지 |
-| C-05 Collector 제어 API 무인증 | 이행 | 제어 API Bearer 인증 적용, 무토큰 401·유효 토큰 200 확인 |
-| C-06 root 권한 미검사 | 이행 | 첫 특권 작업 직전 root 검사, 일반 계정 실행은 이미지 로드 전에 중단 |
-| C-07 호스트 전체 컨테이너 중지 | 이행 | 기본 설치는 `blacklist-*`만 교체, 전체 중지는 명시적 옵션으로 분리 |
+| 항목                           | 판정      | 검증 결과                                                                                                              |
+| ------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| C-01 체크섬 검증 fail-open     | 이행      | 목록 누락·빈 목록·파일 누락·검증 0건·해시 불일치를 모두 중단 처리                                                      |
+| C-02 무검증 특권 바이너리 설치 | 이행      | Docker·Compose 반영 직전 재검증, 미등재 또는 변조 파일 거부                                                            |
+| C-03 매니페스트 미검증·미서명  | 부분 이행 | `MANIFEST.sha256` 전체 검증과 `--require-signature` 구현. CI detached signature 생성은 조직 GPG 키 발급 후 활성화 필요 |
+| C-04 호스트 네트워킹 노출      | 이행      | 내부 bridge 전환, 호스트 공개 포트는 frontend HTTPS 443만 유지                                                         |
+| C-05 Collector 제어 API 무인증 | 이행      | 제어 API Bearer 인증 적용, 무토큰 401·유효 토큰 200 확인                                                               |
+| C-06 root 권한 미검사          | 이행      | 첫 특권 작업 직전 root 검사, 일반 계정 실행은 이미지 로드 전에 중단                                                    |
+| C-07 호스트 전체 컨테이너 중지 | 이행      | 기본 설치는 `blacklist-*`만 교체, 전체 중지는 명시적 옵션으로 분리                                                     |
 
 ### 4.2 중간 등급
 
@@ -71,11 +71,11 @@ X-01~X-06은 모두 이행으로 판정합니다. 공개 센티널 관리자 자
 
 ## 5. 자동화 검증 결과
 
-| 구분 | 결과 | JUnit 증적 |
-| --- | --- | --- |
-| 프런트엔드 Vitest | 40 files, 439 passed, 0 failed | `release/test-results/vitest-junit.xml` |
-| 인증·스모크 Playwright | 26 passed, 0 failed | `release/test-results/playwright-critical-junit.xml` |
-| 전체 Chromium Playwright | 197 total, 134 passed, 55 failed, 8 skipped | `release/test-results/playwright-full-junit.xml` |
+| 구분                     | 결과                                        | JUnit 증적                                           |
+| ------------------------ | ------------------------------------------- | ---------------------------------------------------- |
+| 프런트엔드 Vitest        | 40 files, 439 passed, 0 failed              | `release/test-results/vitest-junit.xml`              |
+| 인증·스모크 Playwright   | 26 passed, 0 failed                         | `release/test-results/playwright-critical-junit.xml` |
+| 전체 Chromium Playwright | 197 total, 134 passed, 55 failed, 8 skipped | `release/test-results/playwright-full-junit.xml`     |
 
 Vitest 실행 중 일부 React 테스트에서 `act(...)` 경고와 의도적으로 발생시킨 오류 로그가 출력됐지만 테스트 실패는 없었습니다.
 
@@ -83,10 +83,10 @@ Vitest 실행 중 일부 React 테스트에서 `act(...)` 경고와 의도적으
 
 전체 회귀 테스트의 55건 실패는 다음 두 유형으로 분류됩니다.
 
-| 유형 | 건수 | 관련 스위트 | 해석 |
-| --- | ---: | --- | --- |
-| 무토큰 API 기대값 | 22 | `batch-operations`, `monitoring-features`, `error-handling` | JWT 전역 보호 적용 후에도 기존 성공·도메인 오류 상태를 기대해 401을 반영하지 못한 테스트 |
-| 보호 화면·구형 UI 기대값 | 33 | `accessibility`, `cloudflare-integration`, `homepage`, `ip-management`, `performance`, navigation regression, `visual-regression` | 로그인되지 않은 상태에서 보호 화면의 내비게이션·이미지·스냅샷을 기대하는 테스트 |
+| 유형                     | 건수 | 관련 스위트                                                                                                                       | 해석                                                                                     |
+| ------------------------ | ---: | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 무토큰 API 기대값        |   22 | `batch-operations`, `monitoring-features`, `error-handling`                                                                       | JWT 전역 보호 적용 후에도 기존 성공·도메인 오류 상태를 기대해 401을 반영하지 못한 테스트 |
+| 보호 화면·구형 UI 기대값 |   33 | `accessibility`, `cloudflare-integration`, `homepage`, `ip-management`, `performance`, navigation regression, `visual-regression` | 로그인되지 않은 상태에서 보호 화면의 내비게이션·이미지·스냅샷을 기대하는 테스트          |
 
 이 실패들은 JWT 적용 이후 테스트 준비 단계와 기대값이 갱신되지 않은 패턴과 일치합니다. 인증 자체는 별도 `auth.spec.ts`에서 정상 로그인, 잘못된 자격증명 거부, 공개 센티널 거부, 무토큰·잘못된 토큰 거부, 토큰 검증, 로그인 리디렉션과 토큰 지속성을 포함해 14건 모두 통과했습니다. 배포 스모크 12건도 health, 보호 API, 핵심 페이지와 통계를 포함해 모두 통과했습니다.
 
@@ -94,14 +94,14 @@ Vitest 실행 중 일부 React 테스트에서 `act(...)` 경고와 의도적으
 
 ## 6. 잔여 위험 및 후속 조치
 
-| 우선순위 | 잔여 사항 | 권고 조치 |
-| --- | --- | --- |
-| 높음 | C-03 CI detached signature 미생성 | 조직 GPG 키 발급 후 ADR-0003 절차에 따라 서명 생성과 `--require-signature` 배포 정책 활성화 |
-| 중간 | 전체 Chromium 회귀 55건 실패 | 무토큰 API 테스트에 인증 헤더를 추가하고, UI 테스트는 로그인 fixture 적용 후 snapshot 갱신 |
-| 중간 | Docker·Compose 오프라인 페이로드 미포함 | 베어 호스트 배포가 필요하면 `prereqs/`에 검증 가능한 두 페이로드를 함께 제공 |
-| 중간 | 서버 계정이 호스트 비밀과 인증서 열람 가능 | OS 계정 최소권한, 감사 로그, `/etc/blacklist` 접근 통제 유지 |
-| 낮음 | 루프백 전용 WARP는 Docker bridge에서 접근 불가 | 사용 시 gateway 접근 가능 주소에 바인딩. 미사용 환경은 현재처럼 자동 비활성화 유지 |
-| 낮음 | Vitest React `act(...)` 경고 | 비동기 상태 변경 테스트를 `act` 또는 사용자 동작 기반 대기로 정리 |
+| 우선순위 | 잔여 사항                                      | 권고 조치                                                                                   |
+| -------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 높음     | C-03 CI detached signature 미생성              | 조직 GPG 키 발급 후 ADR-0003 절차에 따라 서명 생성과 `--require-signature` 배포 정책 활성화 |
+| 중간     | 전체 Chromium 회귀 55건 실패                   | 무토큰 API 테스트에 인증 헤더를 추가하고, UI 테스트는 로그인 fixture 적용 후 snapshot 갱신  |
+| 중간     | Docker·Compose 오프라인 페이로드 미포함        | 베어 호스트 배포가 필요하면 `prereqs/`에 검증 가능한 두 페이로드를 함께 제공                |
+| 중간     | 서버 계정이 호스트 비밀과 인증서 열람 가능     | OS 계정 최소권한, 감사 로그, `/etc/blacklist` 접근 통제 유지                                |
+| 낮음     | 루프백 전용 WARP는 Docker bridge에서 접근 불가 | 사용 시 gateway 접근 가능 주소에 바인딩. 미사용 환경은 현재처럼 자동 비활성화 유지          |
+| 낮음     | Vitest React `act(...)` 경고                   | 비동기 상태 변경 테스트를 `act` 또는 사용자 동작 기반 대기로 정리                           |
 
 ## 7. 최종 판정
 
