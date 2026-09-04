@@ -8,6 +8,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parents[2]
 DEPLOY_DIR = REPO_ROOT / "deploy"
 RELEASE_OVERLAY = DEPLOY_DIR / "docker-compose.release.yml"
+DEVELOPMENT_COMPOSE = DEPLOY_DIR / "docker-compose.yml"
 INSTALLER = DEPLOY_DIR / "install.sh"
 BUILD_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "build-images.yml"
 
@@ -53,6 +54,18 @@ def test_installer_exports_the_version_it_loaded() -> None:
     installer = INSTALLER.read_text(encoding="utf-8")
     # Then: the installer must write it into the generated environment file.
     assert "BLACKLIST_VERSION=${VERSION}" in installer
+
+
+def test_source_installer_resolves_the_repository_version() -> None:
+    installer = INSTALLER.read_text(encoding="utf-8")
+
+    assert '${SCRIPT_DIR}/../VERSION' in installer
+
+
+def test_development_builds_receive_the_declared_version() -> None:
+    compose = DEVELOPMENT_COMPOSE.read_text(encoding="utf-8")
+
+    assert compose.count("APP_VERSION: ${BLACKLIST_VERSION:-0.0.0-dev}") == len(RELEASE_SERVICES)
 
 
 def test_bundle_images_carry_the_version_tag() -> None:

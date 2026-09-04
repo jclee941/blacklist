@@ -5,6 +5,8 @@
 # Default environment
 ENV ?= development
 PYTHON ?= python3
+BLACKLIST_VERSION ?= $(shell tr -d '[:space:]' < VERSION)
+export BLACKLIST_VERSION
 
 # Docker Compose Configuration
 COMPOSE_FILE := deploy/docker-compose.yml
