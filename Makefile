@@ -1,6 +1,6 @@
 # Blacklist Service Management Makefile
 
-.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health release release-dry verify verify-lint verify-types verify-secrets verify-pre-commit verify-quick verify-all docs-format docs-check
+.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health release release-dry verify verify-lint verify-types verify-secrets verify-pre-commit verify-quick verify-all docs-format docs-check docs-pdf
 
 # Default environment
 ENV ?= development
@@ -248,6 +248,15 @@ docs-format: ## Format current Markdown with Prettier and markdownlint
 docs-check: ## Check current Markdown formatting and lint
 	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --check --
 	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes markdownlint-cli2@0.20.0 --
+
+docs-pdf: ## Regenerate current administrator and user guide PDFs
+	@VERSION_VALUE=$$(tr -d '[:space:]' < VERSION); \
+	admin_source=$$(mktemp); user_source=$$(mktemp); \
+	trap 'rm -f "$$admin_source" "$$user_source"' EXIT; \
+	sed "s/저장소 루트 \`VERSION\` 기준/$$VERSION_VALUE/" docs/manual/blacklist-admin-guide.md > "$$admin_source"; \
+	sed "s/저장소 루트 \`VERSION\` 기준/$$VERSION_VALUE/" docs/manual/blacklist-user-guide.md > "$$user_source"; \
+	pandoc "$$admin_source" --from=markdown --resource-path=docs/manual --pdf-engine=xelatex -V mainfont=NanumGothic -V monofont=NanumGothicCoding -V fontsize=10pt -V geometry:margin=15mm -V colorlinks=true -V linkcolor=blue -V urlcolor=blue --toc --output docs/manual/blacklist-admin-guide.pdf; \
+	pandoc "$$user_source" --from=markdown --resource-path=docs/manual --pdf-engine=xelatex -V mainfont=NanumGothic -V monofont=NanumGothicCoding -V fontsize=9pt -V geometry:margin=12mm -V colorlinks=true -V linkcolor=blue -V urlcolor=blue --toc --output docs/manual/blacklist-user-guide.pdf
 
 verify-types: ## Run type checking (mypy) — skipped if mypy not installed
 	@echo "🔍 Checking types..."

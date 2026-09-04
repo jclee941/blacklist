@@ -1,10 +1,19 @@
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
 
 ROOT = Path(__file__).parents[2]
+ACTIVE_VERSION_DOCS = (
+    ROOT / "frontend/README.md",
+    ROOT / "collector/README.md",
+    ROOT / "docs/README.md",
+    ROOT / "docs/manual/blacklist-admin-guide.md",
+    ROOT / "docs/manual/blacklist-user-guide.md",
+    ROOT / "docs/testing/TEST-GUIDE-MAIN.md",
+)
 
 
 def test_docs_tooling_covers_ignored_tracked_files() -> None:
@@ -14,6 +23,9 @@ def test_docs_tooling_covers_ignored_tracked_files() -> None:
     assert '"gitignore": false' in config
     assert "git ls-files -z -- '*.md'" in makefile
     assert "xargs -0" in makefile
+    assert "docs-pdf:" in makefile
+    assert "--from=markdown" in makefile
+    assert "VERSION_VALUE" in makefile
 
 
 def test_docs_check_treats_special_filename_as_one_argument(tmp_path: Path) -> None:
@@ -42,3 +54,10 @@ def test_docs_check_treats_special_filename_as_one_argument(tmp_path: Path) -> N
     assert result.returncode == 0, result.stdout + result.stderr
     assert not (tmp_path / "DOCS_TOOLING_INJECTION").exists()
     assert malicious_name in npx_log.read_text(encoding="utf-8")
+
+
+def test_active_unversioned_guides_reference_the_root_version() -> None:
+    for document in ACTIVE_VERSION_DOCS:
+        content = document.read_text(encoding="utf-8")
+        assert "VERSION" in content
+        assert re.search(r"(?:Version|version|버전).{0,20}`?\d+\.\d+\.\d+", content) is None

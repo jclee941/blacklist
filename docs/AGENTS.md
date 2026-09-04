@@ -27,7 +27,7 @@ Operator documentation. `manual/` is the current truth; `wiki/` and `deliverable
 ## RULES
 
 - Guide screenshots regenerate via `frontend/e2e/helpers/capture-guide-screenshots.mjs` against a running stack.
-- Guide PDFs regenerate with pandoc + xelatex (`NanumGothic`); see git history for the exact invocation.
+- Guide PDFs regenerate with `make docs-pdf` using pandoc + xelatex and the NanumGothic font family.
 - `wiki/` and `deliverables/` are records, not operational truth — preserve; correct only on explicit request.
 
 ## GENERATED ASSETS
