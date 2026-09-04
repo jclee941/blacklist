@@ -94,6 +94,10 @@ class AppConfig(DatastoreConfig):
         return int(os.getenv("JWT_EXPIRY_HOURS", "8"))
 
     @property
+    def MAX_REQUEST_BODY_BYTES(self) -> int:
+        return int(os.getenv("MAX_REQUEST_BODY_BYTES", "1048576"))
+
+    @property
     def CREDENTIAL_MASTER_KEY(self) -> str | None:
         return os.getenv("CREDENTIAL_MASTER_KEY")
 

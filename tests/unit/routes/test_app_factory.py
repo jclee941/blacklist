@@ -52,6 +52,7 @@ class TestCreateApp:
         app = create_app()
         assert isinstance(app, Flask)
         assert app.config["SECRET_KEY"]
+        assert app.config["MAX_CONTENT_LENGTH"] == 1_048_576
 
     @patch("core.services.service_factory.initialize_services", return_value={})
     @patch("core.app_lifecycle.threading.Thread")

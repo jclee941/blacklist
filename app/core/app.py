@@ -30,6 +30,7 @@ def create_app():
     app.config["FORTINET_FEED_TOKEN"] = config.FORTINET_FEED_TOKEN
     app.config["FORTINET_FEED_ALLOWED_NETWORKS"] = config.FORTINET_FEED_ALLOWED_NETWORKS
     app.config["FORTIGATE_ALLOWED_NETWORKS"] = config.FORTIGATE_ALLOWED_NETWORKS
+    app.config["MAX_CONTENT_LENGTH"] = config.MAX_REQUEST_BODY_BYTES
 
     if config.DISABLE_JWT_AUTH and config.FLASK_ENV != "development" and not config.TESTING:
         raise ConfigurationError(
@@ -127,7 +128,12 @@ def create_app():
     jwt_secret = config.JWT_SECRET
     if not jwt_secret:
         raise ConfigurationError("JWT_SECRET_KEY is required", config_key="JWT_SECRET_KEY")
-    jwt_service = JWTService(jwt_secret, revocations=auth_security, expiry_hours=config.JWT_EXPIRY_HOURS)
+    jwt_service = JWTService(
+        jwt_secret,
+        revocations=auth_security,
+        session_versions=app.extensions.get("auth_state_service"),
+        expiry_hours=config.JWT_EXPIRY_HOURS,
+    )
     app.extensions["jwt_service"] = jwt_service
     app.before_request(jwt_required_hook)
 
