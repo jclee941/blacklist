@@ -27,10 +27,10 @@ REGTECH 포털의 API 차단을 방지하기 위해 **Token Bucket 알고리즘*
 
 ```python
 regtech_rate_limiter = AdaptiveRateLimiter(
-    initial_rate=2.0,    # 초당 2개 요청 (0.5초 간격)
-    min_rate=0.5,        # 최소 초당 0.5개 (2초 간격)
-    max_rate=5.0,        # 최대 초당 5개 (0.2초 간격)
-    burst_size=5,        # 버스트 5개까지 허용
+    initial_rate=0.2,    # 초당 0.2개 요청 (5초 간격)
+    min_rate=0.1,        # 최소 초당 0.1개 (10초 간격)
+    max_rate=0.5,        # 최대 초당 0.5개 (2초 간격)
+    burst_size=1,        # 버스트 1개
     backoff_factor=2.0,  # 실패 시 2배씩 증가
     max_backoff=300.0,   # 최대 5분 대기
 )
@@ -39,7 +39,7 @@ regtech_rate_limiter = AdaptiveRateLimiter(
 ### 재시도 제한
 
 - **인증**: 최대 3번 시도
-- **수집**: max_pages 제한 (기본 100페이지)
+- **수집**: max_pages 제한 (기본 20페이지)
 - **백오프**: 최대 5분 대기 후 종료
 
 ---

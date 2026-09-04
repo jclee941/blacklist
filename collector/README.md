@@ -44,8 +44,8 @@ Use the root Compose commands for the supported runtime:
 
 ```bash
 make dev
-curl http://localhost:8545/health
-curl http://localhost:8545/status
+docker exec blacklist-app curl --cacert /run/blacklist/ca.crt https://blacklist-collector:8545/health
+docker exec blacklist-app sh -c 'curl --cacert /run/blacklist/ca.crt -H "Authorization: Bearer $COLLECTOR_AUTH_TOKEN" https://blacklist-collector:8545/status'
 make test-collector-unit
 ```
 

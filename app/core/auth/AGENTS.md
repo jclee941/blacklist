@@ -2,20 +2,20 @@
 
 ## OVERVIEW
 
-JWT authentication layer. 500 lines across 8 files. Global JWT enforcement is **active**: `app.before_request(jwt_required_hook)` runs on every request except static assets and `@public`-marked endpoints. Admin credential and session-version state live in `core/services/auth_state_service.py` (see `services/AGENTS.md`), not in this package.
+JWT authentication layer. Global JWT enforcement is **active**: `app.before_request(jwt_required_hook)` runs on every request except static assets and `@public`-marked endpoints. Admin credential and session-version state live in `core/services/auth_state_service.py` (see `services/AGENTS.md`), not in this package.
 
 ## FILES
 
-| File             | LOC | Role                                                                         |
-| ---------------- | --- | ---------------------------------------------------------------------------- |
-| `security.py`    | 154 | bcrypt password hashing/policy, login lockout, JWT revocation store          |
-| `jwt_service.py` | 114 | HS256 encode/decode/validate with `jti` + `session_version` claims           |
-| `middleware.py`  | 80  | `before_request` hook enforcing JWT on all non-public routes                 |
-| `proxy.py`       | 57  | `TrustedProxyMiddleware` — honors `X-Forwarded-*` only from trusted peers    |
-| `feed.py`        | 40  | `feed_access_required` — Fortinet feed token + source-network check          |
-| `decorators.py`  | 22  | `@public` decorator to exempt routes from JWT                                |
-| `fortigate.py`   | 22  | `parse_fortigate_target` — validates FortiGate push target against allowlist |
-| `__init__.py`    | 11  | re-exports `JWTService`, `jwt_required_hook`, `public`                       |
+| File             | Role                                                                         |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `security.py`    | bcrypt password hashing/policy, login lockout, JWT revocation store          |
+| `jwt_service.py` | HS256 encode/decode/validate with `jti` + `session_version` claims           |
+| `middleware.py`  | `before_request` hook enforcing JWT on all non-public routes                 |
+| `proxy.py`       | `TrustedProxyMiddleware` — honors `X-Forwarded-*` only from trusted peers    |
+| `feed.py`        | `feed_access_required` — Fortinet feed token + source-network check          |
+| `decorators.py`  | `@public` decorator to exempt routes from JWT                                |
+| `fortigate.py`   | `parse_fortigate_target` — validates FortiGate push target against allowlist |
+| `__init__.py`    | re-exports `JWTService`, `jwt_required_hook`, `public`                       |
 
 ## CODE MAP
 

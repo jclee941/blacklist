@@ -79,7 +79,7 @@ docker logs blacklist-collector --tail 100
 
 - 대시보드 우측 배지 `정상`과 수집 카드의 `수집 상태`
 - 수집 직후 최대 5분간은 상태가 `수집 중`으로 표시될 수 있습니다(시각 기반 추정). 실제 진행 여부는 수집기 로그로 확인하십시오.
-- Collector 제어 API(`/trigger`, `/api/test-auth/<source>`, `/api/force-collection/<source>`)는 Bearer 토큰 필수입니다. `/health`, `/status`, `/logs`는 공개입니다.
+- Collector의 `/health`만 인증 없이 사용할 수 있습니다. `/status`, `/logs`, `/trigger`, `/api/test-auth/<source>`, `/api/force-collection/<source>`는 `COLLECTOR_AUTH_TOKEN` Bearer 토큰이 필요하며, Collector 포트는 호스트에 공개되지 않습니다.
 
 ### 백업 권장 대상
 
