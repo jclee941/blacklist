@@ -48,11 +48,11 @@ def collector(monkeypatch):
 def _run_curl(monkeypatch, result):
     captured = {}
 
-    def fake_run(cmd, **kwargs):
+    def fake_run(cmd, *_args, **_kwargs):
         captured["cmd"] = cmd
         return result
 
-    monkeypatch.setattr("collector.core.regtech.page_collection.subprocess.run", fake_run)
+    monkeypatch.setattr("collector.core.regtech.page_collection.run_text_bounded", fake_run)
     return captured
 
 

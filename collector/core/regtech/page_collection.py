@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from collector.config import CollectorConfig
 
+from ..bounded_process import run_text_bounded
 from ..regtech_excel import download_excel_data
 
 
@@ -111,7 +112,7 @@ class RegtechPageCollectorMixin:
 
             logger.info("🔍 데이터 수집 curl 실행: %s | page=%s", data_url, page_num - 1)
             logger.debug("📤 POST 데이터: %s", encoded_data)
-            result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=60)
+            result = run_text_bounded(curl_cmd, CollectorConfig.MAX_DOWNLOAD_BYTES + 32, timeout=60)
             if result.returncode != 0:
                 self._last_failure_kind = "download_too_large" if result.returncode == 63 else "curl_error"
                 logger.error("❌ curl 실행 실패 (code=%s): %s", result.returncode, result.stderr.strip())
@@ -119,6 +120,10 @@ class RegtechPageCollectorMixin:
                 return None
 
             response_text, separator, status_text = result.stdout.rpartition("\n")
+            if len(response_text.encode("utf-8")) > CollectorConfig.MAX_DOWNLOAD_BYTES:
+                self._last_failure_kind = "download_too_large"
+                self.rate_limiter.on_failure()
+                return None
             http_status = int(status_text) if separator and status_text.isdigit() else 0
             logger.info("📊 응답: HTTP %s, 길이 %s", http_status, len(response_text))
             from ..archive_manager import archive_content

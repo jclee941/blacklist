@@ -29,14 +29,14 @@ class RegtechCollectorHarness(RegtechCollector):
 def test_submits_pagination_fields_to_form_action(monkeypatch: pytest.MonkeyPatch) -> None:
     captured_command: list[str] = []
 
-    def run_curl(command: list[str], **_kwargs: bool | int) -> subprocess.CompletedProcess[str]:
+    def run_curl(command: list[str], *_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         captured_command.extend(command)
         return subprocess.CompletedProcess(command, returncode=0, stdout="<html></html>", stderr="")
 
     def archive_content(*_args: str, **_kwargs: str | None) -> None:
         return None
 
-    monkeypatch.setattr(subprocess, "run", run_curl)
+    monkeypatch.setattr("collector.core.regtech.page_collection.run_text_bounded", run_curl)
     monkeypatch.setattr(archive_manager, "archive_content", archive_content)
     collector = RegtechCollectorHarness()
     collector.base_url = "https://regtech.example.com"
@@ -59,10 +59,10 @@ def test_submits_pagination_fields_to_form_action(monkeypatch: pytest.MonkeyPatc
 
 
 def test_page_transport_failure_returns_retryable_outcome(monkeypatch: pytest.MonkeyPatch) -> None:
-    def run_curl(command: list[str], **_kwargs: bool | int) -> subprocess.CompletedProcess[str]:
+    def run_curl(command: list[str], *_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, returncode=7, stdout="", stderr="connection failed")
 
-    monkeypatch.setattr(subprocess, "run", run_curl)
+    monkeypatch.setattr("collector.core.regtech.page_collection.run_text_bounded", run_curl)
     collector = RegtechCollectorHarness()
 
     def wait_if_needed() -> bool:
@@ -93,10 +93,10 @@ def test_rate_limiter_failure_returns_retryable_outcome(monkeypatch: pytest.Monk
 
 
 def test_page_timeout_returns_retryable_outcome(monkeypatch: pytest.MonkeyPatch) -> None:
-    def run_curl(command: list[str], **_kwargs: bool | int) -> subprocess.CompletedProcess[str]:
+    def run_curl(command: list[str], *_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         raise subprocess.TimeoutExpired(command, timeout=60)
 
-    monkeypatch.setattr(subprocess, "run", run_curl)
+    monkeypatch.setattr("collector.core.regtech.page_collection.run_text_bounded", run_curl)
     collector = RegtechCollectorHarness()
 
     def wait_if_needed() -> bool:
@@ -114,10 +114,10 @@ def test_page_timeout_returns_retryable_outcome(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_page_parse_failure_returns_retryable_outcome(monkeypatch: pytest.MonkeyPatch) -> None:
-    def run_curl(command: list[str], **_kwargs: bool | int) -> subprocess.CompletedProcess[str]:
+    def run_curl(command: list[str], *_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, returncode=0, stdout="{}", stderr="")
 
-    monkeypatch.setattr(subprocess, "run", run_curl)
+    monkeypatch.setattr("collector.core.regtech.page_collection.run_text_bounded", run_curl)
     monkeypatch.setattr(archive_manager, "archive_content", lambda *_args, **_kwargs: None)
     collector = RegtechCollectorHarness()
     monkeypatch.setattr(collector, "_parse_response_data", lambda _response: None)
