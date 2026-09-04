@@ -11,6 +11,10 @@ const HOP_BY_HOP_HEADERS = new Set([
   'transfer-encoding',
   'upgrade',
   'x-forwarded-for',
+  'x-forwarded-host',
+  'x-forwarded-port',
+  'x-forwarded-prefix',
+  'x-forwarded-proto',
   'x-real-ip',
 ]);
 
@@ -23,7 +27,7 @@ const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
 };
 
-const createProxyHeaders = (incomingHeaders, clientIp, targetHost) => {
+const createProxyHeaders = (incomingHeaders, clientIp, targetHost, forwardedProto) => {
   const headers = {};
   for (const [name, value] of Object.entries(incomingHeaders)) {
     if (!HOP_BY_HOP_HEADERS.has(name.toLowerCase()) && name.toLowerCase() !== 'host') {
@@ -35,8 +39,18 @@ const createProxyHeaders = (incomingHeaders, clientIp, targetHost) => {
     ...headers,
     host: targetHost,
     'x-forwarded-for': clientIp,
+    'x-forwarded-proto': forwardedProto,
     'x-real-ip': clientIp,
   };
+};
+
+const isProxyBodyTooLarge = (incomingHeaders, maxBytes) => {
+  const value = incomingHeaders['content-length'];
+  if (value === undefined) {
+    return false;
+  }
+  const contentLength = Array.isArray(value) ? value[0] : value;
+  return !/^\d+$/.test(contentLength) || Number(contentLength) > maxBytes;
 };
 
 const resolveProxyTarget = (requestUrl) => {
@@ -118,6 +132,7 @@ const setSecurityHeaders = (response) => {
 module.exports = {
   SECURITY_HEADERS,
   createProxyHeaders,
+  isProxyBodyTooLarge,
   parseNextUrl,
   resolveProxyTarget,
   resolveStaticTarget,

@@ -1,6 +1,12 @@
 import routing from '../server-routing.js';
 
-const { createProxyHeaders, parseNextUrl, resolveProxyTarget, resolveStaticTarget } = routing;
+const {
+  createProxyHeaders,
+  isProxyBodyTooLarge,
+  parseNextUrl,
+  resolveProxyTarget,
+  resolveStaticTarget,
+} = routing;
 
 describe('custom server routing', () => {
   it('proxies only supported backend endpoints', () => {
@@ -61,20 +67,36 @@ describe('custom server routing', () => {
         host: 'attacker.invalid',
         'proxy-authorization': 'Basic value',
         'x-forwarded-for': '203.0.113.10',
+        'x-forwarded-host': 'attacker.invalid',
+        'x-forwarded-port': '80',
+        'x-forwarded-prefix': '/admin',
+        'x-forwarded-proto': 'http',
         'x-real-ip': '203.0.113.11',
       },
       '172.20.0.5',
       'blacklist-app:2542',
+      'https',
     );
 
     expect(headers).toMatchObject({
       authorization: 'Bearer token',
       host: 'blacklist-app:2542',
       'x-forwarded-for': '172.20.0.5',
+      'x-forwarded-proto': 'https',
       'x-real-ip': '172.20.0.5',
     });
     expect(headers).not.toHaveProperty('connection');
     expect(headers).not.toHaveProperty('forwarded');
+    expect(headers).not.toHaveProperty('x-forwarded-host');
+    expect(headers).not.toHaveProperty('x-forwarded-port');
+    expect(headers).not.toHaveProperty('x-forwarded-prefix');
     expect(headers).not.toHaveProperty('proxy-authorization');
+  });
+
+  it('rejects invalid or oversized declared request bodies', () => {
+    expect(isProxyBodyTooLarge({}, 1024)).toBe(false);
+    expect(isProxyBodyTooLarge({ 'content-length': '1024' }, 1024)).toBe(false);
+    expect(isProxyBodyTooLarge({ 'content-length': '1025' }, 1024)).toBe(true);
+    expect(isProxyBodyTooLarge({ 'content-length': 'invalid' }, 1024)).toBe(true);
   });
 });

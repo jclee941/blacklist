@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   createProxyHeaders,
+  isProxyBodyTooLarge,
   parseNextUrl,
   resolveProxyTarget,
   resolveStaticTarget,
@@ -37,6 +38,10 @@ const defaultPort = useHTTPS ? 443 : 3000;
 const port = parseInt(process.env.PORT, 10) || defaultPort;
 const hostname = process.env.HOSTNAME || '0.0.0.0';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:2542';
+const maxProxyBodyBytes = Number.parseInt(process.env.MAX_REQUEST_BODY_BYTES || '1048576', 10);
+if (!Number.isSafeInteger(maxProxyBodyBytes) || maxProxyBodyBytes <= 0) {
+  throw new Error('MAX_REQUEST_BODY_BYTES must be a positive integer');
+}
 
 const NextServer = require('next/dist/server/next-server').default;
 const nextConfig = require('./.next/required-server-files.json');
@@ -77,13 +82,28 @@ const proxyRequest = (req, res, targetPath) => {
     || req.connection?.remoteAddress 
     || '0.0.0.0';
   
+  if (isProxyBodyTooLarge(req.headers, maxProxyBodyBytes)) {
+    req.resume();
+    res.writeHead(413, { 'content-type': 'application/json', connection: 'close' });
+    res.end(JSON.stringify({ success: false, error: { code: 'REQUEST_TOO_LARGE' } }));
+    return;
+  }
+
   const options = {
     hostname: parsedApi.hostname,
     port: parsedApi.port || 80,
     path: targetPath,
     method: req.method,
-    headers: createProxyHeaders(req.headers, clientIp, parsedApi.host),
+    headers: createProxyHeaders(
+      req.headers,
+      clientIp,
+      parsedApi.host,
+      req.socket?.encrypted === true ? 'https' : 'http'
+    ),
   };
+
+  let bodyBytes = 0;
+  let bodyRejected = false;
 
   const proxyReq = http.request(options, (proxyRes) => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
@@ -91,12 +111,41 @@ const proxyRequest = (req, res, targetPath) => {
   });
 
   proxyReq.on('error', (err) => {
+    if (bodyRejected) {
+      return;
+    }
     console.error('Proxy error:', err.message);
-    res.writeHead(502);
-    res.end('Bad Gateway');
+    if (res.headersSent) {
+      res.destroy();
+    } else {
+      res.writeHead(502);
+      res.end('Bad Gateway');
+    }
   });
 
-  req.pipe(proxyReq);
+  req.on('data', (chunk) => {
+    if (bodyRejected) {
+      return;
+    }
+    bodyBytes += chunk.length;
+    if (bodyBytes > maxProxyBodyBytes) {
+      bodyRejected = true;
+      proxyReq.destroy();
+      res.writeHead(413, { 'content-type': 'application/json', connection: 'close' });
+      res.end(JSON.stringify({ success: false, error: { code: 'REQUEST_TOO_LARGE' } }));
+      return;
+    }
+    if (!proxyReq.write(chunk)) {
+      req.pause();
+      proxyReq.once('drain', () => req.resume());
+    }
+  });
+  req.on('end', () => {
+    if (!bodyRejected) {
+      proxyReq.end();
+    }
+  });
+  req.on('error', (error) => proxyReq.destroy(error));
 };
 
 // Load redirects from Next.js routes manifest
