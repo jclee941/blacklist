@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Independent ETL service on :8545. ZERO imports from `app/` — fully isolated. Coordination via DB/Redis/HTTP only.
+Independent ETL service on :8545. Apply the repository-level app/collector isolation rule; this guide covers collector-local exceptions and runtime behavior.
 
 ## STRUCTURE
 
@@ -11,7 +11,7 @@ collector/
 ├── run_collector.py         # entry point and lifecycle orchestration
 ├── config.py                # CollectorConfig: env-based settings + REGTECH credential cache
 ├── scheduler/                # CollectionScheduler package: manager + operations facade + manual/scheduled/cleanup/stats modules
-├── health_server.py         # Flask and Waitress health server on :8545
+├── health_server.py         # Flask and Cheroot health server on :8545
 ├── health_routes.py         # health/control route handlers (trigger, force-collection, test-auth)
 ├── core/                    # ETL pipeline modules
 │   ├── regtech/              # REGTECH auth + collection
@@ -46,8 +46,8 @@ collector/
 
 ## CODE MAP
 
-| Symbol | Type | Location | Refs | Role |
-| --- | --- | --- | --- | --- |
-| `main` | function | `run_collector.py` | high | Entry point and lifecycle orchestration |
-| `CollectionScheduler` | class | `scheduler/manager.py` | high | Scheduled and manual collection control |
-| `HealthServer` | class | `health_server.py` | high | Flask and Waitress health server on :8545 |
+| Symbol                | Type     | Location               | Refs | Role                                     |
+| --------------------- | -------- | ---------------------- | ---- | ---------------------------------------- |
+| `main`                | function | `run_collector.py`     | high | Entry point and lifecycle orchestration  |
+| `CollectionScheduler` | class    | `scheduler/manager.py` | high | Scheduled and manual collection control  |
+| `HealthServer`        | class    | `health_server.py`     | high | Flask and Cheroot health server on :8545 |

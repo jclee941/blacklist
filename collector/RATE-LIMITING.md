@@ -117,7 +117,7 @@ rate_stats = session_info["rate_limiter"]
 
 ### Token Bucket 알고리즘
 
-```
+```text
 토큰 버킷 (최대 burst_size 개)
   ↓
 시간 경과에 따라 토큰 재충전 (rate 속도)
@@ -128,13 +128,14 @@ rate_stats = session_info["rate_limiter"]
 ```
 
 **특징**:
+
 - **버스트 허용**: 버킷에 토큰이 있으면 연속 요청 가능
 - **평균 속도 제어**: 장기적으로 rate 속도 유지
 - **자동 대기**: 토큰 부족 시 자동으로 대기 시간 계산
 
 ### 적응형 속도 조절
 
-```
+```text
 연속 성공 10회 → 속도 20% 증가 (최대 max_rate)
   ↓
 실패 발생 → 속도 50% 감소 (최소 min_rate)
@@ -144,7 +145,7 @@ rate_stats = session_info["rate_limiter"]
 
 ### Exponential Backoff
 
-```
+```text
 실패 횟수 | 백오프 시간
 ---------|------------
 1        | 0.5초 × 2^1 = 1초
@@ -157,6 +158,7 @@ rate_stats = session_info["rate_limiter"]
 ```
 
 **특별 처리**:
+
 - HTTP 429 (Too Many Requests) → 백오프 2배 증가
 - HTTP 503 (Service Unavailable) → 백오프 2배 증가
 
@@ -213,7 +215,7 @@ self.rate_limiter.wait_if_needed()
 
 ### 적응형 조절 예시
 
-```
+```text
 초기 속도: 2.0 req/s
   ↓
 연속 10회 성공 → 2.4 req/s (20% 증가)
@@ -256,7 +258,7 @@ logging.getLogger("collector.core.rate_limiter").setLevel(logging.DEBUG)
 
 ### 주요 로그 메시지
 
-```
+```text
 ✅ 토큰 획득: 1개 소비, 잔여=4.23, 대기=0.000초
 ⏳ 토큰 대기: 0.234초
 ✅ 요청 성공 - 백오프 리셋
@@ -301,18 +303,20 @@ regtech_rate_limiter = AdaptiveRateLimiter(
 
 ## 📚 참고자료
 
-- **Token Bucket Algorithm**: https://en.wikipedia.org/wiki/Token_bucket
-- **Exponential Backoff**: https://en.wikipedia.org/wiki/Exponential_backoff
-- **Rate Limiting Best Practices**: https://cloud.google.com/architecture/rate-limiting-strategies-techniques
+- **Token Bucket Algorithm**: <https://en.wikipedia.org/wiki/Token_bucket>
+- **Exponential Backoff**: <https://en.wikipedia.org/wiki/Exponential_backoff>
+- **Rate Limiting Best Practices**: <https://cloud.google.com/architecture/rate-limiting-strategies-techniques>
 
 ---
 
 ## 🔄 버전 히스토리
 
 ### v3.5.64 (2026-02-15)
+
 - ✅ 문서 현행화 (버전/날짜 반영)
 
 ### v3.3.8 (2025-10-30)
+
 - ✅ Token Bucket 알고리즘 기반 Rate Limiter 도입
 - ✅ 적응형 속도 조절 기능 추가
 - ✅ Exponential Backoff 통합
