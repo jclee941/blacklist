@@ -1,6 +1,5 @@
 # Reusable / Manual — Build Docker Images
 # Fixes: matrix include bug (now uses proper base dimension), hardcoded self-hosted runner
-# Runner: Set vars.RUNNER to 'self-hosted' in repo settings for self-hosted runner
 name: Build Images
 
 on:
@@ -22,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
