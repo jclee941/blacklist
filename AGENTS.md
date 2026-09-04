@@ -18,7 +18,7 @@ Blacklist is a containerized threat-intelligence application for collecting, man
 | Deployment        | `deploy/`                                  | Docker Compose definitions, release bundle files, installation assets  |
 | CI and release    | `.github/workflows/`, `scripts/release.sh` | GitHub Actions checks, image publishing, and releases                  |
 
-The normal service ports are Flask `2542`, Next.js `2543`, collector `8545`, PostgreSQL `5432`, and Redis `6379`. Docker Compose is the supported local and packaged runtime.
+The packaged external endpoint is frontend HTTPS `443` (container `3000`). Standalone frontend development uses `2543`; Flask `2542`, collector `8545`, PostgreSQL `5432`, and Redis `6379` remain internal service ports. Docker Compose is the supported local and packaged runtime.
 
 ## Where To Start
 
