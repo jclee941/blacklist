@@ -41,12 +41,11 @@ tests/
 - Skipping `yield` cleanup in fixtures.
 - Deleting failing tests to "pass".
 
-
 ## CODE MAP
 
-| Symbol | Type | Location | Refs | Role |
-| --- | --- | --- | --- | --- |
-| `unit/routes/` | directory | `unit/routes/` | high | Flask route and API contract tests |
-| `unit/services/` | directory | `unit/services/` | high | application service tests |
-| `unit/collector/` | directory | `unit/collector/` | high | isolated collector and ETL tests |
-| `frontend/e2e/` | directory | `frontend/e2e/` | med | Playwright browser scenarios and snapshots |
+| Symbol            | Type      | Location          | Refs | Role                                       |
+| ----------------- | --------- | ----------------- | ---- | ------------------------------------------ |
+| `unit/routes/`    | directory | `unit/routes/`    | high | Flask route and API contract tests         |
+| `unit/services/`  | directory | `unit/services/`  | high | application service tests                  |
+| `unit/collector/` | directory | `unit/collector/` | high | isolated collector and ETL tests           |
+| `frontend/e2e/`   | directory | `frontend/e2e/`   | med  | Playwright browser scenarios and snapshots |
