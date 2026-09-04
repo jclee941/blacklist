@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-14 services, manual DI via `initialize_services()` (`service_factory.py`, 218L). All registered on `current_app.extensions['service_name']`.
+14 services, manual DI via `initialize_services()` (`service_factory.py`). All registered on `current_app.extensions['service_name']`.
 
 ## INIT ORDER (STRICT)
 
@@ -13,7 +13,8 @@
 5. **Configuration**: `secure_credential_service`, `regtech_config_service`, `settings_service`, `auth_state_service`
 6. **Business logic**: `scoring_service`, `expiry_service`, `ab_test_service`, `optimized_blacklist_service`
 
-Services outside category 1-2 fail soft (logged, service omitted from container) except `db_service`, `blacklist_service`, `collection_service`, and `secure_credential_service`, which raise on failure.
+Hard-fail (no try/except around construction, so an error aborts app startup): `db_service`, `blacklist_service`, `collection_service`, `secure_credential_service`, `regtech_config_service`, `settings_service`, `auth_state_service`.
+Soft-fail (constructed inside try/except, so an error is logged and the service is omitted from the container): `analytics_service`, `scheduler_service`, `cloudflare_service`, `scoring_service`, `expiry_service`, `ab_test_service`, `optimized_blacklist_service`.
 
 ## KEY FILES
 
@@ -27,20 +28,20 @@ Services outside category 1-2 fail soft (logged, service omitted from container)
 | `auth_state_service.py`            | transactional admin credential + session-version state (fails closed) |
 | `collection_service.py`            | collection orchestration                                       |
 | `database_service.py`              | raw SQL query execution                                        |
-| `secure_credential_service.py`     | AES-256-GCM credential storage                                 |
+| `secure_credential_service.py`     | Fernet-based credential storage                                 |
 | `settings_service.py`              | non-auth `system_settings` CRUD + cache                         |
 
 ## CODE MAP
 
 | Symbol                    | Type     | Location                    | Refs | Role                                             |
 | -------------------------- | -------- | ----------------------------- | ---- | -------------------------------------------------- |
-| `initialize_services`     | function | `service_factory.py:36`      | high | DI container, strict init order                  |
-| `BlacklistService`        | class    | `blacklist_service.py:37`    | high | core CRUD + sync + system stats                  |
-| `AuthStateService`        | class    | `auth_state_service.py:31`   | high | transactional password/session read+rotate, fails closed via `AuthStateUnavailableError` |
-| `CollectionService`       | class    | `collection_service.py:31`   | high | collection orchestration across sources          |
-| `SecureCredentialService` | class    | `secure_credential_service.py:30` | high | AES-256-GCM credential storage                   |
-| `SettingsService`         | class    | `settings_service.py:21`     | med  | system settings CRUD                              |
-| `ThreatScoringService`    | class    | `scoring_service.py:14`      | med  | IP threat scoring engine                          |
+| `initialize_services`     | function | `service_factory.py`      | high | DI container, strict init order                  |
+| `BlacklistService`        | class    | `blacklist_service.py`    | high | core CRUD + sync + system stats                  |
+| `AuthStateService`        | class    | `auth_state_service.py`   | high | transactional password/session read+rotate, fails closed via `AuthStateUnavailableError` |
+| `CollectionService`       | class    | `collection_service.py`   | high | collection orchestration across sources          |
+| `SecureCredentialService` | class    | `secure_credential_service.py` | high | Fernet-based credential storage                  |
+| `SettingsService`         | class    | `settings_service.py`     | med  | system settings CRUD                              |
+| `ThreatScoringService`    | class    | `scoring_service.py`      | med  | IP threat scoring engine                          |
 
 ## CONVENTIONS
 
