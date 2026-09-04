@@ -148,25 +148,24 @@ class TestDownloadExcelData:
         result = download_excel_data(session, rate_limiter, None, "https://example.com", "2026-01-01", "2026-03-31")
         assert result == []
 
-    @patch("core.regtech_excel.subprocess.run")
+    @patch("core.regtech_excel.run_bounded")
     def test_curl_failure_returns_empty(self, mock_run):
         session = MagicMock()
         session.cookies = []
         rate_limiter = MagicMock()
         rate_limiter.wait_if_needed.return_value = True
-        mock_run.return_value = MagicMock(returncode=1, stderr="connection refused")
+        mock_run.return_value = MagicMock(returncode=1, stderr=b"connection refused")
 
         result = download_excel_data(session, rate_limiter, None, "https://example.com", "2026-01-01", "2026-03-31")
         assert result == []
 
-    @patch("core.regtech_excel.os.path.exists", return_value=False)
-    @patch("core.regtech_excel.subprocess.run")
-    def test_file_not_created_returns_empty(self, mock_run, mock_exists):
+    @patch("core.regtech_excel.run_bounded")
+    def test_small_download_returns_empty(self, mock_run):
         session = MagicMock()
         session.cookies = []
         rate_limiter = MagicMock()
         rate_limiter.wait_if_needed.return_value = True
-        mock_run.return_value = MagicMock(returncode=0)
+        mock_run.return_value = MagicMock(returncode=0, stdout=b"small")
 
         result = download_excel_data(session, rate_limiter, None, "https://example.com", "2026-01-01", "2026-03-31")
         assert result == []

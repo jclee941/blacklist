@@ -9,7 +9,6 @@ Extracted from: regtech_collector.py
 import logging
 import math
 import os
-import subprocess
 import tempfile
 import urllib.parse
 from typing import List, Dict, Any, Optional
@@ -17,6 +16,7 @@ import pandas as pd
 
 from collector.config import CollectorConfig
 
+from .bounded_process import run_bounded
 from .regtech_parsers import parse_date, is_valid_ip
 
 logger = logging.getLogger(__name__)
@@ -76,8 +76,8 @@ def download_excel_data(
                 "-X",
                 "POST",
                 download_url,
-                "-o",
-                temporary_path,
+                "--max-time",
+                "115",
                 "--max-filesize",
                 str(CollectorConfig.MAX_DOWNLOAD_BYTES),
             ]
@@ -94,10 +94,13 @@ def download_excel_data(
         logger.info(f"📥 Excel 다운로드 시작: {start_date} ~ {end_date}")
 
         try:
-            result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=120)
+            result = run_bounded(curl_cmd, CollectorConfig.MAX_DOWNLOAD_BYTES, timeout=120)
             if result.returncode != 0:
-                logger.error(f"❌ Excel 다운로드 실패: {result.stderr}")
+                logger.error("❌ Excel 다운로드 실패: %s", result.stderr.decode("utf-8", errors="replace"))
                 return []
+
+            with open(temporary_path, "wb") as excel_file:
+                excel_file.write(result.stdout)
 
             if not os.path.exists(temporary_path):
                 logger.error("❌ Excel 파일이 생성되지 않음")
