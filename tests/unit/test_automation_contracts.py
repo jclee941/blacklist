@@ -18,7 +18,7 @@ node-version: \"24\"
 node-version: 24
       contents: read
       packages: write
-context: ./deploy/redis
+dockerfile: deploy/redis/Dockerfile
 API_URL: https://localhost:3443
 BASE_URL: https://localhost:3443
 E2E_USERNAME: ${{ env.E2E_USERNAME }}
@@ -39,7 +39,7 @@ jobs:
 """,
         ".github/workflows/build-images.yml": """
       contents: read
-      packages: write
+push: false
 """,
         ".github/workflows/release.yml": """
 Release notes file not found
@@ -53,7 +53,6 @@ jobs:
   build-images:
     permissions:
       contents: read
-      packages: write
   package:
     permissions:
       contents: read
@@ -184,7 +183,7 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             ".github/workflows/release.yml",
-            "      contents: read\n      packages: write",
+            "  build-images:\n    permissions:\n      contents: read",
             "release workflow job 'build-images' lacks explicit least-privilege permissions",
         ),
         (

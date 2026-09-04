@@ -16,7 +16,7 @@ WORKFLOWS: Final = ROOT / ".github" / "workflows"
 MUTABLE_ACTION_REF: Final = re.compile(r"^\s*-?\s*uses:\s+[^\s]+@(v|main|master|latest)", re.MULTILINE)
 RELEASE_JOB_PERMISSIONS: Final = {
     "validate": "    permissions:\n      contents: read",
-    "build-images": "    permissions:\n      contents: read\n      packages: write",
+    "build-images": "    permissions:\n      contents: read",
     "package": "    permissions:\n      contents: read",
     "create-release": "    permissions:\n      contents: write",
     "push-to-registry": "    permissions:\n      packages: write",
@@ -62,14 +62,17 @@ def main() -> None:
     failures = [
         message
         for condition, message in (
-            ("contents: read\n      packages: write" in build_images, "build-images lacks contents: read"),
+            ("contents: read" in build_images, "build-images lacks contents: read"),
+            ("packages: write" not in build_images, "build-images can publish packages directly"),
+            ("inputs.push" not in build_images, "build-images exposes a direct publish input"),
+            ("push: false" in build_images, "build-images is not artifact-only"),
             ("collector/|tests/unit/collector/" in ci, "collector test changes are not detected"),
             ("contents: read\n  packages: write" not in ci, "CI grants package write globally"),
             ('node-version: "24"' in ci, "CI frontend lint does not use Node 24"),
             ("node-version: 24" in ci, "CI frontend test or E2E does not use Node 24"),
             ('default: "24"' in reusable_node, "reusable Node workflow does not default to Node 24"),
             ("contents: read\n      packages: write" in ci, "image publishing lacks contents: read"),
-            ("context: ./deploy/redis" in ci, "CI Redis build context is invalid"),
+            ("dockerfile: deploy/redis/Dockerfile" in ci, "CI Redis Dockerfile path is invalid"),
             ("API_URL: https://localhost:3443" in ci, "E2E API calls bypass the frontend proxy"),
             ("BASE_URL: https://localhost:3443" in ci, "E2E browser target bypasses the frontend proxy"),
             ("E2E_USERNAME: ${{ env.E2E_USERNAME }}" in ci, "CI does not provide the E2E username"),
