@@ -26,6 +26,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       collector: ${{ steps.filter.outputs.collector }}
       ci: ${{ steps.filter.outputs.ci }}
+      metadata: ${{ steps.filter.outputs.metadata }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -36,9 +37,14 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             DIFF_TARGET="origin/${{ github.base_ref }}...HEAD"
           else
-            DIFF_TARGET="HEAD~1"
+            BEFORE_SHA="${{ github.event.before }}"
+            if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+              DIFF_TARGET="$(git hash-object -t tree /dev/null)..${{ github.sha }}"
+            else
+              DIFF_TARGET="${BEFORE_SHA}..${{ github.sha }}"
+            fi
           fi
-          CHANGED=$(git diff --name-only $DIFF_TARGET 2>/dev/null || git diff --name-only HEAD)
+          CHANGED=$(git diff --name-only "$DIFF_TARGET")
           echo "Changed files:"
           echo "$CHANGED"
           {
@@ -46,12 +52,15 @@ jobs:
             echo "backend=$(echo "$CHANGED" | grep -qE '^(app/|tests/)' && echo true || echo false)"
             echo "collector=$(echo "$CHANGED" | grep -qE '^(collector/|tests/unit/collector/)' && echo true || echo false)"
             echo "ci=$(echo "$CHANGED" | grep -qE '^(\.github/|postgres/|deploy/)' && echo true || echo false)"
+            echo "metadata=$(echo "$CHANGED" | grep -qE '^(VERSION|CHANGELOG\.md|frontend/package(-lock)?\.json|docs/manual/blacklist-[0-9].*-release-notes\.md|scripts/release\.sh|\.github/)' && echo true || echo false)"
           } >> "$GITHUB_OUTPUT"
 
   # Replaces inline lint-frontend with reusable workflow
   lint-frontend:
     needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true'
+    if: >-
+      needs.detect-changes.outputs.frontend == 'true' ||
+      needs.detect-changes.outputs.metadata == 'true'
     uses: ./.github/workflows/_ci-node.yml
     with:
       node-version: "24"
@@ -64,7 +73,8 @@ jobs:
     needs: detect-changes
     if: >-
       needs.detect-changes.outputs.backend == 'true' ||
-      needs.detect-changes.outputs.collector == 'true'
+      needs.detect-changes.outputs.collector == 'true' ||
+      needs.detect-changes.outputs.metadata == 'true'
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
@@ -81,7 +91,8 @@ jobs:
     needs: [detect-changes, lint-frontend]
     if: >-
       always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.frontend == 'true'
+      (needs.detect-changes.outputs.frontend == 'true' ||
+       needs.detect-changes.outputs.metadata == 'true')
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
@@ -109,7 +120,8 @@ jobs:
     needs: [detect-changes, lint-backend]
     if: >-
       always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.backend == 'true'
+      (needs.detect-changes.outputs.backend == 'true' ||
+       needs.detect-changes.outputs.metadata == 'true')
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     services:
@@ -170,7 +182,8 @@ jobs:
     needs: [detect-changes, lint-backend]
     if: >-
       always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.collector == 'true'
+      (needs.detect-changes.outputs.collector == 'true' ||
+       needs.detect-changes.outputs.metadata == 'true')
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
@@ -201,7 +214,8 @@ jobs:
     needs: [detect-changes, lint-backend, test-backend]
     if: >-
       always() && !failure() && !cancelled() &&
-      needs.detect-changes.outputs.backend == 'true'
+      (needs.detect-changes.outputs.backend == 'true' ||
+       needs.detect-changes.outputs.metadata == 'true')
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     services:
@@ -264,7 +278,8 @@ jobs:
       (needs.detect-changes.outputs.frontend == 'true' ||
        needs.detect-changes.outputs.backend == 'true' ||
        needs.detect-changes.outputs.collector == 'true' ||
-       needs.detect-changes.outputs.ci == 'true')
+       needs.detect-changes.outputs.ci == 'true' ||
+       needs.detect-changes.outputs.metadata == 'true')
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     strategy:
@@ -359,19 +374,33 @@ jobs:
         run: |
           CI_ENV_FILE="$RUNNER_TEMP/blacklist-ci.env"
           BLACKLIST_TLS_DIR="$RUNNER_TEMP/blacklist-ci-tls"
-          printf 'CI_ENV_FILE=%s\nBLACKLIST_TLS_DIR=%s\n' "$CI_ENV_FILE" "$BLACKLIST_TLS_DIR" >> "$GITHUB_ENV"
+          BLACKLIST_FRONTEND_TLS_DIR="$RUNNER_TEMP/blacklist-ci-frontend-tls"
+          ADMIN_PASSWORD=$(openssl rand -hex 24)
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          REDIS_PASSWORD=$(openssl rand -hex 24)
+          printf '::add-mask::%s\n' "$ADMIN_PASSWORD"
+          printf 'CI_ENV_FILE=%s\nBLACKLIST_TLS_DIR=%s\nBLACKLIST_FRONTEND_TLS_DIR=%s\nE2E_USERNAME=admin\nE2E_PASSWORD=%s\n' \
+            "$CI_ENV_FILE" "$BLACKLIST_TLS_DIR" "$BLACKLIST_FRONTEND_TLS_DIR" "$ADMIN_PASSWORD" >> "$GITHUB_ENV"
           cat > "$CI_ENV_FILE" <<EOF
-          POSTGRES_PASSWORD=ci-postgres-password
-          REDIS_PASSWORD=ci-redis-password
-          SECRET_KEY=my-secret-key-123
-          CREDENTIAL_MASTER_KEY=ci-master-key
-          CREDENTIAL_ENCRYPTION_KEY=ci-encryption-key
-          ENCRYPTION_SALT=ci-encryption-salt
-          COLLECTOR_AUTH_TOKEN=test-auth-bootstrap-secret
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          REDIS_PASSWORD=$REDIS_PASSWORD
+          SECRET_KEY=$(openssl rand -hex 32)
+          FLASK_SECRET_KEY=$(openssl rand -hex 32)
+          JWT_SECRET_KEY=$(openssl rand -hex 32)
+          CREDENTIAL_MASTER_KEY=$(openssl rand -hex 32)
+          CREDENTIAL_ENCRYPTION_KEY=$(openssl rand -base64 32)
+          SETTINGS_ENCRYPTION_KEY=$(openssl rand -base64 32)
+          ENCRYPTION_SALT=$(openssl rand -hex 32)
+          COLLECTOR_AUTH_TOKEN=$(openssl rand -hex 32)
           ADMIN_USERNAME=admin
-          ADMIN_PASSWORD=blacklist-dev-password
+          ADMIN_PASSWORD=$ADMIN_PASSWORD
           BLACKLIST_TLS_DIR=$RUNNER_TEMP/blacklist-ci-tls
+          BLACKLIST_FRONTEND_TLS_DIR=$RUNNER_TEMP/blacklist-ci-frontend-tls
+          FRONTEND_TLS_MODE=self-signed
+          FRONTEND_BIND_ADDRESS=127.0.0.1
+          TRUSTED_PROXY_NETWORKS=172.30.0.10/32
           EOF
+          sudo install -d -m 700 -o 1001 -g 1001 "$BLACKLIST_FRONTEND_TLS_DIR"
           sudo env BLACKLIST_TLS_DIR="$BLACKLIST_TLS_DIR" bash deploy/install.sh --generate-tls-only
       - name: Start services
         run: |
@@ -399,8 +428,8 @@ jobs:
         env:
           BASE_URL: https://localhost:3443
           API_URL: https://localhost:3443
-          E2E_USERNAME: admin
-          E2E_PASSWORD: blacklist-dev-password
+          E2E_USERNAME: ${{ env.E2E_USERNAME }}
+          E2E_PASSWORD: ${{ env.E2E_PASSWORD }}
           WEBKIT_ENABLED: "true"
       - name: Collect logs
         if: failure()
@@ -417,6 +446,7 @@ jobs:
         run: |
           docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml down -v
           sudo rm -rf "$BLACKLIST_TLS_DIR"
+          sudo rm -rf "$BLACKLIST_FRONTEND_TLS_DIR"
           rm -f "$CI_ENV_FILE"
 
   coverage-report:
@@ -504,8 +534,11 @@ jobs:
           echo "CI gate PASSED — all jobs succeeded or were skipped."
 
   push-images:
-    needs: [build, e2e, scan-images]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    needs: [build, ci-gate]
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      github.event_name == 'push' &&
+      needs.ci-gate.result == 'success'
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     concurrency:

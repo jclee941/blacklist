@@ -10,9 +10,6 @@ services:
 
   blacklist-app:
     image: blacklist-app:ci
-    environment:
-      ADMIN_USERNAME: admin
-      ADMIN_PASSWORD: blacklist-dev-password
 
   blacklist-frontend:
     image: blacklist-frontend:ci
