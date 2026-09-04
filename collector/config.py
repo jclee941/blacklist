@@ -29,7 +29,7 @@ class CollectorConfig:
     ARCHIVE_ENABLED = os.getenv("COLLECTOR_ARCHIVE_ENABLED", "true").lower() == "true"
     MAX_ARCHIVE_BYTES = int(os.getenv("COLLECTOR_MAX_ARCHIVE_BYTES", str(512 * 1024 * 1024)))
     ARCHIVE_RETENTION_DAYS = int(os.getenv("COLLECTOR_ARCHIVE_RETENTION_DAYS", "30"))
-    MAX_DOWNLOAD_BYTES = int(os.getenv("COLLECTOR_MAX_DOWNLOAD_BYTES", str(100 * 1024 * 1024)))
+    MAX_DOWNLOAD_BYTES = int(os.getenv("COLLECTOR_MAX_DOWNLOAD_BYTES", str(10 * 1024 * 1024)))
 
     # 인증정보 캐시 (DB 조회 최소화)
     # SECURITY: Credentials are decrypted from DB and cached in memory for runtime use.

@@ -11,6 +11,8 @@ import subprocess
 
 import pytest
 
+from collector.config import CollectorConfig
+
 
 class FakeLimiter:
     """Rate limiter double — records calls without sleeping."""
@@ -29,7 +31,7 @@ class FakeLimiter:
         self.successes += 1
 
 
-def _completed(stdout: str, returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess:
+def _completed(stdout: str, returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
@@ -38,7 +40,7 @@ def collector(monkeypatch):
     from collector.core.regtech.collector import RegtechCollector
 
     instance = RegtechCollector()
-    instance.rate_limiter = FakeLimiter()
+    monkeypatch.setattr(instance, "rate_limiter", FakeLimiter())
     monkeypatch.setattr("collector.core.archive_manager.archive_content", lambda *args, **kwargs: None)
     yield instance
 
@@ -97,6 +99,8 @@ class TestHttpStatusCapture:
         cmd = captured["cmd"]
         assert "-sS" in cmd
         assert "--max-time" in cmd
+        assert "--max-filesize" in cmd
+        assert str(CollectorConfig.MAX_DOWNLOAD_BYTES) in cmd
         assert "-w" in cmd
         assert "\n%{http_code}" in cmd
 

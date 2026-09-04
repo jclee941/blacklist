@@ -5,6 +5,8 @@ import time
 import urllib.parse
 from typing import Any, Dict, List, Optional
 
+from collector.config import CollectorConfig
+
 from ..regtech_excel import download_excel_data
 
 
@@ -12,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class RegtechPageCollectorMixin:
+    _last_failure_kind: str | None = None
+
     def _download_excel_data(self: Any, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         return download_excel_data(
             session=self.session,
@@ -83,7 +87,19 @@ class RegtechPageCollectorMixin:
 
             encoded_data = urllib.parse.urlencode(request_data)
             curl_cmd = (
-                ["curl", "-sS", "--max-time", "55", "-w", "\n%{http_code}", "-X", "POST", data_url]
+                [
+                    "curl",
+                    "-sS",
+                    "--max-time",
+                    "55",
+                    "--max-filesize",
+                    str(CollectorConfig.MAX_DOWNLOAD_BYTES),
+                    "-w",
+                    "\n%{http_code}",
+                    "-X",
+                    "POST",
+                    data_url,
+                ]
                 + headers_list
                 + [
                     "--data",
@@ -97,7 +113,7 @@ class RegtechPageCollectorMixin:
             logger.debug("📤 POST 데이터: %s", encoded_data)
             result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=60)
             if result.returncode != 0:
-                self._last_failure_kind = "curl_error"
+                self._last_failure_kind = "download_too_large" if result.returncode == 63 else "curl_error"
                 logger.error("❌ curl 실행 실패 (code=%s): %s", result.returncode, result.stderr.strip())
                 self.rate_limiter.on_failure()
                 return None
