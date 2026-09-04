@@ -74,7 +74,7 @@ REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM :"app_user", :"coll
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"app_user";
 GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO :"app_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE blacklist_ips TO :"collector_user";
-GRANT SELECT ON TABLE collection_credentials TO :"collector_user";
+GRANT SELECT ON TABLE collector_regtech_credentials TO :"collector_user";
 GRANT SELECT, INSERT, UPDATE ON TABLE collection_history, collection_stats, collection_status TO :"collector_user";
 GRANT SELECT, INSERT ON TABLE regtech_monitoring, regtech_alerts TO :"collector_user";
 GRANT USAGE, SELECT ON SEQUENCE blacklist_ips_id_seq, collection_history_id_seq, collection_stats_id_seq,

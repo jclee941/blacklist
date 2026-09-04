@@ -47,3 +47,5 @@ def test_bootstrap_owner_applies_runtime_schema_before_grants() -> None:
     assert "008_add_regtech_monitoring.sql" in role_configurator
     assert "CREATE TABLE IF NOT EXISTS regtech_monitoring" in monitoring_migration
     assert "CREATE TABLE IF NOT EXISTS regtech_alerts" in monitoring_migration
+    assert "CREATE OR REPLACE VIEW collector_regtech_credentials" in monitoring_migration
+    assert "WHERE service_name = 'REGTECH'" in monitoring_migration

@@ -192,7 +192,7 @@ class DatabaseService(DatabaseQueryMixin):
                     """
                     SELECT service_name, username, password, encrypted,
                            enabled, collection_interval, last_collection, config
-                    FROM collection_credentials
+                    FROM collector_regtech_credentials
                     WHERE service_name = %s
                 """,
                     (service_name,),
