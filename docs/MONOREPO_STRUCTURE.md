@@ -7,7 +7,7 @@
 Monorepo containing 5 services for threat intelligence collection, management, and enforcement.
 All services use `network_mode: host` and Docker Named Volumes for persistent storage.
 
-```
+```text
 blacklist/
 ├── app/                    # Backend API Service (Flask)            :2542
 ├── collector/              # ETL/Collection Service (Python)        :8545
@@ -34,7 +34,7 @@ blacklist/
 **Port**: 2542  
 **Entry Point**: `app/run_app.py`
 
-```
+```text
 app/
 ├── run_app.py              # Application entry point
 ├── core/
@@ -59,6 +59,7 @@ app/
 ```
 
 **Key Patterns**:
+
 - DI via `current_app.extensions['service_name']`
 - No ORM — Raw SQL with parameterized `%s` only
 - RFC 7807 error responses via typed exception hierarchy
@@ -72,7 +73,7 @@ app/
 **Port**: 8545  
 **Entry Point**: `collector/run_collector.py`
 
-```
+```text
 collector/
 ├── run_collector.py        # CollectorApplication entry point
 ├── config.py               # CollectorConfig
@@ -88,6 +89,7 @@ collector/
 ```
 
 **Key Patterns**:
+
 - Independent from `app/` — zero code sharing
 - Communication: DB & Redis only (no direct imports)
 - Scheduled jobs: REGTECH daily at 02:00, cleanup at 00:00
@@ -100,7 +102,7 @@ collector/
 **Port**: 443 (SSL embedded in standalone image)  
 **Entry Point**: `frontend/app/page.tsx`
 
-```
+```text
 frontend/
 ├── app/                    # Next.js App Router
 ├── components/             # React components
@@ -115,6 +117,7 @@ frontend/
 ```
 
 **Key Patterns**:
+
 - All API calls through `lib/api.ts` (no direct `fetch()`)
 - Server Components by default
 - Standalone output with Self-signed SSL embedded in Docker image
@@ -123,7 +126,7 @@ frontend/
 
 ## Database (`postgres/`)
 
-```
+```text
 postgres/
 ├── initdb/                 # Extension + schema bootstrap
 │   ├── 01_extensions.sql   # uuid-ossp, pg_trgm
@@ -137,7 +140,7 @@ postgres/
 
 ## Service Boundaries
 
-#### Diagram summary 1
+### Diagram summary 1
 
 - Type: flowchart
 - Component: app/ / Flask API (APP)
@@ -152,8 +155,8 @@ postgres/
 - frontend/ / Next.js UI (FE) -> app/ / Flask API (APP)
 - app/ / Flask API (APP) -> collector/ / ETL Service (COLL)
 
-
 **Rules**:
+
 1. **No cross-imports** between `app/`, `collector/`, `frontend/`
 2. Communication only via: PostgreSQL, Redis, HTTP APIs
 3. `collector/` operates independently — zero code sharing with `app/`
@@ -162,17 +165,17 @@ postgres/
 
 ## Environment Variables
 
-| Variable | Service | Description |
-|----------|---------|-------------|
-| `CREDENTIAL_MASTER_KEY` | app | AES-256-GCM encryption master key |
-| `SECRET_KEY` | app | Flask session secret |
-| `POSTGRES_HOST` | app, collector | PostgreSQL host |
-| `POSTGRES_PORT` | app, collector | PostgreSQL port (default: 5432) |
-| `POSTGRES_DB` | app, collector | PostgreSQL database name |
-| `POSTGRES_USER` | app, collector | PostgreSQL username |
-| `POSTGRES_PASSWORD` | app, collector | PostgreSQL password |
-| `REDIS_HOST` | app | Redis host |
-| `REDIS_PORT` | app | Redis port (default: 6379) |
+| Variable                | Service        | Description                       |
+| ----------------------- | -------------- | --------------------------------- |
+| `CREDENTIAL_MASTER_KEY` | app            | AES-256-GCM encryption master key |
+| `SECRET_KEY`            | app            | Flask session secret              |
+| `POSTGRES_HOST`         | app, collector | PostgreSQL host                   |
+| `POSTGRES_PORT`         | app, collector | PostgreSQL port (default: 5432)   |
+| `POSTGRES_DB`           | app, collector | PostgreSQL database name          |
+| `POSTGRES_USER`         | app, collector | PostgreSQL username               |
+| `POSTGRES_PASSWORD`     | app, collector | PostgreSQL password               |
+| `REDIS_HOST`            | app            | Redis host                        |
+| `REDIS_PORT`            | app            | Redis port (default: 6379)        |
 
 ---
 

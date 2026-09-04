@@ -23,3 +23,9 @@ Operator documentation. `manual/` is the current truth; `wiki/` and `deliverable
 - Guide screenshots regenerate via `frontend/e2e/helpers/capture-guide-screenshots.mjs` against a running stack.
 - Guide PDFs regenerate with pandoc + xelatex (`NanumGothic`); see git history for the exact invocation.
 - `wiki/` and `deliverables/` are records, not operational truth — preserve; correct only on explicit request.
+
+## GENERATED ASSETS
+
+- Treat markdown as the editable source for current guides and release notes.
+- Regenerate PDFs rather than patching binary output by hand.
+- Keep release signing public material tracked; private signing keys stay in 1Password/GitHub environment secrets.

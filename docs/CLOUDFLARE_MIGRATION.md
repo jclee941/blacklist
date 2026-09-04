@@ -14,7 +14,7 @@ This document outlines the migration strategy for moving the Blacklist Intellige
 
 ### Current vs Target Architecture
 
-```
+```text
 CURRENT (Docker Compose)              TARGET (Cloudflare Native)
 ========================              ==========================
 blacklist-frontend (Next.js 15)  →   Cloudflare Pages + @cloudflare/next-on-pages
@@ -29,12 +29,12 @@ Traefik (Reverse Proxy)          →   Cloudflare CDN (Built-in)
 
 ## Phase Overview
 
-| Phase | Component | Risk | Effort | Duration |
-|-------|-----------|------|--------|----------|
-| **1** | Frontend → Pages | Low | 2-3 days | Week 1 |
-| **2** | API → Workers + D1 | High | 2-3 weeks | Week 2-4 |
-| **3** | Collector → Queues | Medium | 1 week | Week 5 |
-| **4** | Testing & Cutover | Medium | 1 week | Week 6 |
+| Phase | Component          | Risk   | Effort    | Duration |
+| ----- | ------------------ | ------ | --------- | -------- |
+| **1** | Frontend → Pages   | Low    | 2-3 days  | Week 1   |
+| **2** | API → Workers + D1 | High   | 2-3 weeks | Week 2-4 |
+| **3** | Collector → Queues | Medium | 1 week    | Week 5   |
+| **4** | Testing & Cutover  | Medium | 1 week    | Week 6   |
 
 ---
 
@@ -54,11 +54,12 @@ npm install @cloudflare/next-on-pages
 ### 1.2 Configuration Changes
 
 **next.config.ts:**
+
 ```typescript
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  output: "standalone",
   images: {
     unoptimized: true, // Or use Cloudflare Image Resizing
   },
@@ -71,6 +72,7 @@ export default nextConfig;
 ```
 
 **wrangler.toml (frontend):**
+
 ```toml
 name = "blacklist-frontend"
 compatibility_date = "2024-01-01"
@@ -89,7 +91,7 @@ Each route using server features must export edge runtime:
 
 ```typescript
 // app/api/[...route]/route.ts
-export const runtime = 'edge';
+export const runtime = "edge";
 ```
 
 ### 1.4 API Rewrites
@@ -100,7 +102,8 @@ Update `frontend/lib/api.ts` to call Workers directly:
 // Current: /api/* → localhost:2542
 // Target: Direct Workers URL or same-origin (if on *.pages.dev)
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.blacklist.example.com';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.blacklist.example.com";
 ```
 
 ### 1.5 Deployment
@@ -119,16 +122,16 @@ npx wrangler pages deploy .vercel/output/static --project-name=blacklist-fronten
 
 ### 2.1 Technology Stack Change
 
-| Current | Target | Notes |
-|---------|--------|-------|
-| Flask (Python) | Hono.js (TypeScript) | Full rewrite required |
-| psycopg2 | D1 Binding | SQL syntax changes |
-| Fernet encryption | Web Crypto API | Algorithm compatible |
-| Flask-CORS | Hono CORS middleware | Similar API |
+| Current           | Target               | Notes                 |
+| ----------------- | -------------------- | --------------------- |
+| Flask (Python)    | Hono.js (TypeScript) | Full rewrite required |
+| psycopg2          | D1 Binding           | SQL syntax changes    |
+| Fernet encryption | Web Crypto API       | Algorithm compatible  |
+| Flask-CORS        | Hono CORS middleware | Similar API           |
 
 ### 2.2 Hono.js Structure
 
-```
+```text
 cloudflare/
 ├── src/
 │   ├── index.ts          # Main entry point
@@ -151,12 +154,13 @@ cloudflare/
 ### 2.3 Example Route Migration
 
 **Flask (Current):**
+
 ```python
 @bp.route('/api/blacklist/list', methods=['GET'])
 def get_blacklist():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 100, type=int)
-    
+
     db = current_app.extensions['database']
     result = db.query(
         "SELECT * FROM blacklist_ips WHERE is_active = true LIMIT %s OFFSET %s",
@@ -166,9 +170,10 @@ def get_blacklist():
 ```
 
 **Hono.js (Target):**
+
 ```typescript
-import { Hono } from 'hono';
-import { D1Database } from '@cloudflare/workers-types';
+import { Hono } from "hono";
+import { D1Database } from "@cloudflare/workers-types";
 
 type Bindings = {
   DB: D1Database;
@@ -177,14 +182,16 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.get('/api/blacklist/list', async (c) => {
-  const page = Number(c.req.query('page') || 1);
-  const limit = Number(c.req.query('limit') || 100);
+app.get("/api/blacklist/list", async (c) => {
+  const page = Number(c.req.query("page") || 1);
+  const limit = Number(c.req.query("limit") || 100);
   const offset = (page - 1) * limit;
 
   const { results } = await c.env.DB.prepare(
-    `SELECT * FROM blacklist_ips WHERE is_active = 1 LIMIT ? OFFSET ?`
-  ).bind(limit, offset).all();
+    `SELECT * FROM blacklist_ips WHERE is_active = 1 LIMIT ? OFFSET ?`,
+  )
+    .bind(limit, offset)
+    .all();
 
   return c.json(results);
 });
@@ -198,28 +205,28 @@ See `cloudflare/schema.sql` for the complete D1-compatible schema.
 
 **Key Conversions:**
 
-| PostgreSQL | D1 (SQLite) | Notes |
-|------------|-------------|-------|
-| `SERIAL PRIMARY KEY` | `INTEGER PRIMARY KEY AUTOINCREMENT` | Auto-increment |
-| `JSONB` | `TEXT` | Store as JSON string |
-| `VARCHAR(n)` | `TEXT` | SQLite ignores length |
-| `DECIMAL(n,m)` | `REAL` | Floating point |
-| `BOOLEAN` | `INTEGER` | 0/1 instead of true/false |
-| `NOW()` | `datetime('now')` | Current timestamp |
-| `INTERVAL '30 days'` | `datetime('now', '-30 days')` | Date arithmetic |
-| `::jsonb` cast | `json()` function | JSON operations |
-| `column ->> 'key'` | `json_extract(column, '$.key')` | JSON access |
-| `FILTER (WHERE ...)` | Subquery or CASE WHEN | Not supported |
-| `json_object_agg()` | Manual aggregation | Application layer |
+| PostgreSQL           | D1 (SQLite)                         | Notes                     |
+| -------------------- | ----------------------------------- | ------------------------- |
+| `SERIAL PRIMARY KEY` | `INTEGER PRIMARY KEY AUTOINCREMENT` | Auto-increment            |
+| `JSONB`              | `TEXT`                              | Store as JSON string      |
+| `VARCHAR(n)`         | `TEXT`                              | SQLite ignores length     |
+| `DECIMAL(n,m)`       | `REAL`                              | Floating point            |
+| `BOOLEAN`            | `INTEGER`                           | 0/1 instead of true/false |
+| `NOW()`              | `datetime('now')`                   | Current timestamp         |
+| `INTERVAL '30 days'` | `datetime('now', '-30 days')`       | Date arithmetic           |
+| `::jsonb` cast       | `json()` function                   | JSON operations           |
+| `column ->> 'key'`   | `json_extract(column, '$.key')`     | JSON access               |
+| `FILTER (WHERE ...)` | Subquery or CASE WHEN               | Not supported             |
+| `json_object_agg()`  | Manual aggregation                  | Application layer         |
 
 ### 2.5 D1 Limitations
 
-| Limit | Value | Mitigation |
-|-------|-------|------------|
-| Database size | 10 GB | Archive old data |
-| Row size | 1 MB | Compress JSONB fields |
+| Limit             | Value         | Mitigation             |
+| ----------------- | ------------- | ---------------------- |
+| Database size     | 10 GB         | Archive old data       |
+| Row size          | 1 MB          | Compress JSONB fields  |
 | Concurrent writes | Single writer | Queue write operations |
-| Query timeout | 30s (paid) | Paginate large queries |
+| Query timeout     | 30s (paid)    | Paginate large queries |
 
 ### 2.6 wrangler.toml (Workers)
 
@@ -255,7 +262,7 @@ ENVIRONMENT = "production"
 
 ### 3.1 Architecture
 
-```
+```text
 Cron Trigger (0 */6 * * *)
     ↓
 Producer Worker
@@ -297,20 +304,20 @@ max_batch_timeout = 30
 export default {
   // Cron trigger handler
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    if (event.cron === '0 */6 * * *') {
+    if (event.cron === "0 */6 * * *") {
       // REGTECH collection
       const items = await fetchREGTECH(env);
       await env.COLLECTION_QUEUE.sendBatch(
-        items.map(item => ({ body: item }))
+        items.map((item) => ({ body: item })),
       );
     }
   },
 
   // Queue consumer handler
   async queue(batch: MessageBatch<CollectionItem>, env: Env) {
-    const items = batch.messages.map(m => m.body);
+    const items = batch.messages.map((m) => m.body);
     await batchInsertToD1(env.DB, items);
-    
+
     // Acknowledge all messages
     batch.ackAll();
   },
@@ -337,12 +344,12 @@ export class CollectionCoordinator extends DurableObject {
 
 ### 4.1 Testing Strategy
 
-| Test Type | Tool | Coverage |
-|-----------|------|----------|
-| Unit Tests | Vitest | Services, utilities |
-| Integration | Miniflare | D1, KV, Queues locally |
-| E2E | Playwright | Full user flows |
-| Load | k6 | API performance |
+| Test Type   | Tool       | Coverage               |
+| ----------- | ---------- | ---------------------- |
+| Unit Tests  | Vitest     | Services, utilities    |
+| Integration | Miniflare  | D1, KV, Queues locally |
+| E2E         | Playwright | Full user flows        |
+| Load        | k6         | API performance        |
 
 ### 4.2 Staging Environment
 
@@ -371,7 +378,7 @@ wrangler d1 execute blacklist-db --file=data-sqlite.sql
 
 - [ ] All E2E tests passing on staging
 - [ ] Data migration verified
-- [ ] DNS records updated (CNAME to *.pages.dev)
+- [ ] DNS records updated (CNAME to \*.pages.dev)
 - [ ] Secrets configured in Workers
 - [ ] Monitoring dashboards set up
 - [ ] Rollback plan documented
@@ -382,16 +389,16 @@ wrangler d1 execute blacklist-db --file=data-sqlite.sql
 
 ### Cloudflare Workers Paid Plan ($5/month)
 
-| Resource | Free | Paid | Expected Usage |
-|----------|------|------|----------------|
-| Workers requests | 100K/day | 10M/month | ~500K/month |
-| Workers CPU | 10ms | 30s | <100ms avg |
-| D1 reads | 5M/day | 25B/month | ~10M/month |
-| D1 writes | 100K/day | 50M/month | ~100K/month |
-| D1 storage | 5 GB | 10 GB | ~2 GB |
-| KV reads | 100K/day | 10M/month | ~1M/month |
-| KV writes | 1K/day | 1M/month | ~10K/month |
-| Queues | N/A | 1M/month | ~50K/month |
+| Resource         | Free     | Paid      | Expected Usage |
+| ---------------- | -------- | --------- | -------------- |
+| Workers requests | 100K/day | 10M/month | ~500K/month    |
+| Workers CPU      | 10ms     | 30s       | <100ms avg     |
+| D1 reads         | 5M/day   | 25B/month | ~10M/month     |
+| D1 writes        | 100K/day | 50M/month | ~100K/month    |
+| D1 storage       | 5 GB     | 10 GB     | ~2 GB          |
+| KV reads         | 100K/day | 10M/month | ~1M/month      |
+| KV writes        | 1K/day   | 1M/month  | ~10K/month     |
+| Queues           | N/A      | 1M/month  | ~50K/month     |
 
 **Estimated Monthly Cost:** $5-15 (depending on traffic)
 
@@ -399,13 +406,13 @@ wrangler d1 execute blacklist-db --file=data-sqlite.sql
 
 ## Risk Assessment
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| D1 write contention | Medium | High | Queue writes, batch operations |
-| API rewrite bugs | High | High | Comprehensive E2E tests |
-| Edge runtime limits | Low | Medium | Monitor CPU time, optimize queries |
-| Data migration errors | Medium | High | Validate checksums, dry-run |
-| REGTECH API changes | Low | Medium | Abstract in service layer |
+| Risk                  | Probability | Impact | Mitigation                         |
+| --------------------- | ----------- | ------ | ---------------------------------- |
+| D1 write contention   | Medium      | High   | Queue writes, batch operations     |
+| API rewrite bugs      | High        | High   | Comprehensive E2E tests            |
+| Edge runtime limits   | Low         | Medium | Monitor CPU time, optimize queries |
+| Data migration errors | Medium      | High   | Validate checksums, dry-run        |
+| REGTECH API changes   | Low         | Medium | Abstract in service layer          |
 
 ---
 
@@ -421,36 +428,36 @@ wrangler d1 execute blacklist-db --file=data-sqlite.sql
 
 ### A. File Mapping
 
-| Current File | Cloudflare Equivalent |
-|--------------|----------------------|
-| `app/core/routes/api/*.py` | `cloudflare/src/routes/*.ts` |
-| `app/core/services/*.py` | `cloudflare/src/services/*.ts` |
-| `postgres/initdb/02-schema.sql` | `cloudflare/schema.sql` |
-| `collector/scheduler.py` | Cron Triggers in `wrangler.toml` |
-| `frontend/` | Same (with `@cloudflare/next-on-pages`) |
+| Current File                    | Cloudflare Equivalent                   |
+| ------------------------------- | --------------------------------------- |
+| `app/core/routes/api/*.py`      | `cloudflare/src/routes/*.ts`            |
+| `app/core/services/*.py`        | `cloudflare/src/services/*.ts`          |
+| `postgres/initdb/02-schema.sql` | `cloudflare/schema.sql`                 |
+| `collector/scheduler.py`        | Cron Triggers in `wrangler.toml`        |
+| `frontend/`                     | Same (with `@cloudflare/next-on-pages`) |
 
 ### B. API Endpoint Inventory
 
-| Endpoint | Method | Priority | Notes |
-|----------|--------|----------|-------|
-| `/api/stats` | GET | P0 | Dashboard main |
-| `/api/blacklist/list` | GET | P0 | Core functionality |
-| `/api/blacklist/search` | GET | P0 | Search feature |
-| `/api/blacklist/sources` | GET | P1 | Source breakdown |
-| `/api/collection/status` | GET | P1 | Collection monitoring |
-| `/api/collection/trigger` | POST | P1 | Manual trigger |
-| `/api/fortinet/pull-logs` | GET | P2 | Device logs |
-| `/api/settings/*` | GET/PUT | P2 | Configuration |
-| `/health` | GET | P0 | Health check |
+| Endpoint                  | Method  | Priority | Notes                 |
+| ------------------------- | ------- | -------- | --------------------- |
+| `/api/stats`              | GET     | P0       | Dashboard main        |
+| `/api/blacklist/list`     | GET     | P0       | Core functionality    |
+| `/api/blacklist/search`   | GET     | P0       | Search feature        |
+| `/api/blacklist/sources`  | GET     | P1       | Source breakdown      |
+| `/api/collection/status`  | GET     | P1       | Collection monitoring |
+| `/api/collection/trigger` | POST    | P1       | Manual trigger        |
+| `/api/fortinet/pull-logs` | GET     | P2       | Device logs           |
+| `/api/settings/*`         | GET/PUT | P2       | Configuration         |
+| `/health`                 | GET     | P0       | Health check          |
 
 ### C. Environment Variables
 
-| Variable | Description | Storage |
-|----------|-------------|---------|
-| `CREDENTIAL_MASTER_KEY` | Encryption key | wrangler secret |
-| `REGTECH_USERNAME` | REGTECH auth | wrangler secret |
-| `REGTECH_PASSWORD` | REGTECH auth | wrangler secret |
-| `ENVIRONMENT` | prod/staging | wrangler.toml vars |
+| Variable                | Description    | Storage            |
+| ----------------------- | -------------- | ------------------ |
+| `CREDENTIAL_MASTER_KEY` | Encryption key | wrangler secret    |
+| `REGTECH_USERNAME`      | REGTECH auth   | wrangler secret    |
+| `REGTECH_PASSWORD`      | REGTECH auth   | wrangler secret    |
+| `ENVIRONMENT`           | prod/staging   | wrangler.toml vars |
 
 ---
 
@@ -465,5 +472,5 @@ wrangler d1 execute blacklist-db --file=data-sqlite.sql
 
 ---
 
-*Document maintained by: Blacklist Platform Team*  
-*Last updated: 2026-01-24*
+_Document maintained by: Blacklist Platform Team_
+_Last updated: 2026-01-24_

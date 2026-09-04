@@ -7,26 +7,26 @@ This is the documentation entry point for the current Blacklist application. The
 
 ## Current References
 
-| Need | Current source |
-| --- | --- |
-| Application architecture and change rules | [Root AGENTS.md](../AGENTS.md) |
-| Local operation and service overview | [Root README.md](../README.md) |
-| Dashboard development | [Frontend README](../frontend/README.md) |
-| Collector operation | [Collector README](../collector/README.md) |
-| CI and release workflow | [GitHub workflow guide](../.github/WORKFLOWS.md) |
-| Version and release history | [VERSION](../VERSION), [CHANGELOG](../CHANGELOG.md) |
+| Need                                      | Current source                                      |
+| ----------------------------------------- | --------------------------------------------------- |
+| Application architecture and change rules | [Root AGENTS.md](../AGENTS.md)                      |
+| Local operation and service overview      | [Root README.md](../README.md)                      |
+| Dashboard development                     | [Frontend README](../frontend/README.md)            |
+| Collector operation                       | [Collector README](../collector/README.md)          |
+| CI and release workflow                   | [GitHub workflow guide](../.github/WORKFLOWS.md)    |
+| Version and release history               | [VERSION](../VERSION), [CHANGELOG](../CHANGELOG.md) |
 
 ## Current Runtime Facts
 
-| Service | Role | Default port |
-| --- | --- | --- |
-| Flask app | REST APIs and application services | `2542` |
-| Next.js frontend | Dashboard and Flask proxy | `2543` |
-| Collector | Source collection and health API | `8545` |
-| PostgreSQL | Persistent storage | `5432` |
-| Redis | Supporting state | `6379` |
+| Service          | Role                               | Default port |
+| ---------------- | ---------------------------------- | ------------ |
+| Flask app        | REST APIs and application services | `2542`       |
+| Next.js frontend | Dashboard and Flask proxy          | `2543`       |
+| Collector        | Source collection and health API   | `8545`       |
+| PostgreSQL       | Persistent storage                 | `5432`       |
+| Redis            | Supporting state                   | `6379`       |
 
-JWT token APIs and global JWT enforcement protect dashboard and application APIs by default. Login, health, metrics, static assets, and explicitly `@public` routes remain unauthenticated. See `app/core/routes/api/auth_routes.py` and `app/core/auth/middleware.py` before making or documenting authentication changes.
+JWT token APIs and global JWT enforcement protect dashboard and application APIs by default. Login, health, metrics, and static assets remain unauthenticated. `@public` Fortinet feeds skip the administrator JWT but apply `feed_access_required` bearer-token and source-network checks. See `app/core/routes/api/auth_routes.py`, `app/core/auth/middleware.py`, and `app/core/auth/feed.py` before changing authentication documentation.
 
 ## CI And Releases
 
@@ -36,8 +36,8 @@ JWT token APIs and global JWT enforcement protect dashboard and application APIs
 
 `wiki/` and `deliverables/` preserve earlier operational material and project deliverables. They are historical records and may describe older versions, architecture, endpoints, ownership, or release practices. Do not treat them as current-state documentation without reconciling them with the sources above.
 
-| Historical collection | Entry point |
-| --- | --- |
-| Operations wiki | [wiki/Home.md](wiki/Home.md) |
-| Project deliverables | [deliverables/index.md](deliverables/index.md) |
+| Historical collection    | Entry point                                        |
+| ------------------------ | -------------------------------------------------- |
+| Operations wiki          | [wiki/Home.md](wiki/Home.md)                       |
+| Project deliverables     | [deliverables/index.md](deliverables/index.md)     |
 | Previous migration notes | [CLOUDFLARE_MIGRATION.md](CLOUDFLARE_MIGRATION.md) |
