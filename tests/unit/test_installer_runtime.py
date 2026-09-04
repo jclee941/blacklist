@@ -275,8 +275,8 @@ def test_warp_settings_are_synced_during_secret_setup() -> None:
     sync_body = installer_function("sync_warp_settings")
 
     assert 'sync_warp_settings "${env_file}"' in setup_body
-    assert "WARP_ENABLED=%s" in sync_body
-    assert "WARP_PROXY_URL=%s" in sync_body
+    assert "WARP_ENABLED=false" in sync_body
+    assert "WARP_PROXY_URL=" in sync_body
 
 
 def test_rollback_file_is_not_written() -> None:

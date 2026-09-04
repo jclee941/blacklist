@@ -174,6 +174,10 @@ def test_preserves_valid_existing_secrets(tmp_path: Path) -> None:
         "WARP_PROXY_URL=",
         "FRONTEND_TLS_MODE=",
         "FRONTEND_BIND_ADDRESS=",
+        "APP_DB_USER=",
+        "APP_DB_PASSWORD=",
+        "COLLECTOR_DB_USER=",
+        "COLLECTOR_DB_PASSWORD=",
     )
     surviving_secrets = [line for line in body.splitlines() if not line.startswith(runtime_settings)]
     assert surviving_secrets == original.splitlines()

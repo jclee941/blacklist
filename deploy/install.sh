@@ -53,7 +53,7 @@ readonly -a TLS_SERVICE_GIDS=(
     "${BLACKLIST_POSTGRES_GID:-70}"
     "${BLACKLIST_REDIS_GID:-1000}"
 )
-readonly REQUIRED_SECRET_KEYS=(
+readonly LEGACY_REQUIRED_SECRET_KEYS=(
     "ADMIN_USERNAME"
     "ADMIN_PASSWORD"
     "CREDENTIAL_MASTER_KEY"
@@ -66,6 +66,13 @@ readonly REQUIRED_SECRET_KEYS=(
     "SETTINGS_ENCRYPTION_KEY"
     "POSTGRES_PASSWORD"
     "REDIS_PASSWORD"
+)
+readonly REQUIRED_SECRET_KEYS=(
+    "${LEGACY_REQUIRED_SECRET_KEYS[@]}"
+    "APP_DB_USER"
+    "APP_DB_PASSWORD"
+    "COLLECTOR_DB_USER"
+    "COLLECTOR_DB_PASSWORD"
 )
 readonly DEPLOYMENT_VOLUME_NAMES=(
     "blacklist-pgdata"
@@ -559,7 +566,7 @@ deployment_state_exists() {
 generate_env_file() {
     local env_file="$1"
     local temp_file
-    local fernet_key settings_encryption_key secret_key flask_secret_key jwt_secret_key collector_auth_token master_key encryption_salt pg_password redis_password admin_password
+    local fernet_key settings_encryption_key secret_key flask_secret_key jwt_secret_key collector_auth_token master_key encryption_salt pg_password app_db_password collector_db_password redis_password admin_password
 
     temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to create private environment file."
     chmod 600 "${temp_file}" || log_error "Unable to protect generated environment file."
@@ -573,6 +580,8 @@ generate_env_file() {
     master_key=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     encryption_salt=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
     pg_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    app_db_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    collector_db_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
     redis_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
     admin_password=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
 
@@ -593,6 +602,10 @@ CREDENTIAL_ENCRYPTION_KEY=${fernet_key}
 ENCRYPTION_SALT=${encryption_salt}
 SETTINGS_ENCRYPTION_KEY=${settings_encryption_key}
 POSTGRES_PASSWORD=${pg_password}
+APP_DB_USER=blacklist_app
+APP_DB_PASSWORD=${app_db_password}
+COLLECTOR_DB_USER=blacklist_collector
+COLLECTOR_DB_PASSWORD=${collector_db_password}
 REDIS_PASSWORD=${redis_password}
 FRONTEND_TLS_MODE=provided
 FRONTEND_TLS_SERVER_NAME=
@@ -685,31 +698,77 @@ sync_frontend_tls_settings() {
     chmod 600 "${env_file}" || log_error "Unable to protect updated frontend TLS settings."
 }
 
-warp_proxy_available() {
-    command -v warp-cli > /dev/null 2>&1 || return 1
+sync_database_role_secrets() {
+    local env_file="$1"
+    local app_user="blacklist_app" collector_user="blacklist_collector"
+    local app_password collector_password temp_file line
 
-    local _state _recv_q _send_q local_address _peer_address
-    while read -r _state _recv_q _send_q local_address _peer_address; do
-        case "${local_address}" in
-            127.*:40000|\[::1\]:40000|::1:40000)
+    if read_required_secret_value "${env_file}" "APP_DB_USER"; then
+        app_user="${DOTENV_NORMALIZED_VALUE}"
+    fi
+    if read_required_secret_value "${env_file}" "COLLECTOR_DB_USER"; then
+        collector_user="${DOTENV_NORMALIZED_VALUE}"
+    fi
+    if read_required_secret_value "${env_file}" "APP_DB_PASSWORD"; then
+        app_password="${DOTENV_NORMALIZED_VALUE}"
+    else
+        app_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    fi
+    if read_required_secret_value "${env_file}" "COLLECTOR_DB_PASSWORD"; then
+        collector_password="${DOTENV_NORMALIZED_VALUE}"
+    else
+        collector_password=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
+    fi
+
+    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage database role secrets."
+    chmod 600 "${temp_file}" || log_error "Unable to protect database role secrets."
+    while IFS= read -r line || [ -n "${line}" ]; do
+        case "${line}" in
+            APP_DB_USER=*|APP_DB_PASSWORD=*|COLLECTOR_DB_USER=*|COLLECTOR_DB_PASSWORD=*)
                 ;;
-            *:40000)
-                return 0
+            *)
+                printf '%s\n' "${line}" >> "${temp_file}" || log_error "Unable to stage database role secrets."
                 ;;
         esac
-    done < <(ss -H -ltn "sport = :40000" 2>/dev/null || true)
+    done < "${env_file}"
+    {
+        printf 'APP_DB_USER=%s\n' "${app_user}"
+        printf 'APP_DB_PASSWORD=%s\n' "${app_password}"
+        printf 'COLLECTOR_DB_USER=%s\n' "${collector_user}"
+        printf 'COLLECTOR_DB_PASSWORD=%s\n' "${collector_password}"
+    } >> "${temp_file}" || log_error "Unable to record database role secrets."
+    mv "${temp_file}" "${env_file}" || log_error "Unable to update database role secrets."
+    chmod 600 "${env_file}" || log_error "Unable to protect updated database role secrets."
+}
 
-    return 1
+validate_secret_keys() {
+    local env_file="$1"
+    shift
+    local invalid_keys=()
+    local key value
+    for key in "$@"; do
+        if ! read_required_secret_value "${env_file}" "${key}"; then
+            invalid_keys+=("${key}")
+            continue
+        fi
+        value="${DOTENV_NORMALIZED_VALUE}"
+        if [ -z "${value}" ] ||
+           [[ "${value}" == op://* ]] ||
+           [[ "${value}" == *"${VARIABLE_REFERENCE_PREFIX}"* ]] ||
+           [[ "${value}" =~ \$[A-Za-z_][A-Za-z0-9_]* ]] ||
+           [[ "${value}" == __SET_* ]] ||
+           { [ "${key}" = "POSTGRES_PASSWORD" ] && [ "${value}" = "postgres" ]; }; then
+            invalid_keys+=("${key}")
+        fi
+    done
+    if [ "${#invalid_keys[@]}" -gt 0 ]; then
+        log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in ${env_file}."
+    fi
 }
 
 sync_warp_settings() {
     local env_file="$1"
-    local temp_file warp_enabled=false warp_proxy_url=""
-
-    if warp_proxy_available; then
-        warp_enabled=true
-        warp_proxy_url="http://host.docker.internal:40000"
-    fi
+    local temp_file
 
     temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage WARP settings."
     chmod 600 "${temp_file}" || log_error "Unable to protect staged WARP settings."
@@ -725,18 +784,14 @@ sync_warp_settings() {
     done < "${env_file}"
 
     {
-        printf 'WARP_ENABLED=%s\n' "${warp_enabled}"
-        printf 'WARP_PROXY_URL=%s\n' "${warp_proxy_url}"
+        printf 'WARP_ENABLED=false\n'
+        printf 'WARP_PROXY_URL=\n'
     } >> "${temp_file}" || log_error "Unable to record WARP settings."
 
     mv "${temp_file}" "${env_file}" || log_error "Unable to update WARP settings in ${env_file}."
     chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
 
-    if [ "${warp_enabled}" = true ]; then
-        log_info "Reachable host WARP proxy detected; collector proxy enabled"
-    else
-        log_info "No reachable host WARP proxy detected; collector proxy disabled"
-    fi
+    log_info "Production collector proxy disabled"
 }
 
 setup_secrets() {
@@ -762,28 +817,9 @@ setup_secrets() {
     fi
 
 
-    local invalid_keys=()
-    local key value
-    for key in "${REQUIRED_SECRET_KEYS[@]}"; do
-        if ! read_required_secret_value "${env_file}" "${key}"; then
-            invalid_keys+=("${key}")
-            continue
-        fi
-
-        value="${DOTENV_NORMALIZED_VALUE}"
-        if [ -z "${value}" ] ||
-           [[ "${value}" == op://* ]] ||
-           [[ "${value}" == *"${VARIABLE_REFERENCE_PREFIX}"* ]] ||
-           [[ "${value}" =~ \$[A-Za-z_][A-Za-z0-9_]* ]] ||
-           [[ "${value}" == __SET_* ]] ||
-           { [ "${key}" = "POSTGRES_PASSWORD" ] && [ "${value}" = "postgres" ]; }; then
-            invalid_keys+=("${key}")
-        fi
-    done
-
-    if [ "${#invalid_keys[@]}" -gt 0 ]; then
-        log_error "Invalid or unresolved secret values: ${invalid_keys[*]}. Restore literal target-local values in ${env_file}."
-    fi
+    validate_secret_keys "${env_file}" "${LEGACY_REQUIRED_SECRET_KEYS[@]}"
+    sync_database_role_secrets "${env_file}"
+    validate_secret_keys "${env_file}" "${REQUIRED_SECRET_KEYS[@]}"
 
     log_success "Secret validation passed (${env_file})"
     sync_deployment_version "${env_file}"
@@ -1052,8 +1088,19 @@ deploy_services() {
 
     verify_published_port_available
 
-    log_info "Starting services..."
+    log_info "Starting PostgreSQL and configuring runtime roles..."
     local compose_output
+    if ! compose_output=$(docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" up -d --pull never blacklist-postgres 2>&1); then
+        printf '%s\n' "${compose_output}"
+        log_error "Failed to start PostgreSQL"
+    fi
+    printf '%s\n' "${compose_output}"
+    wait_for_health "blacklist-postgres"
+    if ! docker exec blacklist-postgres /usr/local/bin/configure-runtime-roles.sh; then
+        log_error "Failed to configure PostgreSQL runtime roles"
+    fi
+
+    log_info "Starting application services..."
     if ! compose_output=$(docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" up -d --pull never 2>&1); then
         printf '%s\n' "${compose_output}"
         log_error "Failed to start Blacklist services"

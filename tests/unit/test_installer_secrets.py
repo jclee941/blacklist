@@ -198,7 +198,7 @@ def test_warp_is_disabled_when_proxy_is_not_bridge_reachable(tmp_path: Path) -> 
     assert generated_values["WARP_PROXY_URL"] == ""
 
 
-def test_warp_is_enabled_when_proxy_is_bridge_reachable(tmp_path: Path) -> None:
+def test_production_warp_stays_disabled_when_proxy_is_bridge_reachable(tmp_path: Path) -> None:
     env_file = tmp_path / "etc" / "blacklist" / ".env"
 
     result = run_secret_check(
@@ -209,5 +209,5 @@ def test_warp_is_enabled_when_proxy_is_bridge_reachable(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     generated_values = parse_env(env_file)
-    assert generated_values["WARP_ENABLED"] == "true"
-    assert generated_values["WARP_PROXY_URL"] == "http://host.docker.internal:40000"
+    assert generated_values["WARP_ENABLED"] == "false"
+    assert generated_values["WARP_PROXY_URL"] == ""

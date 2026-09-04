@@ -257,4 +257,6 @@ def test_verify_only_ignores_published_port_occupancy(tmp_path: Path) -> None:
     assert f"Port {published_port} is already in use" not in output
     assert "for port in 443 2542 5432 6379 8545; do" not in shipped_source
     assert deploy_body.index('docker rm -f "$c"') < deploy_body.index("verify_published_port_available")
-    assert deploy_body.index("verify_published_port_available") < deploy_body.index('log_info "Starting services..."')
+    assert deploy_body.index("verify_published_port_available") < deploy_body.index(
+        'log_info "Starting PostgreSQL and configuring runtime roles..."'
+    )
