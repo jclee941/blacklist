@@ -16,13 +16,7 @@ from bs4 import BeautifulSoup  # type: ignore[import-untyped]
 import psycopg2  # type: ignore[import-untyped]
 from psycopg2.extras import RealDictCursor  # type: ignore[import-untyped]
 
-from .policy_monitor_support import (
-    ALERTS_TABLE_SQL,
-    MONITORING_TABLE_SQL,
-    STRUCTURE_KEYS,
-    create_availability_error,
-    create_monitoring_error,
-)
+from .policy_monitor_support import STRUCTURE_KEYS, create_availability_error, create_monitoring_error
 
 
 logger = logging.getLogger(__name__)
@@ -283,9 +277,6 @@ class REGTECHPolicyMonitor:
             conn = self._get_db_connection()
             cursor = conn.cursor()
 
-            # 모니터링 테이블이 없으면 생성
-            cursor.execute(MONITORING_TABLE_SQL)
-
             # 데이터 삽입
             cursor.execute(
                 """
@@ -315,8 +306,6 @@ class REGTECHPolicyMonitor:
             # 데이터베이스에 알림 로그 저장
             conn = self._get_db_connection()
             cursor = conn.cursor()
-
-            cursor.execute(ALERTS_TABLE_SQL)
 
             cursor.execute(
                 """
