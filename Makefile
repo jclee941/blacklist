@@ -1,12 +1,13 @@
 # Blacklist Service Management Makefile
 
-.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health release release-dry verify verify-lint verify-types verify-secrets verify-pre-commit verify-quick verify-all
+.PHONY: help setup-hooks build up down logs clean test deploy dev prod restart health release release-dry verify verify-lint verify-types verify-secrets verify-pre-commit verify-quick verify-all docs-format docs-check
 
 # Default environment
 ENV ?= development
 PYTHON ?= python3
 BLACKLIST_VERSION ?= $(shell tr -d '[:space:]' < VERSION)
 export BLACKLIST_VERSION
+DOCS_MARKDOWN := $(shell git ls-files '*.md' | grep -Ev '^(docs/wiki|docs/deliverables)/')
 
 # Docker Compose Configuration
 COMPOSE_FILE := deploy/docker-compose.yml
@@ -239,6 +240,15 @@ verify-lint: ## Run linting checks (ruff check + format check)
 	@ruff check app/ collector/
 	@ruff format --check app/ collector/
 	@echo "✅ Lint passed"
+
+docs-format: ## Format current Markdown with Prettier and markdownlint
+	@npx --yes prettier@3.6.2 --write $(DOCS_MARKDOWN)
+	@npx --yes markdownlint-cli2@0.20.0 --fix $(DOCS_MARKDOWN)
+	@npx --yes prettier@3.6.2 --write $(DOCS_MARKDOWN)
+
+docs-check: ## Check current Markdown formatting and lint
+	@npx --yes prettier@3.6.2 --check $(DOCS_MARKDOWN)
+	@npx --yes markdownlint-cli2@0.20.0 $(DOCS_MARKDOWN)
 
 verify-types: ## Run type checking (mypy) — skipped if mypy not installed
 	@echo "🔍 Checking types..."
