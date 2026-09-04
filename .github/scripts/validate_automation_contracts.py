@@ -76,6 +76,9 @@ def main() -> None:
             ("vars.RUNNER" not in reusable_node, "reusable PR CI can use a persistent self-hosted runner"),
             ("vars.RUNNER" not in build_images, "reusable image builds can use an untrusted persistent runner"),
             ("vars.RUNNER" not in release, "release jobs can share an untrusted persistent runner"),
+            ("  docs-check:" in ci and "make docs-check" in job_body(ci, "docs-check"), "CI does not enforce docs-check"),
+            ("docs-check," in job_body(ci, "ci-gate"), "ci-gate does not aggregate docs-check"),
+            ("make docs-check" in job_body(release, "test-release"), "release tests do not enforce docs-check"),
             ("pull_request:" in security, "security workflow does not scan pull requests"),
             (
                 "    runs-on: ubuntu-latest" in job_body(security, "dependency-scan")
@@ -184,8 +187,23 @@ def main() -> None:
                 "release script does not select the VERSION file automatically",
             ),
             (
-                "No CI run found for HEAD" in release_script and "Falling back to local tests" not in release_script,
+                "Timed out waiting for CI on release commit" in release_script
+                and "Falling back to local tests" not in release_script,
                 "release script does not require successful exact-HEAD remote CI",
+            ),
+            (
+                all(
+                    marker in release_script
+                    for marker in (
+                        "git push origin master",
+                        "CI passed on release commit",
+                        'git tag -a "v${NEW_VERSION}"',
+                    )
+                )
+                and release_script.index("git push origin master")
+                < release_script.index("CI passed on release commit")
+                < release_script.index('git tag -a "v${NEW_VERSION}"'),
+                "release tag is created before the release commit CI succeeds",
             ),
             (
                 f'CI_WORKFLOW="{PRIMARY_CI_WORKFLOW}"' in release_script,

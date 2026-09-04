@@ -123,6 +123,7 @@ jobs:
       - run: pip install -r app/requirements-dev.txt -r collector/requirements.txt
       - working-directory: frontend
         run: npm ci
+      - run: make docs-check
       - run: make test
 
   scan-release-images:

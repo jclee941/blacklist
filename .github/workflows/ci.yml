@@ -329,6 +329,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: python .github/scripts/validate_automation_contracts.py
 
+  docs-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: make docs-check
+
   scan-images:
     needs: build
     if: always() && needs.build.result == 'success'
@@ -492,6 +504,7 @@ jobs:
         test-collector,
         test-integration,
         validate-automation,
+        docs-check,
         build,
         e2e,
         scan-images,
@@ -514,6 +527,7 @@ jobs:
             "test-collector=${{ needs.test-collector.result }}"
             "test-integration=${{ needs.test-integration.result }}"
             "validate-automation=${{ needs.validate-automation.result }}"
+            "docs-check=${{ needs.docs-check.result }}"
             "build=${{ needs.build.result }}"
             "e2e=${{ needs.e2e.result }}"
             "scan-images=${{ needs.scan-images.result }}"

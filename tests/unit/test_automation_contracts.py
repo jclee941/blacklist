@@ -29,9 +29,13 @@ jobs:
     steps:
       - with:
           skip-files: ${{ matrix.service == 'postgres' && 'usr/local/bin/gosu' || '' }}
+  docs-check:
+    steps:
+      - run: make docs-check
   e2e:
     timeout-minutes: 60
   ci-gate:
+    needs: [docs-check,]
     steps:
       - run: |
           if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
@@ -64,6 +68,9 @@ jobs:
   build-images:
     permissions:
       contents: read
+  test-release:
+    steps:
+      - run: make docs-check
   package:
     permissions:
       contents: read
@@ -103,7 +110,10 @@ if [[ \"$BUMP_TYPE\" != \"current\" && \"$BUMP_TYPE\" != \"auto\" ]]; then
 CI_WORKFLOW=\"CI\"
 gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
 docker compose exec -T blacklist-app test -d /app/tests
-No CI run found for HEAD
+Timed out waiting for CI on release commit
+git push origin master
+CI passed on release commit
+git tag -a "v${NEW_VERSION}"
 """,
         ".github/docker-compose.ci.yml": """
 services:
@@ -235,7 +245,7 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             "scripts/release.sh",
-            "No CI run found for HEAD",
+            "Timed out waiting for CI on release commit",
             "release script does not require successful exact-HEAD remote CI",
         ),
         (
