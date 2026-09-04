@@ -5,6 +5,7 @@ ROOT = Path(__file__).parents[2]
 CI = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 RELEASE = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
 BUILD_IMAGES = (ROOT / ".github/workflows/build-images.yml").read_text(encoding="utf-8")
+PUBLISH_LATEST = (ROOT / ".github/workflows/publish-latest.yml").read_text(encoding="utf-8")
 RELEASE_SCRIPT = (ROOT / "scripts/release.sh").read_text(encoding="utf-8")
 
 
@@ -35,6 +36,14 @@ def test_manual_build_workflow_is_artifact_only() -> None:
     assert "actions/upload-artifact" in BUILD_IMAGES
 
 
+def test_latest_publication_is_isolated_from_pull_request_code() -> None:
+    assert "packages: write" not in CI
+    assert "secrets: inherit" not in CI
+    assert "workflow_run:" in PUBLISH_LATEST
+    assert "github.event.workflow_run.conclusion == 'success'" in PUBLISH_LATEST
+    assert "run-id: ${{ github.event.workflow_run.id }}" in PUBLISH_LATEST
+
+
 def test_release_tests_and_scans_the_exact_publishable_images() -> None:
     assert "  test-release:" in RELEASE
     assert "  scan-release-images:" in RELEASE
@@ -45,8 +54,15 @@ def test_release_tests_and_scans_the_exact_publishable_images() -> None:
 def test_release_publication_requires_one_successful_gate() -> None:
     assert "  release-gate:" in RELEASE
     assert "needs.release-gate.result == 'success'" in RELEASE
-    assert "needs: [validate, package, release-gate]" in RELEASE
+    assert "needs: [validate, sign-package, release-gate]" in RELEASE
     assert "needs: [validate, build-images, release-gate]" in RELEASE
+
+
+def test_release_signing_occurs_only_after_the_gate() -> None:
+    assert RELEASE.index("  release-gate:") < RELEASE.index("  sign-package:")
+    package_body = RELEASE.split("  package:", 1)[1].split("  release-gate:", 1)[0]
+    assert "RELEASE_GPG_PRIVATE_KEY" not in package_body
+    assert "environment: production" not in package_body
 
 
 def test_release_notes_use_the_versioned_document_without_stub_fallback() -> None:
