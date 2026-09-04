@@ -253,6 +253,23 @@ def test_generated_environment_defaults_warp_to_disabled() -> None:
     assert "WARP_PROXY_URL=" in generated_env_body
 
 
+def test_generated_environment_requires_provided_frontend_tls() -> None:
+    generated_env_body = installer_function("generate_env_file")
+
+    assert "FRONTEND_TLS_MODE=provided" in generated_env_body
+    assert "FRONTEND_TLS_SERVER_NAME=" in generated_env_body
+    assert "FRONTEND_BIND_ADDRESS=0.0.0.0" in generated_env_body
+
+
+def test_frontend_tls_settings_are_synced_during_secret_setup() -> None:
+    setup_body = installer_function("setup_secrets")
+    sync_body = installer_function("sync_frontend_tls_settings")
+
+    assert 'sync_frontend_tls_settings "${env_file}"' in setup_body
+    assert "FRONTEND_TLS_MODE=%s" in sync_body
+    assert "FRONTEND_BIND_ADDRESS=%s" in sync_body
+
+
 def test_warp_settings_are_synced_during_secret_setup() -> None:
     setup_body = installer_function("setup_secrets")
     sync_body = installer_function("sync_warp_settings")

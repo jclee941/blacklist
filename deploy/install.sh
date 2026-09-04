@@ -18,7 +18,11 @@ log_step() { echo -e "\n${CYAN}===${NC} ${BOLD}$1${NC}\n"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGES_DIR="${SCRIPT_DIR}/images"
-VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 'unknown')"
+VERSION_PATH="${SCRIPT_DIR}/VERSION"
+if [ ! -f "${VERSION_PATH}" ] && [ -f "${SCRIPT_DIR}/../VERSION" ]; then
+    VERSION_PATH="${SCRIPT_DIR}/../VERSION"
+fi
+VERSION="$(cat "${VERSION_PATH}" 2>/dev/null || echo 'unknown')"
 ENV_FILE="${BLACKLIST_ENV_FILE:-/etc/blacklist/.env}"
 TLS_DIR="${BLACKLIST_TLS_DIR:-/etc/blacklist/tls}"
 FORTIGATE_TRUST_DIR="${FORTIGATE_TRUST_DIR:-/etc/blacklist/fortigate}"
@@ -590,7 +594,9 @@ ENCRYPTION_SALT=${encryption_salt}
 SETTINGS_ENCRYPTION_KEY=${settings_encryption_key}
 POSTGRES_PASSWORD=${pg_password}
 REDIS_PASSWORD=${redis_password}
-FRONTEND_TLS_MODE=self-signed
+FRONTEND_TLS_MODE=provided
+FRONTEND_TLS_SERVER_NAME=
+FRONTEND_BIND_ADDRESS=0.0.0.0
 WARP_ENABLED=false
 WARP_PROXY_URL=
 TRUSTED_PROXY_NETWORKS=172.30.0.10/32
@@ -633,6 +639,50 @@ sync_deployment_version() {
     fi
 
     chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
+}
+
+sync_frontend_tls_settings() {
+    local env_file="$1"
+    local mode="provided"
+    local bind_address
+    local temp_file
+    local line
+
+    if read_required_secret_value "${env_file}" "FRONTEND_TLS_MODE"; then
+        mode="${DOTENV_NORMALIZED_VALUE}"
+    fi
+    case "${mode}" in
+        provided)
+            bind_address="0.0.0.0"
+            if read_required_secret_value "${env_file}" "FRONTEND_BIND_ADDRESS"; then
+                bind_address="${DOTENV_NORMALIZED_VALUE}"
+            fi
+            ;;
+        self-signed)
+            bind_address="127.0.0.1"
+            ;;
+        *)
+            log_error "FRONTEND_TLS_MODE must be either provided or self-signed."
+            ;;
+    esac
+
+    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage frontend TLS settings."
+    chmod 600 "${temp_file}" || log_error "Unable to protect staged frontend TLS settings."
+    while IFS= read -r line || [ -n "${line}" ]; do
+        case "${line}" in
+            FRONTEND_TLS_MODE=*|FRONTEND_BIND_ADDRESS=*)
+                ;;
+            *)
+                printf '%s\n' "${line}" >> "${temp_file}" || log_error "Unable to stage frontend TLS settings."
+                ;;
+        esac
+    done < "${env_file}"
+    {
+        printf 'FRONTEND_TLS_MODE=%s\n' "${mode}"
+        printf 'FRONTEND_BIND_ADDRESS=%s\n' "${bind_address}"
+    } >> "${temp_file}" || log_error "Unable to record frontend TLS settings."
+    mv "${temp_file}" "${env_file}" || log_error "Unable to update frontend TLS settings in ${env_file}."
+    chmod 600 "${env_file}" || log_error "Unable to protect updated frontend TLS settings."
 }
 
 warp_proxy_available() {
@@ -738,6 +788,7 @@ setup_secrets() {
     log_success "Secret validation passed (${env_file})"
     sync_deployment_version "${env_file}"
     log_info "Deployment version pinned to ${VERSION}"
+    sync_frontend_tls_settings "${env_file}"
     sync_warp_settings "${env_file}"
     log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
 }
@@ -860,6 +911,37 @@ write_initial_admin_password_file() {
 setup_trust_directories() {
     install -d -m 755 "${FORTIGATE_TRUST_DIR}" || log_error "Unable to create FortiGate trust directory."
     install -d -m 700 -o 1001 -g 1001 "${FRONTEND_TLS_DIR}" || log_error "Unable to create persistent frontend TLS directory."
+}
+
+validate_frontend_tls() {
+    local mode server_name cert_public_key key_public_key
+
+    read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_MODE" || log_error "FRONTEND_TLS_MODE is required."
+    mode="${DOTENV_NORMALIZED_VALUE}"
+    if [ "${mode}" = "self-signed" ]; then
+        return 0
+    fi
+    [ "${mode}" = "provided" ] || log_error "FRONTEND_TLS_MODE must be either provided or self-signed."
+    read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_SERVER_NAME" ||
+        log_error "FRONTEND_TLS_SERVER_NAME is required when FRONTEND_TLS_MODE=provided."
+    server_name="${DOTENV_NORMALIZED_VALUE}"
+    if [ ! -r "${FRONTEND_TLS_DIR}/server.crt" ] || [ ! -r "${FRONTEND_TLS_DIR}/server.key" ]; then
+        log_error "Provided frontend TLS requires readable server.crt and server.key in ${FRONTEND_TLS_DIR}."
+    fi
+    openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -noout -checkend 0 > /dev/null ||
+        log_error "Provided frontend TLS certificate is invalid or expired."
+    cert_public_key=$(openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -pubkey -noout | openssl pkey -pubin -outform pem | sha256sum | cut -d' ' -f1) ||
+        log_error "Unable to read the frontend TLS certificate public key."
+    key_public_key=$(openssl pkey -in "${FRONTEND_TLS_DIR}/server.key" -pubout -outform pem | sha256sum | cut -d' ' -f1) ||
+        log_error "Unable to read the frontend TLS private key."
+    [ "${cert_public_key}" = "${key_public_key}" ] || log_error "Frontend TLS certificate and private key do not match."
+    if [[ "${server_name}" =~ ^[0-9a-fA-F:.]+$ ]]; then
+        openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -noout -checkip "${server_name}" > /dev/null ||
+            log_error "Frontend TLS certificate does not cover IP ${server_name}."
+    else
+        openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -noout -checkhost "${server_name}" > /dev/null ||
+            log_error "Frontend TLS certificate does not cover host ${server_name}."
+    fi
 }
 
 stop_all_running_containers() {
@@ -1153,7 +1235,11 @@ main() {
     if [ "$verify_only" = true ]; then
         preflight_verify
         verify_checksums
-        verify_security_posture
+        if [ -f "${ENV_FILE}" ]; then
+            verify_security_posture
+        else
+            log_warning "Target environment is absent; runtime posture verification skipped without modifying the host"
+        fi
         log_success "Bundle verification completed (no changes were made)"
         return 0
     fi
@@ -1179,6 +1265,7 @@ main() {
     setup_secrets
     setup_internal_tls
     setup_trust_directories
+    validate_frontend_tls
     prepare_collector_volumes
     validate_compose_config
     verify_security_posture

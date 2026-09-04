@@ -210,6 +210,24 @@ def test_valid_manifest_passes(tmp_path: Path) -> None:
     assert "Bundle manifest verified" in output, output
 
 
+def test_verify_only_is_read_only_on_a_fresh_host(tmp_path: Path) -> None:
+    environment = prepare_bundle(tmp_path)
+    write_manifest(tmp_path)
+    environment["BLACKLIST_ENV_FILE"] = str(tmp_path.parent / "fresh-host" / ".env")
+
+    result = subprocess.run(
+        ["bash", str(tmp_path / "install.sh"), "--verify-only"],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not Path(environment["BLACKLIST_ENV_FILE"]).exists()
+
+
 def test_unlisted_compose_override_is_fatal(tmp_path: Path) -> None:
     environment = prepare_bundle(tmp_path)
     write_manifest(tmp_path)
