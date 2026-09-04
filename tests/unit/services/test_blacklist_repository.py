@@ -186,33 +186,8 @@ class TestUpsertBlacklistFromCollector:
         assert result is True
 
 
-class TestAddColumnIfNotExists:
-    def test_add_column_success(self):
-        repo, mock_db = _make_repo()
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_db.get_connection.return_value = mock_conn
-        result = repo.add_column_if_not_exists("new_col", "TEXT")
-        assert result is True
-        mock_db.return_connection.assert_called_once_with(mock_conn)
+def test_repository_does_not_expose_runtime_schema_mutation() -> None:
+    repo, _mock_db = _make_repo()
 
-    def test_add_column_already_exists(self):
-        repo, mock_db = _make_repo()
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.execute.side_effect = Exception("column already exists")
-        mock_conn.cursor.return_value = mock_cursor
-        mock_db.get_connection.return_value = mock_conn
-        result = repo.add_column_if_not_exists("existing_col", "TEXT")
-        assert result is False
-        mock_db.return_connection.assert_called_once_with(mock_conn)
-
-
-class TestCreateWhitelistTable:
-    def test_create_table(self):
-        repo, mock_db = _make_repo()
-        # create_whitelist_table uses self.db.query() not self.db.execute()
-        mock_db.query.return_value = []
-        repo.create_whitelist_table()
-        mock_db.query.assert_called_once()
+    assert not hasattr(repo, "add_column_if_not_exists")
+    assert not hasattr(repo, "create_whitelist_table")

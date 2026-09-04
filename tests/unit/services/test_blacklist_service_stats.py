@@ -52,9 +52,6 @@ class TestBlacklistServiceStats:
         assert result["success"] is True
         assert "unreachable" in result.get("collector_status", "").lower() or "연결" in result.get("message", "")
 
-    def test_force_schema_fix(self):
+    def test_runtime_schema_fix_is_not_exposed(self):
         svc, _, _ = make_service()
-        svc.repo.add_column_if_not_exists = Mock(return_value=True)
-        result = svc.force_schema_fix()
-        assert result["success"] is True
-        assert svc.repo.add_column_if_not_exists.call_count == 4
+        assert not hasattr(svc, "force_schema_fix")

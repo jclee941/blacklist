@@ -114,13 +114,6 @@ class BlacklistService(BlacklistCollectionMixin, BlacklistHealthMixin, Blacklist
             standard_logger.warning(f"Whitelist check failed for {ip}: {e}")
             return False
 
-    def _create_whitelist_table(self):
-        try:
-            self.repo.create_whitelist_table()
-            standard_logger.info("Whitelist table created successfully")
-        except Exception as e:
-            standard_logger.error(f"Failed to create whitelist table: {e}")
-
     def check_blacklist(self, ip: str) -> Dict[str, Any]:
         cache_key = f"blacklist:{ip}"
 

@@ -2,8 +2,6 @@ import logging
 from datetime import date, datetime
 from typing import Optional
 
-from .database_lease import connection_lease
-
 logger = logging.getLogger(__name__)
 RowValue = str | int | float | bool | date | datetime | None
 
@@ -154,29 +152,3 @@ class BlacklistRepository:
         except Exception as e:
             logger.error("upsert_blacklist_from_collector failed for IP %s: %s", ip_address, e)
             return False
-
-    def add_column_if_not_exists(self, column_name: str, column_type: str) -> bool:
-        try:
-            with connection_lease(self.db) as conn:
-                cursor = conn.cursor()
-                cursor.execute(f"ALTER TABLE blacklist_ips ADD COLUMN {column_name} {column_type};")
-                conn.commit()
-                cursor.close()
-                return True
-        except Exception as e:
-            if "already exists" in str(e) or "duplicate column" in str(e).lower():
-                return False
-            raise
-
-    def create_whitelist_table(self) -> None:
-        self.db.query("""
-            CREATE TABLE IF NOT EXISTS whitelist_ips (
-                id SERIAL PRIMARY KEY,
-                ip_address VARCHAR(45) NOT NULL,
-                reason VARCHAR(255),
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(ip_address)
-            )
-        """)

@@ -49,28 +49,6 @@ class BlacklistCollectorMixin:
             logger.error(f"동기화 상태 확인 실패: {e}")
             return {"success": False, "error": str(e), "collector_status": "error"}
 
-    def force_schema_fix(self: SupportsBlacklistCollector) -> Dict[str, Any]:
-        try:
-            added_is_active = self.repo.add_column_if_not_exists("is_active", "BOOLEAN DEFAULT TRUE")
-            added_country = self.repo.add_column_if_not_exists("country", "VARCHAR(10)")
-            added_detection_date = self.repo.add_column_if_not_exists("detection_date", "DATE")
-            added_removal_date = self.repo.add_column_if_not_exists("removal_date", "DATE")
-
-            return {
-                "success": True,
-                "message": "스키마 강제 수정 완료",
-                "added_columns": {
-                    "is_active": added_is_active,
-                    "country": added_country,
-                    "detection_date": added_detection_date,
-                    "removal_date": added_removal_date,
-                },
-            }
-
-        except Exception as e:
-            logger.error(f"스키마 강제 수정 실패: {e}")
-            return {"success": False, "error": str(e)}
-
     def force_data_refresh(self: SupportsBlacklistCollector) -> Dict[str, Any]:
         try:
             facade_module = sys.modules.get(type(self).__module__)

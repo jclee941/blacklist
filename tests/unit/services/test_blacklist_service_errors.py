@@ -58,11 +58,9 @@ class TestBlacklistServiceErrors:
         result = svc.get_health()
         assert result.status == "degraded"
 
-    def test_create_whitelist_table(self):
+    def test_runtime_schema_creation_is_not_exposed(self):
         svc, _, _ = make_service()
-        svc.repo.create_whitelist_table = Mock()
-        svc._create_whitelist_table()
-        svc.repo.create_whitelist_table.assert_called_once()
+        assert not hasattr(svc, "_create_whitelist_table")
 
     def test_requests_patch_follows_each_service_import_path(self):
         core_module = importlib.import_module("core.services.blacklist_service")
