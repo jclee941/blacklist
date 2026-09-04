@@ -9,7 +9,7 @@ WORKFLOW = (Path(__file__).parents[2] / ".github" / "workflows" / "release.yml")
 def test_release_notes_are_passed_as_a_file_not_shell_interpolation() -> None:
     assert "--notes-file" in WORKFLOW
     assert "steps.changelog.outputs.notes" not in WORKFLOW
-    assert 'awk -v version="$VERSION"' in WORKFLOW
+    assert '--notes-file "${BUNDLE}-release-notes.md"' in WORKFLOW
 
 
 def test_release_context_values_enter_shell_through_environment() -> None:
@@ -46,3 +46,10 @@ def test_release_signs_and_publishes_the_final_tarball() -> None:
     archive_index = WORKFLOW.index('-czf "${BUNDLE}.tar.gz"')
     signature_index = WORKFLOW.index('sign_file "${BUNDLE}.tar.gz" "${BUNDLE}.tar.gz.asc"')
     assert archive_index < signature_index
+
+
+def test_release_publishes_verification_material_and_full_notes() -> None:
+    assert "blacklist-*-release-public-key.asc" in WORKFLOW
+    assert "blacklist-*-release-key.fingerprint" in WORKFLOW
+    assert "blacklist-*-release-notes.md" in WORKFLOW
+    assert "printf 'Release %s" not in WORKFLOW

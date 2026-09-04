@@ -32,9 +32,6 @@ CI_E2E_COMPOSE_COMMAND: Final = (
 PIP_VENDOR_SBOM_SKIP: Final = (
     "skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json"
 )
-TAG_TRIGGERED_NON_DRY_RUN_CONDITION: Final = (
-    "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}"
-)
 
 
 def read(relative_path: str) -> str:
@@ -75,8 +72,8 @@ def main() -> None:
             ("context: ./deploy/redis" in ci, "CI Redis build context is invalid"),
             ("API_URL: https://localhost:3443" in ci, "E2E API calls bypass the frontend proxy"),
             ("BASE_URL: https://localhost:3443" in ci, "E2E browser target bypasses the frontend proxy"),
-            ("E2E_USERNAME: admin" in ci, "CI does not provide the E2E username"),
-            ("E2E_PASSWORD: blacklist-dev-password" in ci, "CI does not provide the E2E password"),
+            ("E2E_USERNAME: ${{ env.E2E_USERNAME }}" in ci, "CI does not provide the E2E username"),
+            ("E2E_PASSWORD: ${{ env.E2E_PASSWORD }}" in ci, "CI does not provide the E2E password"),
             (
                 CI_E2E_COMPOSE_COMMAND in ci,
                 "CI E2E does not compose deploy/base.yml with the CI override",
@@ -99,8 +96,8 @@ def main() -> None:
                 "CI gate does not fail when a required job is cancelled",
             ),
             ('ports: !override\n      - "3443:3000"' in ci_compose, "CI frontend is not exposed on the proxy port"),
-            ("ADMIN_USERNAME: admin" in ci_compose, "CI app username does not match E2E credentials"),
-            ("ADMIN_PASSWORD: blacklist-dev-password" in ci_compose, "CI app password does not match E2E credentials"),
+            ("ADMIN_USERNAME:" not in ci_compose, "CI compose overrides the generated app username"),
+            ("ADMIN_PASSWORD:" not in ci_compose, "CI compose overrides the generated app password"),
             (
                 all(
                     required in ci_compose
@@ -150,7 +147,7 @@ def main() -> None:
                 "release script does not require tracked release notes",
             ),
             (
-                'git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$RELEASE_NOTES_FILE"' in release_script,
+                'git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$FRONTEND_LOCK" "$RELEASE_NOTES_FILE"' in release_script,
                 "release script does not stage release notes",
             ),
             (
@@ -179,7 +176,10 @@ def main() -> None:
             ),
             (
                 all(
-                    f"    if: {TAG_TRIGGERED_NON_DRY_RUN_CONDITION}" in job_body(release, job_name)
+                    "github.event_name == 'push'" in job_body(release, job_name)
+                    and "startsWith(github.ref, 'refs/tags/')" in job_body(release, job_name)
+                    and "!inputs.dry_run" in job_body(release, job_name)
+                    and "needs.release-gate.result == 'success'" in job_body(release, job_name)
                     for job_name in ("create-release", "push-to-registry")
                 ),
                 "release workflow publication jobs are not restricted to tag-triggered non-dry runs",

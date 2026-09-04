@@ -21,8 +21,8 @@ node-version: 24
 context: ./deploy/redis
 API_URL: https://localhost:3443
 BASE_URL: https://localhost:3443
-E2E_USERNAME: admin
-E2E_PASSWORD: blacklist-dev-password
+E2E_USERNAME: ${{ env.E2E_USERNAME }}
+E2E_PASSWORD: ${{ env.E2E_PASSWORD }}
 BLACKLIST_TLS_DIR=$RUNNER_TEMP/blacklist-ci-tls
 docker compose --env-file "$CI_ENV_FILE" -f deploy/base.yml -f .github/docker-compose.ci.yml up
 jobs:
@@ -58,11 +58,19 @@ jobs:
     permissions:
       contents: read
   create-release:
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}
+    if: >-
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/') &&
+      !inputs.dry_run &&
+      needs.release-gate.result == 'success'
     permissions:
       contents: write
   push-to-registry:
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}
+    if: >-
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/') &&
+      !inputs.dry_run &&
+      needs.release-gate.result == 'success'
     permissions:
       packages: write
   notify:
@@ -73,7 +81,7 @@ RELEASE_NOTES_FILE=
 Release notes file not found
 if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
 git ls-files --error-unmatch \"$RELEASE_NOTES_FILE\"
-git add \"$VERSION_FILE\" \"$CHANGELOG_FILE\" \"$FRONTEND_PKG\" \"$RELEASE_NOTES_FILE\"
+git add \"$VERSION_FILE\" \"$CHANGELOG_FILE\" \"$FRONTEND_PKG\" \"$FRONTEND_LOCK\" \"$RELEASE_NOTES_FILE\"
 current) NEW_VERSION=\"$CURRENT_VERSION\" ;;
 auto) NEW_VERSION=\"$CURRENT_VERSION\" ;;
 if [[ \"$BUMP_TYPE\" != \"current\" && \"$BUMP_TYPE\" != \"auto\" ]]; then
@@ -89,8 +97,6 @@ services:
     image: blacklist-redis:ci
 ports: !override
       - \"3443:3000\"
-ADMIN_USERNAME: admin
-ADMIN_PASSWORD: blacklist-dev-password
 """,
         "frontend/Dockerfile": """
 FROM node:24-alpine AS builder
@@ -158,7 +164,7 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             "scripts/release.sh",
-            'git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$RELEASE_NOTES_FILE"',
+            'git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$FRONTEND_LOCK" "$RELEASE_NOTES_FILE"',
             "release script does not stage release notes",
         ),
         (
@@ -213,7 +219,7 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             ".github/workflows/release.yml",
-            "    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !inputs.dry_run }}",
+            "needs.release-gate.result == 'success'",
             "release workflow publication jobs are not restricted to tag-triggered non-dry runs",
         ),
         (
@@ -238,28 +244,18 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             ".github/workflows/ci.yml",
-            "E2E_USERNAME: admin",
+            "E2E_USERNAME: ${{ env.E2E_USERNAME }}",
             "CI does not provide the E2E username",
         ),
         (
             ".github/workflows/ci.yml",
-            "E2E_PASSWORD: blacklist-dev-password",
+            "E2E_PASSWORD: ${{ env.E2E_PASSWORD }}",
             "CI does not provide the E2E password",
         ),
         (
             ".github/workflows/ci.yml",
             "skip-files: usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json",
             "CI Trivy scan does not exclude pip's vendored dependency SBOM",
-        ),
-        (
-            ".github/docker-compose.ci.yml",
-            "ADMIN_USERNAME: admin",
-            "CI app username does not match E2E credentials",
-        ),
-        (
-            ".github/docker-compose.ci.yml",
-            "ADMIN_PASSWORD: blacklist-dev-password",
-            "CI app password does not match E2E credentials",
         ),
         (
             ".github/workflows/ci.yml",
@@ -325,3 +321,14 @@ def test_validator_rejects_parallel_ci_datastore_definition(
 
     assert result.returncode != 0
     assert "CI compose duplicates PostgreSQL or Redis instead of overriding deployment services" in result.stderr
+
+
+def test_validator_rejects_ci_compose_credential_overrides(tmp_path: Path) -> None:
+    files = valid_contract_files()
+    files[".github/docker-compose.ci.yml"] += "\nADMIN_USERNAME: fixed\nADMIN_PASSWORD: fixed\n"
+
+    result = run_validator(tmp_path, files)
+
+    assert result.returncode != 0
+    assert "CI compose overrides the generated app username" in result.stderr
+    assert "CI compose overrides the generated app password" in result.stderr

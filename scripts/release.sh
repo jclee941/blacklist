@@ -39,6 +39,8 @@ BUMP_TYPE="${1:-auto}"
 DRY_RUN="${2:-false}"
 VERSION_FILE="VERSION"
 CHANGELOG_FILE="CHANGELOG.md"
+FRONTEND_PKG="frontend/package.json"
+FRONTEND_LOCK="frontend/package-lock.json"
 REPO_URL="$(git remote get-url origin 2>/dev/null | sed -e 's/\.git$//' -e 's|git@github.com:|https://github.com/|')"
 
 # --- Validate ---
@@ -183,6 +185,7 @@ fi
 
 # Collect commits
 ADDED=""
+BREAKING=""
 FIXED=""
 CHANGED=""
 CICD=""
@@ -208,10 +211,17 @@ while IFS= read -r line; do
   esac
 done < <(git log "$COMMIT_RANGE" --pretty=format:"%s" --no-merges 2>/dev/null)
 
+BREAKING=$(awk '
+  $0 == "## Breaking Changes" { found=1; next }
+  /^## / { if (found) exit }
+  found && /^- / { print }
+' "$RELEASE_NOTES_FILE")
+
 # Build changelog section
 TODAY=$(date +%Y-%m-%d)
 CHANGELOG_ENTRY="## [${NEW_VERSION}] - ${TODAY}"
 
+[[ -n "$BREAKING" ]] && CHANGELOG_ENTRY="${CHANGELOG_ENTRY}\n\n### Breaking\n${BREAKING}"
 [[ -n "$ADDED" ]]   && CHANGELOG_ENTRY="${CHANGELOG_ENTRY}\n\n### Added${ADDED}"
 [[ -n "$CHANGED" ]]  && CHANGELOG_ENTRY="${CHANGELOG_ENTRY}\n\n### Changed${CHANGED}"
 [[ -n "$FIXED" ]]   && CHANGELOG_ENTRY="${CHANGELOG_ENTRY}\n\n### Fixed${FIXED}"
@@ -250,11 +260,9 @@ if [[ "$BUMP_TYPE" != "current" && "$BUMP_TYPE" != "auto" ]]; then
 echo "${NEW_VERSION}" > "$VERSION_FILE"
 ok "VERSION bumped: ${CURRENT_VERSION} → ${NEW_VERSION}"
 
-# 1b. Sync frontend/package.json version
-FRONTEND_PKG="frontend/package.json"
 if [[ -f "$FRONTEND_PKG" ]]; then
-  sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${NEW_VERSION}\"/" "$FRONTEND_PKG"
-  ok "frontend/package.json version synced to ${NEW_VERSION}"
+  (cd frontend && npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version > /dev/null)
+  ok "frontend package metadata synced to ${NEW_VERSION}"
 fi
 
 
@@ -290,7 +298,7 @@ else
 fi
 
 # 3. Commit
-git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$RELEASE_NOTES_FILE"
+git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$FRONTEND_LOCK" "$RELEASE_NOTES_FILE"
 git commit -m "chore(release): v${NEW_VERSION}
 
 Automated release: ${BUMP_TYPE} bump ${CURRENT_VERSION} → ${NEW_VERSION}"
