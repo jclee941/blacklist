@@ -18,6 +18,8 @@
 - `nanoid`, `browserslist`를 안전 버전으로 갱신하고 Python runtime 이미지에서 pip/setuptools/wheel을 제거합니다.
 - CI가 전체 push range를 검사하고 release metadata 변경 시 backend, collector, integration, E2E와 image scan을 모두 실행합니다.
 - 릴리스는 동일 이미지의 테스트·Trivy scan·E2E·서명 성공 후에만 GitHub Release와 GHCR을 게시합니다.
+- PR CI는 GitHub-hosted runner와 read-only token만 사용하며, `latest` 게시는 성공한 master CI artifact를 별도 workflow가 재사용합니다.
+- REGTECH HTML과 Excel 응답은 Content-Length 유무와 관계없이 10 MiB에서 중단합니다.
 - GitHub Release에 전체 릴리스 노트, 공개키와 fingerprint를 함께 게시합니다.
 - WARP는 개발 overlay에서만 활성화하고 production installer와 release overlay에서는 항상 비활성화합니다.
 
@@ -30,9 +32,9 @@
 
 ## 검증 결과
 
-- Backend 단위 테스트: 1,764개 통과, coverage 85.51%
+- Backend 단위 테스트: 1,770개 통과, coverage 85.45%
 - Backend 통합 테스트: 6개 통과
-- Collector 단위 테스트: 353개 통과
+- Collector 단위 테스트: 356개 통과
 - Frontend 단위 테스트: 478개 통과
 - Chromium E2E: 209개 통과, 1개 조건부 skip
 - Frontend typecheck, lint, production build: 통과
