@@ -2,8 +2,8 @@
 
 **검토:** 정보보호팀 코드검토 (2026-07-28)
 **대상:** Blacklist 오프라인 배포 패키지
-**조치 버전:** 5.0.0
-**검증일:** 2026-07-29
+**조치 버전:** 5.1.1
+**검증일:** 2026-09-04
 
 검증은 오프라인 번들 `blacklist-5.0.0.tar.gz`를 실제로 압축 해제해 `install.sh`로 설치한 배포에서 수행했습니다. 아래 "검증 방법"은 운영자가 자기 환경에서 그대로 재현할 수 있는 명령입니다.
 
@@ -36,14 +36,14 @@ bash install.sh --verify-only          # → 추출 이전 중단
 
 ### C-03 · 매니페스트 미검증·미서명 — 이행
 
-`MANIFEST.sha256` 부재를 치명적으로 처리하고 번들 전체를 검증합니다. 선택적 서명 검증(`--require-signature`)을 제공하며, 공개키는 호스트에 사전 배치하고 번들에 포함하지 않습니다.
+`MANIFEST.sha256` 부재를 치명적으로 처리하고 번들 전체를 검증합니다. 일반 설치는 내부 manifest와 최종 tarball의 detached signature를 필수 검증하며, 공개키 fingerprint는 별도 인증 채널에서 확인합니다.
 
 ```bash
 rm MANIFEST.sha256 && bash install.sh --verify-only   # → 중단
 bash install.sh --require-signature                    # 키링 없으면 중단
 ```
 
-**미이행 잔여:** CI 측 detached 서명 생성은 조직 GPG 키 발급이 필요해 보류했습니다. 키 발급 후 활성화 절차는 ADR-0003에 기록했습니다.
+**확인됨:** CI가 내부 manifest와 최종 tarball을 전용 GPG 키로 서명하며, 공개키·fingerprint·릴리스 노트를 Release 자산으로 게시합니다.
 
 ### C-04 · 호스트 네트워킹 노출 — 이행
 
@@ -155,7 +155,7 @@ C-04로 Redis에 비밀번호를 걸었으나 Flask 클라이언트가 `REDIS_PA
 
 | 항목 | 내용 | 대응 |
 | --- | --- | --- |
-| 번들 서명 | detached 서명 생성 미구성 | 조직 GPG 키 발급 후 ADR-0003 절차대로 활성화. 검증 측은 이미 구현됨 |
+| 번들 서명 | GPG signing key 수명주기 | private key는 1Password와 GitHub production environment에 보관하고 만료 전에 별도 변경 절차로 교체 |
 | 오프라인 Docker 페이로드 | `prereqs/`에 Docker 바이너리 미포함 | Docker 사전 설치 전제. 베어 호스트 대상이면 두 파일을 넣어야 하며, 일부만 넣으면 패키저가 경고 |
 | 개발기 WARP 프록시 | 프록시가 `127.0.0.1` 전용이면 브리지에서 도달 불가 | 게이트웨이에서 접근 가능한 주소로 리스닝 필요. 운영 오버레이는 무관 |
 

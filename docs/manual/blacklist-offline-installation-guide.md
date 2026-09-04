@@ -31,30 +31,48 @@ rm -f release-pubkey.gpg
 배포 시 받은 tarball, `.tar.gz.asc`, `.tar.gz.sha256` 파일을 같은 디렉터리에 둡니다. 압축을 풀거나 패키지 내부 스크립트를 실행하기 전에 호스트 keyring으로 최종 tarball 서명을 먼저 검증합니다.
 
 ```bash
-gpgv --keyring /etc/blacklist/release-pubkey.gpg blacklist-5.0.0.tar.gz.asc blacklist-5.0.0.tar.gz
-sha256sum -c blacklist-5.0.0.tar.gz.sha256
-tar -xzf blacklist-5.0.0.tar.gz
-cd blacklist-5.0.0
+gpgv --keyring /etc/blacklist/release-pubkey.gpg blacklist-<버전>.tar.gz.asc blacklist-<버전>.tar.gz
+sha256sum -c blacklist-<버전>.tar.gz.sha256
+tar -xzf blacklist-<버전>.tar.gz
+cd blacklist-<버전>
 ```
 
 서명 또는 체크섬 검증이 실패하면 압축을 풀거나 설치기를 실행하지 않습니다.
 
 ## 4. 최초 설치
 
-설치기는 호스트의 `/etc/blacklist/release-pubkey.gpg`로 패키지 매니페스트 서명을 검증하고 이미지 체크섬을 다시 확인한 뒤, 대상 호스트에서 관리자 비밀번호와 필수 암호화 키를 생성합니다.
+설치기는 호스트의 `/etc/blacklist/release-pubkey.gpg`로 패키지 매니페스트 서명을 검증하고 이미지 체크섬을 다시 확인한 뒤, 대상 호스트에서 관리자 비밀번호와 필수 암호화 키를 생성합니다. 신규 설치와 업그레이드의 기본 외부 TLS mode는 `provided`입니다.
 
 ```bash
+sudo bash install.sh --check-secrets
+sudo install -d -o 1001 -g 1001 -m 0700 /etc/blacklist/frontend-tls
+sudo install -o 1001 -g 1001 -m 0600 server.key /etc/blacklist/frontend-tls/server.key
+sudo install -o 1001 -g 1001 -m 0644 server.crt /etc/blacklist/frontend-tls/server.crt
+sudoedit /etc/blacklist/.env
 sudo bash install.sh
+```
+
+`.env`에서 실제 접속 FQDN 또는 IP를 설정합니다. 인증서 SAN은 이 값과 일치해야 합니다.
+
+```text
+FRONTEND_TLS_MODE=provided
+FRONTEND_TLS_SERVER_NAME=blacklist.example.com
+FRONTEND_BIND_ADDRESS=0.0.0.0
+```
+
+개발용 자체서명 모드는 명시적으로만 사용할 수 있고 installer가 loopback bind를 강제합니다.
+
+```text
+FRONTEND_TLS_MODE=self-signed
+FRONTEND_BIND_ADDRESS=127.0.0.1
 ```
 
 관리자 비밀번호는 최초 설치 완료 시 한 번만 출력됩니다. 즉시 비밀번호 관리자에 저장하십시오. 원본은 권한이 제한된 `/etc/blacklist/.env`에 보관됩니다.
 
-설치 전에 읽기 전용 검증을 별도로 실행하려면 먼저 대상 호스트 설정을 생성해야 합니다.
+설치 전에 번들 무결성만 읽기 전용으로 검증할 수 있습니다. 대상 `.env`가 있으면 runtime security posture도 함께 검증합니다.
 
 ```bash
-sudo bash install.sh --check-secrets
 sudo bash install.sh --verify-only
-sudo bash install.sh
 ```
 
 `--verify-only`에서 설치와 동일한 서명 검증을 강제하려면 다음 명령을 사용합니다.
@@ -90,7 +108,7 @@ WARP가 `127.0.0.1`에만 바인딩되어 Docker에서 접근할 수 없으면 �
 
 ## 7. 업그레이드
 
-새 패키지를 별도 디렉터리에 풀고 새 `install.sh`를 실행합니다. 기존 `/etc/blacklist/.env`, `/etc/blacklist/release-pubkey.gpg`, Docker 볼륨을 유지해야 저장된 자격증명을 계속 복호화하고 릴리스 서명을 검증할 수 있습니다.
+새 패키지를 별도 디렉터리에 풀고 새 `install.sh`를 실행합니다. 기존 `/etc/blacklist/.env`, `/etc/blacklist/release-pubkey.gpg`, Docker 볼륨을 유지해야 저장된 자격증명을 계속 복호화하고 릴리스 서명을 검증할 수 있습니다. 기존 env에 `FRONTEND_TLS_MODE`가 없으면 installer가 `provided`로 마이그레이션하므로 실행 전에 server certificate와 `FRONTEND_TLS_SERVER_NAME`을 준비해야 합니다.
 
 ```bash
 cd blacklist-<새 버전>
