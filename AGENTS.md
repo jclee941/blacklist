@@ -9,45 +9,45 @@ Blacklist is a containerized threat-intelligence application for collecting, man
 
 ## Architecture
 
-| Area | Location | Role |
-| --- | --- | --- |
-| Flask application | `app/` | REST API, blacklist and Fortinet functions, settings, monitoring |
-| Collector | `collector/` | Isolated Python ETL service for scheduled and manual source collection |
-| Frontend | `frontend/` | Next.js 15 dashboard that proxies browser requests to Flask |
-| Data services | `postgres/`, `deploy/redis/` | PostgreSQL persistence and Redis support |
-| Deployment | `deploy/` | Docker Compose definitions, release bundle files, installation assets |
-| CI and release | `.github/workflows/`, `scripts/release.sh` | GitHub Actions checks, image publishing, and releases |
+| Area              | Location                                   | Role                                                                   |
+| ----------------- | ------------------------------------------ | ---------------------------------------------------------------------- |
+| Flask application | `app/`                                     | REST API, blacklist and Fortinet functions, settings, monitoring       |
+| Collector         | `collector/`                               | Isolated Python ETL service for scheduled and manual source collection |
+| Frontend          | `frontend/`                                | Next.js 15 dashboard that proxies browser requests to Flask            |
+| Data services     | `postgres/`, `deploy/redis/`               | PostgreSQL persistence and Redis support                               |
+| Deployment        | `deploy/`                                  | Docker Compose definitions, release bundle files, installation assets  |
+| CI and release    | `.github/workflows/`, `scripts/release.sh` | GitHub Actions checks, image publishing, and releases                  |
 
 The normal service ports are Flask `2542`, Next.js `2543`, collector `8545`, PostgreSQL `5432`, and Redis `6379`. Docker Compose is the supported local and packaged runtime.
 
 ## Where To Start
 
-| Task | Start here |
-| --- | --- |
-| Flask startup and route registration | `app/core/app.py`, `app/run_app.py` |
-| Configuration and environment variables | `app/core/config.py`, `deploy/` |
-| Auth token endpoints | `app/core/routes/api/auth_routes.py`, `app/core/auth/` |
-| Collector lifecycle and health API | `collector/run_collector.py`, `collector/health_server.py`, `collector/health_routes.py` |
-| Browser API boundary | `frontend/lib/api.ts`, `frontend/server.js`, `frontend/server-routing.js` |
-| Local commands | `Makefile` |
-| Release automation | `scripts/release.sh`, `.github/workflows/release.yml` |
+| Task                                    | Start here                                                                               |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Flask startup and route registration    | `app/core/app.py`, `app/run_app.py`                                                      |
+| Configuration and environment variables | `app/core/config.py`, `deploy/`                                                          |
+| Auth token endpoints                    | `app/core/routes/api/auth_routes.py`, `app/core/auth/`                                   |
+| Collector lifecycle and health API      | `collector/run_collector.py`, `collector/health_server.py`, `collector/health_routes.py` |
+| Browser API boundary                    | `frontend/lib/api.ts`, `frontend/server.js`, `frontend/server-routing.js`                |
+| Local commands                          | `Makefile`                                                                               |
+| Release automation                      | `scripts/release.sh`, `.github/workflows/release.yml`                                    |
 
 ## Code Map
 
-| Symbol | Type | Location | Role |
-| --- | --- | --- | --- |
-| `create_app` | function | `app/core/app.py` | Flask factory, middleware, DI and routes |
-| `initialize_services` | function | `app/core/services/service_factory.py` | 14-service dependency container |
-| `AuthStateService` | class | `app/core/services/auth_state_service.py` | transactional password and session generation |
-| `BlacklistService` | class | `app/core/services/blacklist_service.py` | blacklist/whitelist decisions and cache |
-| `CollectorApplication` | class | `collector/run_collector.py` | collector lifecycle and scheduler startup |
-| `CollectionScheduler` | class | `collector/scheduler/manager.py` | scheduled/manual collection admission |
-| `RegtechCollector` | class | `collector/core/regtech/collector.py` | REGTECH ETL orchestration |
-| `api` / `collectionApi` | Axios clients | `frontend/lib/api.ts` | browser HTTP and JWT boundary |
+| Symbol                  | Type          | Location                                  | Role                                          |
+| ----------------------- | ------------- | ----------------------------------------- | --------------------------------------------- |
+| `create_app`            | function      | `app/core/app.py`                         | Flask factory, middleware, DI and routes      |
+| `initialize_services`   | function      | `app/core/services/service_factory.py`    | 14-service dependency container               |
+| `AuthStateService`      | class         | `app/core/services/auth_state_service.py` | transactional password and session generation |
+| `BlacklistService`      | class         | `app/core/services/blacklist_service.py`  | blacklist/whitelist decisions and cache       |
+| `CollectorApplication`  | class         | `collector/run_collector.py`              | collector lifecycle and scheduler startup     |
+| `CollectionScheduler`   | class         | `collector/scheduler/manager.py`          | scheduled/manual collection admission         |
+| `RegtechCollector`      | class         | `collector/core/regtech/collector.py`     | REGTECH ETL orchestration                     |
+| `api` / `collectionApi` | Axios clients | `frontend/lib/api.ts`                     | browser HTTP and JWT boundary                 |
 
 ## Authentication
 
-`/api/auth/login`, `/api/auth/me`, and `/api/auth/verify` provide JWT token APIs. Global JWT enforcement protects dashboard and application APIs; login, health, metrics, static assets, and explicitly `@public` feeds remain open. `DISABLE_JWT_AUTH=true` is development/testing-only. `AuthStateService` bootstraps missing admin rows from env, then keeps password hash and session generation in one PostgreSQL transaction. DB errors fail closed and never reactivate an env password. Keep credentials and signing secrets in environment variables, 1Password, or the encrypted settings store, never in tracked files.
+`/api/auth/login`, `/api/auth/me`, and `/api/auth/verify` provide JWT token APIs. Global JWT enforcement protects dashboard and application APIs; login, health, metrics, and static assets remain open. Fortinet `@public` feeds skip the admin JWT but still require their feed bearer token and allowed source network. `DISABLE_JWT_AUTH=true` is development/testing-only. `AuthStateService` bootstraps missing admin rows from env, then keeps password hash and session generation in one PostgreSQL transaction. DB errors fail closed and never reactivate an env password. Keep credentials and signing secrets in environment variables, 1Password, or the encrypted settings store, never in tracked files.
 
 ## Development And Verification
 

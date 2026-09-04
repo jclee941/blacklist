@@ -7,13 +7,13 @@ Blacklist is a containerized platform for collecting, managing, and distributing
 
 ## Services
 
-| Service | Technology | Listener | Purpose |
-| --- | --- | --- | --- |
-| App | Flask, Python 3.11 | internal `2542` | REST API, blacklist management, Fortinet integration, settings, and monitoring |
-| Frontend | Next.js 15, React 19 | container `3000`, host `443` | Dashboard and browser proxy for the Flask API |
-| Collector | Python 3.11 | internal `8545` | Scheduled and manual blacklist source collection |
-| PostgreSQL | PostgreSQL 15 | internal `5432` | Persistent data |
-| Redis | Redis 7 | internal `6379` | Supporting cache and service state |
+| Service    | Technology           | Listener                     | Purpose                                                                        |
+| ---------- | -------------------- | ---------------------------- | ------------------------------------------------------------------------------ |
+| App        | Flask, Python 3.11   | internal `2542`              | REST API, blacklist management, Fortinet integration, settings, and monitoring |
+| Frontend   | Next.js 15, React 19 | container `3000`, host `443` | Dashboard and browser proxy for the Flask API                                  |
+| Collector  | Python 3.11          | internal `8545`              | Scheduled and manual blacklist source collection                               |
+| PostgreSQL | PostgreSQL 15        | internal `5432`              | Persistent data                                                                |
+| Redis      | Redis 7              | internal `6379`              | Supporting cache and service state                                             |
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ The packaged frontend is the external endpoint on host port `443` and requires a
 
 ## Authentication
 
-JWT token APIs are available at `/api/auth/login`, `/api/auth/me`, and `/api/auth/verify`. Dashboard and protected API routes require a valid administrator JWT by default; login, health, metrics, static assets, and explicitly public feeds remain open. Configure credentials and signing material with environment variables or the settings store. `DISABLE_JWT_AUTH=true` is reserved for explicit development use.
+JWT token APIs are available at `/api/auth/login`, `/api/auth/me`, and `/api/auth/verify`. Dashboard and protected API routes require a valid administrator JWT by default; login, health, metrics, and static assets remain open. Fortinet feeds are exempt from the administrator JWT but still require the configured feed bearer token and allowed source network. Configure credentials and signing material with environment variables or the settings store. `DISABLE_JWT_AUTH=true` is reserved for explicit development use.
 
 ## Development
 
