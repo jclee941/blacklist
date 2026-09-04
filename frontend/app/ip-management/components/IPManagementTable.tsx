@@ -104,7 +104,7 @@ export function IPManagementTable({
                 )}
                 <td className="px-4 py-3 text-sm font-mono">{record.ip_address}</td>
                 <td className="px-4 py-3 text-sm max-w-xs" title={record.reason}>
-                  <div className="whitespace-normal break-words">{record.reason}</div>
+                  <div className="whitespace-normal break-keep">{record.reason}</div>
                 </td>
                 <td className="px-4 py-3 text-sm">{record.source}</td>
 
