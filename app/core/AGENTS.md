@@ -1,9 +1,5 @@
 # CORE KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 5.0.0
-
 ## OVERVIEW
 
 Core backend package shared by app factory, routes, services, auth, DB, monitoring, exceptions, and utility helpers.
@@ -16,31 +12,30 @@ app/core/
 ├── app_lifecycle.py    # startup/shutdown lifecycle wiring
 ├── app_logging.py      # logging setup + in-memory MemoryHandler
 ├── config.py           # AppConfig env mapping and defaults
-├── config.py           # AppConfig env mapping and defaults
 ├── routes/             # API + legacy web route layers
 ├── services/           # ServiceFactory-managed DI services
-├── auth/               # JWT token service and middleware hooks
+├── auth/               # JWT service, middleware, security, proxy
 ├── database/           # connection managers and recovery paths
 ├── monitoring/         # Prometheus metrics definitions
 ├── exceptions/         # RFC 7807 exception hierarchy
-├── utils/              # response/encryption/cache/validation helpers
+├── utils/               # response/encryption/cache/validation helpers
 └── common/, errors/    # legacy shared modules
 ```
 
 ## CODE MAP
 
 | Symbol                   | Type     | Location                                 | Refs | Role                                    |
-| ------------------------ | -------- | ---------------------------------------- | ---- | --------------------------------------- |
-| `create_app`             | function | `app.py:51`                              | high | factory + middleware + blueprint wiring |
-| `AppConfig`              | class    | `config.py`                              | high | 48-property env-to-config mapping       |
-| `initialize_services`    | function | `services/service_factory.py:37`         | high | DI container init, strict order         |
+| ------------------------ | -------- | ------------------------------------------ | ---- | ---------------------------------------- |
+| `create_app`             | function | `app.py:24`                              | high | factory + middleware + blueprint wiring |
+| `AppConfig`              | class    | `config.py`                              | high | env-to-config mapping                   |
+| `initialize_services`    | function | `services/service_factory.py:36`         | high | DI container init, 14 services          |
 | `APIError`               | class    | `exceptions/api_errors.py:62`            | high | RFC 7807 error base class               |
 | `SmartConnectionManager` | class    | `database/connection_pool_manager.py:17` | high | PostgreSQL pooling + backoff            |
 
 ## WHERE TO LOOK
 
 | Task                | Location    | Notes                                               |
-| ------------------- | ----------- | --------------------------------------------------- |
+| ------------------- | ----------- | ----------------------------------------------------- |
 | App initialization  | `app.py`    | middleware order, route registration, startup hooks |
 | Env/config behavior | `config.py` | URL/DB/Redis/defaults and secret requirements       |
 | API/web composition | `routes/`   | API + web package split and blueprint boundaries    |
