@@ -44,7 +44,7 @@ npm run test:e2e -- --grep "@regression"
 ```typescript
 test.describe('Regression: Issue #123 - 간단한 설명', () => {
   /**
-   * GitHub Issue: https://github.com/jclee-homelab/blacklist/issues/123
+   * GitHub Issue: https://github.com/jclee941/blacklist/issues/123
    *
    * PROBLEM: 원래 버그가 무엇이었는지
    * ROOT CAUSE: 왜 발생했는지
@@ -68,7 +68,7 @@ test.describe('Regression: Issue #123 - 간단한 설명', () => {
 
 ```typescript
 /**
- * GitHub Issue: https://github.com/jclee-homelab/blacklist/issues/XXX
+ * GitHub Issue: https://github.com/jclee941/blacklist/issues/XXX
  */
 ```
 
