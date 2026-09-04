@@ -55,7 +55,7 @@ def test_release_publication_requires_one_successful_gate() -> None:
     assert "  release-gate:" in RELEASE
     assert "needs.release-gate.result == 'success'" in RELEASE
     assert "needs: [validate, sign-package, release-gate]" in RELEASE
-    assert "needs: [validate, build-images, release-gate]" in RELEASE
+    assert "needs: [validate, build-images, release-gate, sign-package]" in RELEASE
 
 
 def test_release_signing_occurs_only_after_the_gate() -> None:

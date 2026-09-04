@@ -413,12 +413,13 @@ jobs:
             blacklist-*-release-notes.md \
             blacklist-*-release-public-key.asc
   push-to-registry:
-    needs: [validate, build-images, release-gate]
+    needs: [validate, build-images, release-gate, sign-package]
     if: >-
       github.event_name == 'push' &&
       startsWith(github.ref, 'refs/tags/') &&
       !inputs.dry_run &&
-      needs.release-gate.result == 'success'
+      needs.release-gate.result == 'success' &&
+      needs.sign-package.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
