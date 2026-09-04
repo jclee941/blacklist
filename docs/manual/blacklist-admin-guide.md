@@ -1,6 +1,6 @@
 # Blacklist 관리자 가이드
 
-**버전:** 5.0.0
+**버전:** 저장소 루트 [`VERSION`](../../VERSION) 기준
 
 이 문서는 Blacklist 운영 관리자를 위한 안내서입니다. 일반 조회 사용법은 [사용자 가이드](blacklist-user-guide.md), 설치·무결성 절차는 [오프라인 설치 가이드](blacklist-offline-installation-guide.md)를 참조하십시오.
 

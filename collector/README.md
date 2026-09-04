@@ -1,6 +1,6 @@
 # Blacklist Collector
 
-**Version:** `4.1.0`
+**Version:** read the repository root [`VERSION`](../VERSION)
 
 The collector is an isolated Python 3.11 ETL service for scheduled and manual blacklist source collection. It must remain independent from `app/`; coordination happens through its service interfaces, shared data services, and HTTP, not Python imports from the Flask application.
 
