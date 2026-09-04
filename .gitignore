@@ -87,6 +87,8 @@ docs/*
 !docs/manual/
 docs/manual/*
 !docs/manual/blacklist-*-release-notes.md
+!docs/manual/blacklist-release-signing-key-*.asc
+!docs/manual/blacklist-release-signing-key-*.fingerprint
 !docs/manual/blacklist-admin-guide.md
 !docs/manual/blacklist-admin-guide.pdf
 !docs/manual/blacklist-offline-*.md
