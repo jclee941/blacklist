@@ -4,14 +4,14 @@
 
 ## 문서 목록
 
-| 문서 | 용도 |
-| --- | --- |
-| `blacklist-offline-installation-guide.md` | 최초 설치, 무결성 확인, 업그레이드와 설치 검증 |
-| `blacklist-operations-guide.md` | 서비스 상태, 로그, 재시작, 백업과 장애 확인 |
-| `blacklist-offline-deployment-guide.pdf` | 배포 절차 PDF |
-| `security-remediation-2026-07-28.md` | 정보보호 검토 원문과 조치 요구사항 |
-| `security-remediation-checklist.md` | 취약점 항목별 이행 상태와 재현 명령 |
-| `security-remediation-validation-report.md` | 무볼륨 설치 및 보안 E2E 검증 결과 |
+| 문서                                        | 용도                                           |
+| ------------------------------------------- | ---------------------------------------------- |
+| `blacklist-offline-installation-guide.md`   | 최초 설치, 무결성 확인, 업그레이드와 설치 검증 |
+| `blacklist-operations-guide.md`             | 서비스 상태, 로그, 재시작, 백업과 장애 확인    |
+| `blacklist-offline-deployment-guide.pdf`    | 배포 절차 PDF                                  |
+| `security-remediation-2026-07-28.md`        | 정보보호 검토 원문과 조치 요구사항             |
+| `security-remediation-checklist.md`         | 취약점 항목별 이행 상태와 재현 명령            |
+| `security-remediation-validation-report.md` | 무볼륨 설치 및 보안 E2E 검증 결과              |
 
 ## 중요 운영 원칙
 
