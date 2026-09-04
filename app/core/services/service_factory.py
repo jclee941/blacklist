@@ -150,6 +150,12 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     services["settings_service"] = settings_service
     logger.info("  ✅ settings_service (SettingsService)")
 
+    from .auth_state_service import AuthStateService
+
+    auth_state_service = AuthStateService(services["db_service"])
+    services["auth_state_service"] = auth_state_service
+    logger.info("  ✅ auth_state_service (AuthStateService)")
+
     # ============================================================
     # 6. BUSINESS LOGIC SERVICES
     # ============================================================
@@ -198,7 +204,7 @@ def initialize_services(app: Flask) -> Dict[str, Any]:
     # ============================================================
 
     initialized_count = len(services)
-    total_services = 13
+    total_services = 14
 
     if initialized_count == total_services:
         logger.info(f"✅ Successfully initialized all {initialized_count} services")
@@ -217,7 +223,7 @@ def get_service_info() -> Dict[str, Any]:
         Dictionary with service metadata
     """
     return {
-        "total_services": 13,
+        "total_services": 14,
         "categories": {
             "core_infrastructure": ["db_service"],
             "collection_services": ["collection_service", "scheduler_service"],
@@ -226,6 +232,7 @@ def get_service_info() -> Dict[str, Any]:
                 "secure_credential_service",
                 "regtech_config_service",
                 "settings_service",
+                "auth_state_service",
             ],
             "business_logic": [
                 "blacklist_service",

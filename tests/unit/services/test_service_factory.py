@@ -40,9 +40,9 @@ class TestServiceFactory:
 
         result = get_service_info()
 
-        # Should have 15 services (14 original + cloudflare)
         total = result.get("total_services", 0)
-        assert total >= 10  # At least 10 services
+        assert total == 14
+        assert "auth_state_service" in result["categories"]["configuration_services"]
 
     # --- initialize_services ---
 
