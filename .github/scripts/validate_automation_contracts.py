@@ -187,7 +187,7 @@ def main() -> None:
                 "release script does not select the VERSION file automatically",
             ),
             (
-                "Timed out waiting for CI on release commit" in release_script
+                "No CI run found for release commit" in release_script
                 and "Falling back to local tests" not in release_script,
                 "release script does not require successful exact-HEAD remote CI",
             ),
@@ -196,12 +196,12 @@ def main() -> None:
                     marker in release_script
                     for marker in (
                         "git push origin master",
-                        "CI passed on release commit",
+                        'gh run watch "$CI_RUN_ID" --exit-status',
                         'git tag -a "v${NEW_VERSION}"',
                     )
                 )
                 and release_script.index("git push origin master")
-                < release_script.index("CI passed on release commit")
+                < release_script.index('gh run watch "$CI_RUN_ID" --exit-status')
                 < release_script.index('git tag -a "v${NEW_VERSION}"'),
                 "release tag is created before the release commit CI succeeds",
             ),

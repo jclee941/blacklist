@@ -110,9 +110,9 @@ if [[ \"$BUMP_TYPE\" != \"current\" && \"$BUMP_TYPE\" != \"auto\" ]]; then
 CI_WORKFLOW=\"CI\"
 gh run list --workflow \"$CI_WORKFLOW\" --commit \"$HEAD_SHA\"
 docker compose exec -T blacklist-app test -d /app/tests
-Timed out waiting for CI on release commit
+No CI run found for release commit
 git push origin master
-CI passed on release commit
+gh run watch "$CI_RUN_ID" --exit-status
 git tag -a "v${NEW_VERSION}"
 """,
         ".github/docker-compose.ci.yml": """
@@ -245,7 +245,7 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             "scripts/release.sh",
-            "Timed out waiting for CI on release commit",
+            "No CI run found for release commit",
             "release script does not require successful exact-HEAD remote CI",
         ),
         (
