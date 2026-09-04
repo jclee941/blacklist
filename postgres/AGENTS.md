@@ -2,7 +2,7 @@
 
 ## Overview
 
-Raw SQL migrations plus schema init, no ORM. Database roles are configured by `configure-runtime-roles.sh` at container startup, not baked into `initdb`.
+Raw SQL migrations plus schema init, no ORM. `configure-runtime-roles.sh` is installed as a first-init hook and is also invoked explicitly by the installer on each deployment.
 
 ## Structure
 
@@ -10,7 +10,7 @@ Raw SQL migrations plus schema init, no ORM. Database roles are configured by `c
 - `initdb/02-schema.sql` - 14 tables, 49 indexes; base schema source of truth.
 - `initdb/03-migrations.sql` (156 lines) - bootstrap migration state applied on fresh DBs.
 - `migrations/001..008_*.sql` - sequential, additive-only files using `IF NOT EXISTS` / `ON CONFLICT DO UPDATE`.
-- `configure-runtime-roles.sh` - applies migrations 007 and 008, then bootstraps roles; idempotent, runs on every container start.
+- `configure-runtime-roles.sh` - applies migrations 007 and 008, then bootstraps roles; idempotent, runs on first `initdb` and from `install.sh`, not on ordinary restarts.
 - `configure-tls.sh` - writes `pg_hba.conf` forcing `hostssl scram-sha-256` and rejecting `hostnossl`.
 - `tls-entrypoint.sh`, `Dockerfile` - TLS-enabled Postgres 15 image.
 
