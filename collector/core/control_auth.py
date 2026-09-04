@@ -24,7 +24,9 @@ def require_control_authentication() -> ResponseReturnValue | None:
         return None
 
     authentication_disabled = os.getenv("DISABLE_JWT_AUTH", "false").strip().lower() in AUTH_DISABLED_VALUES
-    if authentication_disabled:
+    environment = os.getenv("ENVIRONMENT", "production").strip().lower()
+    testing = os.getenv("TESTING", "false").strip().lower() in AUTH_DISABLED_VALUES
+    if authentication_disabled and (environment == "development" or testing):
         return None
 
     expected_token = os.getenv("COLLECTOR_AUTH_TOKEN", "")

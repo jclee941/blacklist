@@ -177,12 +177,13 @@ def test_operational_endpoint_accepts_control_bearer(
     assert response.status_code == 200
 
 
-def test_disable_jwt_auth_restores_open_control_access(
+def test_disable_jwt_auth_restores_open_control_access_in_development(
     server: tuple[HealthServer, SchedulerFake],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     health_server, scheduler = server
     monkeypatch.setenv("DISABLE_JWT_AUTH", "true")
+    monkeypatch.setenv("ENVIRONMENT", "development")
 
     response = health_server.app.test_client().post(
         "/trigger",
@@ -192,3 +193,17 @@ def test_disable_jwt_auth_restores_open_control_access(
     assert response.status_code == 200
     assert response.get_json()["success"] is True
     assert scheduler.sources == ["REGTECH"]
+
+
+def test_disable_jwt_auth_does_not_bypass_production_control_authentication(
+    server: tuple[HealthServer, SchedulerFake],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    health_server, scheduler = server
+    monkeypatch.setenv("DISABLE_JWT_AUTH", "true")
+    monkeypatch.setenv("ENVIRONMENT", "production")
+
+    response = health_server.app.test_client().post("/trigger", json={"source": "REGTECH"})
+
+    assert response.status_code == 401
+    assert scheduler.sources == []
