@@ -29,14 +29,3 @@ ON whitelist_ips(ip_address);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_blacklist_ips_ip_source_unique
 ON blacklist_ips(ip_address, source);
-
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_user AND rolsuper) THEN
-        EXECUTE format(
-            'ALTER ROLE %I NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION',
-            current_user
-        );
-    END IF;
-END
-$$;
