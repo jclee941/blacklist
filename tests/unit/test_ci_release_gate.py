@@ -1,3 +1,6 @@
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -84,7 +87,8 @@ def test_release_script_updates_lockfile_and_breaking_changes() -> None:
 
 
 def test_release_script_requires_successful_remote_exact_head_ci() -> None:
-    assert "Timed out waiting for CI on release commit" in RELEASE_SCRIPT
+    assert "No CI run found for release commit" in RELEASE_SCRIPT
+    assert 'gh run watch "$CI_RUN_ID" --exit-status' in RELEASE_SCRIPT
     assert "Falling back to local tests" not in RELEASE_SCRIPT
     assert "Backend tests passed (docker)" not in RELEASE_SCRIPT
     assert "Backend tests passed (local)" not in RELEASE_SCRIPT
@@ -93,7 +97,45 @@ def test_release_script_requires_successful_remote_exact_head_ci() -> None:
 def test_release_commit_passes_ci_before_tag_creation() -> None:
     commit_index = RELEASE_SCRIPT.index('git commit -m "chore(release):')
     push_index = RELEASE_SCRIPT.index("git push origin master")
-    ci_index = RELEASE_SCRIPT.index('CI passed on release commit')
+    ci_index = RELEASE_SCRIPT.index('gh run watch "$CI_RUN_ID" --exit-status')
     tag_index = RELEASE_SCRIPT.index('git tag -a "v${NEW_VERSION}"')
 
     assert commit_index < push_index < ci_index < tag_index
+
+
+def test_malicious_version_is_rejected_without_execution(tmp_path: Path) -> None:
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    shutil.copy(ROOT / "scripts/release.sh", scripts / "release.sh")
+    marker = tmp_path / "VERSION_INJECTION"
+    malicious_version = f"1.2.x[$(touch${{IFS}}{marker})]"
+    _ = (tmp_path / "VERSION").write_text(malicious_version, encoding="utf-8")
+    environment = dict(
+        os.environ,
+        GIT_AUTHOR_NAME="test",
+        GIT_AUTHOR_EMAIL="test@example.invalid",
+        GIT_COMMITTER_NAME="test",
+        GIT_COMMITTER_EMAIL="test@example.invalid",
+    )
+    subprocess.run(["git", "init", "-q", "-b", "master"], cwd=tmp_path, check=True, env=environment)
+    subprocess.run(
+        ["git", "remote", "add", "origin", "https://github.com/example/blacklist.git"],
+        cwd=tmp_path,
+        check=True,
+        env=environment,
+    )
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, env=environment)
+    subprocess.run(["git", "commit", "-q", "-m", "fixture"], cwd=tmp_path, check=True, env=environment)
+
+    result = subprocess.run(
+        ["bash", "scripts/release.sh", "patch", "true"],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "Invalid version format" in result.stderr
+    assert not marker.exists()

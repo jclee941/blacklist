@@ -14,9 +14,9 @@
 #   2. Bump VERSION file (semver)
 #   3. Auto-generate CHANGELOG entry from git log
 #   4. Commit version metadata, changelog, and release notes
-#   5. Create annotated tag v{VERSION}
-#   6. Push to master + push tag
-#   7. Release pipeline auto-triggers (build → package → GHCR)
+#   5. Push the release commit and wait for its exact CI run
+#   6. Create and push annotated tag v{VERSION}
+#   7. Release pipeline auto-triggers (build → package → sign → GHCR)
 # =============================================================================
 
 set -euo pipefail
@@ -68,11 +68,12 @@ if [[ ! -f "$VERSION_FILE" ]]; then
 fi
 CURRENT_VERSION=$(tr -d '[:space:]' < "$VERSION_FILE")
 
-# Parse semver
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-if [[ -z "$MAJOR" || -z "$MINOR" || -z "$PATCH" ]]; then
+if [[ ! "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
   error "Invalid version format: ${CURRENT_VERSION} (expected MAJOR.MINOR.PATCH)"
 fi
+MAJOR=$((10#${BASH_REMATCH[1]}))
+MINOR=$((10#${BASH_REMATCH[2]}))
+PATCH=$((10#${BASH_REMATCH[3]}))
 
 # Calculate new version
 case "$BUMP_TYPE" in
@@ -260,24 +261,20 @@ info "Pushing release commit to origin..."
 git push origin master
 HEAD_SHA=$(git rev-parse HEAD)
 CI_WORKFLOW="CI"
-CI_VERIFIED=false
-for attempt in $(seq 1 90); do
-  CI_CONCLUSION=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // empty' 2>/dev/null || true)
-  CI_STATUS=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --limit 1 --json status --jq '.[0].status // empty' 2>/dev/null || true)
-  if [[ "$CI_CONCLUSION" == "success" ]]; then
-    CI_VERIFIED=true
-    ok "CI passed on release commit ($HEAD_SHA)"
-    break
-  fi
-  if [[ -n "$CI_CONCLUSION" && "$CI_CONCLUSION" != "success" ]]; then
-    error "CI failed on release commit ($HEAD_SHA) with conclusion: ${CI_CONCLUSION}. No tag was created."
-  fi
-  info "Waiting for release commit CI (${CI_STATUS:-not started}, attempt ${attempt}/90)..."
+CI_RUN_ID=""
+for attempt in $(seq 1 30); do
+  CI_RUN_ID=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --event push --limit 1 --json databaseId --jq '.[0].databaseId // empty' 2>/dev/null || true)
+  [[ -n "$CI_RUN_ID" ]] && break
+  info "Waiting for the release commit CI run to start (attempt ${attempt}/30)..."
   sleep 10
 done
-if [[ "$CI_VERIFIED" != "true" ]]; then
-  error "Timed out waiting for CI on release commit ($HEAD_SHA). No tag was created."
+if [[ -z "$CI_RUN_ID" ]]; then
+  error "No CI run found for release commit ($HEAD_SHA). No tag was created."
 fi
+if ! gh run watch "$CI_RUN_ID" --exit-status; then
+  error "CI failed on release commit ($HEAD_SHA). No tag was created."
+fi
+ok "CI passed on release commit ($HEAD_SHA)"
 
 git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
 ok "Tag v${NEW_VERSION} created"
