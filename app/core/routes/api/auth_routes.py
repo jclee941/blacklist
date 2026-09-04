@@ -1,13 +1,13 @@
 import logging
 import secrets
 
-import psycopg2
 from flask import Blueprint, jsonify, request, current_app
 
 from core.auth.decorators import public
 from core.config import config
 from core.exceptions.auth_exceptions import AuthenticationError
-from core.auth.security import PasswordPolicyError, hash_password, verify_password
+from core.auth.security import PasswordPolicyError, verify_password
+from core.services.auth_state_service import AuthStateUnavailableError
 from core.utils.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
@@ -75,9 +75,9 @@ def login():
             }
         ), 400
 
-    settings_service = current_app.extensions.get("settings_service")
-    if not settings_service:
-        logger.error("settings_service not available for authentication")
+    auth_state_service = current_app.extensions.get("auth_state_service")
+    if not auth_state_service:
+        logger.error("auth_state_service not available for authentication")
         return jsonify(
             {
                 "type": "about:blank",
@@ -113,12 +113,20 @@ def login():
         ), 429
 
     try:
-        admin_username = settings_service.get_setting("admin_username", config.ADMIN_USERNAME)
-        admin_password = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
-    except (KeyError, RuntimeError, psycopg2.Error) as e:
-        logger.warning("Settings service unavailable, falling back to env vars: %s", e)
-        admin_username = config.ADMIN_USERNAME
-        admin_password = config.ADMIN_PASSWORD
+        credentials = auth_state_service.get_credentials(config.ADMIN_USERNAME, config.ADMIN_PASSWORD)
+        admin_username = credentials.username
+        admin_password = credentials.password_hash
+    except (AuthStateUnavailableError, PasswordPolicyError) as error:
+        logger.error("Authentication state unavailable: %s", error)
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Service Unavailable",
+                "status": 503,
+                "detail": "Authentication service unavailable",
+                "code": "AUTH_SERVICE_UNAVAILABLE",
+            }
+        ), 503
 
     credentials_configured = False
     username_valid = False
@@ -140,17 +148,9 @@ def login():
         logger.warning("Failed login attempt for user: %s", username)
     elif credentials_configured:
         if upgraded_hash is not None:
-            password_persisted = settings_service.set_setting("admin_password", upgraded_hash, encrypt=False)
-            if not password_persisted:
-                password_persisted = settings_service.create_setting(
-                    key="admin_password",
-                    value=upgraded_hash,
-                    setting_type="password",
-                    description="Administrator password hash",
-                    category="security",
-                    encrypt=False,
-                )
-            if not password_persisted:
+            try:
+                password_persisted = auth_state_service.upgrade_password_hash(admin_password, upgraded_hash)
+            except AuthStateUnavailableError:
                 return jsonify(
                     {
                         "type": "about:blank",
@@ -159,7 +159,9 @@ def login():
                         "detail": "Authentication service unavailable",
                         "code": "AUTH_SERVICE_UNAVAILABLE",
                     }
-                ), 500
+                ), 503
+            if not password_persisted:
+                logger.info("Administrator password hash was already upgraded by another request")
         auth_security.clear_login_failures(username, client_ip)
         jwt_service = current_app.extensions["jwt_service"]
         token = jwt_service.encode_token(user_id=username, role="admin")
@@ -233,20 +235,19 @@ def rotate_password():
             }
         ), 400
 
-    settings_service = current_app.extensions["settings_service"]
-    configured = settings_service.get_setting("admin_password", config.ADMIN_PASSWORD)
-    if not configured or not verify_password(current_password, configured)[0]:
+    auth_state_service = current_app.extensions.get("auth_state_service")
+    if auth_state_service is None:
         return jsonify(
             {
                 "type": "about:blank",
-                "title": "Unauthorized",
-                "status": 401,
-                "detail": "Current password is invalid",
-                "code": "AUTH_CURRENT_PASSWORD_INVALID",
+                "title": "Service Unavailable",
+                "status": 503,
+                "detail": "Authentication service unavailable",
+                "code": "AUTH_SERVICE_UNAVAILABLE",
             }
-        ), 401
+        ), 503
     try:
-        replacement = hash_password(new_password)
+        rotated = auth_state_service.rotate_password(identity["sub"], current_password, new_password)
     except PasswordPolicyError:
         return jsonify(
             {
@@ -257,18 +258,26 @@ def rotate_password():
                 "code": "AUTH_PASSWORD_POLICY",
             }
         ), 400
-    if not settings_service.set_setting("admin_password", replacement, encrypt=False):
+    except AuthStateUnavailableError:
         return jsonify(
             {
                 "type": "about:blank",
-                "title": "Internal Server Error",
-                "status": 500,
+                "title": "Service Unavailable",
+                "status": 503,
                 "detail": "Password rotation failed",
                 "code": "AUTH_SERVICE_UNAVAILABLE",
             }
-        ), 500
-    auth_security = current_app.extensions["auth_security"]
-    auth_security.invalidate_sessions(identity["sub"])
+        ), 503
+    if not rotated:
+        return jsonify(
+            {
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Current password is invalid",
+                "code": "AUTH_CURRENT_PASSWORD_INVALID",
+            }
+        ), 401
     return jsonify({"success": True, "message": "Password rotated successfully"}), 200
 
 

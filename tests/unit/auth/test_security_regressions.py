@@ -18,6 +18,12 @@ class MemorySecurityStore:
         self.values[key] = str(value)
         return value
 
+    def increment_with_expiry(self, key: str, seconds: int) -> int:
+        value = self.incr(key)
+        if value == 1:
+            self.expire(key, seconds)
+        return value
+
     def expire(self, key: str, seconds: int) -> bool:
         self.expirations[key] = seconds
         return True
@@ -62,6 +68,38 @@ class SettingsStub:
         self.values[key] = value
         return True
 
+    def get_credentials(self, default_username: str, default_password: str):
+        from core.auth.security import hash_password
+        from core.services.auth_state_service import AdminCredentials
+
+        username = self.values.setdefault("admin_username", default_username)
+        password_hash = self.values.get("admin_password")
+        if password_hash is None:
+            password_hash = hash_password(default_password)
+            self.values["admin_password"] = password_hash
+        self.values.setdefault("admin_session_version", "1")
+        return AdminCredentials(username=username, password_hash=password_hash)
+
+    def current_session_version(self, subject: str) -> int:
+        return int(self.values.get("admin_session_version", "0"))
+
+    def upgrade_password_hash(self, expected_password: str, replacement_hash: str) -> bool:
+        if self.values.get("admin_password") != expected_password:
+            return False
+        self.values["admin_password"] = replacement_hash
+        return True
+
+    def rotate_password(self, subject: str, current_password: str, new_password: str) -> bool:
+        from core.auth.security import hash_password, verify_password
+
+        configured = self.values.get("admin_password", "")
+        if not verify_password(current_password, configured)[0]:
+            return False
+        self.values["admin_password"] = hash_password(new_password)
+        version = int(self.values.get("admin_session_version", "0"))
+        self.values["admin_session_version"] = str(version + 1)
+        return True
+
 
 def _auth_app(store: MemorySecurityStore, settings: SettingsStub) -> Flask:
     from core.auth.jwt_service import JWTService
@@ -72,8 +110,13 @@ def _auth_app(store: MemorySecurityStore, settings: SettingsStub) -> Flask:
     app.config["TESTING"] = True
     app.register_blueprint(auth_bp)
     app.extensions["auth_security"] = AuthSecurity(store)
-    app.extensions["jwt_service"] = JWTService("unit-jwt-secret", revocations=app.extensions["auth_security"])
+    app.extensions["jwt_service"] = JWTService(
+        "unit-jwt-secret",
+        revocations=app.extensions["auth_security"],
+        session_versions=settings,
+    )
     app.extensions["settings_service"] = settings
+    app.extensions["auth_state_service"] = settings
     return app
 
 
@@ -145,6 +188,17 @@ def test_login_locks_account_after_five_failures() -> None:
     assert response.get_json()["code"] == "AUTH_ACCOUNT_LOCKED"
 
 
+def test_login_failures_lock_the_account_across_source_ips() -> None:
+    from core.auth.security import AuthSecurity
+
+    store = MemorySecurityStore()
+    security = AuthSecurity(store)
+    for index in range(5):
+        security.record_login_failure("admin", f"192.0.2.{index + 1}")
+
+    assert security.is_login_locked("admin", "198.51.100.10") is True
+
+
 def test_login_persists_hash_when_only_environment_password_exists() -> None:
     class MissingAdminRowSettings(SettingsStub):
         def set_setting(self, key: str, value: str, *, encrypt: bool = False) -> bool:
@@ -181,6 +235,7 @@ def test_login_reports_configured_jwt_expiry() -> None:
     app.extensions["jwt_service"] = JWTService(
         "unit-jwt-secret",
         revocations=AuthSecurity(store),
+        session_versions=settings,
         expiry_hours=2,
     )
 
@@ -241,9 +296,7 @@ def test_password_rotation_invalidates_all_existing_tokens() -> None:
         first_verify = client.get("/api/auth/verify", headers={"Authorization": f"Bearer {first_token}"})
         second_verify = client.get("/api/auth/verify", headers={"Authorization": f"Bearer {second_token}"})
         replacement_token = jwt_service.encode_token("admin", role="admin")
-        replacement_verify = client.get(
-            "/api/auth/verify", headers={"Authorization": f"Bearer {replacement_token}"}
-        )
+        replacement_verify = client.get("/api/auth/verify", headers={"Authorization": f"Bearer {replacement_token}"})
 
     assert response.status_code == 200
     assert first_verify.status_code == 401

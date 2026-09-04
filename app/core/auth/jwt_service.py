@@ -7,7 +7,7 @@ Security-critical: handles all token lifecycle operations.
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
 
 import jwt
@@ -22,11 +22,16 @@ DEFAULT_TOKEN_EXPIRY_HOURS = config.JWT_EXPIRY_HOURS
 JWT_ALGORITHM = "HS256"
 
 
+class SessionVersionChecker(Protocol):
+    def current_session_version(self, subject: str) -> int: ...
+
+
 class JWTService:
     def __init__(
         self,
         secret_key: str,
         revocations: RevocationChecker | None = None,
+        session_versions: SessionVersionChecker | None = None,
         expiry_hours: int = DEFAULT_TOKEN_EXPIRY_HOURS,
     ) -> None:
         if not secret_key:
@@ -35,6 +40,7 @@ class JWTService:
             raise ValueError("JWT expiry_hours must be positive")
         self._secret_key = secret_key
         self._revocations = revocations
+        self._session_versions = session_versions
         self._expiry_hours = expiry_hours
 
     @property
@@ -49,7 +55,7 @@ class JWTService:
     ) -> str:
         exp_hours = self._expiry_hours if expires_hours is None else expires_hours
         now = datetime.now(timezone.utc)
-        session_version = self._revocations.current_session_version(user_id) if self._revocations is not None else 0
+        session_version = self._session_versions.current_session_version(user_id) if self._session_versions else 0
         payload: dict[str, Any] = {
             "sub": user_id,
             "role": role,
@@ -83,7 +89,10 @@ class JWTService:
             raise AuthenticationError("Token missing session version claim")
         if self._revocations is not None and self._revocations.is_revoked(jti):
             raise AuthenticationError("Token has been revoked")
-        if self._revocations is not None and self._revocations.current_session_version(subject) != session_version:
+        if (
+            self._session_versions is not None
+            and self._session_versions.current_session_version(subject) != session_version
+        ):
             raise AuthenticationError("Token session has been invalidated")
         return payload
 

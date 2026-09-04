@@ -35,6 +35,8 @@ class SecurityStore(Protocol):
 
     def incr(self, key: str) -> int: ...
 
+    def increment_with_expiry(self, key: str, seconds: int) -> int: ...
+
     def expire(self, key: str, seconds: int) -> bool: ...
 
     def delete(self, *keys: str) -> int: ...
@@ -46,10 +48,6 @@ class RevocationChecker(Protocol):
     def is_revoked(self, jti: str) -> bool: ...
 
     def revoke(self, jti: str, expires_at: int) -> None: ...
-
-    def current_session_version(self, subject: str) -> int: ...
-
-    def invalidate_sessions(self, subject: str) -> int: ...
 
 
 class RedisSecurityStore:
@@ -64,6 +62,17 @@ class RedisSecurityStore:
 
     def incr(self, key: str) -> int:
         value = self._client.incr(key)
+        if isinstance(value, int):
+            return value
+        raise AuthSecurityBackendError(type(value).__name__)
+
+    def increment_with_expiry(self, key: str, seconds: int) -> int:
+        value = self._client.eval(
+            "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]); end; return n",
+            1,
+            key,
+            seconds,
+        )
         if isinstance(value, int):
             return value
         raise AuthSecurityBackendError(type(value).__name__)
@@ -113,22 +122,28 @@ class AuthSecurity:
         identity = hashlib.sha256(f"{username.casefold()}\0{client_ip}".encode()).hexdigest()
         return f"auth:login-failures:{identity}"
 
+    @staticmethod
+    def _account_login_key(username: str) -> str:
+        identity = hashlib.sha256(username.casefold().encode()).hexdigest()
+        return f"auth:account-failures:{identity}"
+
     def is_login_locked(self, username: str, client_ip: str) -> bool:
-        value = self._store.get(self._login_key(username, client_ip))
-        if value is None:
-            return False
-        if isinstance(value, bytes):
-            value = value.decode("ascii")
-        return int(value) >= LOGIN_FAILURE_LIMIT
+        for key in (self._login_key(username, client_ip), self._account_login_key(username)):
+            value = self._store.get(key)
+            if value is None:
+                continue
+            if isinstance(value, bytes):
+                value = value.decode("ascii")
+            if int(value) >= LOGIN_FAILURE_LIMIT:
+                return True
+        return False
 
     def record_login_failure(self, username: str, client_ip: str) -> None:
-        key = self._login_key(username, client_ip)
-        failures = self._store.incr(key)
-        if failures == 1:
-            self._store.expire(key, LOGIN_LOCK_SECONDS)
+        self._store.increment_with_expiry(self._login_key(username, client_ip), LOGIN_LOCK_SECONDS)
+        self._store.increment_with_expiry(self._account_login_key(username), LOGIN_LOCK_SECONDS)
 
     def clear_login_failures(self, username: str, client_ip: str) -> None:
-        self._store.delete(self._login_key(username, client_ip))
+        self._store.delete(self._login_key(username, client_ip), self._account_login_key(username))
 
     def is_revoked(self, jti: str) -> bool:
         return self._store.get(f"auth:revoked:{jti}") is not None
@@ -137,25 +152,3 @@ class AuthSecurity:
         now = int(datetime.now(timezone.utc).timestamp())
         ttl = max(1, expires_at - now)
         self._store.setex(f"auth:revoked:{jti}", ttl, "1")
-
-    @staticmethod
-    def _session_version_key(subject: str) -> str:
-        identity = hashlib.sha256(subject.casefold().encode()).hexdigest()
-        return f"auth:session-version:{identity}"
-
-    def current_session_version(self, subject: str) -> int:
-        value = self._store.get(self._session_version_key(subject))
-        if value is None:
-            return 0
-        if isinstance(value, bytes):
-            value = value.decode("ascii")
-        try:
-            version = int(value)
-        except ValueError:
-            raise AuthSecurityBackendError(type(value).__name__) from None
-        if version < 0:
-            raise AuthSecurityBackendError(type(value).__name__)
-        return version
-
-    def invalidate_sessions(self, subject: str) -> int:
-        return self._store.incr(self._session_version_key(subject))

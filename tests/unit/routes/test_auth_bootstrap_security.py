@@ -6,6 +6,7 @@ from flask import Flask
 
 from core.auth.jwt_service import JWTService
 from core.routes.api.auth_routes import auth_bp
+from core.services.auth_state_service import AdminCredentials
 
 
 class SettingsServiceStub:
@@ -17,6 +18,14 @@ class SettingsServiceStub:
         return True
 
 
+class AuthStateServiceStub:
+    def get_credentials(self, default_username: str, default_password: str) -> AdminCredentials:
+        return AdminCredentials(username=default_username, password_hash=default_password)
+
+    def upgrade_password_hash(self, expected_password: str, replacement_hash: str) -> bool:
+        return bool(expected_password and replacement_hash)
+
+
 @pytest.fixture
 def app() -> Flask:
     application = Flask(__name__)
@@ -24,6 +33,7 @@ def app() -> Flask:
     application.register_blueprint(auth_bp)
     application.extensions["jwt_service"] = JWTService(secret_key="test-auth-bootstrap-secret")
     application.extensions["settings_service"] = SettingsServiceStub()
+    application.extensions["auth_state_service"] = AuthStateServiceStub()
     application.extensions["auth_security"] = Mock()
     application.extensions["auth_security"].is_login_locked.return_value = False
     return application
