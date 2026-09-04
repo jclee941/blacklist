@@ -54,7 +54,6 @@ class DatabaseService:
                 test_conn = self.connection_pool.getconn()
                 test_conn.cursor().execute("SELECT 1")
                 self.connection_pool.putconn(test_conn)
-                self._apply_schema_migrations()
 
                 logger.info(f"✅ Database connection pool initialized successfully (attempt {retry_count + 1})")
                 return
@@ -70,48 +69,6 @@ class DatabaseService:
                 else:
                     logger.error(f"❌ Database connection failed after {max_retries} attempts: {e}")
                     raise
-
-    def _apply_schema_migrations(self) -> None:
-        with self.connection() as connection:
-            cursor = connection.cursor()
-            cursor.execute(
-                """
-                ALTER TABLE whitelist_ips
-                ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
-
-                UPDATE whitelist_ips
-                SET is_active = TRUE
-                WHERE is_active IS NULL;
-
-                ALTER TABLE whitelist_ips
-                ALTER COLUMN is_active SET DEFAULT TRUE;
-
-                ALTER TABLE whitelist_ips
-                ALTER COLUMN is_active SET NOT NULL;
-
-                ALTER TABLE blacklist_ips
-                ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
-
-                UPDATE blacklist_ips
-                SET is_active = TRUE
-                WHERE is_active IS NULL;
-
-                ALTER TABLE blacklist_ips
-                ALTER COLUMN is_active SET DEFAULT TRUE;
-
-                ALTER TABLE blacklist_ips
-                ALTER COLUMN is_active SET NOT NULL;
-
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_whitelist_ips_ip_unique
-                ON whitelist_ips(ip_address);
-
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_blacklist_ips_ip_source_unique
-                ON blacklist_ips(ip_address, source);
-
-                """
-            )
-            connection.commit()
-            cursor.close()
 
     def get_connection(self) -> PostgreSQLConnection:
         """Get connection from pool with automatic retry on failure"""

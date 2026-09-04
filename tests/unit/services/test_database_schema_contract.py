@@ -37,3 +37,13 @@ def test_upgrade_migration_adds_whitelist_activity_and_upsert_indexes() -> None:
     assert "ALTER TABLE blacklist_ips" in migration
     assert "ON whitelist_ips(ip_address)" in migration
     assert "ON blacklist_ips(ip_address, source)" in migration
+
+
+def test_bootstrap_owner_applies_runtime_schema_before_grants() -> None:
+    role_configurator = (ROOT / "postgres/configure-runtime-roles.sh").read_text()
+    monitoring_migration = (ROOT / "postgres/migrations/008_add_regtech_monitoring.sql").read_text()
+
+    assert "007_align_ip_schema_contracts.sql" in role_configurator
+    assert "008_add_regtech_monitoring.sql" in role_configurator
+    assert "CREATE TABLE IF NOT EXISTS regtech_monitoring" in monitoring_migration
+    assert "CREATE TABLE IF NOT EXISTS regtech_alerts" in monitoring_migration

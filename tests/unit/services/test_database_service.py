@@ -33,17 +33,10 @@ class TestDatabaseService:
         with patch("app.core.services.database_service.pool.ThreadedConnectionPool", return_value=pool_instance):
             service._initialize_pool_with_retry(max_retries=1, base_delay=0)
 
-        assert pool_instance.getconn.call_count == 2
+        assert pool_instance.getconn.call_count == 1
         assert test_cursor.execute.call_args_list[0] == call("SELECT 1")
-        migration_sql = test_cursor.execute.call_args_list[1].args[0]
-        assert "ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE" in migration_sql
-        assert "ALTER COLUMN is_active SET NOT NULL" in migration_sql
-        assert "ALTER TABLE blacklist_ips" in migration_sql
-        assert "ON whitelist_ips(ip_address)" in migration_sql
-        assert "ON blacklist_ips(ip_address, source)" in migration_sql
-        assert "ALTER ROLE" not in migration_sql
-        assert pool_instance.putconn.call_args_list == [call(test_conn), call(test_conn)]
-        test_conn.commit.assert_called_once_with()
+        assert pool_instance.putconn.call_args_list == [call(test_conn)]
+        test_conn.commit.assert_not_called()
 
     def test_initialize_pool_with_retry_failure_raises(self, monkeypatch):
         monkeypatch.delenv("TESTING", raising=False)
