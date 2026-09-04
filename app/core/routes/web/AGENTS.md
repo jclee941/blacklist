@@ -1,7 +1,5 @@
 # WEB ROUTES KNOWLEDGE BASE
 
-**Version:** `4.1.0`
-
 ## OVERVIEW
 
 Jinja2 legacy Korean admin UI and web-context JSON endpoints.

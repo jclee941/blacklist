@@ -1,9 +1,5 @@
 # IP MANAGEMENT API KNOWLEDGE BASE
 
-**Generated:** 2026-02-27 00:00 Asia/Seoul
-**Commit:** cd16ec1
-**Branch:** master | **Version:** 3.6.9
-
 ## OVERVIEW
 
 Repository-driven API package for whitelist/blacklist management. This package is the only API subtree with explicit `routes` + `handlers` + `repository` layering.
