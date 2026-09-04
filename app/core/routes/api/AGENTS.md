@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-JSON REST API surface. Thin handlers — no business logic in routes. Routes are wired into the app two ways: `core/app.py` calls `register_blacklist_routes(app)` directly and registers `auth_bp` as its own blueprint, then registers the single unified `api_bp` (from `routes/api/__init__.py`) which itself absorbs the dashboard, ip_management, monitoring, database, fortinet, analytics, settings, and collection sub-blueprints.
+JSON REST API composition layer. `core/app.py` calls `register_blacklist_routes(app)`, registers `auth_bp`, then registers unified `api_bp`; `routes/api/__init__.py` absorbs the dashboard, primary IP-management, monitoring, database, Fortinet, analytics, settings, and collection sub-blueprints. `ip_management_legacy_bp` is imported but not registered.
 
 ## STRUCTURE
 
@@ -21,7 +21,7 @@ routes/api/
 
 ## LOCAL RULES
 
-- `blacklist/` registers itself via `register_blacklist_routes(app)`; every other API sub-blueprint is registered onto `api_bp` inside `routes/api/__init__.py`.
+- `blacklist/` registers itself via `register_blacklist_routes(app)`; unified sub-blueprints are registered onto `api_bp` inside `routes/api/__init__.py`, except the imported-but-unregistered `ip_management_legacy_bp`.
 - No runtime DDL/schema-mutation endpoints exist; `database_api.py` exposes read/status operations only.
 
 ## NOTES
@@ -30,9 +30,9 @@ routes/api/
 
 ## CODE MAP
 
-| Symbol                        | Type     | Location                     | Refs | Role                                            |
-| -------------------------------- | -------- | -------------------------------- | ---- | -------------------------------------------------- |
-| `register_blacklist_routes`   | function | `blacklist/__init__.py` | high | registers 5 blacklist/whitelist blueprints + error handlers |
-| `register_error_handlers`     | function | `blacklist/__init__.py` | med  | global 404/500 JSON handlers                    |
-| `api_bp`                      | Blueprint | `../api_routes.py`       | high | created one level up; `routes/api/__init__.py` absorbs sub-blueprints |
-| `auth_bp`                     | Blueprint | `auth_routes.py`         | high | `/api/auth/{login,logout,me,verify,password}`   |
+| Symbol                      | Type      | Location                | Refs | Role                                                                  |
+| --------------------------- | --------- | ----------------------- | ---- | --------------------------------------------------------------------- |
+| `register_blacklist_routes` | function  | `blacklist/__init__.py` | high | registers 5 blacklist/whitelist blueprints + error handlers           |
+| `register_error_handlers`   | function  | `blacklist/__init__.py` | med  | global 404/500 JSON handlers                                          |
+| `api_bp`                    | Blueprint | `../api_routes.py`      | high | created one level up; `routes/api/__init__.py` absorbs sub-blueprints |
+| `auth_bp`                   | Blueprint | `auth_routes.py`        | high | `/api/auth/{login,logout,me,verify,password}`                         |

@@ -14,12 +14,12 @@ app/core/routes/
 
 ## WHERE TO LOOK
 
-| Task                     | Location                       | Notes                                          |
-| ------------------------- | -------------------------------- | ------------------------------------------------ |
-| API route contracts      | `api/AGENTS.md`                | unified `api_bp` composition and thin-handler rules |
-| Legacy admin behavior    | `web/AGENTS.md`                | CSRF exemptions, template coupling, Korean UI  |
-| IP management subpackage | `api/ip_management/AGENTS.md`  | repository + handler split unique to API layer |
-| Collection/Fortinet subpackages | `api/collection/AGENTS.md`, `api/fortinet/AGENTS.md` | per-package blueprint detail |
+| Task                            | Location                                             | Notes                                               |
+| ------------------------------- | ---------------------------------------------------- | --------------------------------------------------- |
+| API route contracts             | `api/AGENTS.md`                                      | unified `api_bp` composition and thin-handler rules |
+| Legacy admin behavior           | `web/AGENTS.md`                                      | CSRF exemptions, template coupling, Korean UI       |
+| IP management subpackage        | `api/ip_management/AGENTS.md`                        | repository + handler split unique to API layer      |
+| Collection/Fortinet subpackages | `api/collection/AGENTS.md`, `api/fortinet/AGENTS.md` | per-package blueprint detail                        |
 
 ## CONVENTIONS
 
@@ -35,8 +35,8 @@ app/core/routes/
 
 ## CODE MAP
 
-| Symbol                         | Type     | Location                 | Refs | Role                          |
-| -------------------------------- | -------- | --------------------------- | ---- | -------------------------------- |
-| `register_websocket_handlers`  | function | `websocket_routes.py`  | med  | SocketIO event handler wiring |
+| Symbol                        | Type     | Location              | Refs | Role                          |
+| ----------------------------- | -------- | --------------------- | ---- | ----------------------------- |
+| `register_websocket_handlers` | function | `websocket_routes.py` | med  | SocketIO event handler wiring |
 
 Route-specific CODE MAPs in `api/AGENTS.md` and `web/AGENTS.md`.
