@@ -74,3 +74,10 @@ def test_release_script_updates_lockfile_and_breaking_changes() -> None:
     assert 'npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version' in RELEASE_SCRIPT
     assert '"$FRONTEND_LOCK"' in RELEASE_SCRIPT
     assert '"## Breaking Changes"' in RELEASE_SCRIPT
+
+
+def test_release_script_requires_successful_remote_exact_head_ci() -> None:
+    assert "No CI run found for HEAD" in RELEASE_SCRIPT
+    assert "Falling back to local tests" not in RELEASE_SCRIPT
+    assert "Backend tests passed (docker)" not in RELEASE_SCRIPT
+    assert "Backend tests passed (local)" not in RELEASE_SCRIPT

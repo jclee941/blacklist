@@ -103,60 +103,23 @@ if git tag -l "v${NEW_VERSION}" | grep -q .; then
 fi
 
 ok "Validation passed"
-# --- Pre-release test gate ---
-# Verify CI passed on the current HEAD commit before releasing.
-# Priority: gh CLI (remote CI) > docker stack > local pytest
-info "Checking pre-release test status..."
+info "Checking exact-HEAD CI status..."
 
 HEAD_SHA=$(git rev-parse HEAD)
-CI_VERIFIED=false
 CI_WORKFLOW="CI"
-
-# 1. Check remote CI via gh CLI (preferred — verifies exact commit)
-if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
-  CI_CONCLUSION=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json conclusion,status --jq '.[0].conclusion // empty' 2>/dev/null || true)
-  CI_STATUS=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json status --jq '.[0].status // empty' 2>/dev/null || true)
-  if [[ "$CI_CONCLUSION" == "success" ]]; then
-    ok "CI passed on HEAD ($HEAD_SHA)"
-    CI_VERIFIED=true
-  elif [[ "$CI_STATUS" == "in_progress" || "$CI_STATUS" == "queued" ]]; then
-    error "CI is still running on HEAD ($HEAD_SHA). Wait for completion before releasing."
-  elif [[ -n "$CI_CONCLUSION" ]]; then
-    error "CI failed on HEAD ($HEAD_SHA) with conclusion: ${CI_CONCLUSION}. Fix before releasing."
-  else
-    warn "No CI run found for HEAD ($HEAD_SHA). Falling back to local tests..."
-  fi
+if ! command -v gh &>/dev/null || ! gh auth status &>/dev/null 2>&1; then
+  error "Authenticated gh CLI is required to verify exact-HEAD CI before releasing."
 fi
-
-# 2. Fallback: Docker stack containerized tests
-if [[ "$CI_VERIFIED" == "false" ]]; then
-  if command -v docker &>/dev/null \
-    && docker compose ps --services 2>/dev/null | grep -q . \
-    && docker compose exec -T blacklist-app test -d /app/tests 2>/dev/null; then
-    if docker compose exec -T blacklist-app python -m pytest tests/ -x -q --tb=short 2>/dev/null; then
-      ok "Backend tests passed (docker)"
-      CI_VERIFIED=true
-    else
-      error "Backend tests failed. Fix test failures before releasing."
-    fi
-  fi
-fi
-
-# 3. Fallback: Local pytest
-if [[ "$CI_VERIFIED" == "false" ]]; then
-  if command -v pytest &>/dev/null; then
-    if pytest tests/ -x -q --tb=short 2>/dev/null; then
-      ok "Backend tests passed (local)"
-      CI_VERIFIED=true
-    else
-      error "Backend tests failed. Fix test failures before releasing."
-    fi
-  fi
-fi
-
-# 4. No test method available
-if [[ "$CI_VERIFIED" == "false" ]]; then
-  error "No test verification available (gh CLI, docker stack, or pytest). Install one before releasing."
+CI_CONCLUSION=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json conclusion,status --jq '.[0].conclusion // empty' 2>/dev/null || true)
+CI_STATUS=$(gh run list --workflow "$CI_WORKFLOW" --commit "$HEAD_SHA" --json status --jq '.[0].status // empty' 2>/dev/null || true)
+if [[ "$CI_CONCLUSION" == "success" ]]; then
+  ok "CI passed on HEAD ($HEAD_SHA)"
+elif [[ "$CI_STATUS" == "in_progress" || "$CI_STATUS" == "queued" ]]; then
+  error "CI is still running on HEAD ($HEAD_SHA). Wait for completion before releasing."
+elif [[ -n "$CI_CONCLUSION" ]]; then
+  error "CI failed on HEAD ($HEAD_SHA) with conclusion: ${CI_CONCLUSION}. Fix before releasing."
+else
+  error "No CI run found for HEAD ($HEAD_SHA). Push the commit and wait for CI before releasing."
 fi
 
 # --- Summary ---
