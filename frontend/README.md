@@ -1,6 +1,6 @@
 # Blacklist Frontend
 
-**Version:** `5.0.0`
+**Version:** read the repository root [`VERSION`](../VERSION)
 
 The frontend is the Next.js 15 and React 19 dashboard for Blacklist. It uses the App Router, TypeScript, Tailwind CSS v4, React Query, and the shared API client in `lib/api.ts`.
 
