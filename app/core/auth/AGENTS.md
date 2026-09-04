@@ -21,13 +21,13 @@ JWT authentication layer. 500 lines across 8 files. Global JWT enforcement is **
 
 | Symbol                 | Type      | Location             | Refs | Role                                              |
 | ----------------------- | --------- | --------------------- | ---- | -------------------------------------------------- |
-| `JWTService`            | class     | `jwt_service.py:29`  | high | HS256 encode/decode/validate, revocation + session-version checks |
-| `jwt_required_hook`     | function  | `middleware.py:25`   | high | `before_request` JWT validation hook              |
-| `AuthSecurity`          | class     | `security.py:116`    | med  | login lockout (5 failures/15min) + token revocation store |
-| `hash_password`/`verify_password` | function | `security.py:93,100` | med  | bcrypt hashing, 12-72 byte policy, legacy-hash upgrade |
-| `public`                | decorator | `decorators.py:12`   | med  | exempts route from JWT requirement                |
-| `TrustedProxyMiddleware`| class     | `proxy.py:12`        | med  | WSGI-level trusted-proxy header handling          |
-| `feed_access_required`  | decorator | `feed.py:12`         | low  | bearer-token + source-network guard for Fortinet feeds |
+| `JWTService`            | class     | `jwt_service.py`  | high | HS256 encode/decode/validate, revocation + session-version checks |
+| `jwt_required_hook`     | function  | `middleware.py`   | high | `before_request` JWT validation hook              |
+| `AuthSecurity`          | class     | `security.py`     | med  | login lockout (5 failures/15min) + token revocation store |
+| `hash_password`/`verify_password` | function | `security.py` | med  | bcrypt hashing, 12-character/72-byte policy, legacy-hash upgrade |
+| `public`                | decorator | `decorators.py`   | med  | exempts route from JWT requirement                |
+| `TrustedProxyMiddleware`| class     | `proxy.py`        | med  | WSGI-level trusted-proxy header handling          |
+| `feed_access_required`  | decorator | `feed.py`         | low  | bearer-token + source-network guard for Fortinet feeds |
 
 ## TOKEN PAYLOAD
 

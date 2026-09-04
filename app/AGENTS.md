@@ -26,16 +26,6 @@ app/
 └── static/                 # CSS, JS, fonts, images
 ```
 
-## CODE MAP
-
-| Symbol                | Type     | Location                              | Refs | Role                                    |
-| --------------------- | -------- | -------------------------------------- | ---- | ---------------------------------------- |
-| `create_app`          | function | `core/app.py:24`                      | high | app factory + middleware + blueprint wiring |
-| `initialize_services` | function | `core/services/service_factory.py:36` | high | DI container startup, 14 services       |
-| `AppConfig`           | class    | `core/config.py`                      | high | environment-backed config mapping       |
-
-Service-level symbols in `core/services/AGENTS.md`. Auth symbols in `core/auth/AGENTS.md`.
-
 ## WHERE TO LOOK
 
 | Task                     | Location                           | Notes                                                 |
@@ -51,18 +41,13 @@ Service-level symbols in `core/services/AGENTS.md`. Auth symbols in `core/auth/A
 | File                                         | Concern                        |
 | -------------------------------------------- | ------------------------------ |
 | `core/app.py`                                | app factory, middleware, blueprint wiring |
-| `core/services/secure_credential_service.py` | AES-256-GCM credential storage |
+| `core/services/secure_credential_service.py` | Fernet-based credential storage (PBKDF2-derived key) |
 | `core/services/auth_state_service.py`        | transactional admin password/session state |
 | `core/services/blacklist_service.py`         | blacklist query and mutation   |
-
-## ANTI-PATTERNS
-
-- Direct service instantiation — use `current_app.extensions['service_name']`.
-- Business logic in route handlers — routes are thin dispatchers only.
-- `from run_app import app` — use `current_app` proxy.
 
 ## NOTES
 
 - Global JWT enforcement is active by default (`app.before_request(jwt_required_hook)`); public routes use `@public` or the static/favicon/robots path prefixes.
 - `before_request` order: `csrf_protect_web_only` → `jwt_required_hook` → `generate_request_id`.
 - `DISABLE_JWT_AUTH=true` is rejected outside `development`/testing at factory startup.
+- Detailed core conventions, service symbols, and route rules live under `core/AGENTS.md`.

@@ -26,11 +26,11 @@ app/core/
 
 | Symbol                   | Type     | Location                                 | Refs | Role                                    |
 | ------------------------ | -------- | ------------------------------------------ | ---- | ---------------------------------------- |
-| `create_app`             | function | `app.py:24`                              | high | factory + middleware + blueprint wiring |
+| `create_app`             | function | `app.py`                                 | high | factory + middleware + blueprint wiring |
 | `AppConfig`              | class    | `config.py`                              | high | env-to-config mapping                   |
-| `initialize_services`    | function | `services/service_factory.py:36`         | high | DI container init, 14 services          |
-| `APIError`               | class    | `exceptions/api_errors.py:62`            | high | RFC 7807 error base class               |
-| `SmartConnectionManager` | class    | `database/connection_pool_manager.py:17` | high | PostgreSQL pooling + backoff            |
+| `initialize_services`    | function | `services/service_factory.py`            | high | DI container init, 14 services          |
+| `APIError`               | class    | `exceptions/base_exceptions.py`          | high | RFC 7807 error base class               |
+| `SmartConnectionManager` | class    | `database/connection_pool_manager.py`    | high | PostgreSQL pooling + backoff            |
 
 ## WHERE TO LOOK
 
@@ -41,14 +41,7 @@ app/core/
 | API/web composition | `routes/`   | API + web package split and blueprint boundaries    |
 | DI lifecycle        | `services/` | strict init order via ServiceFactory                |
 
-## CONVENTIONS
-
-- Resolve runtime dependencies via `current_app.extensions[...]`; avoid direct service imports in request paths.
-- Keep route handlers thin and move business logic into service/repository layers.
-- Preserve app-collector process isolation; coordinate via DB/Redis/HTTP only.
-
 ## ANTI-PATTERNS
 
-- Cross-runtime code sharing between `app/` and `collector/` modules.
 - SQLAlchemy/ORM introduction (raw SQL policy only).
 - Broad exception swallowing instead of typed `APIError` subclasses.

@@ -16,10 +16,10 @@ Prometheus metrics infrastructure. 1124 lines across 3 modules + `__init__.py`.
 
 | Symbol                  | Type      | Location              | Refs | Role                                          |
 | ----------------------- | --------- | --------------------- | ---- | --------------------------------------------- |
-| `CacheMetricsCollector` | class     | `cache_metrics.py:31` | med  | singleton Redis hit/miss/invalidation tracker |
-| `ErrorMetricsCollector` | class     | `error_metrics.py:33` | med  | singleton error rate by type/endpoint         |
-| `CacheEvent`            | dataclass | `cache_metrics.py:20` | med  | cache operation event data carrier            |
-| `ErrorEvent`            | dataclass | `error_metrics.py:20` | med  | error occurrence event data carrier           |
+| `CacheMetricsCollector` | class     | `cache_metrics.py` | med  | singleton Redis hit/miss/invalidation tracker |
+| `ErrorMetricsCollector` | class     | `error_metrics.py` | med  | singleton error rate by type/endpoint         |
+| `CacheEvent`            | dataclass | `cache_metrics.py` | med  | cache operation event data carrier            |
+| `ErrorEvent`            | dataclass | `error_metrics.py` | med  | error occurrence event data carrier           |
 
 ## CONVENTIONS
 
