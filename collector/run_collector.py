@@ -110,6 +110,7 @@ class CollectorApplication:
     def stop(self):
         """애플리케이션 중지"""
         if not self.running:
+            CollectorConfig.clear_credentials_cache()
             return
 
         self.logger.info("🛑 Stopping Blacklist Collector")
@@ -121,6 +122,8 @@ class CollectorApplication:
             self.logger.info("✅ Scheduler stopped")
         except Exception as e:
             self.logger.error(f"❌ Error stopping scheduler: {e}")
+
+        CollectorConfig.clear_credentials_cache()
 
         # 헬스 서버는 데몬 스레드로 자동 종료됨
 
