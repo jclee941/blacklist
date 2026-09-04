@@ -2,7 +2,7 @@
 Tests for system_api.py — endpoints attached directly to api_bp.
 Covers: /api/monitoring/dashboard, /api/system-stats, /api/chart/data,
         /api/logs, /api/auth/status, /api/reset-database,
-        /api/database/schema, /api/database/schema/update, /api/database/schema/fix
+        /api/database/schema and unavailable runtime schema mutation paths
 """
 
 import os
@@ -10,6 +10,8 @@ from unittest.mock import MagicMock, patch, mock_open
 from flask import Flask, g
 from flask.testing import FlaskClient
 from datetime import datetime, date
+
+import pytest
 
 
 class FlaskRouteTest:
@@ -412,53 +414,13 @@ class TestDatabaseSchema(FlaskRouteTest):
         assert resp.status_code == 500
 
 
-class TestSchemaUpdate(FlaskRouteTest):
-    """POST /api/database/schema/update"""
-
+class TestSchemaMutationUnavailable(FlaskRouteTest):
     def setup_method(self):
         self.app = _create_app()
         self.client = self.app.test_client()
 
-    def test_schema_update_success(self):
-        mock_db = MagicMock()
-        mock_db.update_schema.return_value = {"applied": 3}
-        self.app.extensions["db_service"] = mock_db
+    @pytest.mark.parametrize("path", ("/api/database/schema/update", "/api/database/schema/fix"))
+    def test_runtime_schema_mutation_is_not_exposed(self, path: str):
+        response = self.client.post(path)
 
-        resp = self.client.post("/api/database/schema/update")
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["data"]["result"]["applied"] == 3
-
-    def test_schema_update_error(self):
-        mock_db = MagicMock()
-        mock_db.update_schema.side_effect = Exception("fail")
-        self.app.extensions["db_service"] = mock_db
-
-        resp = self.client.post("/api/database/schema/update")
-        assert resp.status_code == 500
-
-
-class TestSchemaFix(FlaskRouteTest):
-    """POST /api/database/schema/fix"""
-
-    def setup_method(self):
-        self.app = _create_app()
-        self.client = self.app.test_client()
-
-    def test_schema_fix_success(self):
-        mock_db = MagicMock()
-        self.app.extensions["db_service"] = mock_db
-
-        resp = self.client.post("/api/database/schema/fix")
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert "country" in data["data"]["columns_added"]
-        assert mock_db.execute_query.call_count == 3
-
-    def test_schema_fix_error(self):
-        mock_db = MagicMock()
-        mock_db.execute_query.side_effect = Exception("permission denied")
-        self.app.extensions["db_service"] = mock_db
-
-        resp = self.client.post("/api/database/schema/fix")
-        assert resp.status_code == 500
+        assert response.status_code == 404
