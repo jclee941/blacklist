@@ -8,6 +8,7 @@ const {
   parseNextUrl,
   resolveProxyTarget,
   resolveStaticTarget,
+  sendProxyJsonError,
   setSecurityHeaders,
 } = require('./server-routing');
 
@@ -84,8 +85,7 @@ const proxyRequest = (req, res, targetPath) => {
   
   if (isProxyBodyTooLarge(req.headers, maxProxyBodyBytes)) {
     req.resume();
-    res.writeHead(413, { 'content-type': 'application/json', connection: 'close' });
-    res.end(JSON.stringify({ success: false, error: { code: 'REQUEST_TOO_LARGE' } }));
+    sendProxyJsonError(res, 413, 'REQUEST_TOO_LARGE');
     return;
   }
 
@@ -104,8 +104,14 @@ const proxyRequest = (req, res, targetPath) => {
 
   let bodyBytes = 0;
   let bodyRejected = false;
+  let proxyResponse;
 
   const proxyReq = http.request(options, (proxyRes) => {
+    proxyResponse = proxyRes;
+    if (bodyRejected) {
+      proxyRes.destroy();
+      return;
+    }
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res);
   });
@@ -116,7 +122,9 @@ const proxyRequest = (req, res, targetPath) => {
     }
     console.error('Proxy error:', err.message);
     if (res.headersSent) {
-      res.destroy();
+      if (!res.destroyed) {
+        res.destroy();
+      }
     } else {
       res.writeHead(502);
       res.end('Bad Gateway');
@@ -131,8 +139,8 @@ const proxyRequest = (req, res, targetPath) => {
     if (bodyBytes > maxProxyBodyBytes) {
       bodyRejected = true;
       proxyReq.destroy();
-      res.writeHead(413, { 'content-type': 'application/json', connection: 'close' });
-      res.end(JSON.stringify({ success: false, error: { code: 'REQUEST_TOO_LARGE' } }));
+      proxyResponse?.destroy();
+      sendProxyJsonError(res, 413, 'REQUEST_TOO_LARGE');
       return;
     }
     if (!proxyReq.write(chunk)) {
@@ -146,6 +154,12 @@ const proxyRequest = (req, res, targetPath) => {
     }
   });
   req.on('error', (error) => proxyReq.destroy(error));
+  req.on('aborted', () => proxyReq.destroy());
+  req.on('close', () => {
+    if (!req.complete) {
+      proxyReq.destroy();
+    }
+  });
 };
 
 // Load redirects from Next.js routes manifest

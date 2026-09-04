@@ -53,6 +53,18 @@ const isProxyBodyTooLarge = (incomingHeaders, maxBytes) => {
   return !/^\d+$/.test(contentLength) || Number(contentLength) > maxBytes;
 };
 
+const sendProxyJsonError = (response, status, code) => {
+  if (response.headersSent || response.writableEnded) {
+    if (!response.destroyed) {
+      response.destroy();
+    }
+    return false;
+  }
+  response.writeHead(status, { 'content-type': 'application/json', connection: 'close' });
+  response.end(JSON.stringify({ success: false, error: { code } }));
+  return true;
+};
+
 const resolveProxyTarget = (requestUrl) => {
   const parsed = new URL(requestUrl, 'http://frontend.invalid');
   if (parsed.pathname.startsWith('/api/')) {
@@ -133,6 +145,7 @@ module.exports = {
   SECURITY_HEADERS,
   createProxyHeaders,
   isProxyBodyTooLarge,
+  sendProxyJsonError,
   parseNextUrl,
   resolveProxyTarget,
   resolveStaticTarget,

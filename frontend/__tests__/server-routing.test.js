@@ -1,4 +1,5 @@
 import routing from '../server-routing.js';
+import { vi } from 'vitest';
 
 const {
   createProxyHeaders,
@@ -6,6 +7,7 @@ const {
   parseNextUrl,
   resolveProxyTarget,
   resolveStaticTarget,
+  sendProxyJsonError,
 } = routing;
 
 describe('custom server routing', () => {
@@ -98,5 +100,21 @@ describe('custom server routing', () => {
     expect(isProxyBodyTooLarge({ 'content-length': '1024' }, 1024)).toBe(false);
     expect(isProxyBodyTooLarge({ 'content-length': '1025' }, 1024)).toBe(true);
     expect(isProxyBodyTooLarge({ 'content-length': 'invalid' }, 1024)).toBe(true);
+  });
+
+  it('does not write a second response after upstream headers started', () => {
+    const response = {
+      headersSent: true,
+      writableEnded: false,
+      destroyed: false,
+      destroy: vi.fn(),
+      writeHead: vi.fn(),
+      end: vi.fn(),
+    };
+
+    expect(sendProxyJsonError(response, 413, 'REQUEST_TOO_LARGE')).toBe(false);
+    expect(response.destroy).toHaveBeenCalledOnce();
+    expect(response.writeHead).not.toHaveBeenCalled();
+    expect(response.end).not.toHaveBeenCalled();
   });
 });
