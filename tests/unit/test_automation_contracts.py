@@ -17,7 +17,6 @@ collector/|tests/unit/collector/
 node-version: \"24\"
 node-version: 24
       contents: read
-      packages: write
 dockerfile: deploy/redis/Dockerfile
 API_URL: https://localhost:3443
 BASE_URL: https://localhost:3443
@@ -41,6 +40,12 @@ jobs:
       contents: read
 push: false
 """,
+        ".github/workflows/publish-latest.yml": """
+workflow_run:
+      packages: write
+github.event.workflow_run.conclusion == 'success'
+run-id: ${{ github.event.workflow_run.id }}
+""",
         ".github/workflows/release.yml": """
 Release notes file not found
 if [[ ! -s \"$RELEASE_NOTES_FILE\" ]]; then
@@ -54,6 +59,11 @@ jobs:
     permissions:
       contents: read
   package:
+    permissions:
+      contents: read
+  release-gate:
+    permissions: {}
+  sign-package:
     permissions:
       contents: read
   create-release:
@@ -185,6 +195,11 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             ".github/workflows/release.yml",
             "  build-images:\n    permissions:\n      contents: read",
             "release workflow job 'build-images' lacks explicit least-privilege permissions",
+        ),
+        (
+            ".github/workflows/release.yml",
+            "  sign-package:\n    permissions:\n      contents: read",
+            "release workflow job 'sign-package' lacks explicit least-privilege permissions",
         ),
         (
             "scripts/release.sh",

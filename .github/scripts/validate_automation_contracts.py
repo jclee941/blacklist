@@ -18,6 +18,7 @@ RELEASE_JOB_PERMISSIONS: Final = {
     "validate": "    permissions:\n      contents: read",
     "build-images": "    permissions:\n      contents: read",
     "package": "    permissions:\n      contents: read",
+    "sign-package": "    permissions:\n      contents: read",
     "create-release": "    permissions:\n      contents: write",
     "push-to-registry": "    permissions:\n      packages: write",
     "notify": "    permissions: {}",
@@ -50,6 +51,7 @@ def job_body(workflow: str, job_name: str) -> str:
 def main() -> None:
     ci = read(".github/workflows/ci.yml")
     build_images = read(".github/workflows/build-images.yml")
+    publish_latest = read(".github/workflows/publish-latest.yml")
     release = read(".github/workflows/release.yml")
     release_script = read("scripts/release.sh")
     ci_compose = read(".github/docker-compose.ci.yml")
@@ -67,11 +69,19 @@ def main() -> None:
             ("inputs.push" not in build_images, "build-images exposes a direct publish input"),
             ("push: false" in build_images, "build-images is not artifact-only"),
             ("collector/|tests/unit/collector/" in ci, "collector test changes are not detected"),
-            ("contents: read\n  packages: write" not in ci, "CI grants package write globally"),
+            ("packages: write" not in ci, "PR-triggered CI can publish packages"),
+            ("secrets: inherit" not in ci, "PR-triggered CI inherits repository secrets"),
+            ("vars.RUNNER" not in ci, "PR-triggered CI can use a persistent self-hosted runner"),
+            ("vars.RUNNER" not in reusable_node, "reusable PR CI can use a persistent self-hosted runner"),
+            ("vars.RUNNER" not in build_images, "reusable image builds can use an untrusted persistent runner"),
+            ("vars.RUNNER" not in release, "release jobs can share an untrusted persistent runner"),
             ('node-version: "24"' in ci, "CI frontend lint does not use Node 24"),
             ("node-version: 24" in ci, "CI frontend test or E2E does not use Node 24"),
             ('default: "24"' in reusable_node, "reusable Node workflow does not default to Node 24"),
-            ("contents: read\n      packages: write" in ci, "image publishing lacks contents: read"),
+            ("workflow_run:" in publish_latest, "latest publication is not isolated from PR CI"),
+            ("packages: write" in publish_latest, "latest publication lacks package permission"),
+            ("github.event.workflow_run.conclusion == 'success'" in publish_latest, "latest publication is not gated"),
+            ("run-id: ${{ github.event.workflow_run.id }}" in publish_latest, "latest publication does not reuse CI artifacts"),
             ("dockerfile: deploy/redis/Dockerfile" in ci, "CI Redis Dockerfile path is invalid"),
             ("API_URL: https://localhost:3443" in ci, "E2E API calls bypass the frontend proxy"),
             ("BASE_URL: https://localhost:3443" in ci, "E2E browser target bypasses the frontend proxy"),
@@ -186,6 +196,12 @@ def main() -> None:
                     for job_name in ("create-release", "push-to-registry")
                 ),
                 "release workflow publication jobs are not restricted to tag-triggered non-dry runs",
+            ),
+            (
+                "  release-gate:" in release
+                and "  sign-package:" in release
+                and release.index("  release-gate:") < release.index("  sign-package:"),
+                "release artifacts are signed before the release gate",
             ),
             ("Release notes file not found" in release, "release workflow does not validate release notes"),
             (
