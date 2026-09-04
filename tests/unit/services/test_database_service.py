@@ -41,6 +41,7 @@ class TestDatabaseService:
         assert "ALTER TABLE blacklist_ips" in migration_sql
         assert "ON whitelist_ips(ip_address)" in migration_sql
         assert "ON blacklist_ips(ip_address, source)" in migration_sql
+        assert "NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION" in migration_sql
         assert pool_instance.putconn.call_args_list == [call(test_conn), call(test_conn)]
         test_conn.commit.assert_called_once_with()
 
