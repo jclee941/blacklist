@@ -13,10 +13,12 @@ def test_collector_role_has_only_collection_table_permissions() -> None:
 
     assert "BEGIN;" in source
     assert "REVOKE ALL PRIVILEGES ON ALL TABLES" in source
+    assert 'REVOKE CREATE ON SCHEMA public FROM :"app_user", :"collector_user"' in source
     assert "GRANT SELECT ON TABLE collection_credentials" in source
     assert "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE blacklist_ips" in source
     assert "system_settings TO" not in source
     assert "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE credentials" not in source
+    assert "collection_status_id_seq" in source
 
 
 @pytest.mark.parametrize(

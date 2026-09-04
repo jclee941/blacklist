@@ -55,6 +55,7 @@ SELECT format('ALTER ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATERO
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS', :'collector_user', :'collector_password')
 \gexec
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE CREATE ON SCHEMA public FROM :"app_user", :"collector_user";
 GRANT CONNECT ON DATABASE :"db_name" TO :"app_user", :"collector_user";
 GRANT USAGE, CREATE ON SCHEMA public TO :"db_owner";
 GRANT USAGE ON SCHEMA public TO :"app_user";
@@ -77,6 +78,7 @@ GRANT SELECT ON TABLE collection_credentials TO :"collector_user";
 GRANT SELECT, INSERT, UPDATE ON TABLE collection_history, collection_stats, collection_status TO :"collector_user";
 GRANT SELECT, INSERT ON TABLE regtech_monitoring, regtech_alerts TO :"collector_user";
 GRANT USAGE, SELECT ON SEQUENCE blacklist_ips_id_seq, collection_history_id_seq, collection_stats_id_seq,
+    collection_status_id_seq,
     regtech_monitoring_id_seq, regtech_alerts_id_seq TO :"collector_user";
 ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public REVOKE ALL ON TABLES FROM :"collector_user";
 ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public REVOKE ALL ON SEQUENCES FROM :"collector_user";
