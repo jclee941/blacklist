@@ -18,6 +18,12 @@ Operator documentation. `manual/` is the current truth; `wiki/` and `deliverable
 | `security-remediation-*.md` | remediation review, checklist, and validation reports |
 | `screenshots/` | guide images, regenerated from the live dashboard |
 
+## DECISIONS
+
+- `decisions/0002-collector-authentication-enforcement.md` records the Collector control-route authentication decision and amendments.
+- Numbering is archival; no `0001` file is currently tracked.
+- Keep unresolved follow-ups explicit instead of describing unregistered routes as implemented.
+
 ## RULES
 
 - Guide screenshots regenerate via `frontend/e2e/helpers/capture-guide-screenshots.mjs` against a running stack.

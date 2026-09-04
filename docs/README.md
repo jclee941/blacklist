@@ -1,7 +1,7 @@
 # Blacklist Documentation
 
 **Repository:** [jclee941/blacklist](https://github.com/jclee941/blacklist)
-**Current version:** `5.0.0`
+**Current version:** read the authoritative value from [`VERSION`](../VERSION)
 
 This is the documentation entry point for the current Blacklist application. The current system consists of a Flask API, an independent Python collector, a Next.js dashboard, PostgreSQL, Redis, Docker Compose deployment, and GitHub Actions automation.
 

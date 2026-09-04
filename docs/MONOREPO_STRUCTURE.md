@@ -1,6 +1,6 @@
-# Blacklist Intelligence Platform - Monorepo Structure
+# Historical Monorepo Structure Snapshot
 
-**Version**: 3.6.9
+This file records the 3.6.9-era topology and is not current operational guidance. Use root `AGENTS.md`, `README.md`, and directory-scoped AGENTS files for the live architecture.
 
 ## Overview
 
