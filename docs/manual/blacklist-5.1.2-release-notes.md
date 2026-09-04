@@ -12,12 +12,13 @@
 
 - 관리자 password hash와 session generation을 하나의 PostgreSQL 트랜잭션으로 갱신합니다.
 - PostgreSQL bootstrap owner를 보존하고 app·collector를 별도 least-privilege runtime role로 실행합니다.
+- Collector credential 조회는 REGTECH 전용 security-barrier view로 제한해 Cloudflare credential을 노출하지 않습니다.
 - 인증 DB 장애 시 이전 `ADMIN_PASSWORD` 환경값으로 fallback하지 않고 fail closed 합니다.
 - client `Forwarded`와 모든 `X-Forwarded-*` 헤더를 제거하고 실제 frontend TLS socket 기준으로 재생성합니다.
 - frontend와 Flask에 1 MiB request body 상한을 적용해 chunked body를 포함한 공개 로그인 OOM 경로를 차단합니다.
 - `nanoid`, `browserslist`를 안전 버전으로 갱신하고 Python runtime 이미지에서 pip/setuptools/wheel을 제거합니다.
 - CI가 전체 push range를 검사하고 release metadata 변경 시 backend, collector, integration, E2E와 image scan을 모두 실행합니다.
-- 릴리스는 동일 이미지의 테스트·Trivy scan·E2E·서명 성공 후에만 GitHub Release와 GHCR을 게시합니다.
+- 릴리스는 동일 이미지의 테스트·Trivy scan·E2E gate 이후에만 서명하며, 서명 성공 후에만 GitHub Release와 GHCR을 게시합니다.
 - PR CI는 GitHub-hosted runner와 read-only token만 사용하며, `latest` 게시는 성공한 master CI artifact를 별도 workflow가 재사용합니다.
 - REGTECH HTML과 Excel 응답은 Content-Length 유무와 관계없이 10 MiB에서 중단합니다.
 - GitHub Release에 전체 릴리스 노트, 공개키와 fingerprint를 함께 게시합니다.

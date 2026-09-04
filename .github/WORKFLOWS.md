@@ -32,6 +32,8 @@ Before releasing, create, add, and commit `docs/manual/blacklist-<next-version>-
 
 The protected `production` environment must provide `RELEASE_GPG_PRIVATE_KEY`, optional `RELEASE_GPG_PASSPHRASE`, and the matching uppercase 40-character `RELEASE_GPG_FINGERPRINT` variable. The package job imports the private key into an ephemeral runner-local GnuPG home, verifies the fingerprint, signs both `MANIFEST.sha256` and the final tarball, and removes the GnuPG home before the job exits.
 
+Pull-request workflows use GitHub-hosted runners with read-only tokens and no inherited repository secrets. Successful `master` CI publishes `latest` images through `publish-latest.yml`, which runs from the default branch and downloads the exact triggering-run artifacts. The `production` environment accepts only `v*` tags, the active `Release Tags` ruleset restricts tag creation and mutation to administrators, and signing runs only after test, E2E, image-scan, and package gates succeed.
+
 ## Workflow Change Rules
 
 - Pin every GitHub Action to a full commit SHA with its version comment.
