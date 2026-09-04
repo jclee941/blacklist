@@ -78,7 +78,11 @@ class SettingsStub:
             password_hash = hash_password(default_password)
             self.values["admin_password"] = password_hash
         self.values.setdefault("admin_session_version", "1")
-        return AdminCredentials(username=username, password_hash=password_hash)
+        return AdminCredentials(
+            username=username,
+            password_hash=password_hash,
+            session_version=int(self.values["admin_session_version"]),
+        )
 
     def current_session_version(self, subject: str) -> int:
         return int(self.values.get("admin_session_version", "0"))
@@ -197,6 +201,33 @@ def test_login_failures_lock_the_account_across_source_ips() -> None:
         security.record_login_failure("admin", f"192.0.2.{index + 1}")
 
     assert security.is_login_locked("admin", "198.51.100.10") is True
+
+
+def test_login_racing_password_rotation_mints_an_immediately_invalid_token() -> None:
+    class RacingSettingsStub(SettingsStub):
+        def get_credentials(self, default_username: str, default_password: str):
+            credentials = super().get_credentials(default_username, default_password)
+            self.values["admin_session_version"] = str(credentials.session_version + 1)
+            return credentials
+
+    store = MemorySecurityStore()
+    password = "current-password"
+    settings = RacingSettingsStub(
+        {
+            "admin_username": "admin",
+            "admin_password": bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
+            "admin_session_version": "1",
+        }
+    )
+    app = _auth_app(store, settings)
+
+    with app.test_client() as client:
+        login = client.post("/api/auth/login", json={"username": "admin", "password": password})
+        assert login.status_code == 200, login.get_json()
+        token = login.get_json()["token"]
+        verification = client.get("/api/auth/verify", headers={"Authorization": f"Bearer {token}"})
+
+    assert verification.status_code == 401
 
 
 def test_login_persists_hash_when_only_environment_password_exists() -> None:

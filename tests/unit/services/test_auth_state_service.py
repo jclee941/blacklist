@@ -32,6 +32,7 @@ def test_missing_defaults_remain_unconfigured_without_bootstrap() -> None:
 
     assert credentials.username == ""
     assert credentials.password_hash == ""
+    assert credentials.session_version == 0
     connection.commit.assert_not_called()
 
 

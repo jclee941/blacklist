@@ -164,7 +164,11 @@ def login():
                 logger.info("Administrator password hash was already upgraded by another request")
         auth_security.clear_login_failures(username, client_ip)
         jwt_service = current_app.extensions["jwt_service"]
-        token = jwt_service.encode_token(user_id=username, role="admin")
+        token = jwt_service.encode_token(
+            user_id=username,
+            role="admin",
+            session_version=credentials.session_version,
+        )
         expiry_seconds = jwt_service.expiry_seconds
         if not isinstance(expiry_seconds, int):
             expiry_seconds = config.JWT_EXPIRY_HOURS * 60 * 60

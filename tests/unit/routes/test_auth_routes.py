@@ -19,7 +19,7 @@ class TestAuthLogin:
         app.extensions["settings_service"] = Mock()
         app.extensions["auth_state_service"] = Mock()
         app.extensions["auth_state_service"].get_credentials.return_value = AdminCredentials(
-            username="admin", password_hash="secret123"
+            username="admin", password_hash="secret123", session_version=1
         )
         app.extensions["auth_security"] = Mock()
         app.extensions["auth_security"].is_login_locked.return_value = False
@@ -56,7 +56,7 @@ class TestAuthLogin:
 
     def test_login_invalid_credentials(self, client, app):
         app.extensions["auth_state_service"].get_credentials.return_value = AdminCredentials(
-            username="admin", password_hash="correct"
+            username="admin", password_hash="correct", session_version=1
         )
         response = client.post("/api/auth/login", json={"username": "admin", "password": "wrong"})
         assert response.status_code == 401
@@ -65,7 +65,7 @@ class TestAuthLogin:
 
     def test_login_invalid_username(self, client, app):
         app.extensions["auth_state_service"].get_credentials.return_value = AdminCredentials(
-            username="admin", password_hash="pass"
+            username="admin", password_hash="pass", session_version=1
         )
         response = client.post("/api/auth/login", json={"username": "hacker", "password": "pass"})
         assert response.status_code == 401
@@ -78,7 +78,7 @@ class TestAuthLogin:
 
     def test_login_uses_env_credentials_when_settings_are_absent(self, client, app):
         app.extensions["auth_state_service"].get_credentials.return_value = AdminCredentials(
-            username="generated-user", password_hash="generated-pass"
+            username="generated-user", password_hash="generated-pass", session_version=1
         )
         app.extensions["jwt_service"].encode_token.return_value = "generated-token"
 

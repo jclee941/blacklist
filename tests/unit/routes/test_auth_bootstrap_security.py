@@ -20,7 +20,7 @@ class SettingsServiceStub:
 
 class AuthStateServiceStub:
     def get_credentials(self, default_username: str, default_password: str) -> AdminCredentials:
-        return AdminCredentials(username=default_username, password_hash=default_password)
+        return AdminCredentials(username=default_username, password_hash=default_password, session_version=1)
 
     def upgrade_password_hash(self, expected_password: str, replacement_hash: str) -> bool:
         return bool(expected_password and replacement_hash)

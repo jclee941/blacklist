@@ -155,6 +155,21 @@ class TestValidateToken:
         with pytest.raises(AuthenticationError, match="session version"):
             self.service.validate_token(token)
 
+    def test_explicit_session_snapshot_cannot_adopt_a_newer_generation(self):
+        class SessionVersions:
+            def current_session_version(self, subject: str) -> int:
+                return 2
+
+        service = JWTService(
+            secret_key="test-secret-key-for-jwt",
+            session_versions=SessionVersions(),
+        )
+        token = service.encode_token("admin", role="admin", session_version=1)
+        from core.exceptions.auth_exceptions import AuthenticationError
+
+        with pytest.raises(AuthenticationError, match="invalidated"):
+            service.validate_token(token)
+
     def test_validate_expired_token_raises(self):
         expired_payload = {
             "sub": "user1",

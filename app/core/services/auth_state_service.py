@@ -17,6 +17,7 @@ SESSION_VERSION_KEY = "admin_session_version"
 class AdminCredentials:
     username: str
     password_hash: str
+    session_version: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,10 +80,15 @@ class AuthStateService:
                             changed = True
                     if username and password_hash and SESSION_VERSION_KEY not in values:
                         self._upsert(cursor, SESSION_VERSION_KEY, "1", "integer")
+                        values[SESSION_VERSION_KEY] = "1"
                         changed = True
                     if changed:
                         connection.commit()
-                    return AdminCredentials(username=username, password_hash=password_hash)
+                    return AdminCredentials(
+                        username=username,
+                        password_hash=password_hash,
+                        session_version=int(values.get(SESSION_VERSION_KEY, "0")),
+                    )
                 finally:
                     cursor.close()
         except (AuthStateUnavailableError, PasswordPolicyError):

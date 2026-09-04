@@ -52,15 +52,22 @@ class JWTService:
         user_id: str,
         role: str = "user",
         expires_hours: int | None = None,
+        session_version: int | None = None,
     ) -> str:
         exp_hours = self._expiry_hours if expires_hours is None else expires_hours
         now = datetime.now(timezone.utc)
-        session_version = self._session_versions.current_session_version(user_id) if self._session_versions else 0
+        effective_session_version = (
+            session_version
+            if session_version is not None
+            else self._session_versions.current_session_version(user_id)
+            if self._session_versions
+            else 0
+        )
         payload: dict[str, Any] = {
             "sub": user_id,
             "role": role,
             "jti": str(uuid4()),
-            "session_version": session_version,
+            "session_version": effective_session_version,
             "iat": now,
             "exp": now + timedelta(hours=exp_hours),
         }
