@@ -51,7 +51,7 @@ class CollectorConfig:
 
             cur.execute("""
                 SELECT service_name, username, password, config, encrypted
-                FROM collection_credentials
+                FROM collector_regtech_credentials
                 WHERE username IS NOT NULL AND password IS NOT NULL
             """)
 
@@ -123,7 +123,7 @@ class CollectorConfig:
             logger.info(f"인증정보 캐시 로드 완료: {list(cls._credentials_cache.keys())}")
 
         except Exception as e:
-            logger.warning(f"DB 인증정보 로드 실패 (환경변수 사용): {e}")
+            logger.warning(f"DB 인증정보 로드 실패: {e}")
 
     @classmethod
     def get_regtech_credentials(cls) -> tuple[str, str]:

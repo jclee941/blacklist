@@ -90,6 +90,19 @@ class TestGetCredentials:
         with pytest.raises(ValueError, match="REGTECH credentials not configured"):
             self.cfg.get_regtech_credentials()
 
+    @patch("collector.config.psycopg2")
+    def test_db_loader_uses_the_regtech_only_view(self, mock_psycopg2: MagicMock):
+        connection = MagicMock()
+        cursor = MagicMock()
+        connection.cursor.return_value = cursor
+        cursor.fetchall.return_value = []
+        mock_psycopg2.connect.return_value = connection
+
+        self.cfg._load_credentials_from_db()
+
+        query = cursor.execute.call_args.args[0]
+        assert "FROM collector_regtech_credentials" in query
+
     def test_to_dict(self):
         self.cfg._credentials_cache = {"REGTECH": {"username": "u", "password": "p", "config": {}}}
         self.cfg._cache_loaded = True
