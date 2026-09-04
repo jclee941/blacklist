@@ -17,13 +17,12 @@ Blacklist is a containerized platform for collecting, managing, and distributing
 
 ## Quick Start
 
-Requirements: Docker and Docker Compose v2. Copy `deploy/.env.example` to `deploy/.env` and populate its required secrets before starting the stack. Internal TLS material defaults to `BLACKLIST_TLS_DIR=/etc/blacklist/tls`; a packaged installation provisions this directory automatically through `deploy/install.sh`.
+Requirements: Docker and Docker Compose v2. Copy the development template to `deploy/.env`, populate its required secrets, and expose the local WARP proxy to `host.docker.internal:40000`. Internal TLS material defaults to `BLACKLIST_TLS_DIR=/etc/blacklist/tls`; a packaged installation provisions this directory automatically through `deploy/install.sh`.
 
 ```bash
 cp deploy/.env.example deploy/.env
 # Edit deploy/.env and set the required credentials and encryption secrets.
-docker compose --project-directory deploy --env-file deploy/.env -f deploy/docker-compose.yml config --quiet
-docker compose --project-directory deploy --env-file deploy/.env -f deploy/docker-compose.yml up --build -d
+make dev
 curl --fail --insecure https://localhost:443/health
 ```
 
