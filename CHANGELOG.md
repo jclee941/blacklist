@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [5.1.3] - 2026-09-05
 
 ### Fixed
+
 - fix(frontend): preserve Fortinet headers
 - fix(docs): sanitize guide screenshots
 - fix(frontend): wrap long IP reasons
@@ -30,12 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(collector): scrub credentials on shutdown
 - fix(collector): restrict control auth bypass
 
+### Breaking Changes
+
+- None.
+
 ### CI/CD
+
 - build(docs): track PDF freshness manifest
 - build(docs): standardize PDF generation
 - build(docs): add Markdown normalization tools
 
 ### Other
+
 - docs(release): add 5.1.3 notes
 - docs: align current runtime contracts
 - docs(operations): update credential migration

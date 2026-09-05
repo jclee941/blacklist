@@ -19,6 +19,10 @@ Blacklist 5.1.3 completes the documentation and release-supply-chain remediation
 - Enabled GitHub private vulnerability reporting and added the repository security policy.
 - Corrected security advisory links so active vulnerabilities are not redirected to an unrelated repository.
 
+## Breaking Changes
+
+None.
+
 ## Upgrade Notes
 
 This patch has no database migration. Verify the signed release bundle before installation and retain the existing deployment `.env`, PostgreSQL data, and TLS material during upgrade.
