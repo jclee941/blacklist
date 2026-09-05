@@ -1,35 +1,35 @@
-# Blacklist 5.1.3 Release Notes
+# Blacklist 5.1.3 릴리스 노트
 
-## Summary
+## 요약
 
-Blacklist 5.1.3 completes the documentation and release-supply-chain remediation identified during the 5.1 security review.
+Blacklist 5.1.3은 5.1 보안 검토에서 확인된 문서 및 릴리스 공급망 문제의 조치를 완료한 버전입니다.
 
-## Fixed
+## 수정 사항
 
-- Replaced shell-based PDF source rewriting with strict SemVer parsing and argument-safe Pandoc execution.
-- Generates every guide successfully and revalidates unchanged sources before publishing file-atomic PDF replacements.
-- Added a source, version, and screenshot freshness manifest enforced by documentation checks.
-- Regenerated all eight guide screenshots through the loopback-only canonical Playwright helper using file-atomic replacements.
-- Restored the offline deployment PDF from its current Markdown source.
-- Corrected production proxy, CI publication, credential migration, Raw Data export, and security-reporting documentation.
-- Preserved natural Korean wrapping while allowing long unbroken reason strings to wrap inside the IP table.
+- 셸 기반 PDF 원본 치환을 엄격한 SemVer 분석과 인자 주입에 안전한 Pandoc 실행 방식으로 교체했습니다.
+- 모든 안내서 생성이 성공하고 원본이 변경되지 않았음을 다시 검증한 후 각 PDF를 원자적으로 교체하도록 개선했습니다.
+- 문서 검사에서 검증하는 원본·버전·스크린샷 최신성 매니페스트를 추가했습니다.
+- 루프백 연결만 허용하는 표준 Playwright 도구로 안내서 스크린샷 8개를 다시 생성하고 각 파일을 원자적으로 교체하도록 개선했습니다.
+- 최신 Markdown 원본을 사용해 오프라인 배포 안내서 PDF를 복원했습니다.
+- 프로덕션 프록시, CI 게시, 자격 증명 마이그레이션, Raw Data 내보내기 및 보안 신고 문서를 현행 동작에 맞게 수정했습니다.
+- IP 테이블에서 자연스러운 한국어 줄바꿈을 유지하면서 공백 없이 긴 사유 문자열도 셀 안에서 줄바꿈되도록 수정했습니다.
 
-## Security
+## 보안
 
-- Resolved all Critical and High findings, plus the applicable Medium findings, from the 5.1 security review.
-- Enforced JWT authentication and administrator authorization across protected APIs, with account lockout, token revocation, password policy enforcement, and transactional session invalidation.
-- Removed fail-open credential behavior by persisting administrator authentication state transactionally and failing closed when PostgreSQL is unavailable.
-- Hardened request trust boundaries with strict IP and payload validation, trusted-proxy handling, bounded proxy bodies, and Fortinet feed bearer-token and source-network enforcement.
-- Applied least-privilege PostgreSQL runtime roles, authenticated Redis access, internal service TLS, non-root containers, read-only filesystems, dropped capabilities, and resource limits.
-- Hardened the release supply chain with exact-commit CI gates, reuse of tested image artifacts, Trivy scans with zero unresolved Critical findings, signed release bundles, and verified checksums.
-- Removed the reported dependency vulnerabilities and added regression coverage for the remediated authentication, authorization, database, proxy, packaging, and deployment boundaries.
-- Enabled GitHub private vulnerability reporting and added the repository security policy.
-- Corrected security advisory links so active vulnerabilities are not redirected to an unrelated repository.
+- 5.1 보안 검토에서 확인된 모든 Critical·High 항목과 적용 가능한 Medium 항목을 조치했습니다.
+- 보호 API 전체에 JWT 인증과 관리자 권한 검사를 적용하고 계정 잠금, 토큰 폐기, 비밀번호 정책 및 트랜잭션 기반 세션 무효화를 구현했습니다.
+- 관리자 인증 상태를 트랜잭션으로 영속화하고 PostgreSQL을 사용할 수 없을 때 접근을 차단해 자격 증명 fail-open 동작을 제거했습니다.
+- 엄격한 IP·요청 본문 검증, 신뢰 프록시 처리, 프록시 본문 크기 제한, Fortinet 피드 bearer token 및 허용 출발지 네트워크 검사를 적용했습니다.
+- 최소 권한 PostgreSQL 런타임 역할, Redis 인증, 내부 서비스 TLS, non-root 컨테이너, 읽기 전용 파일시스템, capability 제거 및 자원 제한을 적용했습니다.
+- 정확한 commit 기준 CI gate, 검증된 이미지 산출물 재사용, 미조치 Critical 항목 0건의 Trivy 검사, 서명된 릴리스 번들 및 checksum 검증으로 릴리스 공급망을 강화했습니다.
+- 보고된 의존성 취약점을 제거하고 인증, 권한 검사, 데이터베이스, 프록시, 패키징 및 배포 경계에 회귀 테스트를 추가했습니다.
+- GitHub 비공개 취약점 신고 기능을 활성화하고 저장소 보안 정책을 추가했습니다.
+- 실제 취약점 신고가 다른 저장소로 전달되지 않도록 Security Advisory 링크를 수정했습니다.
 
-## Breaking Changes
+## 호환성 변경
 
-None.
+없습니다.
 
-## Upgrade Notes
+## 업그레이드 참고 사항
 
-This patch has no database migration. Verify the signed release bundle before installation and retain the existing deployment `.env`, PostgreSQL data, and TLS material during upgrade.
+이 패치에는 데이터베이스 마이그레이션이 없습니다. 설치 전에 서명된 릴리스 번들을 검증하고 업그레이드 중에는 기존 배포 `.env`, PostgreSQL 데이터 및 TLS 자료를 유지하십시오.
