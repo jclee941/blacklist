@@ -67,7 +67,9 @@ describe('IPManagementTable', () => {
 
     it('renders reason and source', () => {
       render(<IPManagementTable {...defaultProps} />);
-      expect(screen.getByText('Malicious')).toBeInTheDocument();
+      const reason = screen.getByText('Malicious');
+      expect(reason).toBeInTheDocument();
+      expect(reason).toHaveClass('break-keep', '[overflow-wrap:anywhere]');
       expect(screen.getByText('MANUAL')).toBeInTheDocument();
     });
 
