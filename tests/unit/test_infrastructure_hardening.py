@@ -185,6 +185,16 @@ def test_frontend_runner_contains_custom_server_dependencies() -> None:
     assert "COPY --from=builder /app/server-routing.js ./server-routing.js" in frontend_dockerfile
 
 
+def test_frontend_dockerfile_uses_entrypoint_tls_path_defaults() -> None:
+    dockerfile = (ROOT / "frontend" / "Dockerfile").read_text(encoding="utf-8")
+    entrypoint = (ROOT / "frontend" / "entrypoint.sh").read_text(encoding="utf-8")
+
+    assert "ENV SSL_KEY_PATH" not in dockerfile
+    assert "ENV SSL_CERT_PATH" not in dockerfile
+    assert 'SSL_KEY="${SSL_KEY_PATH:-$SSL_DIR/server.key}"' in entrypoint
+    assert 'SSL_CERT="${SSL_CERT_PATH:-$SSL_DIR/server.crt}"' in entrypoint
+
+
 def test_frontend_custom_server_uses_standard_url_parsing() -> None:
     server = (ROOT / "frontend" / "server.js").read_text(encoding="utf-8")
 

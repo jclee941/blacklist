@@ -71,8 +71,5 @@ LABEL org.opencontainers.image.description="Blacklist Next.js Frontend"
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-# SSL file paths for self-signed cert generated in this image (not secrets)
-ENV SSL_KEY_PATH=/app/ssl/server.key
-ENV SSL_CERT_PATH=/app/ssl/server.crt
 
 CMD ["sh", "entrypoint.sh"]
