@@ -241,22 +241,17 @@ verify-lint: ## Run linting checks (ruff check + format check)
 	@echo "✅ Lint passed"
 
 docs-format: ## Format current Markdown with Prettier and markdownlint
-	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --write --
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --ignore-path /dev/null --write --
 	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes markdownlint-cli2@0.20.0 --fix --
-	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --write --
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --ignore-path /dev/null --write --
 
 docs-check: ## Check current Markdown formatting and lint
-	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --check --
+	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes prettier@3.6.2 --ignore-path /dev/null --check --
 	@git ls-files -z -- '*.md' ':(exclude)docs/wiki/**' ':(exclude)docs/deliverables/**' | xargs -0 npx --yes markdownlint-cli2@0.20.0 --
+	@python3 scripts/build_docs.py --check
 
 docs-pdf: ## Regenerate current administrator and user guide PDFs
-	@VERSION_VALUE=$$(tr -d '[:space:]' < VERSION); \
-	admin_source=$$(mktemp); user_source=$$(mktemp); \
-	trap 'rm -f "$$admin_source" "$$user_source"' EXIT; \
-	sed "s/저장소 루트 \`VERSION\` 기준/$$VERSION_VALUE/" docs/manual/blacklist-admin-guide.md > "$$admin_source"; \
-	sed "s/저장소 루트 \`VERSION\` 기준/$$VERSION_VALUE/" docs/manual/blacklist-user-guide.md > "$$user_source"; \
-	pandoc "$$admin_source" --from=markdown --resource-path=docs/manual --pdf-engine=xelatex -V mainfont=NanumGothic -V monofont=NanumGothicCoding -V fontsize=10pt -V geometry:margin=15mm -V colorlinks=true -V linkcolor=blue -V urlcolor=blue --toc --output docs/manual/blacklist-admin-guide.pdf; \
-	pandoc "$$user_source" --from=markdown --resource-path=docs/manual --pdf-engine=xelatex -V mainfont=NanumGothic -V monofont=NanumGothicCoding -V fontsize=9pt -V geometry:margin=12mm -V colorlinks=true -V linkcolor=blue -V urlcolor=blue --toc --output docs/manual/blacklist-user-guide.pdf
+	@python3 scripts/build_docs.py
 
 verify-types: ## Run type checking (mypy) — skipped if mypy not installed
 	@echo "🔍 Checking types..."
