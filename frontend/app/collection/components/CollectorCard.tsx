@@ -99,7 +99,7 @@ export function CollectorCard({
           {getConnectionStatusIcon(credential.connection_status)}
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{credential.service_name}</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500" data-document-sensitive>
               {credential.configured ? credential.username : '사용자 미설정'}
             </p>
           </div>
