@@ -250,6 +250,7 @@ done < "$CHANGELOG_FILE"
 
 if [[ "$ENTRY_WRITTEN" == "true" ]]; then
   mv "$TMPFILE" "$CHANGELOG_FILE"
+  npx --yes prettier@3.6.2 --ignore-path /dev/null --write "$CHANGELOG_FILE" > /dev/null
   ok "CHANGELOG updated with [${NEW_VERSION}] entry"
 else
   rm -f "$TMPFILE"

@@ -87,6 +87,7 @@ def test_release_script_updates_lockfile_and_breaking_changes() -> None:
     assert "make docs-pdf" in RELEASE_SCRIPT
     assert '"$PDF_MANIFEST"' in RELEASE_SCRIPT
     assert '"${PDF_OUTPUTS[@]}"' in RELEASE_SCRIPT
+    assert 'prettier@3.6.2 --ignore-path /dev/null --write "$CHANGELOG_FILE"' in RELEASE_SCRIPT
 
 
 def test_release_script_requires_successful_remote_exact_head_ci() -> None:
