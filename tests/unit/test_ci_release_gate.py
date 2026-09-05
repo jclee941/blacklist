@@ -84,6 +84,9 @@ def test_release_script_updates_lockfile_and_breaking_changes() -> None:
     assert 'npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version' in RELEASE_SCRIPT
     assert '"$FRONTEND_LOCK"' in RELEASE_SCRIPT
     assert '"## Breaking Changes"' in RELEASE_SCRIPT
+    assert "make docs-pdf" in RELEASE_SCRIPT
+    assert '"$PDF_MANIFEST"' in RELEASE_SCRIPT
+    assert '"${PDF_OUTPUTS[@]}"' in RELEASE_SCRIPT
 
 
 def test_release_script_requires_successful_remote_exact_head_ci() -> None:
@@ -101,12 +104,14 @@ def test_release_commit_passes_ci_before_tag_creation() -> None:
     tag_index = RELEASE_SCRIPT.index('git tag -a "v${NEW_VERSION}"')
 
     assert commit_index < push_index < ci_index < tag_index
+    assert 'git tag -a "v${NEW_VERSION}" "$HEAD_SHA"' in RELEASE_SCRIPT
+    assert '[[ "$REMOTE_MASTER_SHA" == "$HEAD_SHA" ]]' in RELEASE_SCRIPT
 
 
 def test_malicious_version_is_rejected_without_execution(tmp_path: Path) -> None:
     scripts = tmp_path / "scripts"
-    scripts.mkdir()
-    shutil.copy(ROOT / "scripts/release.sh", scripts / "release.sh")
+    _ = scripts.mkdir()
+    _ = shutil.copy(ROOT / "scripts/release.sh", scripts / "release.sh")
     marker = tmp_path / "VERSION_INJECTION"
     malicious_version = f"1.2.x[$(touch${{IFS}}{marker})]"
     _ = (tmp_path / "VERSION").write_text(malicious_version, encoding="utf-8")
@@ -117,15 +122,15 @@ def test_malicious_version_is_rejected_without_execution(tmp_path: Path) -> None
         GIT_COMMITTER_NAME="test",
         GIT_COMMITTER_EMAIL="test@example.invalid",
     )
-    subprocess.run(["git", "init", "-q", "-b", "master"], cwd=tmp_path, check=True, env=environment)
-    subprocess.run(
+    _ = subprocess.run(["git", "init", "-q", "-b", "master"], cwd=tmp_path, check=True, env=environment)
+    _ = subprocess.run(
         ["git", "remote", "add", "origin", "https://github.com/example/blacklist.git"],
         cwd=tmp_path,
         check=True,
         env=environment,
     )
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, env=environment)
-    subprocess.run(["git", "commit", "-q", "-m", "fixture"], cwd=tmp_path, check=True, env=environment)
+    _ = subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, env=environment)
+    _ = subprocess.run(["git", "commit", "-q", "-m", "fixture"], cwd=tmp_path, check=True, env=environment)
 
     result = subprocess.run(
         ["bash", "scripts/release.sh", "patch", "true"],

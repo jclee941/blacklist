@@ -41,6 +41,12 @@ VERSION_FILE="VERSION"
 CHANGELOG_FILE="CHANGELOG.md"
 FRONTEND_PKG="frontend/package.json"
 FRONTEND_LOCK="frontend/package-lock.json"
+PDF_MANIFEST="docs/manual/pdf-sources.sha256"
+PDF_OUTPUTS=(
+  "docs/manual/blacklist-admin-guide.pdf"
+  "docs/manual/blacklist-user-guide.pdf"
+  "docs/manual/blacklist-offline-deployment-guide.pdf"
+)
 REPO_URL="$(git remote get-url origin 2>/dev/null | sed -e 's/\.git$//' -e 's|git@github.com:|https://github.com/|')"
 
 # --- Validate ---
@@ -215,6 +221,9 @@ if [[ -f "$FRONTEND_PKG" ]]; then
   ok "frontend package metadata synced to ${NEW_VERSION}"
 fi
 
+make docs-pdf
+ok "Guide PDFs regenerated for ${NEW_VERSION}"
+
 
 # 2. Update CHANGELOG
 # Insert new entry after [Unreleased] section
@@ -248,7 +257,7 @@ else
 fi
 
 # 3. Commit
-git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$FRONTEND_LOCK" "$RELEASE_NOTES_FILE"
+git add "$VERSION_FILE" "$CHANGELOG_FILE" "$FRONTEND_PKG" "$FRONTEND_LOCK" "$RELEASE_NOTES_FILE" "$PDF_MANIFEST" "${PDF_OUTPUTS[@]}"
 git commit -m "chore(release): v${NEW_VERSION}
 
 Automated release: ${BUMP_TYPE} bump ${CURRENT_VERSION} → ${NEW_VERSION}"
@@ -276,7 +285,9 @@ if ! gh run watch "$CI_RUN_ID" --exit-status; then
 fi
 ok "CI passed on release commit ($HEAD_SHA)"
 
-git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
+REMOTE_MASTER_SHA=$(git ls-remote origin refs/heads/master | cut -f1)
+[[ "$REMOTE_MASTER_SHA" == "$HEAD_SHA" ]] || error "origin/master moved after CI verification. No tag was created."
+git tag -a "v${NEW_VERSION}" "$HEAD_SHA" -m "v${NEW_VERSION}"
 ok "Tag v${NEW_VERSION} created"
 git push origin "v${NEW_VERSION}"
 ok "Pushed tag v${NEW_VERSION} to origin"
