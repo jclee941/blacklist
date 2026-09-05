@@ -95,6 +95,8 @@ docs/manual/*
 !docs/manual/blacklist-operations-guide.md
 !docs/manual/blacklist-user-guide.md
 !docs/manual/blacklist-user-guide.pdf
+!docs/manual/blacklist-offline-deployment-guide.pdf
+!docs/manual/pdf-sources.sha256
 !docs/manual/security-remediation-*.md
 
 # Analysis documents (never track)
