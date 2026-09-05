@@ -6,15 +6,16 @@ The frontend is the Next.js 15 and React 19 dashboard for Blacklist. It uses the
 
 ## Layout
 
-| Path             | Purpose                                 |
-| ---------------- | --------------------------------------- |
-| `app/`           | Dashboard pages and route-level UI      |
-| `components/`    | Shared application and UI components    |
-| `lib/api.ts`     | Required boundary for browser API calls |
-| `types/`         | Shared TypeScript types                 |
-| `__tests__/`     | Vitest tests                            |
-| `e2e/`           | Playwright end-to-end tests             |
-| `next.config.ts` | Standalone output and Flask proxy rules |
+| Path                              | Purpose                                          |
+| --------------------------------- | ------------------------------------------------ |
+| `app/`                            | Dashboard pages and route-level UI               |
+| `components/`                     | Shared application and UI components             |
+| `lib/api.ts`                      | Required boundary for browser API calls          |
+| `types/`                          | Shared TypeScript types                          |
+| `__tests__/`                      | Vitest tests                                     |
+| `e2e/`                            | Playwright end-to-end tests                      |
+| `next.config.ts`                  | Standalone output and development rewrites       |
+| `server.js` / `server-routing.js` | Packaged production HTTPS server and Flask proxy |
 
 ## Run Locally
 
@@ -45,7 +46,7 @@ When `BASE_URL` isn't set, Playwright starts `npm run dev` at `http://localhost:
 
 ## Flask Integration
 
-`next.config.ts` proxies `/api/:path*` to Flask at `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:2542`. It also proxies health, metrics, static assets, and legacy UI paths. Keep browser requests in `lib/api.ts` so headers, error handling, and backend contracts stay consistent.
+During `npm run dev`, `next.config.ts` rewrites `/api/:path*` to Flask at `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:2542`. Packaged production traffic uses `server.js` and `server-routing.js` for the HTTPS listener, Flask proxy, static assets, request limits, and forwarded headers. Keep browser requests in `lib/api.ts` so headers, error handling, and backend contracts stay consistent.
 
 ## Authentication
 

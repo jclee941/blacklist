@@ -196,7 +196,7 @@ Push/PR to master
   → build (Docker images)
   → build (Docker images) → e2e + image scans
   → ci-gate (aggregate internal CI result)
-  → push-images (GHCR, master only)
+  → publish-latest.yml reuses the successful master run's five image artifacts
 ```
 
 ### Coverage Requirements

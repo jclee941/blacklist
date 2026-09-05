@@ -31,7 +31,7 @@ The packaged frontend is the external endpoint on host port `443` and requires a
 ## Architecture
 
 1. The Next.js dashboard sends API requests through `frontend/lib/api.ts`.
-2. `frontend/next.config.ts` proxies `/api`, health, metrics, static, and UI routes to Flask.
+2. `frontend/next.config.ts` supplies development rewrites; packaged production traffic is proxied by `frontend/server.js` using `frontend/server-routing.js`.
 3. Flask handles blacklist, collection, Fortinet, settings, and monitoring APIs.
 4. The collector runs independently, stores collection results through its service boundaries, and exposes health and status on port `8545`.
 5. PostgreSQL persists application data and Redis supplies supporting state.
@@ -63,7 +63,7 @@ make release TYPE=patch
 make release-dry TYPE=minor
 ```
 
-`scripts/release.sh` prepares the version, changelog, commit, and annotated tag. The tag triggers `.github/workflows/release.yml` to validate, package, publish GHCR images, and create the GitHub Release.
+`scripts/release.sh` prepares and pushes the version commit, waits for successful CI on that exact commit, and only then creates and pushes the annotated tag. The tag triggers `.github/workflows/release.yml` to rebuild, test, scan, package, sign, publish GHCR images, and create the GitHub Release.
 
 ## Documentation
 

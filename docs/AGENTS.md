@@ -6,17 +6,17 @@ Operator documentation. `manual/` is the current truth; `wiki/` and `deliverable
 
 ## CURRENT (docs/manual/)
 
-| Document | Audience |
-| --- | --- |
-| `blacklist-user-guide.md` / `.pdf` | end users: login, dashboard, IP lookup, analytics |
-| `blacklist-admin-guide.md` / `.pdf` | operators: collection management, pacing/WAF response, integrations, backup |
-| `blacklist-offline-installation-guide.md` | air-gapped install |
-| `blacklist-offline-package-guide.md` | bundle layout (also bundle README) |
-| `blacklist-operations-guide.md` | day-2 operations |
-| `blacklist-<version>-release-notes.md` | per-release notes; current file must match root `VERSION` |
-| `blacklist-release-signing-key-v1.asc` / `.fingerprint` | release signing public key and fingerprint |
-| `security-remediation-*.md` | remediation review, checklist, and validation reports |
-| `screenshots/` | guide images, regenerated from the live dashboard |
+| Document                                                | Audience                                                                    |
+| ------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `blacklist-user-guide.md` / `.pdf`                      | end users: login, dashboard, IP lookup, analytics                           |
+| `blacklist-admin-guide.md` / `.pdf`                     | operators: collection management, pacing/WAF response, integrations, backup |
+| `blacklist-offline-installation-guide.md`               | air-gapped install                                                          |
+| `blacklist-offline-package-guide.md`                    | bundle layout (also bundle README)                                          |
+| `blacklist-operations-guide.md`                         | day-2 operations                                                            |
+| `blacklist-<version>-release-notes.md`                  | per-release notes; current file must match root `VERSION`                   |
+| `blacklist-release-signing-key-v1.asc` / `.fingerprint` | release signing public key and fingerprint                                  |
+| `security-remediation-*.md`                             | remediation review, checklist, and validation reports                       |
+| `screenshots/`                                          | guide images, regenerated from the live dashboard                           |
 
 ## DECISIONS
 

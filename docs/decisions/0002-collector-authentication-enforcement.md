@@ -13,14 +13,14 @@ PyJWT is available to the Flask app through `app/requirements.txt`, but it is ab
 
 The collector exposes six registered routes:
 
-| Collector route | Classification | Authentication policy |
-| --- | --- | --- |
-| `GET /health` | Read-only liveness and readiness | Open so the Docker health check remains functional. |
-| `GET /status` | Read-only collector status | Bearer token required (reclassified as a control route — see Amendment). |
-| `GET /logs` | Read-only in-memory log retrieval | Bearer token required (reclassified as a control route — see Amendment). |
-| `POST /trigger` | CONTROL: triggers scheduler collection | Bearer token required. |
-| `POST /api/test-auth/<source>` | CONTROL: initiates external source authentication | Bearer token required. |
-| `POST /api/force-collection/<source>` | CONTROL: forces scheduler collection | Bearer token required. |
+| Collector route                       | Classification                                    | Authentication policy                                                    |
+| ------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET /health`                         | Read-only liveness and readiness                  | Open so the Docker health check remains functional.                      |
+| `GET /status`                         | Read-only collector status                        | Bearer token required (reclassified as a control route — see Amendment). |
+| `GET /logs`                           | Read-only in-memory log retrieval                 | Bearer token required (reclassified as a control route — see Amendment). |
+| `POST /trigger`                       | CONTROL: triggers scheduler collection            | Bearer token required.                                                   |
+| `POST /api/test-auth/<source>`        | CONTROL: initiates external source authentication | Bearer token required.                                                   |
+| `POST /api/force-collection/<source>` | CONTROL: forces scheduler collection              | Bearer token required.                                                   |
 
 `collector/core/control_auth.py` owns the collector-side policy and does not import from `app/`. `app/core/config.py` constructs the service credential lazily, and every direct app-side collector request uses those request arguments. Missing collector credentials fail closed when enforcement is enabled. `DISABLE_JWT_AUTH=true` is not a production escape hatch: `require_control_authentication` only honors it when `ENVIRONMENT=development` or `TESTING=true` (see Amendment).
 
