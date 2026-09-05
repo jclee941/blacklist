@@ -11,6 +11,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.3] - 2026-09-05
+
+### Fixed
+- fix(frontend): preserve Fortinet headers
+- fix(docs): sanitize guide screenshots
+- fix(frontend): wrap long IP reasons
+- fix(frontend): use direct collection endpoints
+- fix(release): bind tags to verified commits
+- fix(docs): harden PDF generation
+- fix(release): exclude agent instructions from bundles
+- fix(frontend): preserve CJK reason words
+- fix(release): validate semver before CI watch
+- fix(docs): harden Markdown tooling
+- fix(ci): enforce documentation checks
+- fix(release): verify release commit before tagging
+- fix(release): require exact-head remote CI
+- fix(collector): scrub credentials on shutdown
+- fix(collector): restrict control auth bypass
+
+### CI/CD
+- build(docs): track PDF freshness manifest
+- build(docs): standardize PDF generation
+- build(docs): add Markdown normalization tools
+
+### Other
+- docs(release): add 5.1.3 notes
+- docs: align current runtime contracts
+- docs(operations): update credential migration
+- docs(security): add private disclosure policy
+- docs(screenshots): refresh production captures
+- docs(manual): regenerate offline guide
+- docs(manual): regenerate user guide
+- docs(manual): regenerate administrator guide
+- docs(manual): regenerate user guide
+- docs(manual): regenerate administrator guide
+- docs(screenshots): refresh production guide captures
+- docs(frontend): reference root version
+- docs(collector): align active guide versions
+- test(release): enforce tag-after-CI ordering
+- docs(collector): remove manual line counts
+- docs(frontend): normalize test references
+- docs: classify architecture records
+- docs(deploy): normalize deployment maps
+- docs(collector): align authentication and pacing
+- docs(contributing): list current checks
+- docs(agents): clarify packaged ports
+- docs(tests): normalize suite guide
+- docs(scripts): normalize release guide
+- docs(postgres): normalize schema guide
+- docs(frontend): normalize app and regression guides
+- docs(security): normalize remediation reports
+- docs(manual): normalize user and operator guides
+- docs(release): normalize historical release notes
+- docs: normalize migration and testing guides
+- docs: normalize architecture guides
+- docs(collector): normalize scheduling guides
+- docs(collector): normalize core boundaries
+- docs(collector): normalize operator guides
+- docs(app): normalize collection utilities
+- docs(app): normalize service boundaries
+- docs(routes): normalize integration APIs
+- docs(routes): normalize route hierarchy
+- docs(app): normalize infrastructure maps
+- docs(app): normalize core hierarchy
+- docs(ci): normalize automation guides
+- docs: normalize contribution and changelog format
+- docs: normalize root documentation
+- docs(agents): align test and documentation maps
+- docs(operations): align release and deploy guidance
+- docs(frontend): correct client page contracts
+- docs(routes): correct API package contracts
+- docs(app): refresh service topology
+- docs(app): rebuild exception map
+- docs(app): deduplicate core navigation
+- docs(collector): deduplicate subsystem rules
+- docs(collector): align control authentication policy
+- test(release): enforce remote CI verification
+- docs(agents): refresh release script guide
+- docs(agents): add operator documentation map
+- docs(agents): deduplicate test conventions
+- docs(agents): update PostgreSQL role guide
+- docs(agents): update deployment guide
+- docs(agents): map frontend test suites
+- docs(agents): refresh frontend boundaries
+- docs(agents): refresh collector pipelines
+- docs(agents): map collector database boundaries
+- docs(agents): normalize core package guides
+- docs(agents): normalize route guides
+- docs(agents): refresh API route topology
+- docs(agents): update auth service contracts
+- docs(agents): refresh Flask boundaries
+- docs(agents): map GitHub automation
+
+---
+
 ## [5.1.2] - 2026-09-04
 
 ### Breaking
