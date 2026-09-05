@@ -11,8 +11,8 @@ export function mockCollectionApis(page: Page) {
           success: true,
           data: {
             collector_status: 'running',
-            sources: {
-              regtech: { status: 'active', last_run: '2026-02-11T10:00:00' },
+            collectors: {
+              REGTECH: { enabled: true, running: false, last_run: '2026-02-11T10:00:00' },
             },
           },
         }),
@@ -66,7 +66,7 @@ export function mockCollectionApis(page: Page) {
         await route.continue();
       }
     }),
-    page.route('**/proxy/collection/credentials/regtech', async (route) => {
+    page.route('**/api/collection/credentials/regtech', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -75,6 +75,7 @@ export function mockCollectionApis(page: Page) {
             success: true,
             data: {
               service_name: 'REGTECH',
+              configured: true,
               username: 'regtech_user',
               enabled: true,
               collection_interval: 'daily',

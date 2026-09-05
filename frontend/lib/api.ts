@@ -110,7 +110,7 @@ export const getWhitelist = async (params?: string) => {
 };
 
 export const getCollectionStatus = async () => {
-  const { data } = await api.get('/proxy/collection/status');
+  const { data } = await api.get('/collection/status');
   return data;
 };
 
@@ -120,13 +120,13 @@ export const searchIP = async (ip: string) => {
 };
 
 export const getCollectionHistory = async (params?: string) => {
-  const url = params ? `/proxy/collection/history?${params}` : '/proxy/collection/history';
+  const url = params ? `/collection/history?${params}` : '/collection/history';
   const { data } = await api.get(url);
   return data;
 };
 
 export const getCollectionStatistics = async () => {
-  const { data } = await api.get('/proxy/collection/statistics');
+  const { data } = await api.get('/collection/statistics');
   return data;
 };
 
@@ -142,17 +142,17 @@ export const getBlacklistStats = async () => {
 };
 
 export const getCredential = async (source: string) => {
-  const { data } = await api.get(`/proxy/collection/credentials/${source}`);
+  const { data } = await api.get(`/collection/credentials/${source}`);
   return data;
 };
 
 export const updateCredential = async (source: string, credentialData: CredentialPayload) => {
-  const { data } = await api.put(`/proxy/collection/credentials/${source}`, credentialData);
+  const { data } = await api.put(`/collection/credentials/${source}`, credentialData);
   return data;
 };
 
 export const testCredential = async (source: string) => {
-  const { data } = await api.post(`/proxy/collection/credentials/${source}/test`);
+  const { data } = await api.post(`/collection/credentials/${source}/test`);
   return data;
 };
 
@@ -221,7 +221,7 @@ export const exportBlacklistRaw = async (params?: string) => {
 };
 
 export const triggerCollection = async (startDate: string, endDate: string) => {
-  const { data } = await collectionApi.post('/proxy/collection/trigger/regtech', {
+  const { data } = await collectionApi.post('/collection/trigger/regtech', {
     start_date: startDate,
     end_date: endDate,
   });
@@ -232,10 +232,7 @@ export const triggerCollectionService = async (
   serviceName: string,
   options?: { force?: boolean }
 ) => {
-  const { data } = await collectionApi.post(
-    `/proxy/collection/trigger/${serviceName}`,
-    options || {}
-  );
+  const { data } = await collectionApi.post(`/collection/trigger/${serviceName}`, options || {});
   return data;
 };
 
@@ -255,7 +252,7 @@ export const updateSettingsBatch = async (settings: { key: string; value: string
 };
 
 export const getCloudflareCredentials = async () => {
-  const { data } = await api.get('/proxy/collection/credentials/cloudflare');
+  const { data } = await api.get('/collection/credentials/cloudflare');
   return data;
 };
 
@@ -265,7 +262,7 @@ export const saveCloudflareCredentials = async (payload: {
   list_id: string;
 }) => {
   const password = payload.api_token === '••••••••' ? '***masked***' : payload.api_token;
-  const { data } = await api.put('/proxy/collection/credentials/cloudflare', {
+  const { data } = await api.put('/collection/credentials/cloudflare', {
     username: 'cloudflare-api',
     password,
     account_id: payload.account_id,
@@ -275,7 +272,7 @@ export const saveCloudflareCredentials = async (payload: {
 };
 
 export const testCloudflareConnection = async () => {
-  const { data } = await api.post('/proxy/collection/credentials/cloudflare/test');
+  const { data } = await api.post('/collection/credentials/cloudflare/test');
   return data;
 };
 

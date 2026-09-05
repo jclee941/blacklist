@@ -78,11 +78,8 @@ const endpointTests = () => {
       2,
       '/ip-management/whitelist?page=2&limit=20'
     );
-    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(3, '/proxy/collection/history');
-    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(
-      4,
-      '/proxy/collection/history?page=3'
-    );
+    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(3, '/collection/history');
+    expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(4, '/collection/history?page=3');
     expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(5, '/ip-management/blacklist');
     expect(getMocks().apiInstance.get).toHaveBeenNthCalledWith(
       6,
@@ -114,14 +111,11 @@ const endpointTests = () => {
     await getDailyDetectionStats(7);
     await getSettingsGrouped();
     await getCloudflareCredentials();
-    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(1, '/proxy/collection/status');
+    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(1, '/collection/status');
     expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(2, '/search/8.8.8.8');
-    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(3, '/proxy/collection/statistics');
+    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(3, '/collection/statistics');
     expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(4, '/collection/statistics');
-    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
-      5,
-      '/proxy/collection/credentials/regtech'
-    );
+    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(5, '/collection/credentials/regtech');
     expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(6, '/database/tables');
     expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(7, '/schema');
     expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
@@ -133,10 +127,7 @@ const endpointTests = () => {
       '/analytics/detection-timeline?days=7'
     );
     expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(10, '/settings/grouped');
-    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(
-      11,
-      '/proxy/collection/credentials/cloudflare'
-    );
+    expect(mocks.apiInstance.get).toHaveBeenNthCalledWith(11, '/collection/credentials/cloudflare');
   });
 
   it('maps mutating endpoints', async () => {
@@ -161,7 +152,7 @@ const endpointTests = () => {
     await triggerCollectionService('regtech', { force: true });
     expect(mocks.apiInstance.post).toHaveBeenNthCalledWith(
       1,
-      '/proxy/collection/credentials/regtech/test'
+      '/collection/credentials/regtech/test'
     );
     expect(mocks.apiInstance.post).toHaveBeenNthCalledWith(2, '/ip-management/whitelist', {
       ip_address: '1.2.3.4',
@@ -169,38 +160,32 @@ const endpointTests = () => {
     });
     expect(mocks.apiInstance.post).toHaveBeenNthCalledWith(
       3,
-      '/proxy/collection/credentials/cloudflare/test'
+      '/collection/credentials/cloudflare/test'
     );
     expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(1, '/ip-management/blacklist/9', {
       reason: 'updated',
     });
-    expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(
-      2,
-      '/proxy/collection/credentials/regtech',
-      { username: 'user' }
-    );
+    expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(2, '/collection/credentials/regtech', {
+      username: 'user',
+    });
     expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(3, '/settings/batch', {
       settings: [{ key: 'a', value: 'b' }],
     });
-    expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(
-      4,
-      '/proxy/collection/credentials/cloudflare',
-      {
-        username: 'cloudflare-api',
-        password: '***masked***',
-        account_id: 'acct-1',
-        list_id: 'list-1',
-      }
-    );
+    expect(mocks.apiInstance.put).toHaveBeenNthCalledWith(4, '/collection/credentials/cloudflare', {
+      username: 'cloudflare-api',
+      password: '***masked***',
+      account_id: 'acct-1',
+      list_id: 'list-1',
+    });
     expect(mocks.apiInstance.delete).toHaveBeenCalledWith('/ip-management/blacklist/11');
     expect(mocks.collectionInstance.post).toHaveBeenNthCalledWith(
       1,
-      '/proxy/collection/trigger/regtech',
+      '/collection/trigger/regtech',
       { start_date: '2026-01-01', end_date: '2026-01-31' }
     );
     expect(mocks.collectionInstance.post).toHaveBeenNthCalledWith(
       2,
-      '/proxy/collection/trigger/regtech',
+      '/collection/trigger/regtech',
       { force: true }
     );
   });
