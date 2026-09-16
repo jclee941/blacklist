@@ -9,8 +9,8 @@ Raw SQL migrations plus schema init, no ORM. `configure-runtime-roles.sh` is ins
 - `initdb/01-extensions.sql` - `pg_trgm`, `uuid-ossp`.
 - `initdb/02-schema.sql` - 14 tables, 49 indexes; base schema source of truth.
 - `initdb/03-migrations.sql` - bootstrap migration state applied on fresh DBs.
-- `migrations/001..008_*.sql` - sequential, additive-only files using `IF NOT EXISTS` / `ON CONFLICT DO UPDATE`.
-- `configure-runtime-roles.sh` - applies migrations 007 and 008, then bootstraps roles; idempotent, runs on first `initdb` and from `install.sh`, not on ordinary restarts.
+- `migrations/001..010_*.sql` - sequential, additive-only files using `IF NOT EXISTS` / `ON CONFLICT DO UPDATE`.
+- `configure-runtime-roles.sh` - applies migrations 007 through 010, then bootstraps roles; idempotent, runs on first `initdb` and from `install.sh`, not on ordinary restarts.
 - `configure-tls.sh` - writes `pg_hba.conf` forcing `hostssl scram-sha-256` and rejecting `hostnossl`.
 - `tls-entrypoint.sh`, `Dockerfile` - TLS-enabled Postgres 15 image.
 
@@ -24,10 +24,12 @@ Runs once on first `initdb`, and again on each `install.sh` deployment after `bl
 - `PUBLIC` and both app roles are denied `CREATE` on schema `public`; default privileges revoke collector access to any future app-owned object.
 - The script rejects duplicate role names and is safe to re-run.
 
-## Migrations 007/008
+## Migrations 007-010
 
 - `007_align_ip_schema_contracts.sql` - adds `is_active NOT NULL DEFAULT TRUE` to `whitelist_ips` and `blacklist_ips`; adds a unique index on `whitelist_ips.ip_address` and on `blacklist_ips(ip_address, source)`.
 - `008_add_regtech_monitoring.sql` - adds `regtech_monitoring`/`regtech_alerts`; creates `collector_regtech_credentials` as a `security_barrier` view over `collection_credentials` filtered to `service_name = 'REGTECH'`. This view is the only path `blacklist_collector` has to REGTECH credentials.
+- `009_add_blacklist_change_notify.sql` - adds `notify_blacklist_changes()` and statement-level triggers on `blacklist_ips`/`whitelist_ips` that `pg_notify('blacklist_changes', ...)`. This is the event source `CloudflarePushService` listens on; without it the Cloudflare list never syncs.
+- `010_tighten_ip_format_constraints.sql` - adds octet-range `CHECK` constraints (`blacklist_ips.valid_ip_octet_range`, `whitelist_ips.whitelist_valid_ip_format`) alongside the original ones, added `NOT VALID` and validated in place when no existing row violates them.
 
 ## Conventions
 

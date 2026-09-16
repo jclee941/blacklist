@@ -47,5 +47,11 @@ Set the collector's rendered `DISABLE_JWT_AUTH` value to `"false"` and provide t
 
 Source review found two drifts from this record's original text, both now corrected above:
 
-1. **Route classification.** `GET /status` and `GET /logs` are control routes requiring the bearer token, not open read-only routes — `collector/core/control_auth.py`'s `CONTROL_ROUTES` set includes `/logs`, `/status`, `/trigger`, `/api/test-auth/<source>`, and `/api/force-collection/<source>`. Only `GET /health` is open.
+1. **Route classification.** `GET /status` and `GET /logs` are control routes requiring the bearer token, not open read-only routes. Only `GET /health` is open. (The `CONTROL_ROUTES` allowlist named here was replaced on 2026-09-16; see the amendment below.)
 2. **Escape hatch scope.** The original text described `DISABLE_JWT_AUTH=true` as a general "time-bounded emergency measure," implying production use. The enforced behavior is narrower and code-gated: `require_control_authentication` only bypasses authentication when `DISABLE_JWT_AUTH=true` **and** (`ENVIRONMENT=development` **or** `TESTING=true`). A production deployment (any other `ENVIRONMENT` value, `TESTING` unset) cannot disable control-route authentication regardless of `DISABLE_JWT_AUTH`. The escape hatch is forbidden in production, full stop — not merely discouraged.
+
+## Amendment (2026-09-16)
+
+The 2026-09-16 security review (finding L-1) noted that the policy was fail-open by construction: `CONTROL_ROUTES` enumerated the protected routes, so any route added later was unauthenticated until someone remembered to extend the set. The set covered every route at the time, so there was no open hole — the structure was the defect, and it ran opposite to the app's default-deny hook.
+
+`collector/core/control_auth.py` is now default-deny. `PUBLIC_ROUTES` holds `/health` alone, and every other route — including routes added in the future and requests that match no route at all — requires the `COLLECTOR_AUTH_TOKEN` bearer token. The decision above is unchanged; only the direction of the policy is inverted so new routes are protected by default.

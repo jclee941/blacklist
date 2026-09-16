@@ -44,6 +44,11 @@ JWT authentication layer. Global JWT enforcement is **active**: `app.before_requ
 
 `session_version` is compared against `AuthStateService.current_session_version()` on every validation; rotating the admin password bumps the version and invalidates all prior tokens.
 
+## TOKEN TRANSPORT
+
+- `resolve_request_token()` in `middleware.py` reads the `Authorization: Bearer` header first and falls back to the `blacklist_auth` cookie, so both browser and API clients pass the same validation path.
+- `/api/auth/login` sets that cookie with `HttpOnly`, `SameSite=Strict`, `Path=/`, and `Secure` following `request.is_secure`; `/api/auth/logout` revokes the token and clears the cookie. `SameSite=Strict` is the CSRF control for cookie-authenticated API calls.
+
 ## PUBLIC ENDPOINTS (no JWT required)
 
 - Path prefixes: `/static/`, `/favicon.ico`, `/robots.txt`.

@@ -45,3 +45,4 @@ Only `blacklist-frontend` publishes a host port (`443` -> container `3000`). Pos
 
 - The app reaches collector control routes through `COLLECTOR_URL` (`app/core/config.py`, default `https://blacklist-collector:8545`).
 - `install.sh` auto-generates `ADMIN_USERNAME=admin` and a random `ADMIN_PASSWORD` in `.env` on every fresh deployment and writes the initial password to a protected, operator-only file for import into a password manager; there is no separate manual fallback step.
+- `ADMIN_PASSWORD` only bootstraps the administrator row: once the app writes the bcrypt hash, the DB is authoritative and the env value is never reactivated. It stays readable in `.env` and through `docker inspect`, so the installer instructs the operator to rotate the password in the dashboard and overwrite the `.env` value afterwards.

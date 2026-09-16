@@ -25,7 +25,7 @@ collector/
 ## HEALTH SERVER ENDPOINTS
 
 - `/health` — open, used by the Docker health check.
-- `/status`, `/logs`, `/trigger`, `/api/test-auth/<source>`, `/api/force-collection/<source>` — require a `COLLECTOR_AUTH_TOKEN` bearer token, enforced by `core/control_auth.py`. `DISABLE_JWT_AUTH=true` only bypasses this when `ENVIRONMENT=development` or `TESTING=true`; it has no effect in production. See `docs/decisions/0002-collector-authentication-enforcement.md`.
+- Every other route — `/status`, `/logs`, `/trigger`, `/api/test-auth/<source>`, `/api/force-collection/<source>`, and anything added later — requires a `COLLECTOR_AUTH_TOKEN` bearer token. `core/control_auth.py` is default-deny: it authenticates unless the route is in `PUBLIC_ROUTES`, so a new route is protected without editing the policy. `DISABLE_JWT_AUTH=true` only bypasses this when `ENVIRONMENT=development` or `TESTING=true`; it has no effect in production. See `docs/decisions/0002-collector-authentication-enforcement.md`.
 
 ## SESSION SECURITY
 

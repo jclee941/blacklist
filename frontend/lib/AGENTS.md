@@ -13,10 +13,10 @@ Centralized Axios API client. `lib/api.ts` exports exactly two instances (`api`,
 
 ## AUTH
 
-- JWT token stored in `localStorage` under `blacklist_auth_token`.
-- Auto-attached to both instances via a shared Axios request interceptor.
-- Login: `POST /api/auth/login`; Verify: `GET /api/auth/verify`.
-- A 401 on any protected call clears the token and dispatches the `blacklist:auth-unauthorized` window event (`AUTH_UNAUTHORIZED_EVENT`); `components/AuthGate.tsx` listens for it and redirects to `/login`.
+- The JWT lives in the `blacklist_auth` HttpOnly cookie issued by `POST /api/auth/login`; browser code never reads or stores it, and both instances set `withCredentials: true` so it rides along on same-origin calls.
+- No request interceptor attaches an `Authorization` header — that header path stays for non-browser API clients.
+- Login: `POST /api/auth/login`; Verify: `GET /api/auth/verify`; Logout: `POST /api/auth/logout` clears the cookie server-side.
+- A 401 on any protected call dispatches the `blacklist:auth-unauthorized` window event (`AUTH_UNAUTHORIZED_EVENT`); `components/AuthGate.tsx` listens for it and redirects to `/login`. `AuthGate` asks the server (`verifyToken`) whether the session is valid, since the cookie is invisible to JavaScript.
 
 ## BASE URL
 

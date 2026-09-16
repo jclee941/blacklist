@@ -15,7 +15,6 @@ Jinja2 legacy Korean admin UI and web-context JSON endpoints.
 | `collection_panel_runtime_routes.py`      | Collection-panel runtime endpoints                       |
 | `collection_panel_view_routes.py`         | Collection-panel views                                   |
 | `collection_routes.py`                    | Collection management views and controls                 |
-| `settings.py`                             | Settings and credential blueprint                        |
 | `admin.py` and `admin_routes.py`          | RegTech and database administration                      |
 | `dashboard_routes.py` and `monitoring.py` | Dashboard and monitoring views                           |
 | `__init__.py`                             | Exposes the parent `web_bp` blueprint                    |
@@ -33,6 +32,7 @@ Jinja2 legacy Korean admin UI and web-context JSON endpoints.
 ## NOTES
 
 - `collection_panel.py` owns the collection-panel blueprint. Its data, runtime, and view handlers are split into companion modules.
+- The legacy `settings.py` blueprint and `templates/settings.html` were removed in the 2026-09-16 security remediation: they wrote credentials to `collection_credentials.password` without encryption and were never registered. Settings are served by `routes/api/settings_api.py`; credentials go through `SecureCredentialService`.
 
 ## CODE MAP
 
@@ -40,5 +40,4 @@ Jinja2 legacy Korean admin UI and web-context JSON endpoints.
 | ------------------------- | --------- | --------------------- | ---- | --------------------------------- |
 | `regtech_admin_bp`        | Blueprint | `admin.py`            | high | RegTech credential administration |
 | `collection_bp`           | Blueprint | `collection_panel.py` | high | Collection-panel routes           |
-| `settings_bp`             | Blueprint | `settings.py`         | high | Settings and credential routes    |
 | `monitoring_dashboard_bp` | Blueprint | `monitoring.py`       | med  | Monitoring views                  |

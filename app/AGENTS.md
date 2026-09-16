@@ -50,4 +50,5 @@ app/
 - Global JWT enforcement is active by default (`app.before_request(jwt_required_hook)`); public routes use `@public` or the static/favicon/robots path prefixes.
 - `before_request` order: `csrf_protect_web_only` → `jwt_required_hook` → `generate_request_id`.
 - `DISABLE_JWT_AUTH=true` is rejected outside `development`/testing at factory startup.
+- `app_lifecycle.start_cloudflare_sync` runs `CloudflarePushService.run()` in a daemon thread; the single gunicorn worker owns that LISTEN connection just as it owns the collection scheduler. The loop re-reads credentials, so a token saved after startup activates the sync without a restart.
 - Detailed core conventions, service symbols, and route rules live under `core/AGENTS.md`.

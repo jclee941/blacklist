@@ -38,6 +38,7 @@ frontend/
 - Styling: Tailwind only, no CSS modules.
 - State: React Query (server state) + useState (client state). Zustand is declared but unused.
 - `npm run build` produces standalone output; `server.js` runs it in Docker, `next dev` runs against `next.config.ts` locally.
+- Pages render per request (`export const dynamic = 'force-dynamic'` in `app/layout.tsx`). `server.js` mints a CSP nonce per request, puts it on the request's `Content-Security-Policy` header so Next stamps it onto its inline scripts, and sends the same nonce in the response policy. Prerendering a route again would ship inline scripts the nonce cannot cover, and the browser would block them.
 
 ## ANTI-PATTERNS
 
