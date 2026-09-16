@@ -21,6 +21,45 @@ PUBLIC_PATH_PREFIXES = (
     "/robots.txt",
 )
 
+# Browser sessions use this HttpOnly cookie so the token is out of JavaScript's reach.
+# Non-browser clients keep using the Authorization header.
+AUTH_COOKIE_NAME = "blacklist_auth"
+
+
+def resolve_request_token() -> str | None:
+    """Session token for this request: Authorization header first, then the cookie."""
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    return request.cookies.get(AUTH_COOKIE_NAME) or None
+
+
+def set_auth_cookie(response: Any, token: str, max_age: int) -> None:
+    """Store the session token in an HttpOnly, same-site cookie.
+
+    SameSite=Strict is the CSRF control for cookie-authenticated API calls, and Secure
+    follows the scheme so local HTTP development still receives the cookie.
+    """
+    response.set_cookie(
+        AUTH_COOKIE_NAME,
+        token,
+        max_age=max_age,
+        httponly=True,
+        secure=request.is_secure,
+        samesite="Strict",
+        path="/",
+    )
+
+
+def clear_auth_cookie(response: Any) -> None:
+    response.delete_cookie(
+        AUTH_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=request.is_secure,
+        samesite="Strict",
+    )
+
 
 def jwt_required_hook() -> Any | None:
     # Always skip static assets
@@ -40,12 +79,10 @@ def jwt_required_hook() -> Any | None:
         g.current_user = {"sub": "dev", "role": "admin"}
         return None
 
-    # Extract token from Authorization header
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    # Extract token from the Authorization header or the session cookie
+    token = resolve_request_token()
+    if not token:
         return _auth_error("AUTH_TOKEN_MISSING", "Authorization header with Bearer token required"), 401
-
-    token = auth_header[7:]  # Strip "Bearer " prefix
 
     # Validate token via JWTService (DI pattern)
     jwt_service = current_app.extensions.get("jwt_service")

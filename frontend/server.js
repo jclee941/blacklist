@@ -3,6 +3,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
+  buildContentSecurityPolicy,
+  createNonce,
   createProxyHeaders,
   isProxyBodyTooLarge,
   parseNextUrl,
@@ -190,7 +192,11 @@ const requestHandler = async (req, res) => {
     return;
   }
   const { pathname } = parsedUrl;
-  setSecurityHeaders(res);
+  const nonce = createNonce();
+  setSecurityHeaders(res, nonce);
+  // Next.js reads the nonce from the request CSP header and stamps it onto the inline
+  // scripts it renders, which is what keeps 'unsafe-inline' out of script-src.
+  req.headers['content-security-policy'] = buildContentSecurityPolicy(nonce);
 
   const targetPath = resolveProxyTarget(req.url);
   if (targetPath !== null) {

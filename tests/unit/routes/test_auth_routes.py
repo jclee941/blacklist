@@ -38,6 +38,19 @@ class TestAuthLogin:
         assert data["expires_in"] == 28800
         assert data["user"]["role"] == "admin"
 
+    def test_login_issues_an_httponly_session_cookie(self, client, app):
+        """The browser session token must be unreachable from JavaScript."""
+        app.extensions["jwt_service"].encode_token.return_value = "test-jwt-token"
+
+        response = client.post("/api/auth/login", json={"username": "admin", "password": "secret123"})
+
+        assert response.status_code == 200
+        set_cookie = response.headers["Set-Cookie"]
+        assert "blacklist_auth=test-jwt-token" in set_cookie
+        assert "HttpOnly" in set_cookie
+        assert "SameSite=Strict" in set_cookie
+        assert "Path=/" in set_cookie
+
     def test_login_missing_credentials(self, client):
         response = client.post("/api/auth/login", json={})
         assert response.status_code == 400
@@ -132,6 +145,45 @@ class TestAuthMe:
         data = response.get_json()
         assert data["sub"] == "admin"
         assert data["role"] == "admin"
+
+    def test_me_accepts_the_session_cookie(self, client, app):
+        """Browsers authenticate with the HttpOnly cookie instead of a header."""
+        from core.auth.jwt_service import JWTService
+
+        secret = "test-identity-secret"
+        app.config["SECRET_KEY"] = secret
+        app.extensions["jwt_service"] = JWTService(secret)
+        token = JWTService(secret).encode_token(user_id="admin", role="admin")
+        client.set_cookie("blacklist_auth", token)
+
+        response = client.get("/api/auth/me")
+
+        assert response.status_code == 200
+        assert response.get_json()["sub"] == "admin"
+
+    def test_me_rejects_a_request_without_header_or_cookie(self, client, app):
+        from core.auth.jwt_service import JWTService
+
+        app.config["SECRET_KEY"] = "test-identity-secret"
+        app.extensions["jwt_service"] = JWTService("test-identity-secret")
+
+        response = client.get("/api/auth/me")
+
+        assert response.status_code == 401
+        assert response.get_json()["code"] == "AUTH_TOKEN_REQUIRED"
+
+    def test_logout_revokes_the_cookie_session_and_clears_it(self, client, app):
+        jwt_service = Mock()
+        app.extensions["jwt_service"] = jwt_service
+        client.set_cookie("blacklist_auth", "cookie-token")
+
+        response = client.post("/api/auth/logout")
+
+        assert response.status_code == 200
+        jwt_service.revoke_token.assert_called_once_with("cookie-token")
+        set_cookie = response.headers["Set-Cookie"]
+        assert "blacklist_auth=;" in set_cookie
+        assert "Expires=Thu, 01 Jan 1970" in set_cookie
 
 
 class TestAuthVerify:

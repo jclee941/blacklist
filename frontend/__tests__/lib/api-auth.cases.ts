@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMocks } from './api-test-helpers';
-import { getToken, login, logout, removeToken, setToken, verifyToken } from '@/lib/api';
+import { login, logout, verifyToken } from '@/lib/api';
 
 type ApiPayload = { success: boolean; data?: unknown; token?: string; error?: string };
 
@@ -14,12 +14,14 @@ export const registerApiTokenTests = () => {
   describe('token management', () => {
     beforeEach(resetAuthState);
 
-    it('handles token CRUD in localStorage', () => {
-      expect(getToken()).toBeNull();
-      setToken('jwt-123');
-      expect(getToken()).toBe('jwt-123');
-      removeToken();
-      expect(getToken()).toBeNull();
+    it('never persists the session token in browser storage', async () => {
+      getMocks().apiInstance.post.mockResolvedValueOnce({
+        data: { success: true, token: 'server-issued-token' },
+      });
+
+      await login('admin', 'pw1234');
+
+      expect(localStorage.length).toBe(0);
     });
   });
 };
@@ -28,7 +30,7 @@ export const registerApiAuthFlowTests = () => {
   describe('auth flow', () => {
     beforeEach(resetAuthState);
 
-    it('login posts credentials and stores token', async () => {
+    it('login posts credentials and leaves the session to the server cookie', async () => {
       const response: ApiPayload = { success: true, token: 'new-token' };
       getMocks().apiInstance.post.mockResolvedValueOnce({ data: response });
       const data = await login('admin', 'pw1234');
@@ -37,22 +39,17 @@ export const registerApiAuthFlowTests = () => {
         password: 'pw1234',
       });
       expect(data).toEqual(response);
-      expect(getToken()).toBe('new-token');
     });
 
-    it('logout revokes the server token before clearing local storage', async () => {
+    it('logout revokes the session on the server', async () => {
       getMocks().apiInstance.post.mockResolvedValueOnce({ data: { success: true } });
-      setToken('temporary-token');
       await logout();
       expect(getMocks().apiInstance.post).toHaveBeenCalledWith('/auth/logout');
-      expect(getToken()).toBeNull();
     });
 
-    it('logout clears local storage when server revocation fails', async () => {
+    it('logout resolves when server revocation fails', async () => {
       getMocks().apiInstance.post.mockRejectedValueOnce(new Error('network unavailable'));
-      setToken('temporary-token');
       await expect(logout()).resolves.toBeUndefined();
-      expect(getToken()).toBeNull();
     });
 
     it('verifyToken uses auth verify endpoint', async () => {

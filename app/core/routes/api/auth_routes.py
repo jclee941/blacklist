@@ -4,6 +4,7 @@ import secrets
 from flask import Blueprint, jsonify, request, current_app
 
 from core.auth.decorators import public
+from core.auth.middleware import clear_auth_cookie, resolve_request_token, set_auth_cookie
 from core.config import config
 from core.exceptions.auth_exceptions import AuthenticationError
 from core.auth.security import PasswordPolicyError, verify_password
@@ -174,13 +175,17 @@ def login():
             expiry_seconds = config.JWT_EXPIRY_HOURS * 60 * 60
 
         logger.info("User '%s' logged in successfully", username)
-        return jsonify(
+        response = jsonify(
             {
                 "token": token,
                 "expires_in": expiry_seconds,
                 "user": {"id": username, "role": "admin"},
             }
-        ), 200
+        )
+        # Browsers authenticate with the HttpOnly cookie; the body keeps the token for
+        # non-browser API clients.
+        set_auth_cookie(response, token, expiry_seconds)
+        return response, 200
 
     return jsonify(
         {
@@ -195,17 +200,19 @@ def login():
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
+    token = resolve_request_token()
+    if not token:
         return _unauthorized()
     jwt_service = current_app.extensions.get("jwt_service")
     if jwt_service is None:
         return _unauthorized()
     try:
-        jwt_service.revoke_token(header[7:])
+        jwt_service.revoke_token(token)
     except (AuthenticationError, AttributeError):
         return _unauthorized()
-    return jsonify({"success": True}), 200
+    response = jsonify({"success": True})
+    clear_auth_cookie(response)
+    return response, 200
 
 
 @auth_bp.route("/password", methods=["PUT"])
@@ -286,8 +293,8 @@ def rotate_password():
 
 
 def _resolve_bearer_identity():
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
+    token = resolve_request_token()
+    if not token:
         return None
 
     jwt_service = current_app.extensions.get("jwt_service")
@@ -295,7 +302,7 @@ def _resolve_bearer_identity():
         return None
 
     try:
-        return jwt_service.validate_token(header[7:])
+        return jwt_service.validate_token(token)
     except AuthenticationError:
         return None
 

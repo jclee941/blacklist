@@ -2,13 +2,40 @@ import routing from '../server-routing.js';
 import { vi } from 'vitest';
 
 const {
+  buildContentSecurityPolicy,
+  createNonce,
   createProxyHeaders,
   isProxyBodyTooLarge,
   parseNextUrl,
   resolveProxyTarget,
   resolveStaticTarget,
   sendProxyJsonError,
+  setSecurityHeaders,
 } = routing;
+
+describe('content security policy', () => {
+  it('authorizes inline scripts by nonce instead of unsafe-inline', () => {
+    const nonce = createNonce();
+    const policy = buildContentSecurityPolicy(nonce);
+
+    expect(policy).toContain(`script-src 'self' 'nonce-${nonce}'`);
+    expect(policy).not.toMatch(/script-src[^;]*unsafe-inline/);
+  });
+
+  it('issues a distinct nonce per request', () => {
+    expect(createNonce()).not.toBe(createNonce());
+  });
+
+  it('applies the nonce policy to the response', () => {
+    const headers = {};
+    const response = { setHeader: (name, value) => (headers[name] = value) };
+
+    setSecurityHeaders(response, 'test-nonce');
+
+    expect(headers['Content-Security-Policy']).toContain("'nonce-test-nonce'");
+    expect(headers['X-Frame-Options']).toBe('DENY');
+  });
+});
 
 describe('custom server routing', () => {
   it('proxies only supported backend endpoints', () => {

@@ -2,8 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  getToken: vi.fn(),
-  removeToken: vi.fn(),
   replace: vi.fn(),
   verifyToken: vi.fn(),
   pathname: '/',
@@ -16,8 +14,6 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/api', () => ({
   AUTH_UNAUTHORIZED_EVENT: 'blacklist:auth-unauthorized',
-  getToken: mocks.getToken,
-  removeToken: mocks.removeToken,
   verifyToken: mocks.verifyToken,
 }));
 
@@ -30,7 +26,7 @@ describe('AuthGate', () => {
   });
 
   it('redirects an unauthenticated visitor without rendering protected content', async () => {
-    mocks.getToken.mockReturnValue(null);
+    mocks.verifyToken.mockRejectedValue(new Error('no session cookie'));
 
     render(
       <AuthGate>
@@ -43,7 +39,6 @@ describe('AuthGate', () => {
   });
 
   it('renders protected content after token verification', async () => {
-    mocks.getToken.mockReturnValue('valid-token');
     mocks.verifyToken.mockResolvedValue({ valid: true });
 
     render(
@@ -55,8 +50,7 @@ describe('AuthGate', () => {
     expect(await screen.findByText('보호된 대시보드')).toBeInTheDocument();
   });
 
-  it('clears an invalid token and redirects to login', async () => {
-    mocks.getToken.mockReturnValue('invalid-token');
+  it('redirects to login when the session is rejected', async () => {
     mocks.verifyToken.mockRejectedValue(new Error('expired'));
 
     render(
@@ -65,13 +59,11 @@ describe('AuthGate', () => {
       </AuthGate>
     );
 
-    await waitFor(() => expect(mocks.removeToken).toHaveBeenCalledTimes(1));
-    expect(mocks.replace).toHaveBeenCalledWith('/login');
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login'));
     expect(screen.queryByText('보호된 대시보드')).not.toBeInTheDocument();
   });
 
   it('returns to login when the API reports an expired session', async () => {
-    mocks.getToken.mockReturnValue('expired-token');
     mocks.verifyToken.mockResolvedValue({ valid: true });
 
     render(

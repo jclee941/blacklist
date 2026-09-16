@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import nextConfig from '../next.config';
+
+const headerKeysOf = async (config: typeof nextConfig): Promise<string[]> => {
+  const rules = await config.headers?.();
+  return rules?.[0]?.headers.map(({ key }) => key) ?? [];
+};
 
 describe('Next security boundary', () => {
   it('exposes only the supported backend rewrites', async () => {
@@ -25,5 +30,23 @@ describe('Next security boundary', () => {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
     });
+  });
+
+  it('leaves the production CSP to the custom server so its per-request nonce survives', async () => {
+    // server.js mints a nonce and sends its own policy. A policy emitted here would
+    // replace that header with a nonce-less value and the browser would block Next's
+    // inline scripts.
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      const productionConfig = (await import('../next.config')).default;
+      const keys = await headerKeysOf(productionConfig);
+
+      expect(keys).not.toContain('Content-Security-Policy');
+      expect(keys).toContain('X-Frame-Options');
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
   });
 });

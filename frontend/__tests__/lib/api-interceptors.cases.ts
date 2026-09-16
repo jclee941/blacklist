@@ -1,21 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMocks, getResponseErrorHandler } from './api-test-helpers';
-import { AUTH_UNAUTHORIZED_EVENT, getStats, getToken, setToken } from '@/lib/api';
-
-type RequestConfig = { headers: Record<string, string> };
-type RequestInterceptor = (config: RequestConfig) => RequestConfig;
+import { AUTH_UNAUTHORIZED_EVENT, getStats } from '@/lib/api';
 
 const responseErrorHandler = getResponseErrorHandler();
-let requestCb: RequestInterceptor | undefined;
-
-const getRequestInterceptor = (): RequestInterceptor => {
-  const callback = getMocks().apiInstance.interceptors.request.use.mock.calls[0]?.[0];
-  if (typeof callback !== 'function') {
-    throw new Error('request interceptor was not registered');
-  }
-  return callback;
-};
 
 const resetInterceptorState = () => {
   localStorage.clear();
@@ -26,7 +14,7 @@ export const registerApiInterceptorTests = () => {
   describe('interceptors', () => {
     beforeEach(resetInterceptorState);
 
-    it('registers request/response interceptors for both axios instances', async () => {
+    it('registers response interceptors and attaches no token header', async () => {
       vi.resetModules();
       const freshApiInstance = {
         get: vi.fn(),
@@ -54,46 +42,29 @@ export const registerApiInterceptorTests = () => {
         },
       }));
       await import('@/lib/api');
-      expect(freshApiInstance.interceptors.request.use).toHaveBeenCalledTimes(1);
-      expect(freshCollectionInstance.interceptors.request.use).toHaveBeenCalledTimes(1);
+      // The session cookie is attached by the browser, so no request interceptor runs.
+      expect(freshApiInstance.interceptors.request.use).not.toHaveBeenCalled();
+      expect(freshCollectionInstance.interceptors.request.use).not.toHaveBeenCalled();
       expect(freshApiInstance.interceptors.response.use).toHaveBeenCalledTimes(1);
       expect(freshCollectionInstance.interceptors.response.use).toHaveBeenCalledTimes(1);
-      const callback = freshApiInstance.interceptors.request.use.mock.calls[0]?.[0];
-      if (typeof callback !== 'function') {
-        throw new Error('fresh request interceptor was not registered');
-      }
-      requestCb = callback;
     });
 
-    it('attaches Bearer token when token exists', () => {
-      const callback = requestCb ?? getRequestInterceptor();
-      setToken('token-xyz');
-      const config = callback({ headers: {} });
-      expect(config.headers.Authorization).toBe('Bearer token-xyz');
-    });
-
-    it('does not attach authorization header when token is missing', () => {
-      const callback = requestCb ?? getRequestInterceptor();
-      const config = callback({ headers: {} });
-      expect(config.headers.Authorization).toBeUndefined();
-    });
-
-    it('clears the token and notifies the application after a protected 401 response', async () => {
+    it('notifies the application after a protected 401 response', async () => {
       const error = { response: { status: 401 }, config: { url: '/web-stats' } };
       const unauthorizedListener = vi.fn();
-      setToken('expired-token');
       window.addEventListener(AUTH_UNAUTHORIZED_EVENT, unauthorizedListener);
       await expect(responseErrorHandler(error)).rejects.toBe(error);
-      expect(getToken()).toBeNull();
       expect(unauthorizedListener).toHaveBeenCalledTimes(1);
       window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, unauthorizedListener);
     });
 
-    it('keeps the stored token for a failed login response', async () => {
+    it('stays silent for a failed login response', async () => {
       const error = { response: { status: 401 }, config: { url: '/auth/login' } };
-      setToken('existing-token');
+      const unauthorizedListener = vi.fn();
+      window.addEventListener(AUTH_UNAUTHORIZED_EVENT, unauthorizedListener);
       await expect(responseErrorHandler(error)).rejects.toBe(error);
-      expect(getToken()).toBe('existing-token');
+      expect(unauthorizedListener).not.toHaveBeenCalled();
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, unauthorizedListener);
     });
   });
 };

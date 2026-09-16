@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import { AUTH_UNAUTHORIZED_EVENT, getToken, removeToken, verifyToken } from '@/lib/api';
+import { AUTH_UNAUTHORIZED_EVENT, verifyToken } from '@/lib/api';
 
 type AuthGateProps = {
   readonly children: ReactNode;
@@ -24,7 +24,6 @@ export function AuthGate({ children, navigation }: AuthGateProps) {
 
     let isActive = true;
     const returnToLogin = () => {
-      removeToken();
       if (isActive) {
         setAuthenticatedPath(null);
         replace('/login');
@@ -32,26 +31,23 @@ export function AuthGate({ children, navigation }: AuthGateProps) {
     };
 
     window.addEventListener(AUTH_UNAUTHORIZED_EVENT, returnToLogin);
-    const token = getToken();
-    if (!token) {
-      returnToLogin();
-    } else {
-      void verifyToken()
-        .then((result) => {
-          if (isActive && result.valid) {
-            setAuthenticatedPath(pathname);
-          } else {
-            returnToLogin();
-          }
-        })
-        .catch((error: unknown) => {
-          if (error instanceof Error) {
-            returnToLogin();
-            return;
-          }
-          throw error;
-        });
-    }
+    // The session cookie is HttpOnly, so the server is the only authority on whether
+    // this browser is authenticated.
+    void verifyToken()
+      .then((result) => {
+        if (isActive && result.valid) {
+          setAuthenticatedPath(pathname);
+        } else {
+          returnToLogin();
+        }
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error) {
+          returnToLogin();
+          return;
+        }
+        throw error;
+      });
 
     return () => {
       isActive = false;

@@ -1,27 +1,16 @@
 import axios from 'axios';
 import type { CredentialPayload, IPPayload } from '@/types';
 
-const TOKEN_KEY = 'blacklist_auth_token';
 const LOGIN_ENDPOINT = '/auth/login';
 export const AUTH_UNAUTHORIZED_EVENT = 'blacklist:auth-unauthorized';
 
-export const getToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
-};
-
-export const setToken = (token: string): void => {
-  localStorage.setItem(TOKEN_KEY, token);
-};
-
-export const removeToken = (): void => {
-  localStorage.removeItem(TOKEN_KEY);
-};
-
+// The session token lives in an HttpOnly cookie issued by /auth/login, so it is not
+// readable from JavaScript and is attached by the browser on every same-origin call.
 // API 클라이언트 설정 - Next.js Rewrites 사용
 const api = axios.create({
   baseURL: '/api',
   timeout: 60000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-store',
@@ -33,21 +22,11 @@ const api = axios.create({
 export const collectionApi = axios.create({
   baseURL: '/api',
   timeout: 420_000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
-
-const attachToken = (config: import('axios').InternalAxiosRequestConfig) => {
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-};
-
-api.interceptors.request.use(attachToken);
-collectionApi.interceptors.request.use(attachToken);
 
 const handleResponseError = (error: unknown): Promise<never> => {
   if (
@@ -55,7 +34,6 @@ const handleResponseError = (error: unknown): Promise<never> => {
     error.response?.status === 401 &&
     error.config?.url !== LOGIN_ENDPOINT
   ) {
-    removeToken();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
     }
@@ -67,24 +45,18 @@ api.interceptors.response.use((response) => response, handleResponseError);
 collectionApi.interceptors.response.use((response) => response, handleResponseError);
 
 export const login = async (username: string, password: string) => {
+  // The server issues the session cookie; nothing is stored client-side.
   const { data } = await api.post(LOGIN_ENDPOINT, { username, password });
-  if (data.token) {
-    setToken(data.token);
-  }
   return data;
 };
 
 export const logout = async (): Promise<void> => {
   try {
-    if (getToken()) {
-      await api.post('/auth/logout');
-    }
+    await api.post('/auth/logout');
   } catch (error) {
     if (!(error instanceof Error)) {
       throw error;
     }
-  } finally {
-    removeToken();
   }
 };
 

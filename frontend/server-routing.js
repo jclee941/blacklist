@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const path = require('path');
 
 const HOP_BY_HOP_HEADERS = new Set([
@@ -19,13 +20,31 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 const SECURITY_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
   'Permissions-Policy': 'camera=(), geolocation=(), microphone=()',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
 };
+
+// script-src carries a per-request nonce instead of 'unsafe-inline', so a stolen XSS
+// foothold cannot execute an injected inline script. style-src keeps 'unsafe-inline'
+// because Tailwind and Next.js emit inline style attributes.
+const createNonce = () => crypto.randomBytes(16).toString('base64');
+
+const buildContentSecurityPolicy = (nonce) =>
+  [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+  ].join('; ');
 
 const createProxyHeaders = (incomingHeaders, clientIp, targetHost, forwardedProto) => {
   const headers = {};
@@ -135,14 +154,17 @@ const resolveStaticTarget = (applicationRoot, requestUrl) => {
   return { base, cacheControl, candidate };
 };
 
-const setSecurityHeaders = (response) => {
+const setSecurityHeaders = (response, nonce) => {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     response.setHeader(name, value);
   }
+  response.setHeader('Content-Security-Policy', buildContentSecurityPolicy(nonce));
 };
 
 module.exports = {
   SECURITY_HEADERS,
+  buildContentSecurityPolicy,
+  createNonce,
   createProxyHeaders,
   isProxyBodyTooLarge,
   sendProxyJsonError,
