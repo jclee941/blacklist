@@ -1,4 +1,6 @@
-import type { APIRequestContext, APIResponse, Page } from '@playwright/test';
+import type { APIRequestContext, APIResponse, Cookie, Page } from '@playwright/test';
+
+export const AUTH_COOKIE_NAME = 'blacklist_auth';
 
 type E2ECredentials = {
   readonly username: string;
@@ -37,16 +39,33 @@ export function getSharedAuthToken(): string {
   return token;
 }
 
+function resolveOrigin(page: Page): string {
+  const current = page.url();
+  if (current && current !== 'about:blank') {
+    return new URL(current).origin;
+  }
+  return new URL(process.env.BASE_URL ?? 'http://localhost:2543').origin;
+}
+
 export async function loginViaApi(page: Page): Promise<string> {
   const token = getSharedAuthToken();
-  await page.addInitScript((value) => {
-    const initializationKey = 'blacklist_e2e_auth_initialized';
-    if (sessionStorage.getItem(initializationKey) === null) {
-      localStorage.setItem('blacklist_auth_token', value);
-      sessionStorage.setItem(initializationKey, 'true');
-    }
-  }, token);
+  // The server hands the browser an HttpOnly cookie, so seed the same cookie instead
+  // of writing to storage the page can no longer read.
+  await page.context().addCookies([
+    {
+      name: AUTH_COOKIE_NAME,
+      value: token,
+      url: resolveOrigin(page),
+      httpOnly: true,
+      sameSite: 'Strict',
+    },
+  ]);
   return token;
+}
+
+export async function getAuthCookie(page: Page): Promise<Cookie | undefined> {
+  const cookies = await page.context().cookies();
+  return cookies.find((cookie) => cookie.name === AUTH_COOKIE_NAME);
 }
 
 export async function authenticatedGet(

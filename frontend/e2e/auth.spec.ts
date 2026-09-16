@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getE2ECredentials, getSharedAuthToken, loginViaApi } from './auth.fixtures';
+import { getAuthCookie, getE2ECredentials, getSharedAuthToken, loginViaApi } from './auth.fixtures';
 
 test.describe.configure({ mode: 'serial', retries: 0 });
 
@@ -85,7 +85,7 @@ test.describe('인증 - 공개 엔드포인트', () => {
   });
 });
 
-test.describe('인증 - 토큰 지속성', () => {
+test.describe('인증 - 세션 지속성', () => {
   test('미인증 사용자를 로그인 페이지로 이동', async ({ page }) => {
     await page.goto('/');
 
@@ -107,28 +107,26 @@ test.describe('인증 - 토큰 지속성', () => {
 
     expect((await loginResponse).status()).toBe(200);
     await expect(page).toHaveURL(/\/$/, { timeout: 30000 });
-    await expect
-      .poll(() => page.evaluate(() => localStorage.getItem('blacklist_auth_token')))
-      .not.toBeNull();
+    await expect.poll(async () => (await getAuthCookie(page))?.httpOnly).toBe(true);
+    await expect(page.evaluate(() => document.cookie)).resolves.not.toContain('blacklist_auth');
   });
 
-  test('localStorage에 토큰 저장 후 페이지 이동 유지', async ({ page }) => {
+  test('세션 쿠키로 페이지를 이동해도 인증이 유지된다', async ({ page }) => {
     await page.goto('/');
     const token = await loginViaApi(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const storedToken = await page.evaluate(() => localStorage.getItem('blacklist_auth_token'));
-    expect(storedToken).toBe(token);
+    expect((await getAuthCookie(page))?.value).toBe(token);
   });
 
-  test('토큰 삭제 후 보호된 페이지 접근시 인증 필요', async ({ page }) => {
+  test('세션 쿠키 삭제 후 보호된 페이지 접근시 인증 필요', async ({ page }) => {
     await page.goto('/');
     await loginViaApi(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    await page.evaluate(() => localStorage.removeItem('blacklist_auth_token'));
+    await page.context().clearCookies();
     await page.reload();
 
     const response = await page.request.get(`/api/auth/me`);
@@ -136,15 +134,13 @@ test.describe('인증 - 토큰 지속성', () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('로그아웃 시 토큰 삭제 후 로그인 화면으로 이동', async ({ page }) => {
+  test('로그아웃 시 세션 쿠키 삭제 후 로그인 화면으로 이동', async ({ page }) => {
     await loginViaApi(page);
     await page.goto('/');
 
     await page.getByRole('button', { name: '로그아웃' }).click();
 
     await expect(page).toHaveURL(/\/login$/);
-    await expect
-      .poll(() => page.evaluate(() => localStorage.getItem('blacklist_auth_token')))
-      .toBeNull();
+    await expect.poll(async () => await getAuthCookie(page)).toBeUndefined();
   });
 });

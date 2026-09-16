@@ -24,8 +24,10 @@ e2e/
 ## AUTHENTICATION
 
 - `global-setup.ts` runs once before the suite: it POSTs `E2E_USERNAME`/`E2E_PASSWORD` to `/api/auth/login` and stores the returned token in `process.env.E2E_AUTH_TOKEN`.
-- `auth.fixtures.ts` exposes `getSharedAuthToken()`, `loginViaApi()`, and `authenticatedGet/Post()` so specs reuse that one global token instead of logging in per test.
-- `auth.spec.ts` runs serially (`mode: 'serial'`, no retries) and covers login-failure cases plus token-based access.
+- `auth.fixtures.ts` exposes `getSharedAuthToken()`, `loginViaApi()`, `getAuthCookie()`, and `authenticatedGet/Post()` so specs reuse that one global token instead of logging in per test.
+- `loginViaApi()` seeds the browser context with the `blacklist_auth` HttpOnly cookie the server issues. Because it is a cookie and not storage, it also authenticates `page.request` calls made from that context.
+- `authenticatedGet/Post()` still send `Authorization: Bearer`, which is the path non-browser API clients use.
+- `auth.spec.ts` runs serially (`mode: 'serial'`, no retries) and covers login-failure cases, bearer-token access, and session-cookie persistence.
 
 ## PROJECTS (`playwright.config.ts`)
 
