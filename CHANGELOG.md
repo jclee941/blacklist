@@ -20,8 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(security): move browser sessions to an HttpOnly cookie and a nonce CSP
 - fix(security): guard and wire the Cloudflare list sync
 
+### Breaking Changes
+
+- Browser sessions authenticate with an HttpOnly cookie instead of a token held in
+  `localStorage`. Existing browser sessions are invalidated by the upgrade and every
+  operator has to sign in again. API clients using `Authorization: Bearer` are unaffected.
+- Migrations `009_add_blacklist_change_notify.sql` and
+  `010_tighten_ip_format_constraints.sql` are applied by `configure-runtime-roles.sh`.
+  Re-run the installer to pick them up; a container restart alone does not apply them.
+
 ### Other
 
+- chore(deps): patch the next, sharp and vitest advisories
 - docs(security): record the 2026-09-16 remediation and 5.1.4 notes
 - docs(release): translate 5.1.3 notes to Korean
 - docs(release): document security remediation
