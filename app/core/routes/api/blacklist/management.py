@@ -13,6 +13,7 @@ import re
 from core.utils.rate_limit import rate_limit
 from core.services.database_lease import connection_lease
 from core.utils.ip_cache import invalidate_ip_caches
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -265,4 +266,4 @@ def get_whitelist_list():
         )
     except Exception as e:
         logger.error(f"Whitelist list API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500

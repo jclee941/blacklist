@@ -5,6 +5,7 @@ Lists available data sources for threat intelligence collection
 
 from flask import Blueprint, jsonify, current_app
 import logging
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ def list_sources():
 
     except Exception as e:
         logger.error(f"Error listing collection sources: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @sources_bp.route("/sources/<source_id>", methods=["GET"])
@@ -63,7 +64,7 @@ def get_source(source_id):
 
     except Exception as e:
         logger.error(f"Error getting source {source_id}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @sources_bp.route("/sources/<source_id>/status", methods=["GET"])
@@ -135,4 +136,4 @@ def get_source_status(source_id):
 
     except Exception as e:
         logger.error(f"Error getting source status {source_id}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500

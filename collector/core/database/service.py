@@ -12,7 +12,7 @@ import time
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from psycopg2.pool import SimpleConnectionPool
@@ -33,6 +33,12 @@ from .queries import DatabaseQueryMixin
 
 
 logger = logging.getLogger(__package__ or __name__)
+
+# Must match app/core/services/credential/crypto.py. The app writes credentials with the
+# current iteration count, so the collector needs that key first and the legacy count as
+# a fallback for rows written before the increase.
+KDF_ITERATIONS = 600_000
+LEGACY_KDF_ITERATIONS = 100_000
 
 
 class DatabaseService(DatabaseQueryMixin):
@@ -64,14 +70,18 @@ class DatabaseService(DatabaseQueryMixin):
                 return
             salt = salt_env.encode()
 
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=salt,
-                iterations=100000,
+            def derive_key(iterations: int) -> bytes:
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=salt,
+                    iterations=iterations,
+                )
+                return base64.urlsafe_b64encode(kdf.derive(master_key.encode()))
+
+            self._cipher_suite = MultiFernet(
+                [Fernet(derive_key(KDF_ITERATIONS)), Fernet(derive_key(LEGACY_KDF_ITERATIONS))]
             )
-            key = base64.urlsafe_b64encode(kdf.derive(master_key.encode()))
-            self._cipher_suite = Fernet(key)
 
             logger.info("🔐 복호화 시스템 초기화 완료")
         except Exception as e:

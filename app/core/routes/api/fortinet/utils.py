@@ -16,9 +16,9 @@ def _log_pull_request(endpoint: str, ip_count: int, status_code: int = 200, resp
         if not db_service:
             return
 
-        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-        if client_ip and "," in client_ip:
-            client_ip = client_ip.split(",")[0].strip()
+        # TrustedProxyMiddleware removes X-Forwarded-For from the environment after
+        # resolving exactly one trusted hop, so remote_addr is the client address.
+        client_ip = request.remote_addr
 
         user_agent = request.headers.get("User-Agent", "")[:500]  # Limit length
 

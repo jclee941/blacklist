@@ -6,6 +6,7 @@ Accessible at /api/settings (not /settings/api/settings)
 
 from flask import Blueprint, request, jsonify, current_app
 import logging
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -234,4 +235,4 @@ def batch_update_settings():
 
     except Exception as e:
         logger.error(f"Error batch updating settings: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500

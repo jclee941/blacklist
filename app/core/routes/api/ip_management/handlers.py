@@ -10,11 +10,10 @@ def validate_pagination(page: Any, limit: Any) -> tuple[int, int]:
     try:
         page = int(page) if page is not None else 1
         limit = int(limit) if limit is not None else 50
-    except ValueError as e:
+    except ValueError:
         raise ValidationError(
             message="Page and limit must be valid integers",
             field="page/limit",
-            details={"error": str(e)},
         )
 
     if page < 1:

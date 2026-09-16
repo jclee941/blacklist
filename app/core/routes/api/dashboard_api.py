@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify, current_app
 from datetime import datetime
 from psycopg2.extras import RealDictCursor
 from ...services.database_lease import connection_lease
+from core.utils.response_utils import safe_error_message
 
 dashboard_bp = Blueprint("dashboard_api", __name__)
 
@@ -123,7 +124,7 @@ def get_dashboard_stats():
         return jsonify(
             {
                 "success": False,
-                "error": str(e),
+                "error": safe_error_message(e),
                 "data": {
                     "total_ips": 0,
                     "active_ips": 0,

@@ -1,10 +1,17 @@
+import hashlib
+import hmac
 import logging
+import secrets
 import time
 from typing import Any, Optional
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Per-process key for cache lookup keys. Python's built-in hash() collides, which
+# would let a wrong password hit a cached successful authentication.
+_AUTH_CACHE_KEY = secrets.token_bytes(32)
 
 
 class RegtechAuthMixin:
@@ -51,7 +58,7 @@ class RegtechAuthMixin:
             return None
 
     def authenticate(self, username: str, password: str) -> bool:
-        auth_key = f"{username}:{hash(password)}"
+        auth_key = f"{username}:{hmac.new(_AUTH_CACHE_KEY, password.encode(), hashlib.sha256).hexdigest()}"
         self._last_credentials = (username, password)
 
         if auth_key in self._auth_cache:

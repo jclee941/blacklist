@@ -972,6 +972,8 @@ write_initial_admin_password_file() {
         log_error "Unable to write initial administrator password file."
     chmod 600 "${INITIAL_ADMIN_PASSWORD_FILE}" || log_error "Unable to protect initial administrator password file."
     log_warning "Initial administrator password written to ${INITIAL_ADMIN_PASSWORD_FILE}; import it into a password manager and delete the file."
+    log_warning "The generated ADMIN_PASSWORD only bootstraps the administrator row; it stays readable in ${ENV_FILE} and through 'docker inspect'."
+    log_warning "After the first login, rotate the password in the dashboard and overwrite ADMIN_PASSWORD in ${ENV_FILE} with an unused random value."
 }
 
 setup_trust_directories() {

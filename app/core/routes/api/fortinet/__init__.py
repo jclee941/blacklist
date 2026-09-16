@@ -11,6 +11,7 @@ from .core import fortinet_core_bp
 from .logs import fortinet_logs_bp
 from .management import fortinet_management_bp
 from .threat_feed import fortinet_feed_bp
+from core.utils.response_utils import safe_error_message
 
 
 def register_fortinet_routes(app):
@@ -64,7 +65,7 @@ def fortinet_health():
                     "status": "unhealthy",
                     "active_ips": 0,
                     "database": "unhealthy",
-                    "error": str(e),
+                    "error": safe_error_message(e),
                 },
                 "timestamp": datetime.now().isoformat(),
                 "request_id": g.request_id,

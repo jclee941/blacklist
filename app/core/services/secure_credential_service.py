@@ -16,7 +16,7 @@ import base64
 from datetime import datetime
 from typing import Dict, Optional, List, Any
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
@@ -49,7 +49,7 @@ class SecureCredentialService:
 
     def _setup_encryption(self):
         """암호화 키 설정"""
-        setup_encryption(self, config, logger, base64, Fernet, PBKDF2HMAC, hashes)
+        setup_encryption(self, config, logger, base64, Fernet, PBKDF2HMAC, hashes, MultiFernet)
 
     def _get_database_connection(self):
         """데이터베이스 연결 획득

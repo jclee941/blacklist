@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from . import web_bp
 from ...services.database_lease import connection_lease
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def api_collection_trigger(source):
 
     except Exception as e:
         logger.error(f"Collection trigger API error for {source}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/collection/trigger-all", methods=["POST"])
@@ -118,7 +119,7 @@ def api_collection_trigger_all():
 
     except Exception as e:
         logger.error(f"Collection trigger all API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/collection/stop", methods=["POST"])
@@ -140,7 +141,7 @@ def api_collection_stop():
 
     except Exception as e:
         logger.error(f"Collection stop API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/expand-collection-scope", methods=["POST"])
@@ -164,7 +165,7 @@ def api_expand_collection_scope():
 
     except Exception as e:
         logger.error(f"Expand collection scope API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/collection/history", methods=["GET"])
@@ -240,4 +241,4 @@ def api_collection_history():
 
     except Exception as e:
         logger.error(f"Collection history API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500

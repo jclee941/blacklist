@@ -6,6 +6,7 @@ Admin Routes
 from flask import render_template, jsonify, request, current_app
 import logging
 from . import web_bp
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ def api_admin_get_regtech_credentials():
 
     except Exception as e:
         logger.error(f"REGTECH 관리자 인증정보 조회 실패: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/admin/regtech/credentials", methods=["POST"])
@@ -92,7 +93,7 @@ def api_admin_save_regtech_credentials():
         return jsonify(response_data)
     except Exception as e:
         logger.error(f"REGTECH 관리자 인증정보 저장 실패: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/admin/regtech/credentials", methods=["DELETE"])
@@ -170,7 +171,7 @@ def api_get_credentials(service_name):
 
     except Exception as e:
         logger.error(f"Get credentials API error for {service_name}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/credentials/<service_name>", methods=["POST"])
@@ -213,7 +214,7 @@ def api_save_credentials(service_name):
 
     except Exception as e:
         logger.error(f"Save credentials API error for {service_name}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/credentials/<service_name>", methods=["DELETE"])
@@ -236,7 +237,7 @@ def api_delete_credentials(service_name):
 
     except Exception as e:
         logger.error(f"Delete credentials API error for {service_name}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/database/tables", methods=["GET"])
@@ -249,7 +250,7 @@ def api_database_tables():
         return jsonify({"success": True, **tables_info})
     except Exception as e:
         logger.error(f"Database tables API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/database/clear", methods=["POST"])
@@ -262,4 +263,4 @@ def api_clear_database():
         return jsonify(result)
     except Exception as e:
         logger.error(f"Database clear API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500

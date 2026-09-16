@@ -9,6 +9,22 @@ from flask import jsonify, request
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
+from ..exceptions.base_exceptions import APIError
+
+GENERIC_ERROR_MESSAGE = "Internal server error"
+
+
+def safe_error_message(exc: BaseException) -> str:
+    """Return client-safe text for an exception.
+
+    Raw exception text leaks internals — a psycopg2 error carries the SQL statement
+    plus table and column names. Typed APIError messages are written for clients and
+    are returned as-is; anything else is replaced, and the detail stays in the log.
+    """
+    if isinstance(exc, APIError):
+        return exc.message
+    return GENERIC_ERROR_MESSAGE
+
 
 def success_response(data: Any, status_code: int = 200, message: Optional[str] = None) -> Tuple[Any, int]:
     """

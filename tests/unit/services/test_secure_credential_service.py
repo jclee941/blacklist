@@ -19,15 +19,51 @@ def _make_service(db_service=None):
             mock_kdf = MagicMock()
             mock_kdf.derive.return_value = b"0" * 32
             mock_pbkdf2.return_value = mock_kdf
-            with patch("core.services.secure_credential_service.Fernet") as mock_fernet_cls:
+            with (
+                patch("core.services.secure_credential_service.Fernet") as mock_fernet_cls,
+                patch("core.services.secure_credential_service.MultiFernet") as mock_multi_fernet_cls,
+            ):
                 mock_fernet = MagicMock()
                 mock_fernet.encrypt.side_effect = lambda x: b"enc:" + x
                 mock_fernet.decrypt.side_effect = lambda x: x.replace(b"enc:", b"")
                 mock_fernet_cls.return_value = mock_fernet
+                mock_multi_fernet_cls.return_value = mock_fernet
                 from core.services.secure_credential_service import SecureCredentialService
 
                 svc = SecureCredentialService(db_service=mock_db)
     return svc, mock_db
+
+
+def test_legacy_iteration_ciphertext_still_decrypts():
+    """Credentials written before the PBKDF2 iteration increase stay readable."""
+    import base64
+    import logging
+
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+    from core.services.credential.crypto import LEGACY_KDF_ITERATIONS, decrypt_data
+
+    master_key = "test-master-key-1234567890abcdef"
+    payload = '{"password": "legacy-secret"}'
+
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b"dGVzdC1zYWx0",
+        iterations=LEGACY_KDF_ITERATIONS,
+    )
+    legacy_key = base64.urlsafe_b64encode(kdf.derive(master_key.encode()))
+    legacy_ciphertext = base64.b64encode(Fernet(legacy_key).encrypt(payload.encode())).decode()
+
+    env = {"CREDENTIAL_MASTER_KEY": master_key, "ENCRYPTION_SALT": "dGVzdC1zYWx0"}
+    with patch.dict(os.environ, env):
+        from core.services.secure_credential_service import SecureCredentialService
+
+        svc = SecureCredentialService(db_service=Mock())
+
+    assert decrypt_data(svc, legacy_ciphertext, logging.getLogger(__name__), base64) == payload
 
 
 def _mock_db_context(mock_db, fetchone_result=None, fetchall_result=None):

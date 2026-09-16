@@ -28,11 +28,10 @@ def parse_pagination_params(default_page: int = 1, default_limit: int = 50) -> T
     try:
         page = int(request.args.get("page", default_page))
         limit = int(request.args.get("limit", default_limit))
-    except ValueError as e:
+    except ValueError:
         raise ValidationError(
             message="Page and limit must be valid integers",
             field="page/limit",
-            details={"error": str(e)},
         )
     return page, limit
 

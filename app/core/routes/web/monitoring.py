@@ -7,6 +7,7 @@ from flask import Blueprint, render_template, jsonify, current_app
 import logging
 from datetime import datetime
 from ...config import config
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ def dashboard_data_api():
             jsonify(
                 {
                     "success": False,
-                    "error": str(e),
+                    "error": safe_error_message(e),
                     "total_ips": 0,
                     "regtech_count": 0,
                     "last_collection": "오류",

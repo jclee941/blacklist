@@ -15,6 +15,7 @@ import logging
 
 from ..config import config
 from ..services.database_lease import connection_lease
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def index():
                     "status": "success",
                     "message": "Blacklist Homepage Working!",
                     "timestamp": datetime.now().isoformat(),
-                    "error": str(e),
+                    "error": safe_error_message(e),
                 }
             )
 

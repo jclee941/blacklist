@@ -13,6 +13,7 @@ from flask import current_app, jsonify, request, send_file
 from . import web_bp
 from ...services.database_lease import connection_lease
 from ...utils.csv_security import neutralize_csv_row, parse_export_limit
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ def api_blacklist_list():
 
     except Exception as e:
         logger.error(f"Blacklist list API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/blacklist/export", methods=["GET"])

@@ -4,6 +4,7 @@ import logging
 
 from core.utils.rate_limit import rate_limit
 from ....config import config
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -48,4 +49,4 @@ def trigger_regtech_collection():
 
     except Exception as e:
         logger.error(f"REGTECH collection trigger failed: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "timestamp": datetime.now().isoformat()}), 500

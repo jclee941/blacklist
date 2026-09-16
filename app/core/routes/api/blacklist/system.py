@@ -10,6 +10,7 @@ import logging
 import os
 from ....config import config
 from ....services.database_lease import connection_lease
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ def get_system_containers():
 
     except Exception as e:
         logger.error(f"Container status query failed: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "timestamp": datetime.now().isoformat()}), 500
 
 
 @blacklist_system_bp.route("/credential/status", methods=["GET"])
@@ -116,7 +117,7 @@ def get_credential_status():
 
     except Exception as e:
         logger.error(f"Credential status check failed: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "timestamp": datetime.now().isoformat()}), 500
 
 
 @blacklist_system_bp.route("/credentials/regtech", methods=["GET"])
@@ -169,7 +170,7 @@ def get_regtech_credentials():
 
     except Exception as e:
         logger.error(f"REGTECH credentials check failed: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "timestamp": datetime.now().isoformat()}), 500
 
 
 @blacklist_system_bp.route("/database/tables", methods=["GET"])
@@ -193,4 +194,4 @@ def get_database_tables():
 
     except Exception as e:
         logger.error(f"Database tables API error: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "timestamp": datetime.now().isoformat()}), 500

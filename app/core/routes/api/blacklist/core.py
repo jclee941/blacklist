@@ -19,6 +19,7 @@ from ....exceptions import (
 from core.utils.rate_limit import rate_limit
 from core.services.database_lease import connection_lease
 from core.utils.csv_security import neutralize_csv_row, parse_export_limit
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ def blacklist_health():
             {
                 "success": False,
                 "status": "unhealthy",
-                "error": str(e),
+                "error": safe_error_message(e),
                 "timestamp": datetime.now().isoformat(),
             }
         ), 503

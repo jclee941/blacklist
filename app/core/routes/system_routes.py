@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 
 from ..config import config
+from core.utils.response_utils import safe_error_message
 
 system_bp = Blueprint("system", __name__, url_prefix="/api/system")
 
@@ -78,7 +79,7 @@ def get_system_logs():
 
     except Exception as e:
         logging.error(f"시스템 로그 조회 실패: {e}")
-        return jsonify({"success": False, "error": str(e), "logs": []}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "logs": []}), 500
 
 
 @system_bp.route("/status", methods=["GET"])
@@ -105,7 +106,7 @@ def get_system_status():
             jsonify(
                 {
                     "success": False,
-                    "error": str(e),
+                    "error": safe_error_message(e),
                     "timestamp": datetime.now().isoformat(),
                 }
             ),
@@ -147,7 +148,7 @@ def get_detailed_health():
             jsonify(
                 {
                     "success": False,
-                    "error": str(e),
+                    "error": safe_error_message(e),
                     "timestamp": datetime.now().isoformat(),
                 }
             ),
@@ -187,7 +188,7 @@ def get_environment_check():
             jsonify(
                 {
                     "success": False,
-                    "error": str(e),
+                    "error": safe_error_message(e),
                     "timestamp": datetime.now().isoformat(),
                 }
             ),

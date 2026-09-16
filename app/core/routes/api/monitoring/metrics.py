@@ -8,6 +8,7 @@ Created: 2025-11-21 (Cache Metrics Integration - MEDIUM PRIORITY #8)
 import logging
 from flask import jsonify, request
 from . import monitoring_bp
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -276,7 +277,7 @@ def get_all_metrics():
             result["data"]["cache"] = cache_metrics.get_statistics()
         except Exception as e:
             logger.error(f"Failed to retrieve cache metrics: {e}")
-            result["data"]["cache"] = {"error": str(e)}
+            result["data"]["cache"] = {"error": safe_error_message(e)}
 
     # Add error metrics
     if ERROR_METRICS_ENABLED:
@@ -284,6 +285,6 @@ def get_all_metrics():
             result["data"]["errors"] = error_metrics.get_statistics()
         except Exception as e:
             logger.error(f"Failed to retrieve error metrics: {e}")
-            result["data"]["errors"] = {"error": str(e)}
+            result["data"]["errors"] = {"error": safe_error_message(e)}
 
     return jsonify(result)

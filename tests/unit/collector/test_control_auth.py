@@ -138,6 +138,22 @@ def test_trigger_propagates_collection_failure(
     assert "page 17 failed" not in response.get_data(as_text=True)
 
 
+def test_route_outside_the_public_list_requires_authentication(
+    server: tuple[HealthServer, SchedulerFake],
+) -> None:
+    """Default-deny: a route added later is protected without editing the policy."""
+    health_server, _scheduler = server
+
+    @health_server.app.route("/api/newly-added-control", methods=["POST"])
+    def _newly_added_control() -> dict[str, bool]:
+        return {"success": True}
+
+    response = health_server.app.test_client().post("/api/newly-added-control")
+
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Unauthorized"}
+
+
 def test_health_endpoint_remains_open_with_coarse_status(
     server: tuple[HealthServer, SchedulerFake],
 ) -> None:

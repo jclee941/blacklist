@@ -37,7 +37,8 @@ class TestFortinetUtils:
         with app.test_request_context("/api/fortinet/pull", environ_base={"REMOTE_ADDR": "198.51.100.1"}):
             _log_pull_request("/api/fortinet/pull", ip_count=1)
 
-    def test_log_pull_request_x_forwarded_for_multiple_ips_uses_first(self):
+    def test_log_pull_request_ignores_client_supplied_forwarded_for(self):
+        """TrustedProxyMiddleware resolves the hop; a raw header must not set the logged IP."""
         app = make_app()
         app.extensions["db_service"] = Mock()
 
@@ -49,7 +50,7 @@ class TestFortinetUtils:
             _log_pull_request("/api/fortinet/pull", ip_count=8)
 
         _, params = app.extensions["db_service"].execute.call_args[0]
-        assert params[0] == "10.0.0.1"
+        assert params[0] == "198.51.100.1"
 
     def test_log_pull_request_no_x_forwarded_for_uses_remote_addr(self):
         app = make_app()

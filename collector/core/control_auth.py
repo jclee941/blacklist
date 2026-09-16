@@ -6,21 +6,15 @@ from flask import Flask, jsonify, request
 from flask.typing import ResponseReturnValue
 
 
-CONTROL_ROUTES: Final[frozenset[str]] = frozenset(
-    {
-        "/logs",
-        "/status",
-        "/trigger",
-        "/api/test-auth/<source>",
-        "/api/force-collection/<source>",
-    }
-)
+# Default-deny: every route requires the bearer token unless it is listed here, so a
+# newly added control route is authenticated without touching this module.
+PUBLIC_ROUTES: Final[frozenset[str]] = frozenset({"/health"})
 AUTH_DISABLED_VALUES: Final[frozenset[str]] = frozenset({"true", "1", "yes"})
 
 
 def require_control_authentication() -> ResponseReturnValue | None:
     route = request.url_rule.rule if request.url_rule else None
-    if route not in CONTROL_ROUTES:
+    if route in PUBLIC_ROUTES:
         return None
 
     authentication_disabled = os.getenv("DISABLE_JWT_AUTH", "false").strip().lower() in AUTH_DISABLED_VALUES

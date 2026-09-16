@@ -80,11 +80,10 @@ def get_detection_timeline():
     else:
         try:
             days_back = int(days_param)
-        except ValueError as e:
+        except ValueError:
             raise ValidationError(
                 message="Days parameter must be a valid integer or 'all'",
                 field="days",
-                details={"error": str(e)},
             )
 
     format_type = request.args.get("format", "json")  # json or chart

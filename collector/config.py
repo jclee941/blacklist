@@ -9,6 +9,12 @@ from .exceptions import CredentialDecryptionError, MissingMasterKeyError
 
 logger = logging.getLogger(__name__)
 
+# Must match app/core/services/credential/crypto.py. The app writes credentials with the
+# current iteration count, so the collector needs that key first and the legacy count as
+# a fallback for rows written before the increase.
+KDF_ITERATIONS = 600_000
+LEGACY_KDF_ITERATIONS = 100_000
+
 
 class CollectorConfig:
     POSTGRES_HOST = os.getenv("POSTGRES_HOST", "blacklist-postgres")
@@ -75,7 +81,7 @@ class CollectorConfig:
                     continue
 
                 try:
-                    from cryptography.fernet import Fernet
+                    from cryptography.fernet import Fernet, MultiFernet
 
                     key = os.getenv("CREDENTIAL_MASTER_KEY", "").encode()
                     if not key:
@@ -92,14 +98,17 @@ class CollectorConfig:
                         logger.error("Encrypted REGTECH credentials require ENCRYPTION_SALT")
                         continue
                     salt = salt_env.encode()
-                    kdf = PBKDF2HMAC(
-                        algorithm=hashes.SHA256(),
-                        length=32,
-                        salt=salt,
-                        iterations=100000,
-                    )
-                    derived_key = base64.urlsafe_b64encode(kdf.derive(key))
-                    f = Fernet(derived_key)
+
+                    def derive_key(iterations: int) -> bytes:
+                        kdf = PBKDF2HMAC(
+                            algorithm=hashes.SHA256(),
+                            length=32,
+                            salt=salt,
+                            iterations=iterations,
+                        )
+                        return base64.urlsafe_b64encode(kdf.derive(key))
+
+                    f = MultiFernet([Fernet(derive_key(KDF_ITERATIONS)), Fernet(derive_key(LEGACY_KDF_ITERATIONS))])
 
                     # password 컬럼은 base64(Fernet(JSON)) 형태
                     # base64 디코드 → Fernet 복호화 → JSON 파싱

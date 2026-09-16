@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
+
+
+# OWASP 2023 guidance for PBKDF2-HMAC-SHA256. The previous count is kept as a
+# secondary decryption key so credentials written before the increase stay readable;
+# every new value is encrypted with the current count.
+KDF_ITERATIONS: Final = 600_000
+LEGACY_KDF_ITERATIONS: Final = 100_000
 
 
 def setup_encryption(
@@ -13,6 +20,7 @@ def setup_encryption(
     fernet_cls: Any,
     pbkdf2_cls: Any,
     hashes_module: Any,
+    multi_fernet_cls: Any,
 ) -> None:
     """Initialize the credential cipher without changing the algorithm."""
     try:
@@ -28,14 +36,21 @@ def setup_encryption(
             raise RuntimeError("ENCRYPTION_SALT environment variable is required")
         service._salt = salt_env.encode()
 
-        kdf = pbkdf2_cls(
-            algorithm=hashes_module.SHA256(),
-            length=32,
-            salt=service._salt,
-            iterations=100000,
+        def derive_key(iterations: int) -> bytes:
+            kdf = pbkdf2_cls(
+                algorithm=hashes_module.SHA256(),
+                length=32,
+                salt=service._salt,
+                iterations=iterations,
+            )
+            return base64_module.urlsafe_b64encode(kdf.derive(master_key.encode()))
+
+        service._cipher_suite = multi_fernet_cls(
+            [
+                fernet_cls(derive_key(KDF_ITERATIONS)),
+                fernet_cls(derive_key(LEGACY_KDF_ITERATIONS)),
+            ]
         )
-        key = base64_module.urlsafe_b64encode(kdf.derive(master_key.encode()))
-        service._cipher_suite = fernet_cls(key)
 
         logger.info("🔐 암호화 시스템 초기화 완료")
     except Exception as exc:

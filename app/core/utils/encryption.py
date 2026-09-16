@@ -8,14 +8,19 @@ import hashlib
 import os
 import logging
 from collections.abc import Mapping
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from typing import Optional
+from typing import Final, Optional
 
 from ..config import config
 
 logger = logging.getLogger(__name__)
+
+# Must stay in step with app/core/services/credential/crypto.py and the collector's
+# derivation: every reader needs the current key first and the legacy key as fallback.
+KDF_ITERATIONS: Final = 600_000
+LEGACY_KDF_ITERATIONS: Final = 100_000
 
 
 class CredentialEncryption:
@@ -56,21 +61,23 @@ class CredentialEncryption:
 
         raise EncryptionError("CREDENTIAL_MASTER_KEY is required")
 
-    def _create_fernet_instance(self) -> Fernet:
-        """Fernet 암호화 인스턴스 생성"""
+    def _create_fernet_instance(self) -> MultiFernet:
+        """Fernet 암호화 인스턴스 생성 (현재 반복수로 암호화, 구버전 반복수도 복호화)"""
         # 마스터 키에서 암호화 키 파생 (고정 솔트 사용으로 일관된 복호화 보장)
         # Collector와 동일한 고정 솔트 사용
         salt = self.salt.encode()
-
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
         key_bytes = self.master_key if isinstance(self.master_key, bytes) else self.master_key.encode()
-        key = base64.urlsafe_b64encode(kdf.derive(key_bytes))
-        return Fernet(key)
+
+        def derive_key(iterations: int) -> bytes:
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=iterations,
+            )
+            return base64.urlsafe_b64encode(kdf.derive(key_bytes))
+
+        return MultiFernet([Fernet(derive_key(KDF_ITERATIONS)), Fernet(derive_key(LEGACY_KDF_ITERATIONS))])
 
     def encrypt(self, plaintext: str) -> str:
         """
@@ -211,7 +218,7 @@ class LazyCredentialEncryption:
         return self._service
 
     @property
-    def fernet(self) -> Fernet:
+    def fernet(self) -> MultiFernet:
         return self._get_service().fernet
 
     def encrypt(self, plaintext: str) -> str:

@@ -9,6 +9,7 @@ from datetime import datetime
 from . import web_bp
 from .blacklist_api_routes import api_blacklist_export, api_blacklist_export_raw, api_blacklist_list
 from ...services.database_lease import connection_lease
+from core.utils.response_utils import safe_error_message
 
 BLACKLIST_API_HANDLERS = (api_blacklist_list, api_blacklist_export, api_blacklist_export_raw)
 
@@ -71,7 +72,7 @@ def api_search_ip(ip):
 
     except Exception as e:
         logger.error(f"Search IP API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/web-stats", methods=["GET"])
@@ -125,7 +126,7 @@ def api_stats():
 
     except Exception as e:
         logger.error(f"Stats API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/collection/status", methods=["GET"])
@@ -139,7 +140,7 @@ def api_collection_status():
 
     except Exception as e:
         logger.error(f"Collection status API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/collection/stats", methods=["GET"])
@@ -183,7 +184,7 @@ def api_collection_stats():
 
     except Exception as e:
         logger.error(f"Collection stats API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/chart-data", methods=["GET"])
@@ -238,7 +239,7 @@ def api_chart_data():
 
     except Exception as e:
         logger.error(f"Chart data API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": safe_error_message(e)}), 500
 
 
 @web_bp.route("/api/connection/status", methods=["GET"])
@@ -266,7 +267,7 @@ def api_connection_status():
                     "success": False,
                     "database_connected": False,
                     "redis_connected": False,
-                    "error": str(e),
+                    "error": safe_error_message(e),
                 }
             ),
             500,

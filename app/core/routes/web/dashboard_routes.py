@@ -9,6 +9,7 @@ import psutil
 import os
 from datetime import datetime
 from . import web_bp
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ def api_system_logs():
 
     except Exception as e:
         logger.error(f"System logs API error: {e}")
-        return jsonify({"success": False, "error": str(e), "logs": []}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "logs": []}), 500
 
 
 @web_bp.route("/api/system/containers", methods=["GET"])
@@ -149,7 +150,7 @@ def api_system_containers():
 
     except Exception as e:
         logger.error(f"System containers API error: {e}")
-        return jsonify({"success": False, "error": str(e), "containers": []}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "containers": []}), 500
 
 
 @web_bp.route("/data-table", methods=["GET"])

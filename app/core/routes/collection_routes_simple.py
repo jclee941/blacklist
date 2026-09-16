@@ -6,6 +6,7 @@ Collection trigger and config endpoints at /collection/*
 from flask import Blueprint, request, jsonify, current_app
 import logging
 from datetime import datetime, timedelta
+from core.utils.response_utils import safe_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -71,4 +72,4 @@ def trigger_collection():
 
     except Exception as e:
         logger.error(f"Collection trigger error: {e}")
-        return jsonify({"success": False, "error": str(e), "timestamp": datetime.now().isoformat()}), 500
+        return jsonify({"success": False, "error": safe_error_message(e), "timestamp": datetime.now().isoformat()}), 500

@@ -151,11 +151,10 @@ def get_table_data(table_name: str):
     try:
         page = int(request.args.get("page", 1))
         limit = int(request.args.get("limit", 50))
-    except ValueError as e:
+    except ValueError:
         raise ValidationError(
             message="Page and limit must be valid integers",
             field="page/limit",
-            details={"error": str(e)},
         )
 
     # Validate pagination ranges

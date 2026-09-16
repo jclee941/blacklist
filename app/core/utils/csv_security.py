@@ -7,7 +7,9 @@ from core.exceptions import ValidationError
 
 
 MAX_EXPORT_ROWS: Final = 10_000
-FORMULA_PREFIXES: Final = ("=", "+", "-", "@")
+# Tab and carriage return are included: Excel and LibreOffice strip them before
+# evaluating the cell, so "\t=cmd()" is still executed as a formula.
+FORMULA_PREFIXES: Final = ("=", "+", "-", "@", "\t", "\r")
 
 
 def parse_export_limit(value: str | None) -> int:
