@@ -16,6 +16,10 @@ from .services.database_lease import connection_lease
 _background_tasks_lock = threading.Lock()
 _background_tasks_started = False
 
+# Retry delay for the Cloudflare listener: also the poll interval for credentials
+# that are saved after startup.
+CLOUDFLARE_RETRY_SECONDS = 60
+
 
 def register_health_route(app):
     @app.route("/health")
@@ -62,6 +66,32 @@ def start_background_tasks(app):
         app.logger.error("Background task start failed: %s", e)
 
 
+def start_cloudflare_sync(app):
+    """Run the Cloudflare list listener in a daemon thread.
+
+    Gunicorn runs a single worker, so this process owns the LISTEN/NOTIFY connection
+    the same way it owns the collection scheduler. The loop re-reads credentials so a
+    token saved from the UI after startup activates the sync without a restart.
+    """
+    service = app.extensions.get("cloudflare_service")
+    if service is None:
+        app.logger.info("Cloudflare sync not started: service is not registered")
+        return
+
+    def cloudflare_sync_loop():
+        while True:
+            with app.app_context():
+                try:
+                    service.reload_credentials()
+                    if service.is_configured():
+                        service.run()
+                except Exception:
+                    app.logger.exception("Cloudflare sync loop failed")
+            time.sleep(CLOUDFLARE_RETRY_SECONDS)
+
+    threading.Thread(target=cloudflare_sync_loop, daemon=True, name="cloudflare-sync").start()
+
+
 def check_collector_health(app):
     try:
         url = f"{config.COLLECTOR_URL}/health"
@@ -89,6 +119,7 @@ def start_delayed_background_tasks(app):
         with app.app_context():
             check_collector_health(app)
             start_background_tasks(app)
+            start_cloudflare_sync(app)
 
     global _background_tasks_started
     with _background_tasks_lock:

@@ -25,7 +25,8 @@ set -- --username="$POSTGRES_USER" --dbname="$POSTGRES_DB"
 if pg_isready --host=127.0.0.1 --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" >/dev/null 2>&1; then
     set -- --host=127.0.0.1 "$@"
 fi
-for migration in /migrations/007_align_ip_schema_contracts.sql /migrations/008_add_regtech_monitoring.sql; do
+for migration in /migrations/007_align_ip_schema_contracts.sql /migrations/008_add_regtech_monitoring.sql \
+    /migrations/009_add_blacklist_change_notify.sql /migrations/010_tighten_ip_format_constraints.sql; do
     if [ -f "$migration" ]; then
         psql "$@" --set=ON_ERROR_STOP=1 --file="$migration"
     fi
