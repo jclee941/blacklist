@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.4] - 2026-09-16
+
+### Fixed
+
+- fix(security): harden collector auth, error output, KDF and IP constraints
+- fix(security): delete the unregistered credential and validator modules
+- fix(security): move browser sessions to an HttpOnly cookie and a nonce CSP
+- fix(security): guard and wire the Cloudflare list sync
+
+### Other
+
+- docs(security): record the 2026-09-16 remediation and 5.1.4 notes
+- docs(release): translate 5.1.3 notes to Korean
+- docs(release): document security remediation
+
+---
+
 ## [5.1.3] - 2026-09-05
 
 ### Fixed
