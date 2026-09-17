@@ -15,7 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- fix(deploy): add CAP_FOWNER to collector volume preparation in install.sh to prevent EPERM during chmod
+- fix(frontend): correctly unwrap API response envelope for system status in dashboard
+- fix(collector): invalidate auth cache on REGTECH 302/401 responses to prevent dead session reuse
 - fix(api): use common error handling for cache metrics
+- feat(deploy): expose MAX_PAGES_PER_COLLECTION in base.yml to allow adjusting the 1000-IP cap
+
+### Breaking Changes
+
+- None (fully backwards-compatible bugfix and maintenance release)
 
 ---
 
