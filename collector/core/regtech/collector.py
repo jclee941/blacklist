@@ -160,6 +160,8 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin, RegtechPageC
                                 consecutive_failures=consecutive_block_signals,
                             )
                         if attempt < REGTECH_PAGE_ATTEMPTS:
+                            if getattr(self, "_last_failure_kind", None) == "session_expired":
+                                self._ensure_authenticated()
                             logger.warning(
                                 "REGTECH 페이지 재시도: 전략=%s 페이지=%s 시도=%s/%s",
                                 strategy_name,

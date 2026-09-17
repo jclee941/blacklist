@@ -116,9 +116,10 @@ export default function Dashboard() {
     try {
       const response = await getSystemStatus();
       if (response) {
-        const data = response;
+        // /api/dashboard/status wraps its payload in { success, data, timestamp };
+        // older flat responses ({ status, database_connected, ... }) stay supported.
+        const data = response.data ?? response;
 
-        // API returns flat: { status, database_connected, ... }
         const status: SystemStatus = {
           service: {
             status:

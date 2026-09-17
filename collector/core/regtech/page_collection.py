@@ -137,8 +137,15 @@ class RegtechPageCollectorMixin:
             )
 
             if http_status != 200:
-                self._last_failure_kind = "block_suspect" if http_status in (403, 429) else "http_error"
-                logger.warning("⚠️ 페이지 %s 요청 실패: HTTP %s", page_num, http_status)
+                if http_status in (301, 302, 303, 307, 308, 401):
+                    # REGTECH redirects to the login form once it drops the session, and the
+                    # cached authentication would otherwise keep replaying the dead cookie.
+                    self._last_failure_kind = "session_expired"
+                    logger.warning("⚠️ 페이지 %s 세션 만료 응답: HTTP %s", page_num, http_status)
+                    self.invalidate_session()
+                else:
+                    self._last_failure_kind = "block_suspect" if http_status in (403, 429) else "http_error"
+                    logger.warning("⚠️ 페이지 %s 요청 실패: HTTP %s", page_num, http_status)
                 self.rate_limiter.on_failure(error_code=http_status or None)
                 return None
 

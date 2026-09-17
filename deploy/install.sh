@@ -482,7 +482,9 @@ prepare_collector_volumes() {
     local image="blacklist-collector:${VERSION}"
     for volume in blacklist_blacklist-collector-data blacklist_blacklist-collector-logs; do
         docker volume create "${volume}" > /dev/null || log_error "Unable to create collector volume ${volume}."
-        docker run --rm --user 0:0 --cap-drop ALL --cap-add CHOWN --network none --read-only \
+        # CAP_FOWNER is required because chmod runs after chown: once /target belongs to
+        # 10001, uid 0 is no longer its owner and the kernel rejects chmod without FOWNER.
+        docker run --rm --user 0:0 --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --network none --read-only \
             --security-opt no-new-privileges:true --entrypoint sh -v "${volume}:/target" "${image}" \
             -c 'chown -R 10001:10001 /target && chmod 750 /target' > /dev/null ||
             log_error "Unable to set collector volume ownership for ${volume}."

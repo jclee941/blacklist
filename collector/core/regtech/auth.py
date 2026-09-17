@@ -143,6 +143,15 @@ class RegtechAuthMixin:
         logger.error("❌ REGTECH 인증 실패")
         return False
 
+    def invalidate_session(self) -> None:
+        # _is_jwt_valid only tracks a local timer, so a session REGTECH killed server-side
+        # would otherwise stay "valid" for the full cache TTL and fail every later run.
+        self.authenticated = False
+        self._jwt_expiry = None
+        self._auth_cache.clear()
+        self.session.cookies.clear()
+        logger.info("🔄 REGTECH 세션 무효화 - 다음 요청에서 재인증")
+
     def _is_jwt_valid(self) -> bool:
         if not self._jwt_expiry:
             return False

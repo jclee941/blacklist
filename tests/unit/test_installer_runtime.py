@@ -246,6 +246,17 @@ def test_loaded_images_and_collector_volumes_match_runtime_identity() -> None:
     assert "chown -R 10001:10001" in volume_body
 
 
+def test_collector_volume_prep_can_chmod_after_chown() -> None:
+    # Given: the collector volume preparation function.
+    volume_body = installer_function("prepare_collector_volumes")
+
+    # When: the container chowns /target away from uid 0 and then chmods it.
+    assert "chown -R 10001:10001 /target && chmod 750 /target" in volume_body
+
+    # Then: FOWNER is granted, because chmod on a non-owned path is EPERM without it.
+    assert "--cap-add FOWNER" in volume_body
+
+
 def test_generated_environment_defaults_warp_to_disabled() -> None:
     generated_env_body = installer_function("generate_env_file")
 

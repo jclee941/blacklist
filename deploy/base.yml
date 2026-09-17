@@ -144,6 +144,7 @@ services:
       WARP_PROXY_URL: ""
       FORTIGATE_CA_CERT: /run/blacklist/fortigate/ca.crt
       FORTIGATE_SSH_KNOWN_HOSTS: /run/blacklist/fortigate/known_hosts
+      MAX_PAGES_PER_COLLECTION: ${MAX_PAGES_PER_COLLECTION:-20}
       REGTECH_RATE_INITIAL: ${REGTECH_RATE_INITIAL:-}
       REGTECH_RATE_MIN: ${REGTECH_RATE_MIN:-}
       REGTECH_RATE_MAX: ${REGTECH_RATE_MAX:-}

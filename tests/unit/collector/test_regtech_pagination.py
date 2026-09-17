@@ -108,6 +108,46 @@ def test_collect_blacklist_data_retries_transient_page_failure(
     assert len(result) == 2
 
 
+def test_collect_blacklist_data_reauthenticates_after_session_expiry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests: list[int] = []
+    reauth_calls: list[int] = []
+    holder: list[RegtechCollector] = []
+
+    def collect_page(
+        page_num: int,
+        _page_size: int,
+        _start_date: str | None,
+        _end_date: str | None,
+    ) -> list[dict[str, str]] | None:
+        requests.append(page_num)
+        collector = holder[0]
+        if page_num == 2 and requests.count(2) == 1:
+            collector._last_failure_kind = "session_expired"
+            return None
+        collector._last_failure_kind = None
+        return [{"ip_address": f"192.0.2.{page_num}"}]
+
+    collector = _prepare_collector(
+        monkeypatch,
+        CollectorScenario(strategies=(("전체 데이터", None, None),), collect_page=collect_page),
+    )
+    holder.append(collector)
+
+    def ensure_authenticated() -> bool:
+        reauth_calls.append(1)
+        return True
+
+    monkeypatch.setattr(collector, "_ensure_authenticated", ensure_authenticated)
+
+    result = collector.collect_blacklist_data(page_size=REGTECH_PAGE_SIZE, max_pages=2)
+
+    assert requests == [1, 2, 2]
+    assert len(result) == 2
+    assert len(reauth_calls) == 2
+
+
 def test_collect_blacklist_data_attempts_excel_once_before_html_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
