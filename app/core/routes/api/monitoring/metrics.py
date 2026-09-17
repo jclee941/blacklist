@@ -77,7 +77,7 @@ def get_cache_stats():
     try:
         stats = cache_metrics.get_statistics()
         return jsonify({"success": True, "data": stats})
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to retrieve cache statistics")
         raise InternalServerError(message="Failed to retrieve cache statistics")
 
@@ -140,7 +140,7 @@ def get_cache_operations():
                 },
             }
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to retrieve cache operations")
         raise InternalServerError(message="Failed to retrieve cache operations")
 
@@ -196,7 +196,7 @@ def get_cache_trends():
         trends = cache_metrics.get_cache_trends(window_minutes=window_minutes, bucket_minutes=bucket_minutes)
 
         return jsonify({"success": True, "data": trends})
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to retrieve cache trends")
         raise InternalServerError(message="Failed to retrieve cache trends")
 
@@ -251,7 +251,7 @@ def get_top_cache_keys():
         top_keys = cache_metrics.get_top_keys(by=by, limit=limit)
 
         return jsonify({"success": True, "data": top_keys, "sorted_by": by, "limit": limit})
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to retrieve top cache keys")
         raise InternalServerError(message="Failed to retrieve top cache keys")
 
