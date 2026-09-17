@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.5] - 2026-09-17
+
+### Fixed
+
+- fix(api): use common error handling for cache metrics
+
+---
+
 ## [5.1.4] - 2026-09-16
 
 ### Fixed
