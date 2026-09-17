@@ -7,6 +7,7 @@ Created: 2025-11-21 (Cache Metrics Integration - MEDIUM PRIORITY #8)
 
 import logging
 from flask import jsonify, request
+from core.exceptions import InternalServerError
 from . import monitoring_bp
 from core.utils.response_utils import safe_error_message
 
@@ -78,7 +79,7 @@ def get_cache_stats():
         return jsonify({"success": True, "data": stats})
     except Exception as e:
         logger.exception("Failed to retrieve cache statistics")
-        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
+        raise InternalServerError(message="Failed to retrieve cache statistics")
 
 
 @monitoring_bp.route("/monitoring/cache/operations", methods=["GET"])
@@ -141,7 +142,7 @@ def get_cache_operations():
         )
     except Exception as e:
         logger.exception("Failed to retrieve cache operations")
-        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
+        raise InternalServerError(message="Failed to retrieve cache operations")
 
 
 @monitoring_bp.route("/monitoring/cache/trends", methods=["GET"])
@@ -197,7 +198,7 @@ def get_cache_trends():
         return jsonify({"success": True, "data": trends})
     except Exception as e:
         logger.exception("Failed to retrieve cache trends")
-        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
+        raise InternalServerError(message="Failed to retrieve cache trends")
 
 
 @monitoring_bp.route("/monitoring/cache/top-keys", methods=["GET"])
@@ -252,7 +253,7 @@ def get_top_cache_keys():
         return jsonify({"success": True, "data": top_keys, "sorted_by": by, "limit": limit})
     except Exception as e:
         logger.exception("Failed to retrieve top cache keys")
-        return jsonify({"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(e)}}), 500
+        raise InternalServerError(message="Failed to retrieve top cache keys")
 
 
 @monitoring_bp.route("/monitoring/metrics", methods=["GET"])
