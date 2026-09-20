@@ -11,6 +11,7 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).parents[2]
 DEVELOPMENT_COMPOSE = PROJECT_ROOT / "deploy" / "docker-compose.yml"
+RELEASE_COMPOSE = PROJECT_ROOT / "deploy" / "docker-compose.release.yml"
 STUB_ENV = """\
 BLACKLIST_VERSION=4.1.0
 POSTGRES_PASSWORD=x
@@ -37,21 +38,26 @@ class PublishedPort(TypedDict):
 class RenderedService(TypedDict, total=False):
     network_mode: str
     ports: list[PublishedPort]
+    environment: dict[str, str]
 
 
 class RenderedCompose(TypedDict):
     services: dict[str, RenderedService]
 
 
-def _render_compose(tmp_path: Path) -> subprocess.CompletedProcess[str]:
+def _render_compose(
+    tmp_path: Path,
+    compose_file: Path = DEVELOPMENT_COMPOSE,
+    extra_env: str = "",
+) -> subprocess.CompletedProcess[str]:
     env_file = tmp_path / "compose.env"
-    _ = env_file.write_text(STUB_ENV, encoding="utf-8")
+    _ = env_file.write_text(STUB_ENV + extra_env, encoding="utf-8")
     return subprocess.run(
         [
             "docker",
             "compose",
             "-f",
-            str(DEVELOPMENT_COMPOSE),
+            str(compose_file),
             "--env-file",
             str(env_file),
             "config",
@@ -62,6 +68,7 @@ def _render_compose(tmp_path: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         check=False,
         text=True,
+        timeout=30,
     )
 
 
@@ -94,3 +101,28 @@ def test_no_service_uses_host_network_mode(tmp_path: Path) -> None:
 
     # Then: no rendered service joins the host network namespace.
     assert all(service.get("network_mode") != "host" for service in rendered["services"].values())
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("docker") is None, reason="Docker is required")
+@pytest.mark.parametrize("compose_file", (DEVELOPMENT_COMPOSE, RELEASE_COMPOSE), ids=("development", "release"))
+@pytest.mark.parametrize(
+    ("configured", "expected"),
+    ((None, "127.0.0.1,::1"), ("", ""), ("198.51.100.42,203.0.113.", "198.51.100.42,203.0.113.")),
+    ids=("default", "disabled", "operator-override"),
+)
+def test_rate_limit_whitelist_reaches_app_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    compose_file: Path,
+    configured: str | None,
+    expected: str,
+) -> None:
+    monkeypatch.delenv("RATE_LIMIT_WHITELIST", raising=False)
+    extra_env = "" if configured is None else f"RATE_LIMIT_WHITELIST={configured}\n"
+
+    result = _render_compose(tmp_path, compose_file, extra_env)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    rendered = cast(RenderedCompose, json.loads(result.stdout))
+    assert rendered["services"]["blacklist-app"].get("environment", {}).get("RATE_LIMIT_WHITELIST") == expected
