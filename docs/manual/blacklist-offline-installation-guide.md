@@ -67,7 +67,7 @@ FRONTEND_TLS_MODE=self-signed
 FRONTEND_BIND_ADDRESS=127.0.0.1
 ```
 
-관리자 비밀번호는 최초 설치 완료 시 한 번만 출력됩니다. 즉시 비밀번호 관리자에 저장하십시오. 원본은 권한이 제한된 `/etc/blacklist/.env`에 보관됩니다.
+관리자 비밀번호는 화면에 출력하지 않습니다. 신규 생성 시 `/etc/blacklist/.env.initial-admin-password`에 권한 `0600`으로 저장됩니다. 이 파일에서 비밀번호 관리자로 가져온 뒤 관리자 화면에서 비밀번호를 변경하십시오. `/etc/blacklist/.env`의 `ADMIN_PASSWORD`는 최초 DB 초기화용이며, 관리자 비밀번호 변경 후에는 해당 값도 덮어쓰십시오.
 
 설치 전에 번들 무결성만 읽기 전용으로 검증할 수 있습니다. 대상 `.env`가 있으면 runtime security posture도 함께 검증합니다.
 
