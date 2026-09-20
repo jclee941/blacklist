@@ -12,6 +12,8 @@ Blacklist 5.1.5는 제로베이스 오프라인 설치 및 REGTECH 데이터 수
   - REGTECH 수집 시 WAF/세션 만료(HTTP 302/401/500)가 발생하면 즉시 인증 캐시를 무효화하여 죽은 세션을 재사용하는 문제를 해결했습니다.
 - **프론트엔드 대시보드:** `/api/dashboard/status` 응답의 envelope 구조(`{success, data}`)를 올바르게 파싱하도록 수정하여, 실제로는 정상 상태인 API 서버와 데이터베이스가 대시보드에 항상 "오류"로 표시되던 버그를 고쳤습니다.
 
-## 알려진 문제
+## 오프라인 설치 패키지
 
-- `RATE_LIMIT_WHITELIST` 변수가 `.env.example`에는 문서화되어 있으나 `deploy/base.yml`에서 실제 앱 컨테이너로 전달되지 않고 있습니다. E2E 테스트와 같은 단일 IP 대량 접근 시 로그인 속도 제한(5/min)에 걸릴 수 있습니다.
+- 기존 `tar.gz`와 함께 `blacklist-5.1.5-release.zip` 및 SHA-256 체크섬을 제공합니다. ZIP에는 동일한 서명된 매니페스트, 설치 스크립트, 서비스 이미지 5개와 운영 문서가 포함됩니다.
+- ZIP을 해제한 뒤 `blacklist-5.1.5` 디렉터리에서 `sudo bash install.sh`를 실행합니다. 설치기는 매니페스트 서명과 이미지 체크섬을 검증한 후 포함된 이미지를 로드합니다.
+- 대상 호스트의 Docker Engine·Compose와 설치 도구, 신뢰할 릴리즈 공개키 및 프론트엔드 TLS 인증서는 오프라인 반입 전에 준비해야 합니다. 상세 절차는 패키지의 `docs/blacklist-offline-installation-guide.md`를 따릅니다.

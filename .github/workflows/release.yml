@@ -367,10 +367,20 @@ jobs:
           cp docs/manual/blacklist-release-signing-key-v1.asc "${BUNDLE}-release-public-key.asc"
           cp docs/manual/blacklist-release-signing-key-v1.fingerprint "${BUNDLE}-release-key.fingerprint"
           cp "docs/manual/blacklist-${RELEASE_VERSION}-release-notes.md" "${BUNDLE}-release-notes.md"
+      - name: Package signed installation payload as ZIP
+        id: release-zip
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          BUNDLE="blacklist-${RELEASE_VERSION}"
+          (cd release-signed && zip -qr "../${BUNDLE}-release.zip" "${BUNDLE}")
+          sha256sum "${BUNDLE}-release.zip" > "${BUNDLE}-release.zip.sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-bundle
           path: |
+            blacklist-*-release.zip
+            blacklist-*-release.zip.sha256
             blacklist-*.tar.gz
             blacklist-*.tar.gz.asc
             blacklist-*.tar.gz.sha256
@@ -407,6 +417,8 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --title "Release $RELEASE_VERSION" \
             --notes-file "${BUNDLE}-release-notes.md" \
+            blacklist-*-release.zip \
+            blacklist-*-release.zip.sha256 \
             blacklist-*.tar.gz \
             blacklist-*.tar.gz.asc \
             blacklist-*.tar.gz.sha256 \
