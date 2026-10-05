@@ -19,7 +19,7 @@ Compose inheritance for offline/air-gapped deployment. `base.yml` is the source 
 
 Only `blacklist-frontend` publishes a host port (`443` -> container `3000`). Postgres, Redis, the collector, and the app publish nothing; every service talks over the `blacklist-net` bridge using certificates under `BLACKLIST_TLS_DIR` (default `/etc/blacklist/tls`).
 
-- Frontend: `FRONTEND_TLS_MODE=provided` requires an operator certificate/key at `FRONTEND_TLS_DIR` matching `FRONTEND_TLS_SERVER_NAME`; `install.sh` checks expiry, hostname match, and that the key matches the cert. `self-signed` mode is loopback-only and for development.
+- Frontend: `FRONTEND_TLS_MODE=provided` requires an operator certificate/key at `FRONTEND_TLS_DIR` matching `FRONTEND_TLS_SERVER_NAME`; `install.sh` checks expiry, hostname match, and that the key matches the cert. `--server-name`, `--tls-cert`, and `--tls-key` install them. Hostname coverage is judged from openssl's verdict text because `x509 -checkhost`/`-checkip` exit 0 on a mismatch. `self-signed` mode is loopback-only and for development.
 - Internal traffic (Postgres, Redis, collector, app): install-generated CA. Postgres uses `sslmode=verify-full`; Redis is TLS-only (`tls-auth-clients no`, plaintext port disabled).
 
 ## WARP
@@ -28,11 +28,12 @@ Only `blacklist-frontend` publishes a host port (`443` -> container `3000`). Pos
 
 ## INSTALL FLOW (`install.sh`)
 
-1. Verify `MANIFEST.sha256` entries and its detached signature (`MANIFEST.sha256.asc`) before any mutation.
-2. Install Docker/Compose if missing.
-3. Verify image `checksums.sha256` immediately before loading images (`load_images`), then load them and provision internal + frontend TLS material.
-4. Start `blacklist-postgres` alone, wait for its health check, then run `configure-runtime-roles.sh` inside the container to bootstrap DB roles.
-5. Start the remaining services and wait for every container to report healthy.
+1. Check operator inputs before any mutation: the host release keyring or `--release-key` + `--fingerprint`, the frontend server name, and the certificate/key. Every missing item is reported at once.
+2. Register a `--release-key` whose fingerprint matches (a different existing keyring is never replaced), then verify `MANIFEST.sha256` entries and its detached signature (`MANIFEST.sha256.asc`).
+3. Install Docker/Compose if missing.
+4. Verify image `checksums.sha256` immediately before loading images (`load_images`), load them, generate secrets (writing the initial admin password file right away), and provision internal TLS plus the frontend certificate/key and server name.
+5. Start `blacklist-postgres` alone, wait for its health check, then run `configure-runtime-roles.sh` inside the container to bootstrap DB roles; its output is printed only on failure.
+6. Start the remaining services and wait for every container to report healthy.
 
 ## CONVENTIONS
 
@@ -44,5 +45,5 @@ Only `blacklist-frontend` publishes a host port (`443` -> container `3000`). Pos
 ## NOTES
 
 - The app reaches collector control routes through `COLLECTOR_URL` (`app/core/config.py`, default `https://blacklist-collector:8545`).
-- `install.sh` auto-generates `ADMIN_USERNAME=admin` and a random `ADMIN_PASSWORD` in `.env` on every fresh deployment and writes the initial password to a protected, operator-only file for import into a password manager; there is no separate manual fallback step.
+- `install.sh` auto-generates `ADMIN_USERNAME=admin` and a random `ADMIN_PASSWORD` in `.env` on every fresh deployment and writes the initial password to a protected, operator-only file as soon as the secrets are generated, for import into a password manager; there is no separate manual fallback step.
 - `ADMIN_PASSWORD` only bootstraps the administrator row: once the app writes the bcrypt hash, the DB is authoritative and the env value is never reactivated. It stays readable in `.env` and through `docker inspect`, so the installer instructs the operator to rotate the password in the dashboard and overwrite the `.env` value afterwards.

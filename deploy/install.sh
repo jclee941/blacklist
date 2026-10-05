@@ -33,12 +33,22 @@ STOP_ALL_CONTAINERS=false
 SKIP_POSTURE_CHECK=false
 REQUIRE_SIGNATURE=false
 ADMIN_CREDENTIALS_GENERATED=false
+RELEASE_KEY_FILE=""
+RELEASE_KEY_FINGERPRINT=""
+RELEASE_KEY_EXPECTED=""
+STAGED_KEYRING_DIR=""
+FRONTEND_SERVER_NAME_ARG=""
+FRONTEND_TLS_CERT_ARG=""
+FRONTEND_TLS_KEY_ARG=""
+OPERATOR_PROBLEMS=()
 POSTURE_COMPOSE_FILES=()
 readonly PUBLISHED_FRONTEND_PORT=443
 readonly HEALTH_WAIT_TIMEOUT_SECONDS=180
 readonly HEALTH_POLL_INTERVAL_SECONDS=5
 readonly TLS_ROOT_UID="${BLACKLIST_TLS_ROOT_UID:-0}"
 readonly TLS_ROOT_GID="${BLACKLIST_TLS_ROOT_GID:-0}"
+readonly FRONTEND_TLS_UID="${BLACKLIST_FRONTEND_UID:-1001}"
+readonly FRONTEND_TLS_GID="${BLACKLIST_FRONTEND_GID:-1001}"
 readonly -a TLS_SERVICE_NAMES=("app" "collector" "postgres" "redis")
 readonly -a TLS_SERVICE_DNS_NAMES=("blacklist-app" "blacklist-collector" "blacklist-postgres" "blacklist-redis")
 readonly -a TLS_SERVICE_UIDS=(
@@ -216,7 +226,7 @@ verify_manifest() {
             MANIFEST.sha256|MANIFEST.sha256.asc) continue ;;
         esac
         if ! normalize_manifest_records | awk -v target="${relative_path}" '$2 == target { found=1 } END { exit(found ? 0 : 1) }'; then
-            log_error "Bundle contains an unlisted file: ${relative_path}"
+            log_error "Bundle contains an unlisted file: ${relative_path}. Keep release keys, certificates, and other operator files outside the bundle directory."
         fi
     done < <(find "${SCRIPT_DIR}" -type f -print0)
 
@@ -262,6 +272,78 @@ verify_manifest_signature() {
     fi
 
     log_success "Bundle manifest signature verified"
+}
+
+normalize_fingerprint() {
+    local value="${1//[[:space:]]/}"
+    value="${value#0[xX]}"
+    value="${value^^}"
+    [[ "${value}" =~ ^([0-9A-F]{40}|[0-9A-F]{64})$ ]] || return 1
+    printf '%s' "${value}"
+}
+
+cleanup_staged_keyring() {
+    if [ -n "${STAGED_KEYRING_DIR}" ] && [ -d "${STAGED_KEYRING_DIR}" ]; then
+        gpgconf --homedir "${STAGED_KEYRING_DIR}" --kill all > /dev/null 2>&1 || true
+        rm -rf -- "${STAGED_KEYRING_DIR}"
+    fi
+}
+
+primary_key_fingerprints() {
+    gpg --homedir "${STAGED_KEYRING_DIR}" --batch --with-colons --show-keys "$1" 2>/dev/null |
+        awk -F: '$1 == "pub" { primary = 1; next } primary && $1 == "fpr" { print toupper($10); primary = 0 }'
+}
+
+stage_release_keyring() {
+    local expected fingerprints
+
+    if ! expected=$(normalize_fingerprint "${RELEASE_KEY_FINGERPRINT}"); then
+        log_error "--fingerprint must be the 40- or 64-digit hexadecimal release key fingerprint confirmed through an independent channel."
+    fi
+    if [ ! -f "${RELEASE_KEY_FILE}" ] || [ ! -r "${RELEASE_KEY_FILE}" ]; then
+        log_error "Release public key is not a readable file: ${RELEASE_KEY_FILE}"
+    fi
+    command -v gpg > /dev/null 2>&1 || log_error "gpg is required to register --release-key."
+
+    STAGED_KEYRING_DIR=$(mktemp -d) || log_error "Unable to stage the release keyring."
+    trap cleanup_staged_keyring EXIT
+
+    if ! fingerprints=$(primary_key_fingerprints "${RELEASE_KEY_FILE}") || [ -z "${fingerprints}" ]; then
+        log_error "No OpenPGP public key could be read from ${RELEASE_KEY_FILE}."
+    fi
+    if [ "${fingerprints}" != "${expected}" ]; then
+        log_error "Release key fingerprint mismatch: ${RELEASE_KEY_FILE} holds ${fingerprints//$'\n'/, }, expected ${expected}. Do not install this package."
+    fi
+    if ! gpg --homedir "${STAGED_KEYRING_DIR}" --batch --quiet --import "${RELEASE_KEY_FILE}" > /dev/null 2>&1 ||
+        ! gpg --homedir "${STAGED_KEYRING_DIR}" --batch --export "${expected}" > "${STAGED_KEYRING_DIR}/release-pubkey.gpg" 2>/dev/null ||
+        [ ! -s "${STAGED_KEYRING_DIR}/release-pubkey.gpg" ]; then
+        log_error "Unable to stage the release keyring from ${RELEASE_KEY_FILE}."
+    fi
+    RELEASE_KEY_EXPECTED="${expected}"
+    log_success "Release key fingerprint matches ${expected}"
+}
+
+keyring_trusts_fingerprint() {
+    local fingerprints
+    fingerprints=$(primary_key_fingerprints "$1") || return 1
+    printf '%s\n' "${fingerprints}" | grep -Fxq "$2"
+}
+
+install_release_keyring() {
+    local keyring_dir
+
+    [ -n "${RELEASE_KEY_EXPECTED}" ] || return 0
+    if [ -f "${RELEASE_KEYRING}" ]; then
+        log_info "Host release keyring already trusts ${RELEASE_KEY_EXPECTED}"
+        return 0
+    fi
+    keyring_dir=$(dirname "${RELEASE_KEYRING}")
+    if [ ! -d "${keyring_dir}" ]; then
+        install -d -m 700 "${keyring_dir}" || log_error "Unable to create ${keyring_dir}."
+    fi
+    install -m 644 "${STAGED_KEYRING_DIR}/release-pubkey.gpg" "${RELEASE_KEYRING}" ||
+        log_error "Unable to register the release keyring at ${RELEASE_KEYRING}."
+    log_success "Registered release keyring ${RELEASE_KEYRING} (${RELEASE_KEY_EXPECTED})"
 }
 
 install_docker_offline() {
@@ -481,7 +563,11 @@ prepare_collector_volumes() {
     local volume
     local image="blacklist-collector:${VERSION}"
     for volume in blacklist_blacklist-collector-data blacklist_blacklist-collector-logs; do
-        docker volume create "${volume}" > /dev/null || log_error "Unable to create collector volume ${volume}."
+        if ! docker volume inspect "${volume}" > /dev/null 2>&1; then
+            docker volume create --label com.docker.compose.project=blacklist \
+                --label "com.docker.compose.volume=${volume#blacklist_}" "${volume}" > /dev/null ||
+                log_error "Unable to create collector volume ${volume}."
+        fi
         # CAP_FOWNER is required because chmod runs after chown: once /target belongs to
         # 10001, uid 0 is no longer its owner and the kernel rejects chmod without FOWNER.
         docker run --rm --user 0:0 --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --network none --read-only \
@@ -665,7 +751,9 @@ sync_frontend_tls_settings() {
     local temp_file
     local line
 
-    if read_required_secret_value "${env_file}" "FRONTEND_TLS_MODE"; then
+    if frontend_tls_inputs_given; then
+        mode="provided"
+    elif read_required_secret_value "${env_file}" "FRONTEND_TLS_MODE"; then
         mode="${DOTENV_NORMALIZED_VALUE}"
     fi
     case "${mode}" in
@@ -689,6 +777,11 @@ sync_frontend_tls_settings() {
         case "${line}" in
             FRONTEND_TLS_MODE=*|FRONTEND_BIND_ADDRESS=*)
                 ;;
+            FRONTEND_TLS_SERVER_NAME=*)
+                if [ -z "${FRONTEND_SERVER_NAME_ARG}" ]; then
+                    printf '%s\n' "${line}" >> "${temp_file}" || log_error "Unable to stage frontend TLS settings."
+                fi
+                ;;
             *)
                 printf '%s\n' "${line}" >> "${temp_file}" || log_error "Unable to stage frontend TLS settings."
                 ;;
@@ -697,6 +790,9 @@ sync_frontend_tls_settings() {
     {
         printf 'FRONTEND_TLS_MODE=%s\n' "${mode}"
         printf 'FRONTEND_BIND_ADDRESS=%s\n' "${bind_address}"
+        if [ -n "${FRONTEND_SERVER_NAME_ARG}" ]; then
+            printf 'FRONTEND_TLS_SERVER_NAME=%s\n' "${FRONTEND_SERVER_NAME_ARG}"
+        fi
     } >> "${temp_file}" || log_error "Unable to record frontend TLS settings."
     mv "${temp_file}" "${env_file}" || log_error "Unable to update frontend TLS settings in ${env_file}."
     chmod 600 "${env_file}" || log_error "Unable to protect updated frontend TLS settings."
@@ -845,6 +941,7 @@ setup_secrets() {
         chmod 600 "${env_file}" || log_error "Unable to protect generated environment file."
         ADMIN_CREDENTIALS_GENERATED=true
         log_success "Secrets generated (${env_file})"
+        write_initial_admin_password_file
     fi
 
 
@@ -973,18 +1070,168 @@ write_initial_admin_password_file() {
     printf '%s\n' "${DOTENV_NORMALIZED_VALUE}" > "${INITIAL_ADMIN_PASSWORD_FILE}" ||
         log_error "Unable to write initial administrator password file."
     chmod 600 "${INITIAL_ADMIN_PASSWORD_FILE}" || log_error "Unable to protect initial administrator password file."
-    log_warning "Initial administrator password written to ${INITIAL_ADMIN_PASSWORD_FILE}; import it into a password manager and delete the file."
+    log_success "Initial administrator password saved to ${INITIAL_ADMIN_PASSWORD_FILE} (mode 0600)"
+}
+
+print_initial_admin_password_notice() {
+    if [ ! -f "${INITIAL_ADMIN_PASSWORD_FILE}" ]; then
+        return 0
+    fi
+    log_warning "Initial administrator password is in ${INITIAL_ADMIN_PASSWORD_FILE}; import it into a password manager and delete the file."
     log_warning "The generated ADMIN_PASSWORD only bootstraps the administrator row; it stays readable in ${ENV_FILE} and through 'docker inspect'."
     log_warning "After the first login, rotate the password in the dashboard and overwrite ADMIN_PASSWORD in ${ENV_FILE} with an unused random value."
 }
 
 setup_trust_directories() {
     install -d -m 755 "${FORTIGATE_TRUST_DIR}" || log_error "Unable to create FortiGate trust directory."
-    install -d -m 700 -o 1001 -g 1001 "${FRONTEND_TLS_DIR}" || log_error "Unable to create persistent frontend TLS directory."
+    install -d -m 700 -o "${FRONTEND_TLS_UID}" -g "${FRONTEND_TLS_GID}" "${FRONTEND_TLS_DIR}" ||
+        log_error "Unable to create persistent frontend TLS directory."
+}
+
+frontend_certificate_problem() {
+    local certificate="$1"
+    local private_key="$2"
+    local server_name="$3"
+    local cert_public_key key_public_key coverage
+
+    if [ ! -r "${certificate}" ] || [ ! -r "${private_key}" ]; then
+        printf 'Frontend TLS certificate and private key must be readable: %s, %s' "${certificate}" "${private_key}"
+        return 1
+    fi
+    if ! openssl x509 -in "${certificate}" -noout -checkend 0 > /dev/null 2>&1; then
+        printf 'Frontend TLS certificate is invalid or expired: %s' "${certificate}"
+        return 1
+    fi
+    if ! cert_public_key=$(openssl x509 -in "${certificate}" -pubkey -noout 2>/dev/null | openssl pkey -pubin -outform pem 2>/dev/null | sha256sum | cut -d' ' -f1) ||
+        ! key_public_key=$(openssl pkey -in "${private_key}" -pubout -outform pem 2>/dev/null | sha256sum | cut -d' ' -f1); then
+        printf 'Unable to read the frontend TLS certificate or private key: %s, %s' "${certificate}" "${private_key}"
+        return 1
+    fi
+    if [ "${cert_public_key}" != "${key_public_key}" ]; then
+        printf 'Frontend TLS certificate and private key do not match: %s, %s' "${certificate}" "${private_key}"
+        return 1
+    fi
+    if [[ "${server_name}" =~ ^[0-9]+(\.[0-9]+){3}$ || "${server_name}" == *:* ]]; then
+        coverage=$(openssl x509 -in "${certificate}" -noout -checkip "${server_name}" 2>/dev/null) || coverage=""
+    else
+        coverage=$(openssl x509 -in "${certificate}" -noout -checkhost "${server_name}" 2>/dev/null) || coverage=""
+    fi
+    # openssl exits 0 even when the name does not match, so only its verdict text is authoritative.
+    if [[ "${coverage}" != *"does match certificate"* ]]; then
+        printf 'Frontend TLS certificate does not cover %s: %s' "${server_name}" "${certificate}"
+        return 1
+    fi
+}
+
+frontend_tls_inputs_given() {
+    [ -n "${FRONTEND_SERVER_NAME_ARG}${FRONTEND_TLS_CERT_ARG}${FRONTEND_TLS_KEY_ARG}" ]
+}
+
+collect_frontend_tls_problems() {
+    local mode="provided"
+    local server_name="${FRONTEND_SERVER_NAME_ARG}"
+    local certificate="${FRONTEND_TLS_CERT_ARG:-${FRONTEND_TLS_DIR}/server.crt}"
+    local private_key="${FRONTEND_TLS_KEY_ARG:-${FRONTEND_TLS_DIR}/server.key}"
+    local problem
+
+    if ! frontend_tls_inputs_given && [ -r "${ENV_FILE}" ] &&
+        read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_MODE"; then
+        mode="${DOTENV_NORMALIZED_VALUE}"
+    fi
+    case "${mode}" in
+        self-signed)
+            return 0
+            ;;
+        provided)
+            ;;
+        *)
+            OPERATOR_PROBLEMS+=("FRONTEND_TLS_MODE in ${ENV_FILE} must be either provided or self-signed.")
+            return 0
+            ;;
+    esac
+
+    if [ -z "${server_name}" ] && [ -r "${ENV_FILE}" ] &&
+        read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_SERVER_NAME"; then
+        server_name="${DOTENV_NORMALIZED_VALUE}"
+    fi
+    if [ -z "${server_name}" ]; then
+        OPERATOR_PROBLEMS+=("Frontend server name is missing: pass --server-name NAME with the FQDN or IP address clients use.")
+    elif ! [[ "${server_name}" =~ ^[A-Za-z0-9.:-]{1,253}$ ]]; then
+        OPERATOR_PROBLEMS+=("Frontend server name is not a valid host name or IP address: ${server_name}")
+        server_name=""
+    fi
+
+    if [ ! -e "${certificate}" ] || [ ! -e "${private_key}" ]; then
+        OPERATOR_PROBLEMS+=("Frontend TLS certificate is missing: pass --tls-cert FILE --tls-key FILE, or place server.crt and server.key in ${FRONTEND_TLS_DIR}.")
+    elif [ -n "${server_name}" ] && ! problem=$(frontend_certificate_problem "${certificate}" "${private_key}" "${server_name}"); then
+        OPERATOR_PROBLEMS+=("${problem}")
+    fi
+}
+
+operator_file_inside_bundle() {
+    local path bundle
+    path=$(readlink -f -- "$1") || return 1
+    bundle=$(readlink -f -- "${SCRIPT_DIR}") || return 1
+    [[ "${path}" == "${bundle}"/* ]]
+}
+
+preflight_operator_inputs() {
+    local purpose="$1"
+    local operator_file problem
+
+    log_step "Verify Operator Inputs"
+    OPERATOR_PROBLEMS=()
+
+    for operator_file in "${RELEASE_KEY_FILE}" "${FRONTEND_TLS_CERT_ARG}" "${FRONTEND_TLS_KEY_ARG}"; do
+        if [ -n "${operator_file}" ] && operator_file_inside_bundle "${operator_file}"; then
+            OPERATOR_PROBLEMS+=("Move ${operator_file} outside the bundle directory; MANIFEST.sha256 rejects files it does not list.")
+        fi
+    done
+
+    if [ -n "${RELEASE_KEY_FILE}" ]; then
+        stage_release_keyring
+        if [ "${purpose}" = "install" ] && [ -f "${RELEASE_KEYRING}" ] &&
+            ! keyring_trusts_fingerprint "${RELEASE_KEYRING}" "${RELEASE_KEY_EXPECTED}"; then
+            OPERATOR_PROBLEMS+=("Host keyring ${RELEASE_KEYRING} does not trust ${RELEASE_KEY_EXPECTED}; remove it deliberately before rotating the release key.")
+        fi
+    elif [ "${purpose}" = "install" ] && [ ! -f "${RELEASE_KEYRING}" ]; then
+        OPERATOR_PROBLEMS+=("Release keyring is missing: ${RELEASE_KEYRING}. Pass --release-key FILE --fingerprint FPR, using the fingerprint confirmed through an independent channel.")
+    fi
+
+    if [ "${purpose}" = "install" ] || frontend_tls_inputs_given; then
+        collect_frontend_tls_problems
+    fi
+
+    if [ "${#OPERATOR_PROBLEMS[@]}" -gt 0 ]; then
+        for problem in "${OPERATOR_PROBLEMS[@]}"; do
+            echo -e "${RED}[FAIL]${NC} ${problem}"
+        done
+        log_error "Installation inputs are incomplete; nothing was changed. Run 'bash install.sh --help' for the one-command form."
+    fi
+    log_success "Operator inputs verified"
+}
+
+install_frontend_tls_file() {
+    local source="$1"
+    local destination="$2"
+    local mode="$3"
+
+    if [ "$(readlink -f -- "${source}")" = "$(readlink -f -- "${destination}")" ]; then
+        return 0
+    fi
+    install -m "${mode}" -o "${FRONTEND_TLS_UID}" -g "${FRONTEND_TLS_GID}" "${source}" "${destination}" ||
+        log_error "Unable to install ${destination}."
+}
+
+install_frontend_tls_material() {
+    [ -n "${FRONTEND_TLS_CERT_ARG}" ] || return 0
+    install_frontend_tls_file "${FRONTEND_TLS_CERT_ARG}" "${FRONTEND_TLS_DIR}/server.crt" 644
+    install_frontend_tls_file "${FRONTEND_TLS_KEY_ARG}" "${FRONTEND_TLS_DIR}/server.key" 600
+    log_success "Frontend TLS certificate and key installed (${FRONTEND_TLS_DIR})"
 }
 
 validate_frontend_tls() {
-    local mode server_name cert_public_key key_public_key
+    local mode server_name problem
 
     read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_MODE" || log_error "FRONTEND_TLS_MODE is required."
     mode="${DOTENV_NORMALIZED_VALUE}"
@@ -995,22 +1242,8 @@ validate_frontend_tls() {
     read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_SERVER_NAME" ||
         log_error "FRONTEND_TLS_SERVER_NAME is required when FRONTEND_TLS_MODE=provided."
     server_name="${DOTENV_NORMALIZED_VALUE}"
-    if [ ! -r "${FRONTEND_TLS_DIR}/server.crt" ] || [ ! -r "${FRONTEND_TLS_DIR}/server.key" ]; then
-        log_error "Provided frontend TLS requires readable server.crt and server.key in ${FRONTEND_TLS_DIR}."
-    fi
-    openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -noout -checkend 0 > /dev/null ||
-        log_error "Provided frontend TLS certificate is invalid or expired."
-    cert_public_key=$(openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -pubkey -noout | openssl pkey -pubin -outform pem | sha256sum | cut -d' ' -f1) ||
-        log_error "Unable to read the frontend TLS certificate public key."
-    key_public_key=$(openssl pkey -in "${FRONTEND_TLS_DIR}/server.key" -pubout -outform pem | sha256sum | cut -d' ' -f1) ||
-        log_error "Unable to read the frontend TLS private key."
-    [ "${cert_public_key}" = "${key_public_key}" ] || log_error "Frontend TLS certificate and private key do not match."
-    if [[ "${server_name}" =~ ^[0-9a-fA-F:.]+$ ]]; then
-        openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -noout -checkip "${server_name}" > /dev/null ||
-            log_error "Frontend TLS certificate does not cover IP ${server_name}."
-    else
-        openssl x509 -in "${FRONTEND_TLS_DIR}/server.crt" -noout -checkhost "${server_name}" > /dev/null ||
-            log_error "Frontend TLS certificate does not cover host ${server_name}."
+    if ! problem=$(frontend_certificate_problem "${FRONTEND_TLS_DIR}/server.crt" "${FRONTEND_TLS_DIR}/server.key" "${server_name}"); then
+        log_error "${problem}"
     fi
 }
 
@@ -1130,9 +1363,12 @@ deploy_services() {
     fi
     printf '%s\n' "${compose_output}"
     wait_for_health "blacklist-postgres"
-    if ! docker exec blacklist-postgres /usr/local/bin/configure-runtime-roles.sh; then
+    local roles_output
+    if ! roles_output=$(docker exec blacklist-postgres /usr/local/bin/configure-runtime-roles.sh 2>&1); then
+        printf '%s\n' "${roles_output}"
         log_error "Failed to configure PostgreSQL runtime roles"
     fi
+    log_success "PostgreSQL runtime roles configured"
 
     log_info "Starting application services..."
     if ! compose_output=$(docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" up -d --pull never 2>&1); then
@@ -1249,19 +1485,30 @@ health_checks() {
 post_install() {
     log_step "Installation Complete"
 
+    local access_url="https://localhost"
+    local compose_command
+    if read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_MODE" && [ "${DOTENV_NORMALIZED_VALUE}" = "provided" ] &&
+        read_required_secret_value "${ENV_FILE}" "FRONTEND_TLS_SERVER_NAME"; then
+        access_url="https://${DOTENV_NORMALIZED_VALUE}"
+        if [[ "${DOTENV_NORMALIZED_VALUE}" == *:* ]]; then
+            access_url="https://[${DOTENV_NORMALIZED_VALUE}]"
+        fi
+    fi
+    printf -v compose_command 'docker compose --env-file %q -f %q' "${ENV_FILE}" "${SCRIPT_DIR}/docker-compose.yml"
+
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║  Blacklist Platform ${VERSION} Deployed Successfully      ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
     echo "Access Points:"
-    echo "  Frontend:  https://localhost:443"
+    echo "  Frontend:  ${access_url}"
     echo ""
-    echo "Management:"
-    echo "  Status:    docker compose ps"
-    echo "  Logs:      docker compose logs -f"
-    echo "  Stop:      docker compose down"
-    echo "  Restart:   docker compose restart"
+    echo "Management (as root):"
+    echo "  Status:    ${compose_command} ps"
+    echo "  Logs:      ${compose_command} logs -f"
+    echo "  Stop:      ${compose_command} down"
+    echo "  Restart:   ${compose_command} restart"
     echo ""
 }
 
@@ -1269,6 +1516,10 @@ show_help() {
     echo "Blacklist Offline Installer"
     echo ""
     echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "One-command installation (keep keys and certificates outside the bundle directory):"
+    echo "  sudo bash $0 --release-key KEY.asc --fingerprint FINGERPRINT \\"
+    echo "    --server-name blacklist.example.com --tls-cert server.crt --tls-key server.key"
     echo ""
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
@@ -1278,8 +1529,49 @@ show_help() {
     echo "  --stop-all-containers  Stop every running container on the host before deploying"
     echo "  --skip-posture-check  Deploy even if the security posture check fails (emergency use; logs a warning)"
     echo "  --require-signature  Require signature during --verify-only (installation always requires it)"
+    echo "  --release-key FILE   Register this release public key in ${RELEASE_KEYRING} (requires --fingerprint)"
+    echo "  --fingerprint FPR    Release key fingerprint confirmed through an independent channel"
+    echo "  --server-name NAME   FQDN or IP address clients use; the certificate must cover it"
+    echo "  --tls-cert FILE      Frontend TLS certificate in PEM (chain allowed); requires --tls-key"
+    echo "  --tls-key FILE       Frontend TLS private key in PEM"
     echo "  --help, -h     Show this help"
     echo ""
+}
+
+set_operator_input() {
+    local option="$1"
+    local value="$2"
+
+    if [ -z "${value}" ] || [[ "${value}" == --* ]]; then
+        log_error "Option ${option} requires a value."
+    fi
+    case "${option}" in
+        --release-key) RELEASE_KEY_FILE="${value}" ;;
+        --fingerprint) RELEASE_KEY_FINGERPRINT="${value}" ;;
+        --server-name) FRONTEND_SERVER_NAME_ARG="${value}" ;;
+        --tls-cert) FRONTEND_TLS_CERT_ARG="${value}" ;;
+        --tls-key) FRONTEND_TLS_KEY_ARG="${value}" ;;
+    esac
+}
+
+validate_operator_options() {
+    local maintenance_only="$1"
+
+    if [ -n "${RELEASE_KEY_FILE}" ] && [ -z "${RELEASE_KEY_FINGERPRINT}" ]; then
+        log_error "--release-key requires --fingerprint confirmed through an independent channel."
+    fi
+    if [ -z "${RELEASE_KEY_FILE}" ] && [ -n "${RELEASE_KEY_FINGERPRINT}" ]; then
+        log_error "--fingerprint requires --release-key."
+    fi
+    if [ -n "${FRONTEND_TLS_CERT_ARG}" ] && [ -z "${FRONTEND_TLS_KEY_ARG}" ]; then
+        log_error "--tls-cert requires --tls-key."
+    fi
+    if [ -z "${FRONTEND_TLS_CERT_ARG}" ] && [ -n "${FRONTEND_TLS_KEY_ARG}" ]; then
+        log_error "--tls-key requires --tls-cert."
+    fi
+    if [ "${maintenance_only}" = true ] && { [ -n "${RELEASE_KEY_FILE}" ] || frontend_tls_inputs_given; }; then
+        log_error "--release-key, --fingerprint, --server-name, --tls-cert, and --tls-key apply only to installation and --verify-only."
+    fi
 }
 
 main() {
@@ -1287,9 +1579,10 @@ main() {
     local check_secrets=false
     local generate_tls_only=false
     local verify_only=false
+    local maintenance_only=false
 
-    for arg in "$@"; do
-        case $arg in
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
             --skip-load) skip_load=true ;;
             --check-secrets) check_secrets=true ;;
             --generate-tls-only) generate_tls_only=true ;;
@@ -1297,10 +1590,23 @@ main() {
             --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
             --skip-posture-check) SKIP_POSTURE_CHECK=true ;;
             --require-signature) REQUIRE_SIGNATURE=true ;;
+            --release-key|--fingerprint|--server-name|--tls-cert|--tls-key)
+                set_operator_input "$1" "${2-}"
+                shift
+                ;;
+            --release-key=*|--fingerprint=*|--server-name=*|--tls-cert=*|--tls-key=*)
+                set_operator_input "${1%%=*}" "${1#*=}"
+                ;;
             --help|-h) show_help; exit 0 ;;
-            *) log_error "Unknown option: $arg" ;;
+            *) log_error "Unknown option: $1" ;;
         esac
+        shift
     done
+
+    if [ "$check_secrets" = true ] || [ "$generate_tls_only" = true ]; then
+        maintenance_only=true
+    fi
+    validate_operator_options "${maintenance_only}"
 
     if [ "$generate_tls_only" = true ]; then
         setup_internal_tls
@@ -1309,11 +1615,17 @@ main() {
 
     if [ "$check_secrets" = true ]; then
         setup_secrets
-        write_initial_admin_password_file
+        print_initial_admin_password_notice
         return 0
     fi
 
     if [ "$verify_only" = true ]; then
+        if [ -n "${RELEASE_KEY_FILE}" ] || frontend_tls_inputs_given; then
+            preflight_operator_inputs verify
+        fi
+        if [ -n "${RELEASE_KEY_EXPECTED}" ]; then
+            RELEASE_KEYRING="${STAGED_KEYRING_DIR}/release-pubkey.gpg"
+        fi
         preflight_verify
         verify_checksums
         if [ -f "${ENV_FILE}" ]; then
@@ -1334,6 +1646,8 @@ main() {
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
 
+    preflight_operator_inputs install
+    install_release_keyring
     preflight_checks
     verify_checksums
 
@@ -1346,6 +1660,7 @@ main() {
     setup_secrets
     setup_internal_tls
     setup_trust_directories
+    install_frontend_tls_material
     validate_frontend_tls
     prepare_collector_volumes
     validate_compose_config
@@ -1361,7 +1676,7 @@ main() {
     post_install
 
     log_success "Installation completed!"
-    write_initial_admin_password_file
+    print_initial_admin_password_notice
 }
 
 main "$@"
