@@ -26,17 +26,17 @@ if [ "$TLS_MODE" = "provided" ]; then
     exit 1
   fi
   case "$TLS_SERVER_NAME" in
-    *[!0-9a-fA-F:.]*)
-      openssl x509 -in "$SSL_CERT" -noout -checkhost "$TLS_SERVER_NAME" >/dev/null 2>&1 || {
-        echo "ERROR: frontend TLS certificate does not cover host $TLS_SERVER_NAME" >&2
-        exit 1
-      }
-      ;;
+    *:*) NAME_CHECK=-checkip ;;
+    *[!0-9.]*) NAME_CHECK=-checkhost ;;
+    *) NAME_CHECK=-checkip ;;
+  esac
+  # openssl exits 0 even when the name does not match, so only its verdict text is authoritative.
+  NAME_VERDICT=$(openssl x509 -in "$SSL_CERT" -noout "$NAME_CHECK" "$TLS_SERVER_NAME" 2>/dev/null || true)
+  case "$NAME_VERDICT" in
+    *"does match certificate"*) ;;
     *)
-      openssl x509 -in "$SSL_CERT" -noout -checkip "$TLS_SERVER_NAME" >/dev/null 2>&1 || {
-        echo "ERROR: frontend TLS certificate does not cover IP $TLS_SERVER_NAME" >&2
-        exit 1
-      }
+      echo "ERROR: frontend TLS certificate does not cover $TLS_SERVER_NAME" >&2
+      exit 1
       ;;
   esac
 elif [ "$TLS_MODE" = "self-signed" ]; then
