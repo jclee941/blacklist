@@ -298,6 +298,15 @@ def test_collector_volume_prep_can_chmod_after_chown() -> None:
     assert "--cap-add FOWNER" in volume_body
 
 
+def test_collector_volume_prep_can_traverse_an_already_prepared_volume() -> None:
+    # Given: a re-run finds the volume owned by 10001 with mode 750 from the previous run.
+    volume_body = installer_function("prepare_collector_volumes")
+
+    # Then: the capability-less root helper may still descend into it for chown -R.
+    assert "--cap-drop ALL" in volume_body
+    assert "--cap-add DAC_READ_SEARCH" in volume_body
+
+
 def test_generated_environment_defaults_warp_to_disabled() -> None:
     generated_env_body = installer_function("generate_env_file")
 

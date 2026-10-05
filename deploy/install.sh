@@ -570,7 +570,10 @@ prepare_collector_volumes() {
         fi
         # CAP_FOWNER is required because chmod runs after chown: once /target belongs to
         # 10001, uid 0 is no longer its owner and the kernel rejects chmod without FOWNER.
-        docker run --rm --user 0:0 --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --network none --read-only \
+        # CAP_DAC_READ_SEARCH lets chown -R descend into a volume an earlier run already left
+        # as 10001:10001 mode 750; without it every second re-run or upgrade fails with EACCES.
+        docker run --rm --user 0:0 --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --cap-add DAC_READ_SEARCH \
+            --network none --read-only \
             --security-opt no-new-privileges:true --entrypoint sh -v "${volume}:/target" "${image}" \
             -c 'chown -R 10001:10001 /target && chmod 750 /target' > /dev/null ||
             log_error "Unable to set collector volume ownership for ${volume}."
