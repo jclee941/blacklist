@@ -11,6 +11,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.6] - 2026-10-05
+
+### Breaking
+
+- 없음. 단계별 설치와 업그레이드 절차는 그대로 동작합니다. 다만 인증서 SAN이 `FRONTEND_TLS_SERVER_NAME`을 포함하지 않는 환경은 이제 설치 전에 중단되므로, 업그레이드 전에 인증서를 교체해야 합니다.
+
+### Added
+
+- feat(deploy): install the offline bundle with one command
+
+### Fixed
+
+- fix(release): keep the oldest unreleased commit in the changelog
+- fix(security): upgrade Alpine packages in the redis image
+- fix(security): bump PyJWT to 2.14.0
+
+### Other
+
+- docs(release): add 5.1.6 release notes
+- docs(manual): document one-command offline installation
+
+---
+
 ## [5.1.5] - 2026-09-17
 
 ### Fixed
