@@ -11,6 +11,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.7] - 2026-10-06
+
+### Breaking
+
+- 없음. 5.1.6 설치기는 이미 배포 전에 인증서 이름을 같은 기준으로 검사하므로, 설치기로 배포한 환경에는 영향이 없습니다.
+
+### Fixed
+
+- fix(deploy): let collector volume prep traverse prepared volumes
+- fix(deploy): probe the bound frontend address after installation
+- fix(frontend): judge TLS name coverage from openssl's verdict text
+
+### CI/CD
+
+- ci: pin GitHub-hosted runners to ubuntu-24.04
+- build(deps): apply Python minor and patch updates except numpy 2.5
+
+### Other
+
+- docs(release): add 5.1.7 release notes
+
+---
+
 ## [5.1.6] - 2026-10-05
 
 ### Breaking
