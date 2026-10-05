@@ -54,7 +54,7 @@ run-id: ${{ github.event.workflow_run.id }}
 pull_request:
 jobs:
   dependency-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 """,
         ".github/workflows/release.yml": """
 Release notes file not found
@@ -290,7 +290,7 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
         ),
         (
             ".github/workflows/security.yml",
-            "runs-on: ubuntu-latest",
+            "runs-on: ubuntu-24.04",
             "PR security dependency-scan job is not GitHub-hosted",
         ),
         (
@@ -357,6 +357,16 @@ def test_validator_rejects_parallel_ci_datastore_definition(
 
     assert result.returncode != 0
     assert "CI compose duplicates PostgreSQL or Redis instead of overriding deployment services" in result.stderr
+
+
+def test_validator_rejects_moving_ubuntu_latest_runner_label(tmp_path: Path) -> None:
+    files = valid_contract_files()
+    files[".github/workflows/ci.yml"] += "\n  lint:\n    runs-on: ubuntu-latest\n"
+
+    result = run_validator(tmp_path, files)
+
+    assert result.returncode != 0
+    assert "moving ubuntu-latest runner label in .github/workflows/ci.yml" in result.stderr
 
 
 def test_validator_rejects_ci_compose_credential_overrides(tmp_path: Path) -> None:

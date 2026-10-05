@@ -81,7 +81,7 @@ def main() -> None:
             ("make docs-check" in job_body(release, "test-release"), "release tests do not enforce docs-check"),
             ("pull_request:" in security, "security workflow does not scan pull requests"),
             (
-                "    runs-on: ubuntu-latest" in job_body(security, "dependency-scan")
+                "    runs-on: ubuntu-24.04" in job_body(security, "dependency-scan")
                 and "self-hosted" not in job_body(security, "dependency-scan")
                 and "vars.RUNNER" not in job_body(security, "dependency-scan"),
                 "PR security dependency-scan job is not GitHub-hosted",
@@ -253,6 +253,13 @@ def main() -> None:
         if MUTABLE_ACTION_REF.search(workflow.read_text(encoding="utf-8"))
     ]
     failures.extend(f"mutable action reference in {workflow}" for workflow in mutable_files)
+
+    moving_runner_files = [
+        workflow.relative_to(ROOT).as_posix()
+        for workflow in WORKFLOWS.glob("*.yml")
+        if "ubuntu-latest" in workflow.read_text(encoding="utf-8")
+    ]
+    failures.extend(f"moving ubuntu-latest runner label in {workflow}" for workflow in moving_runner_files)
 
     if failures:
         raise SystemExit("\n".join(f"ERROR: {failure}" for failure in failures))
