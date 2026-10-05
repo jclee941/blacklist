@@ -2,6 +2,8 @@ FROM redis:7-alpine
 
 LABEL description="Redis 7 for Blacklist Intelligence Platform"
 
+RUN apk upgrade --no-cache
+
 ARG APP_VERSION="0.0.0-dev"
 ARG BUILD_DATE=""
 ARG GIT_COMMIT="unknown"
