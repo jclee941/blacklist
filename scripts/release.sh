@@ -161,7 +161,7 @@ while IFS= read -r line; do
     chore)     ;; # Skip chore commits (version bumps, etc.)
     *)         OTHER="${OTHER}\n- ${line}" ;;
   esac
-done < <(git log "$COMMIT_RANGE" --pretty=format:"%s" --no-merges 2>/dev/null)
+done < <(git log "$COMMIT_RANGE" --pretty=tformat:"%s" --no-merges 2>/dev/null)
 
 BREAKING=$(awk '
   $0 == "## Breaking Changes" { found=1; next }
