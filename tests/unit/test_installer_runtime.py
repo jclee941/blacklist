@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 INSTALLER = Path(__file__).parents[2] / "deploy" / "install.sh"
 BUNDLE_IMAGES = (
@@ -208,6 +210,45 @@ def test_health_regex_rejects_error_payload() -> None:
     assert outcomes['{"status":"error"}'] == 1
     assert outcomes['{"status":"healthy"}'] == 0
     assert outcomes['{"status": "healthy"}'] == 0
+
+
+@pytest.mark.parametrize(
+    ("bind_address", "probed_url"),
+    [
+        ("0.0.0.0", "https://localhost:443/health"),
+        ("10.20.30.40", "https://10.20.30.40:443/health"),
+        ("fd00::5", "https://[fd00::5]:443/health"),
+    ],
+)
+def test_health_check_probes_the_bound_frontend_address(tmp_path: Path, bind_address: str, probed_url: str) -> None:
+    # Given: the frontend publishes 443 only on the configured bind address.
+    installer = tmp_path / "install.sh"
+    _ = installer.write_text(
+        INSTALLER.read_text(encoding="utf-8").replace('\nmain "$@"\n', "\nhealth_checks\n"),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    _ = env_file.write_text(f"FRONTEND_BIND_ADDRESS={bind_address}\n", encoding="utf-8")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    curl_log = tmp_path / "curl.log"
+    for name, source in (
+        ("docker", "#!/bin/sh\nexit 0\n"),
+        ("curl", f'#!/bin/sh\nprintf \'%s\\n\' "$*" >> {curl_log}\necho \'{{"status":"healthy"}}\'\n'),
+    ):
+        executable = bin_dir / name
+        _ = executable.write_text(source, encoding="utf-8")
+        executable.chmod(0o755)
+    environment = os.environ.copy()
+    environment["PATH"] = f"{bin_dir}{os.pathsep}{environment['PATH']}"
+    environment["BLACKLIST_ENV_FILE"] = str(env_file)
+
+    # When: the post-deployment health check runs.
+    result = subprocess.run(["bash", str(installer)], capture_output=True, check=False, env=environment, text=True)
+
+    # Then: it probes the address the frontend actually listens on.
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert probed_url in curl_log.read_text(encoding="utf-8")
 
 
 def test_health_check_does_not_probe_unpublished_ports() -> None:

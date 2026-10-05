@@ -1473,8 +1473,17 @@ health_checks() {
         log_error "Failed to read service status"
     fi
 
+    local probe_host="localhost"
+    if read_required_secret_value "${ENV_FILE}" "FRONTEND_BIND_ADDRESS"; then
+        case "${DOTENV_NORMALIZED_VALUE}" in
+            0.0.0.0|::) ;;
+            *:*) probe_host="[${DOTENV_NORMALIZED_VALUE}]" ;;
+            *) probe_host="${DOTENV_NORMALIZED_VALUE}" ;;
+        esac
+    fi
+
     echo ""
-    if curl -sk "https://localhost:${PUBLISHED_FRONTEND_PORT}/health" 2>/dev/null |
+    if curl -sk "https://${probe_host}:${PUBLISHED_FRONTEND_PORT}/health" 2>/dev/null |
         grep -Eq '"status"[[:space:]]*:[[:space:]]*"healthy"'; then
         log_success "Frontend: healthy"
     else
