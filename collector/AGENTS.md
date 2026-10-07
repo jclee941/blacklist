@@ -42,7 +42,7 @@ collector/
 - Adaptive intervals: 300s-3600s based on collection outcomes.
 - REGTECH pacing is env-tunable via `REGTECH_RATE_INITIAL/MIN/MAX/BURST` (defaults 0.2/0.1/0.5/1 req/s) and `REGTECH_BLOCK_THRESHOLD` (default 3) — conservative values that avoid the remote WAF's per-IP quota ban; consecutive block signals abort the run with `RegtechCollectionBlockedError`.
 - REGTECH page and Excel downloads run through `core/bounded_process.py`, capped at `COLLECTOR_MAX_DOWNLOAD_BYTES` (default 10 MiB). Page curl also passes `--max-filesize`; the bounded reader enforces the limit even for chunked responses.
-- REGTECH outbound proxying is controlled by `WARP_PROXY_URL` alone — `collector/core/regtech/collector.py` reads only that variable, and a nonempty value enables the proxy. `WARP_ENABLED` is a compose-level posture flag for documentation/tooling; collector code never reads it. Dev Compose defaults both to a Cloudflare WARP proxy at `host.docker.internal:40000`; the base/release/production overlays set both to disabled/empty.
+- REGTECH outbound proxying is switched by `WARP_ENABLED` (`true`/`1`/`yes`) and located by `WARP_PROXY_URL`: `collector/core/regtech/collector.py` applies the URL to the requests session and every curl download only while the switch is on, and logs a warning and connects directly if the switch is on without a URL. Base and release Compose default the switch off and the URL to `http://host.docker.internal:40000`; dev Compose defaults the switch on.
 
 ## CODE MAP
 

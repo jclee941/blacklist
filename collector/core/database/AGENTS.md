@@ -35,6 +35,7 @@ Schema changes belong in `postgres/migrations/`; the collector role cannot `CREA
 - Parameterized queries only; batch inserts chunk via `CollectorConfig.BATCH_SIZE`.
 - `ON CONFLICT (...) DO UPDATE` for every upsert (`_fallback_batch_insert`).
 - IP filtering excludes private/loopback/link-local/reserved ranges and already-expired `removal_date` rows before insert.
+- The `collection_status` row `REGTECH_INITIAL` holds the initial 90-day backfill state (`get_initial_collection_state`/`save_initial_collection_state`, `config` JSONB). `has_blacklist_data` raises on a database error instead of returning a default, so an outage never looks like an empty database.
 
 ## ANTI-PATTERNS
 

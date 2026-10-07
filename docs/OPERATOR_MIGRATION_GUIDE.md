@@ -57,7 +57,7 @@ Restore the same `CREDENTIAL_MASTER_KEY` and `ENCRYPTION_SALT` used when the cre
 
 ### Collection cannot reach REGTECH
 
-Check Collector logs and the WARP deployment mode. WARP is supported only by the development overlay; production bundles keep it disabled. Confirm normal production egress rather than enabling the development proxy in production.
+Check Collector logs and the WARP setting. Bundles default `WARP_ENABLED=false`; confirm normal production egress first, and switch WARP on in `/etc/blacklist/.env` only when REGTECH blocks the host's public IP and a WARP proxy is reachable from the Docker gateway.
 
 ### Rollback
 

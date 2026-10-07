@@ -76,7 +76,7 @@ The supported release entry point is `scripts/release.sh`, exposed as `make rele
 - Do not add secrets, real credentials, private hosts, or internal network addresses to tracked files.
 - Update `VERSION`, `CHANGELOG.md`, `frontend/package.json`, and `frontend/package-lock.json` only through the release flow unless a deliberate version maintenance change requires otherwise.
 - Keep DDL and grants in `postgres/` migrations/bootstrap scripts; app and collector runtime roles do not own schema objects.
-- WARP is development-only. Production base, release overlay, and installer keep it disabled.
+- WARP is an opt-in egress proxy for the collector's REGTECH traffic only. Base, release overlay, and installer default it off, the installer never overrides the operator's `WARP_ENABLED` in the env file, and development defaults it on.
 
 ## Anti-Patterns
 

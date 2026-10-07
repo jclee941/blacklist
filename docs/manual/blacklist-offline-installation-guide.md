@@ -54,10 +54,25 @@ sudo bash install.sh \
 1. 공개키 fingerprint, 접속 이름, 인증서 유효기간, 개인키 일치, SAN 포함 여부를 먼저 확인합니다. 부족한 항목이 있으면 모두 출력하고 아무것도 변경하지 않은 채 종료합니다.
 2. 공개키를 `/etc/blacklist/release-pubkey.gpg`에 등록합니다. 다른 키가 이미 등록돼 있으면 교체하지 않고 중단합니다.
 3. 매니페스트 서명과 이미지 체크섬을 검증한 뒤 이미지를 로드합니다.
-4. 관리자 비밀번호와 암호화 키를 생성하고, 인증서와 개인키를 `/etc/blacklist/frontend-tls`에, 접속 이름을 `/etc/blacklist/.env`에 기록합니다.
+4. `/etc/blacklist/.env`에 없는 관리자 비밀번호와 암호화 키를 생성하고, 인증서와 개인키를 `/etc/blacklist/frontend-tls`에, 접속 이름을 `/etc/blacklist/.env`에 기록합니다.
 5. 서비스를 시작하고 다섯 컨테이너가 모두 healthy가 될 때까지 기다립니다.
 
 관리자 비밀번호는 화면에 출력하지 않습니다. 시크릿을 생성하는 즉시 `/etc/blacklist/.env.initial-admin-password`에 권한 `0600`으로 저장합니다. 이 파일에서 비밀번호 관리자로 가져온 뒤 파일을 삭제하고 관리자 화면에서 비밀번호를 변경하십시오. `/etc/blacklist/.env`의 `ADMIN_PASSWORD`는 최초 DB 초기화용이므로, 비밀번호를 변경한 뒤 이 값도 덮어쓰십시오.
+
+관리자 계정이나 REGTECH 로그인을 직접 정하려면 첫 설치 전에 `/etc/blacklist/.env`를 만들고 정할 값만 적습니다. 기존 배포가 없으면 설치기가 적힌 값을 그대로 두고 나머지 시크릿만 생성하며, 이 경우 초기 비밀번호 파일은 만들지 않습니다. `ADMIN_PASSWORD`는 12자 이상, 72바이트 이하여야 하고 `$` 문자는 쓸 수 없습니다. `REGTECH_ID`/`REGTECH_PW`는 둘 다 적거나 둘 다 비워 둡니다. 앱이 처음 기동할 때 저장된 REGTECH 로그인이 없으면 이 값을 암호화해 저장하고, 수집기가 최근 3개월 최초 수집을 자동으로 시작합니다. 이후 변경은 관리자 화면에서 합니다.
+
+```bash
+sudo install -d -o root -g root -m 0700 /etc/blacklist
+sudoedit /etc/blacklist/.env
+```
+
+```text
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<12자 이상 비밀번호>
+REGTECH_ID=<REGTECH 아이디>
+REGTECH_PW=<REGTECH 비밀번호>
+WARP_ENABLED=false
+```
 
 같은 인자로 읽기 전용 사전 검증을 할 수 있습니다. 이 모드는 공개키를 호스트에 등록하지 않습니다.
 
@@ -124,14 +139,20 @@ curl --insecure --fail https://localhost/health
 
 ## 6. WARP 프록시
 
-WARP는 개발 overlay 전용입니다. `make dev`는 Collector에 다음 값을 전달합니다.
+WARP는 Collector의 REGTECH 요청에만 쓰는 선택 기능입니다. 실운영 설치에는 필요하지 않으며 기본값은 꺼짐입니다. 설치 서버의 공인 IP가 REGTECH에서 차단될 때만 `/etc/blacklist/.env`에서 켭니다.
 
 ```text
 WARP_ENABLED=true
-WARP_PROXY_URL=http://host.docker.internal:40000
+WARP_PROXY_URL=
 ```
 
-호스트 WARP proxy가 Docker 브리지에서 접근 가능해야 합니다. 일반 설치와 release overlay는 WARP를 항상 비활성화하며 운영 수집은 직접 연결을 사용합니다.
+`WARP_PROXY_URL`이 비어 있으면 Docker 호스트 게이트웨이인 `http://host.docker.internal:40000`을 사용합니다. 프록시는 Docker 브리지에서 접근할 수 있는 주소(예: `172.17.0.1:40000`)에서 수신해야 하며, `127.0.0.1`에만 바인딩된 프록시는 릴레이가 필요합니다. 설치기는 재실행해도 이 두 값을 바꾸지 않고, `WARP_ENABLED`가 `true`/`false`가 아니거나 URL 형식이 잘못되면 중단합니다. 값을 바꾼 뒤에는 설치기를 다시 실행하거나 Collector만 다시 만듭니다.
+
+```bash
+sudo docker compose --env-file /etc/blacklist/.env -f docker-compose.yml up -d blacklist-collector
+```
+
+`make dev`는 `WARP_ENABLED=true`가 기본값입니다.
 
 ## 7. 업그레이드
 
@@ -143,3 +164,25 @@ sudo bash install.sh
 ```
 
 인증서를 교체할 때는 `--server-name`, `--tls-cert`, `--tls-key`를 함께 넘깁니다. `--stop-all-containers`는 호스트의 모든 컨테이너를 중지하므로 일반 설치와 업그레이드에서 사용하지 않습니다.
+
+## 8. 데이터 포함 패키지
+
+이미 수집한 데이터를 담아 배포하면 새 설치에서 최근 3개월 수집을 다시 하지 않아도 됩니다. 데이터가 있는 설치 호스트의 패키지 디렉터리에서 `blacklist_ips`를 내보냅니다.
+
+```bash
+sudo bash install.sh --export-seed-data /root/blacklist-seed.csv.gz
+```
+
+서비스 이미지가 있는 저장소 체크아웃에서 그 파일을 넣어 패키지를 다시 만들고, 서명한 뒤 ZIP으로 묶습니다.
+
+```bash
+python3 scripts/build_offline_bundle.py --output /root/blacklist-data --seed-data /root/blacklist-seed.csv.gz
+gpg --armor --detach-sign --local-user <fingerprint> \
+  --output /root/blacklist-data/blacklist-<버전>/MANIFEST.sha256.asc \
+  /root/blacklist-data/blacklist-<버전>/MANIFEST.sha256
+cd /root/blacklist-data && zip -qr blacklist-<버전>-data.zip blacklist-<버전>
+```
+
+데이터 파일은 패키지의 `seed/blacklist_ips.csv.gz`에 들어가며 MANIFEST와 서명 검증 대상입니다. 패키지를 다시 만들면 `MANIFEST.sha256`이 바뀌어 공식 릴리스 서명은 맞지 않으므로, 설치 호스트에는 이 패키지에 서명한 키의 공개키와 fingerprint를 `--release-key`, `--fingerprint`로 등록합니다. 다른 릴리스 키가 이미 등록된 호스트에서는 서명 검증에 실패해 설치되지 않습니다.
+
+설치기는 DB가 비어 있을 때만 앱과 수집기를 시작하기 전에 이 데이터를 가져오고, 데이터가 이미 있는 DB는 건드리지 않습니다. 가져온 데이터가 있으므로 최초 3개월 수집은 건너뛰고 일일 수집만 이어집니다.
