@@ -22,7 +22,7 @@ def lease_returning(row, queries: list[str] | None = None):
 
 
 @pytest.fixture
-def app(monkeypatch):
+def fake_app(monkeypatch):
     monkeypatch.setenv("REGTECH_ID", "regtech-user")
     monkeypatch.setenv("REGTECH_PW", "regtech-password")
     application = MagicMock()
@@ -30,44 +30,44 @@ def app(monkeypatch):
     return application
 
 
-def test_env_credentials_are_stored_while_none_are_saved(app, monkeypatch):
+def test_env_credentials_are_stored_while_none_are_saved(fake_app, monkeypatch):
     monkeypatch.setattr(app_lifecycle, "connection_lease", lease_returning(None))
 
-    app_lifecycle.seed_regtech_credentials(app)
+    app_lifecycle.seed_regtech_credentials(fake_app)
 
-    app.extensions["secure_credential_service"].save_credentials.assert_called_once_with(
+    fake_app.extensions["secure_credential_service"].save_credentials.assert_called_once_with(
         "REGTECH", "regtech-user", "regtech-password", enabled=True
     )
 
 
-def test_initdb_placeholder_row_does_not_count_as_saved_credentials(app, monkeypatch):
+def test_initdb_placeholder_row_does_not_count_as_saved_credentials(fake_app, monkeypatch):
     # Given: postgres/initdb inserts a REGTECH row whose username and password are empty.
     queries: list[str] = []
     monkeypatch.setattr(app_lifecycle, "connection_lease", lease_returning(None, queries))
 
-    app_lifecycle.seed_regtech_credentials(app)
+    app_lifecycle.seed_regtech_credentials(fake_app)
 
     # Then: the existence check only matches filled credentials, so the placeholder is replaced.
     assert "COALESCE(username, '') <> ''" in queries[0]
     assert "COALESCE(password, '') <> ''" in queries[0]
-    app.extensions["secure_credential_service"].save_credentials.assert_called_once()
+    fake_app.extensions["secure_credential_service"].save_credentials.assert_called_once()
 
 
-def test_saved_credentials_are_never_overwritten(app, monkeypatch):
+def test_saved_credentials_are_never_overwritten(fake_app, monkeypatch):
     monkeypatch.setattr(app_lifecycle, "connection_lease", lease_returning((1,)))
 
-    app_lifecycle.seed_regtech_credentials(app)
+    app_lifecycle.seed_regtech_credentials(fake_app)
 
-    app.extensions["secure_credential_service"].save_credentials.assert_not_called()
+    fake_app.extensions["secure_credential_service"].save_credentials.assert_not_called()
 
 
 @pytest.mark.parametrize("missing", ["REGTECH_ID", "REGTECH_PW"])
-def test_incomplete_env_credentials_are_ignored(app, monkeypatch, missing):
+def test_incomplete_env_credentials_are_ignored(fake_app, monkeypatch, missing):
     monkeypatch.delenv(missing)
     lease = MagicMock()
     monkeypatch.setattr(app_lifecycle, "connection_lease", lease)
 
-    app_lifecycle.seed_regtech_credentials(app)
+    app_lifecycle.seed_regtech_credentials(fake_app)
 
     lease.assert_not_called()
-    app.extensions["secure_credential_service"].save_credentials.assert_not_called()
+    fake_app.extensions["secure_credential_service"].save_credentials.assert_not_called()
