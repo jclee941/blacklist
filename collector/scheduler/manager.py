@@ -14,6 +14,7 @@ import schedule
 from .dependencies import CollectorConfig, db_service
 from .operations import (
     cleanup_expired_ips,
+    collect_regtech_backfill as execute_regtech_backfill,
     collect_regtech_data as execute_regtech_collection,
     load_initial_stats,
     run_adaptive_collection,
@@ -24,6 +25,9 @@ from .operations import (
 
 
 logger = logging.getLogger(__name__)
+INITIAL_COLLECTION_CHECK_SECONDS = 60
+INITIAL_COLLECTION_RETRY_SECONDS = 3600
+INITIAL_COLLECTION_FINISHED_STATES = frozenset({"complete", "skipped"})
 
 
 class CollectionScheduler:
@@ -53,6 +57,7 @@ class CollectionScheduler:
         }
         self._active_collections: set[str] = set()
         self._active_collections_lock = threading.Lock()
+        self._initial_retry_at = 0.0
         self._load_initial_stats()
 
     def _load_initial_stats(self):
@@ -82,7 +87,8 @@ class CollectionScheduler:
         """24시간 단순 스케줄 설정"""
         schedule.every().day.at("02:00").do(self._daily_collection, "일일 정기")
         schedule.every().day.at("00:00").do(self._cleanup_expired_ips)
-        logger.info("📅 24시간 수집 스케줄 설정 완료 (REGTECH 02:00, 만료 정리 00:00)")
+        schedule.every(INITIAL_COLLECTION_CHECK_SECONDS).seconds.do(self._initial_collection).tag("initial")
+        logger.info("📅 24시간 수집 스케줄 설정 완료 (REGTECH 02:00, 만료 정리 00:00, 최초 3개월 수집 대기)")
 
     def _run_adaptive_collection(self) -> bool:
         """적응형 수집 실행"""
@@ -120,6 +126,39 @@ class CollectionScheduler:
         """일일 정기 수집 (24시간마다)"""
         run_daily_collection(schedule_name)
 
+    def _initial_collection(self):
+        """Run the last-90-day backfill once per database, as soon as REGTECH credentials are enabled.
+
+        collection_status (REGTECH_INITIAL) records the decision: a database that already holds
+        blacklist data before any backfill is marked skipped, and an interrupted backfill resumes
+        from its checkpoint after INITIAL_COLLECTION_RETRY_SECONDS.
+        """
+        if time.monotonic() < self._initial_retry_at or "REGTECH" in self._active_collections:
+            return None
+        try:
+            state = db_service.get_initial_collection_state()
+            if state and state.get("state") in INITIAL_COLLECTION_FINISHED_STATES:
+                return schedule.CancelJob
+            if state is None and db_service.has_blacklist_data():
+                db_service.save_initial_collection_state({"state": "skipped", "reason": "existing data"})
+                logger.info("ℹ️ 기존 데이터가 있어 최초 3개월 수집을 하지 않음")
+                return schedule.CancelJob
+            credentials = db_service.get_collection_credentials("REGTECH")
+            if not credentials or not credentials.get("enabled", False):
+                return None
+            logger.info("🚀 최초 수집: 최근 3개월(90일) 전체 범위 자동 수집 시작")
+            result = self.force_collection("REGTECH", backfill=True)
+        except Exception as exc:
+            result = {"success": False, "error": str(exc)}
+        if result.get("success"):
+            logger.info("✅ 최초 3개월 수집 완료: %s개 IP", result.get("collected_count", 0))
+            return schedule.CancelJob
+        self._initial_retry_at = time.monotonic() + INITIAL_COLLECTION_RETRY_SECONDS
+        logger.warning(
+            "⚠️ 최초 3개월 수집 실패, %s초 후 재시도: %s", INITIAL_COLLECTION_RETRY_SECONDS, result.get("error")
+        )
+        return None
+
     def stop(self):
         """스케줄러 중지"""
         if not self.running:
@@ -154,6 +193,10 @@ class CollectionScheduler:
     ) -> Dict[str, Any]:
         """REGTECH 데이터 수집"""
         return execute_regtech_collection(username, password, max_pages=max_pages)
+
+    def _collect_regtech_backfill(self, username: str, password: str) -> Dict[str, Any]:
+        """REGTECH 최초 3개월 수집 (7일 구간 저장, 체크포인트에서 재개)"""
+        return execute_regtech_backfill(username, password)
 
     def _record_failure(self, error_message: str):
         """실패 기록"""
@@ -202,8 +245,8 @@ class CollectionScheduler:
         """수동 수집 작업 실행 (최근 90일 전체 수집)."""
         run_manual_collection(self)
 
-    def force_collection(self, source: str) -> Dict[str, Any]:
-        """Force immediate collection for a specific source."""
+    def force_collection(self, source: str, *, backfill: bool = False) -> Dict[str, Any]:
+        """Force immediate collection for a specific source; backfill runs the checkpointed 90-day collection."""
         with self._active_collections_lock:
             if source in self._active_collections:
                 logger.warning("⚠️ %s collection already in progress, skipping duplicate request", source)
@@ -231,6 +274,8 @@ class CollectionScheduler:
 
             logger.info("🔑 Using %s credentials from database: %s", source, username)
             if source == "REGTECH":
+                if backfill:
+                    return self._collect_regtech_backfill(username, password)
                 return self._collect_regtech_data(
                     username,
                     password,

@@ -70,9 +70,12 @@ def run_daily_collection(schedule_name: str, database: Any = db_service, collect
         logger.info("⏭️ REGTECH 수집 비활성화 — 건너뜀")
         return
     start_time = datetime.now()
+    start_date = (start_time - timedelta(days=1)).strftime("%Y-%m-%d")
+    end_date = start_time.strftime("%Y-%m-%d")
+    logger.info("📅 일일 수집 범위: %s ~ %s (1일, 페이지 제한 없음)", start_date, end_date)
     try:
         collected_ips = collector.collect_blacklist_data(
-            start_date=None, end_date=None, page_size=REGTECH_PAGE_SIZE, max_pages=1
+            start_date=start_date, end_date=end_date, page_size=REGTECH_PAGE_SIZE, max_pages=None
         )
         if collected_ips:
             saved_count, new_count, updated_count = save_blacklist_ips(collected_ips, database)

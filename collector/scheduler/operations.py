@@ -6,6 +6,7 @@ from typing import Protocol  # noqa: F401
 
 from .cleanup import cleanup_expired_ips as _cleanup_expired_ips
 from .dependencies import db_service, regtech_collector
+from .manual import collect_regtech_backfill as _collect_regtech_backfill
 from .manual import collect_regtech_data as _collect_regtech_data
 from .manual import run_manual_collection as _run_manual_collection
 from .scheduled import run_adaptive_collection as _run_adaptive_collection
@@ -29,6 +30,10 @@ def run_daily_collection(schedule_name: str) -> None:
 
 def collect_regtech_data(username: str, password: str, max_pages: int | None = 1) -> Dict[str, Any]:
     return _collect_regtech_data(username, password, max_pages, db_service, regtech_collector)
+
+
+def collect_regtech_backfill(username: str, password: str) -> Dict[str, Any]:
+    return _collect_regtech_backfill(username, password, db_service, regtech_collector)
 
 
 def run_manual_collection(scheduler: SchedulerProtocol) -> None:

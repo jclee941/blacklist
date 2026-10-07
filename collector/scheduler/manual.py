@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, Final
 
 from ..config import CollectorConfig
 from .dependencies import db_service, regtech_collector
 from .operation_support import REGTECH_PAGE_SIZE, SchedulerProtocol, execution_time_ms, save_blacklist_ips
 
 logger = logging.getLogger(f"{__package__}.operations")
+BACKFILL_DAYS: Final = 90
+BACKFILL_WINDOW_DAYS: Final = 7
 
 
 def collect_regtech_data(
@@ -61,6 +63,75 @@ def collect_regtech_data(
             source="REGTECH", success=False, items_collected=0, execution_time_ms=elapsed, error_message=str(exc)
         )
         return {"success": False, "error": str(exc), "collected_count": 0}
+
+
+def collect_regtech_backfill(
+    username: str,
+    password: str,
+    database: Any = db_service,
+    collector: Any = regtech_collector,
+    today: date | None = None,
+) -> Dict[str, Any]:
+    """Collect the last 90 days newest-first in 7-day windows, saving and checkpointing each one.
+
+    REGTECH's WAF cuts long paging runs short, so a block ends the run without losing finished
+    windows, and the next run resumes at the checkpoint the database holds instead of starting over.
+    """
+    start_time = datetime.now()
+    current_day = today or date.today()
+    oldest = current_day - timedelta(days=BACKFILL_DAYS)
+    collected_count = 0
+    try:
+        window_end = _backfill_checkpoint(database.get_initial_collection_state()) or current_day
+        if not collector.authenticate(username, password):
+            return {"success": False, "error": "Authentication failed", "collected_count": 0}
+        database.save_initial_collection_state({"state": "in_progress", "next_window_end": window_end.isoformat()})
+        while window_end >= oldest:
+            window_start = max(oldest, window_end - timedelta(days=BACKFILL_WINDOW_DAYS - 1))
+            window_started = datetime.now()
+            logger.info("🚀 REGTECH 최초 수집 구간: %s ~ %s", window_start, window_end)
+            collected_data = collector.collect_blacklist_data(
+                page_size=REGTECH_PAGE_SIZE,
+                start_date=window_start.isoformat(),
+                end_date=window_end.isoformat(),
+                max_pages=None,
+            )
+            saved_count, new_count, updated_count = (0, 0, 0)
+            if collected_data:
+                saved_count, new_count, updated_count = save_blacklist_ips(collected_data, database)
+            database.record_collection_history(
+                source="REGTECH",
+                success=True,
+                items_collected=saved_count,
+                execution_time_ms=execution_time_ms(window_started),
+                new_count=new_count,
+                updated_count=updated_count,
+            )
+            collected_count += saved_count
+            window_end = window_start - timedelta(days=1)
+            database.save_initial_collection_state({"state": "in_progress", "next_window_end": window_end.isoformat()})
+        database.save_initial_collection_state({"state": "complete", "completed_at": datetime.now().isoformat()})
+        return {
+            "success": True,
+            "collected_count": collected_count,
+            "execution_time_ms": execution_time_ms(start_time),
+        }
+    except Exception as exc:
+        database.record_collection_history(
+            source="REGTECH",
+            success=False,
+            items_collected=0,
+            execution_time_ms=execution_time_ms(start_time),
+            error_message=str(exc),
+        )
+        return {"success": False, "error": str(exc), "collected_count": collected_count}
+
+
+def _backfill_checkpoint(state: Dict[str, Any] | None) -> date | None:
+    try:
+        return date.fromisoformat(str((state or {})["next_window_end"]))
+    except (KeyError, ValueError):
+        return None
 
 
 def run_manual_collection(scheduler: SchedulerProtocol, database: Any = db_service) -> None:

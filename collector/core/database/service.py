@@ -405,6 +405,54 @@ class DatabaseService(DatabaseQueryMixin):
             logger.error(f"총 IP 개수 조회 실패: {e}")
             return 0
 
+    INITIAL_COLLECTION_STATUS = "REGTECH_INITIAL"
+
+    def get_initial_collection_state(self) -> Optional[Dict[str, Any]]:
+        """REGTECH 최초 3개월 수집 상태 (collection_status의 REGTECH_INITIAL 행, 없으면 None)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT config FROM collection_status WHERE service_name = %s",
+                (self.INITIAL_COLLECTION_STATUS,),
+            )
+            row = cursor.fetchone()
+            cursor.close()
+        if not row:
+            return None
+        return row[0] if isinstance(row[0], dict) else json.loads(row[0] or "{}")
+
+    def save_initial_collection_state(self, state: Dict[str, Any]) -> None:
+        """REGTECH 최초 3개월 수집 상태와 체크포인트 기록"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO collection_status (service_name, enabled, last_run, status, config, updated_at)
+                VALUES (%s, TRUE, CURRENT_TIMESTAMP, %s, %s::jsonb, CURRENT_TIMESTAMP)
+                ON CONFLICT (service_name) DO UPDATE SET
+                    last_run = EXCLUDED.last_run,
+                    status = EXCLUDED.status,
+                    config = EXCLUDED.config,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (
+                    self.INITIAL_COLLECTION_STATUS,
+                    "running" if state.get("state") == "in_progress" else "idle",
+                    json.dumps(state),
+                ),
+            )
+            conn.commit()
+            cursor.close()
+
+    def has_blacklist_data(self) -> bool:
+        """blacklist_ips에 데이터가 한 건이라도 있는지 (조회 실패는 예외로 전달)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT EXISTS (SELECT 1 FROM blacklist_ips)")
+            row = cursor.fetchone()
+            cursor.close()
+        return bool(row and row[0])
+
     def get_collection_status(
         self,
         service_name: str,

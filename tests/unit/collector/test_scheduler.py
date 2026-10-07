@@ -6,6 +6,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+import schedule
 
 os.environ.setdefault("CREDENTIAL_MASTER_KEY", "test-key-for-unit-tests")
 os.environ.setdefault("POSTGRES_HOST", "localhost")
@@ -25,6 +26,7 @@ if "core.database" not in sys.modules:
     sys.modules["core.database"] = mock_db_module
 
 from collector.scheduler import CollectionScheduler  # noqa: E402
+import collector.scheduler.manager as scheduler_manager  # noqa: E402
 
 
 @pytest.fixture
@@ -158,3 +160,100 @@ class TestCollectors:
 
     def test_collector_method_names(self, sched):
         assert sched.collectors["REGTECH"] == "_collect_regtech_data"
+
+
+class TestInitialCollection:
+    @pytest.fixture
+    def database(self, monkeypatch):
+        database = MagicMock()
+        database.get_initial_collection_state.return_value = None
+        database.has_blacklist_data.return_value = False
+        database.get_collection_credentials.return_value = {"enabled": True, "username": "user", "password": "secret"}
+        monkeypatch.setattr(scheduler_manager, "db_service", database)
+        return database
+
+    def test_backfill_runs_when_nothing_was_collected(self, sched, database):
+        with patch.object(
+            sched, "_collect_regtech_backfill", return_value={"success": True, "collected_count": 6000}
+        ) as collect:
+            result = sched._initial_collection()
+
+        collect.assert_called_once_with("user", "secret")
+        assert result is schedule.CancelJob
+
+    def test_existing_data_marks_the_backfill_skipped(self, sched, database):
+        database.has_blacklist_data.return_value = True
+
+        with patch.object(sched, "_collect_regtech_backfill") as collect:
+            result = sched._initial_collection()
+
+        assert result is schedule.CancelJob
+        collect.assert_not_called()
+        database.save_initial_collection_state.assert_called_once_with({"state": "skipped", "reason": "existing data"})
+
+    @pytest.mark.parametrize("state", ["complete", "skipped"])
+    def test_finished_backfill_is_not_repeated(self, sched, database, state):
+        database.get_initial_collection_state.return_value = {"state": state}
+
+        with patch.object(sched, "_collect_regtech_backfill") as collect:
+            result = sched._initial_collection()
+
+        assert result is schedule.CancelJob
+        collect.assert_not_called()
+
+    def test_interrupted_backfill_resumes_despite_its_own_saved_data(self, sched, database):
+        database.get_initial_collection_state.return_value = {"state": "in_progress", "next_window_end": "2026-09-30"}
+        database.has_blacklist_data.return_value = True
+
+        with patch.object(sched, "_collect_regtech_backfill", return_value={"success": True}) as collect:
+            result = sched._initial_collection()
+
+        collect.assert_called_once_with("user", "secret")
+        assert result is schedule.CancelJob
+
+    @pytest.mark.parametrize("credentials", [None, {"enabled": False, "username": "user", "password": "secret"}])
+    def test_waits_until_regtech_credentials_are_enabled(self, sched, database, credentials):
+        database.get_collection_credentials.return_value = credentials
+
+        with patch.object(sched, "_collect_regtech_backfill") as collect:
+            result = sched._initial_collection()
+
+        assert result is None
+        collect.assert_not_called()
+
+    def test_waits_while_another_regtech_collection_runs(self, sched, database):
+        sched._active_collections.add("REGTECH")
+
+        with patch.object(sched, "_collect_regtech_backfill") as collect:
+            result = sched._initial_collection()
+
+        assert result is None
+        collect.assert_not_called()
+
+    def test_failed_backfill_retries_after_an_hour(self, sched, database):
+        failure = {"success": False, "error": "blocked"}
+        with patch.object(sched, "_collect_regtech_backfill", return_value=failure) as collect:
+            for now in (100.0, 100.0 + 3599, 100.0 + 3600):
+                with patch.object(scheduler_manager.time, "monotonic", return_value=now):
+                    assert sched._initial_collection() is None
+
+        assert collect.call_count == 2
+
+    def test_manual_force_collection_keeps_the_page_cap(self, sched, database):
+        with patch.object(sched, "_collect_regtech_data", return_value={"success": True}) as collect:
+            sched.force_collection("REGTECH")
+
+        collect.assert_called_once_with(
+            "user", "secret", max_pages=scheduler_manager.CollectorConfig.MAX_PAGES_PER_COLLECTION
+        )
+
+    def test_daily_schedule_registers_the_initial_backfill_check(self, sched):
+        schedule.clear()
+        try:
+            sched._setup_time_based_schedules()
+            jobs = schedule.get_jobs("initial")
+        finally:
+            schedule.clear()
+
+        assert len(jobs) == 1
+        assert jobs[0].interval == scheduler_manager.INITIAL_COLLECTION_CHECK_SECONDS

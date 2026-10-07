@@ -5,7 +5,7 @@ from typing import Protocol
 import pytest
 
 from collector.scheduler import CollectionScheduler, manager
-from collector.scheduler import operations
+from collector.scheduler import manual, operations, scheduled
 
 
 class RegtechCollectorFake:
@@ -300,3 +300,111 @@ def test_daily_collection_stops_when_credentials_are_unavailable(monkeypatch: py
     operations.run_daily_collection("daily")
 
     assert collector.requested_page_size is None
+
+
+BACKFILL_TODAY = date(2026, 10, 7)
+
+
+class BackfillDatabaseFake(SavingDatabaseFake):
+    def __init__(self, state: dict[str, str] | None = None) -> None:
+        super().__init__()
+        self.state = state
+
+    def get_initial_collection_state(self) -> dict[str, str] | None:
+        return self.state
+
+    def save_initial_collection_state(self, state: dict[str, str]) -> None:
+        self.state = state
+
+
+class WindowRecordingCollectorFake(RegtechCollectorFake):
+    def __init__(
+        self, rows: list[dict[str, str]], blocked_window: int | None = None, authenticated: bool = True
+    ) -> None:
+        super().__init__()
+        self.rows = rows
+        self.blocked_window = blocked_window
+        self.authenticated = authenticated
+        self.windows: list[tuple[str, str, int | None]] = []
+
+    def authenticate(self, username: str, password: str) -> bool:
+        _ = username, password
+        return self.authenticated
+
+    def collect_blacklist_data(
+        self,
+        *,
+        page_size: int,
+        start_date: str,
+        end_date: str,
+        max_pages: int | None,
+    ) -> list[dict[str, str]]:
+        _ = page_size
+        self.windows.append((start_date, end_date, max_pages))
+        if self.blocked_window == len(self.windows):
+            raise RuntimeError("REGTECH page collection failed: blocked")
+        return self.rows
+
+
+def test_backfill_walks_90_days_newest_first_in_weekly_windows() -> None:
+    collector = WindowRecordingCollectorFake(rows=[])
+    database = BackfillDatabaseFake()
+
+    result = manual.collect_regtech_backfill("user", "secret", database, collector, today=BACKFILL_TODAY)
+
+    assert result["success"] is True
+    assert collector.windows[0] == ("2026-10-01", "2026-10-07", None)
+    assert collector.windows[-1] == ("2026-07-09", "2026-07-15", None)
+    assert len(collector.windows) == 13
+    for newer, older in zip(collector.windows, collector.windows[1:]):
+        assert date.fromisoformat(older[1]) == date.fromisoformat(newer[0]) - timedelta(days=1)
+    assert database.state is not None
+    assert database.state["state"] == "complete"
+
+
+def test_backfill_keeps_finished_windows_and_resumes_after_a_block() -> None:
+    database = BackfillDatabaseFake()
+    blocked = WindowRecordingCollectorFake(rows=[{"ip_address": "192.0.2.10"}], blocked_window=2)
+
+    first = manual.collect_regtech_backfill("user", "secret", database, blocked, today=BACKFILL_TODAY)
+
+    assert first["success"] is False
+    assert first["collected_count"] == 1
+    assert database.saved_ips == [{"ip_address": "192.0.2.10"}]
+    assert database.state == {"state": "in_progress", "next_window_end": "2026-09-30"}
+    assert database.history[-1]["success"] is False
+
+    resumed = WindowRecordingCollectorFake(rows=[])
+    second = manual.collect_regtech_backfill("user", "secret", database, resumed, today=BACKFILL_TODAY)
+
+    assert second["success"] is True
+    assert resumed.windows[0] == ("2026-09-24", "2026-09-30", None)
+
+
+def test_backfill_stops_when_authentication_fails() -> None:
+    database = BackfillDatabaseFake()
+    collector = WindowRecordingCollectorFake(rows=[], authenticated=False)
+
+    result = manual.collect_regtech_backfill("user", "secret", database, collector, today=BACKFILL_TODAY)
+
+    assert result["success"] is False
+    assert collector.windows == []
+    assert database.state is None
+
+
+class FrozenDatetime(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 10, 7, 2, 0, 0)
+
+
+def test_daily_collection_fetches_the_previous_day_without_a_page_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    collector = RegtechCollectorFake()
+    monkeypatch.setattr(operations, "regtech_collector", collector)
+    monkeypatch.setattr(operations, "db_service", CredentialsDatabaseFake())
+    monkeypatch.setattr(scheduled, "datetime", FrozenDatetime)
+
+    operations.run_daily_collection("daily")
+
+    assert (collector.requested_start_date, collector.requested_end_date) == ("2026-10-06", "2026-10-07")
+    assert collector.requested_max_pages is None
