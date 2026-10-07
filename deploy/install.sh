@@ -45,6 +45,8 @@ POSTURE_COMPOSE_FILES=()
 readonly PUBLISHED_FRONTEND_PORT=443
 readonly HEALTH_WAIT_TIMEOUT_SECONDS=180
 readonly HEALTH_POLL_INTERVAL_SECONDS=5
+readonly SEED_DATA_FILE="seed/blacklist_ips.csv.gz"
+readonly SEED_DATA_COLUMNS="ip_address,reason,source,category,confidence_level,detection_count,is_active,country,detection_date,removal_date,last_seen,created_at,updated_at,raw_data,data_source"
 readonly TLS_ROOT_UID="${BLACKLIST_TLS_ROOT_UID:-0}"
 readonly TLS_ROOT_GID="${BLACKLIST_TLS_ROOT_GID:-0}"
 readonly FRONTEND_TLS_UID="${BLACKLIST_FRONTEND_UID:-1001}"
@@ -1535,6 +1537,55 @@ wait_for_health() {
     log_error "Timed out waiting for container health"
 }
 
+# psql inside blacklist-postgres over its TLS listener, the way the container health check connects.
+postgres_psql() {
+    # shellcheck disable=SC2016 # expanded by the container shell, not this one
+    docker exec -i blacklist-postgres sh -c \
+        'PGPASSWORD="$POSTGRES_PASSWORD" PGSSLMODE=verify-full PGSSLROOTCERT=/run/blacklist/ca.crt exec psql -h blacklist-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 "$@"' \
+        psql "$@"
+}
+
+# Dump blacklist_ips from this installation as gzip CSV; scripts/build_offline_bundle.py --seed-data
+# ships it so a fresh install starts with the data instead of collecting it from REGTECH again.
+export_seed_data() {
+    local destination="$1"
+    local temp_file rows
+
+    docker inspect blacklist-postgres > /dev/null 2>&1 ||
+        log_error "blacklist-postgres is not running; start the deployment before exporting seed data."
+    temp_file=$(mktemp "${destination}.tmp.XXXXXX") || log_error "Unable to stage ${destination}."
+    if ! postgres_psql -c "COPY (SELECT ${SEED_DATA_COLUMNS} FROM blacklist_ips ORDER BY id) TO STDOUT WITH (FORMAT csv, HEADER true)" < /dev/null |
+        gzip -n > "${temp_file}"; then
+        rm -f "${temp_file}"
+        log_error "Unable to export blacklist_ips from blacklist-postgres."
+    fi
+    mv "${temp_file}" "${destination}" || log_error "Unable to write ${destination}."
+    rows=$(postgres_psql -tAc "SELECT COUNT(*) FROM blacklist_ips" < /dev/null) || rows="?"
+    log_success "Exported ${rows} blacklist rows to ${destination}"
+}
+
+# A bundle built with --seed-data carries seed/blacklist_ips.csv.gz. An empty database imports it
+# before the app and collector start, so the collector's initial 90-day backfill finds data and is
+# skipped; a database that already holds rows is never touched.
+import_seed_data() {
+    local seed_file="${SCRIPT_DIR}/${SEED_DATA_FILE}"
+    local existing imported
+
+    [ -f "${seed_file}" ] || return 0
+    existing=$(postgres_psql -tAc "SELECT COUNT(*) FROM blacklist_ips" < /dev/null) ||
+        log_error "Unable to inspect blacklist_ips before importing seed data."
+    if [ "${existing}" != "0" ]; then
+        log_info "Seed data not imported: blacklist_ips already holds ${existing} rows"
+        return 0
+    fi
+    if ! gunzip -c "${seed_file}" |
+        postgres_psql -c "COPY blacklist_ips (${SEED_DATA_COLUMNS}) FROM STDIN WITH (FORMAT csv, HEADER true)" > /dev/null; then
+        log_error "Failed to import seed data from ${SEED_DATA_FILE}"
+    fi
+    imported=$(postgres_psql -tAc "SELECT COUNT(*) FROM blacklist_ips" < /dev/null) || imported="?"
+    log_success "Seed data imported: ${imported} blacklist rows"
+}
+
 deploy_services() {
     log_step "Deploy Services"
 
@@ -1571,6 +1622,7 @@ deploy_services() {
         log_error "Failed to configure PostgreSQL runtime roles"
     fi
     log_success "PostgreSQL runtime roles configured"
+    import_seed_data
 
     log_info "Starting application services..."
     if ! compose_output=$(docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" up -d --pull never 2>&1); then
@@ -1735,6 +1787,7 @@ show_help() {
     echo "Options:"
     echo "  --skip-load    Skip image loading (images already loaded)"
     echo "  --check-secrets Generate or validate .env, then exit"
+    echo "  --export-seed-data FILE  Export blacklist_ips as gzip CSV for build_offline_bundle.py --seed-data, then exit"
     echo "  --generate-tls-only  Generate or validate internal TLS material, then exit"
     echo "  --verify-only  Verify the bundle layout, image checksums, and security posture, then exit (read-only)"
     echo "  --stop-all-containers  Stop every running container on the host before deploying"
@@ -1788,6 +1841,7 @@ validate_operator_options() {
 main() {
     local skip_load=false
     local check_secrets=false
+    local export_seed_file=""
     local generate_tls_only=false
     local verify_only=false
     local maintenance_only=false
@@ -1796,6 +1850,14 @@ main() {
         case "$1" in
             --skip-load) skip_load=true ;;
             --check-secrets) check_secrets=true ;;
+            --export-seed-data)
+                if [ -z "${2-}" ] || [[ "${2}" == --* ]]; then
+                    log_error "Option --export-seed-data requires a file path."
+                fi
+                export_seed_file="$2"
+                shift
+                ;;
+            --export-seed-data=*) export_seed_file="${1#*=}" ;;
             --generate-tls-only) generate_tls_only=true ;;
             --verify-only) verify_only=true ;;
             --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
@@ -1814,10 +1876,15 @@ main() {
         shift
     done
 
-    if [ "$check_secrets" = true ] || [ "$generate_tls_only" = true ]; then
+    if [ "$check_secrets" = true ] || [ "$generate_tls_only" = true ] || [ -n "${export_seed_file}" ]; then
         maintenance_only=true
     fi
     validate_operator_options "${maintenance_only}"
+
+    if [ -n "${export_seed_file}" ]; then
+        export_seed_data "${export_seed_file}"
+        return 0
+    fi
 
     if [ "$generate_tls_only" = true ]; then
         setup_internal_tls

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import importlib.util
 import re
@@ -28,6 +29,29 @@ def test_version_is_resolved_automatically(tmp_path: Path) -> None:
     _ = (tmp_path / "VERSION").write_text("7.3.1\n", encoding="utf-8")
     # Then: the bundle version is derived from it, never passed by hand.
     assert builder.resolve_version(tmp_path) == "7.3.1"
+
+
+def test_seed_data_is_staged_inside_the_manifest(tmp_path: Path) -> None:
+    builder = load_builder()
+    seed = tmp_path / "export.csv.gz"
+    _ = seed.write_bytes(gzip.compress(b"ip_address\n198.51.100.7\n"))
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+
+    builder.stage_seed_data(bundle, seed)
+    builder.write_manifest(bundle)
+
+    assert (bundle / "seed" / "blacklist_ips.csv.gz").read_bytes() == seed.read_bytes()
+    assert "seed/blacklist_ips.csv.gz" in (bundle / "MANIFEST.sha256").read_text(encoding="utf-8")
+
+
+def test_seed_data_must_be_the_exported_gzip(tmp_path: Path) -> None:
+    builder = load_builder()
+    seed = tmp_path / "export.csv"
+    _ = seed.write_text("ip_address\n", encoding="utf-8")
+
+    with pytest.raises(builder.BundleError):
+        builder.stage_seed_data(tmp_path, seed)
 
 
 def test_missing_version_is_fatal(tmp_path: Path) -> None:

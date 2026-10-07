@@ -27,6 +27,7 @@ from scripts.offline_bundle import (
     prereq_gaps,
     resolve_version,
     sha256_of,
+    stage_seed_data,
     stamp_installer_version,
     write_image_checksums,
     write_manifest,
@@ -48,13 +49,16 @@ __all__ = [
     "prereq_gaps",
     "resolve_version",
     "sha256_of",
+    "stage_seed_data",
     "stamp_installer_version",
     "write_image_checksums",
     "write_manifest",
 ]
 
 
-def build(repo_root: Path, output_dir: Path, *, skip_images: bool, rebuild: bool) -> Path:
+def build(
+    repo_root: Path, output_dir: Path, *, skip_images: bool, rebuild: bool, seed_data: Path | None = None
+) -> Path:
     version = resolve_version(repo_root)
     bundle_dir = output_dir / f"blacklist-{version}"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -76,6 +80,8 @@ def build(repo_root: Path, output_dir: Path, *, skip_images: bool, rebuild: bool
 
     assemble(repo_root, bundle_dir, version)
     stamp_installer_version(bundle_dir / "install.sh", version)
+    if seed_data is not None:
+        stage_seed_data(bundle_dir, seed_data)
     if not skip_images:
         export_images(bundle_dir / "images", version)
     write_image_checksums(bundle_dir / "images")
@@ -100,6 +106,11 @@ def main(argv: list[str] | None = None) -> int:
         help="reuse image archives already present in the bundle directory",
     )
     _ = parser.add_argument(
+        "--seed-data",
+        type=Path,
+        help="gzip CSV from `install.sh --export-seed-data`; installs import it into an empty database",
+    )
+    _ = parser.add_argument(
         "--build",
         action="store_true",
         help="build every service image at the resolved version before packaging",
@@ -113,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
             (repo_root / arguments.output).resolve(),
             skip_images=arguments.skip_images,
             rebuild=arguments.build,
+            seed_data=arguments.seed_data,
         )
     except BundleError as error:
         print(f"error: {error}", file=sys.stderr)

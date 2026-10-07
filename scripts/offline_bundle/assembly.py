@@ -39,6 +39,23 @@ SOURCE_EXCLUSIONS: Final[tuple[str, ...]] = (
 )
 
 
+SEED_DATA_PATH: Final = Path("seed") / "blacklist_ips.csv.gz"
+
+
+def stage_seed_data(bundle_dir: Path, seed_data: Path) -> None:
+    """Ship blacklist data exported by `install.sh --export-seed-data`; installs import it into an empty database."""
+    try:
+        with seed_data.open("rb") as handle:
+            magic = handle.read(2)
+    except OSError as error:
+        raise BundleError(f"Cannot read seed data {seed_data}: {error}") from error
+    if magic != b"\x1f\x8b":
+        raise BundleError(f"Seed data must be the gzip CSV written by install.sh --export-seed-data: {seed_data}")
+    destination = bundle_dir / SEED_DATA_PATH
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _ = shutil.copyfile(seed_data, destination)
+
+
 def prereq_gaps(prereqs_dir: Path) -> list[str]:
     """Report a half-shipped offline Docker payload."""
     payload = {
