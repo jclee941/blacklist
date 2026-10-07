@@ -129,12 +129,6 @@ FROM node:24-alpine AS builder
 FROM node:24-alpine AS runner
 """,
         ".github/workflows/_ci-node.yml": 'default: "24"',
-        ".github/dependabot.yml": """
-version: 2
-updates:
-  - package-ecosystem: "npm"
-    directory: "/frontend"
-""",
         "frontend/package.json": "{}",
         "frontend/package-lock.json": "{}",
         "frontend/e2e/helpers/capture-guide-screenshots.mjs": """
@@ -302,11 +296,6 @@ def test_validator_accepts_valid_automation_contracts(tmp_path: Path) -> None:
             ".github/workflows/ci.yml",
             '          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then',
             "CI gate does not fail when a required job is cancelled",
-        ),
-        (
-            ".github/dependabot.yml",
-            '    directory: "/frontend"',
-            "Dependabot npm directory does not point to /frontend",
         ),
         (
             "frontend/e2e/helpers/capture-guide-screenshots.mjs",

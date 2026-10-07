@@ -8,7 +8,6 @@
 
 # Workflow + automation source of truth
 /.github/workflows/                 @jclee941
-/.github/dependabot.yml             @jclee941
 /scripts/                           @jclee941
 /.github/ISSUE_TEMPLATE/              @jclee941
 
