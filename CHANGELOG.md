@@ -11,6 +11,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.8] - 2026-10-07
+
+### Breaking
+
+- 없음. 새 동작은 선택 사항이거나 기존 설치의 값과 저장된 계정을 그대로 유지합니다.
+
+### Added
+
+- feat(deploy): ship collected blacklist data in offline bundles
+- feat(collector): backfill the last 90 days once and collect whole days daily
+- feat(deploy): keep operator-set admin, REGTECH and WARP values in the env file
+- feat(collector): switch REGTECH WARP proxying with WARP_ENABLED
+
+### Fixed
+
+- fix(security): patch the sharp and source-map-js advisories in the frontend image
+
+### CI/CD
+
+- ci: remove Dependabot
+
+### Other
+
+- docs(release): note the frontend security patches in 5.1.8
+- test: keep the REGTECH env seed fixture clear of pytest-flask
+- docs(release): add 5.1.8 release notes
+- docs: document env-driven installs, the initial backfill and data bundles
+
+---
+
 ## [5.1.7] - 2026-10-06
 
 ### Breaking
