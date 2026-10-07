@@ -126,6 +126,14 @@ class AppConfig(DatastoreConfig):
         return os.getenv("ADMIN_RESET_KEY")
 
     @property
+    def REGTECH_ID(self) -> str | None:
+        return os.getenv("REGTECH_ID")
+
+    @property
+    def REGTECH_PW(self) -> str | None:
+        return os.getenv("REGTECH_PW")
+
+    @property
     def DISABLE_JWT_AUTH(self) -> bool:
         return os.getenv("DISABLE_JWT_AUTH", "").lower() in ("true", "1", "yes")
 

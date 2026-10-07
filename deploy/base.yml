@@ -222,6 +222,9 @@ services:
       # Without these the app falls back to a login it can never satisfy.
       ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME is required}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      # Optional REGTECH login, stored once on the first start while none is saved.
+      REGTECH_ID: ${REGTECH_ID:-}
+      REGTECH_PW: ${REGTECH_PW:-}
       TZ: Asia/Seoul
     volumes:
       - blacklist-logs:/app/logs

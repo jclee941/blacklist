@@ -703,6 +703,8 @@ REDIS_PASSWORD=${redis_password}
 FRONTEND_TLS_MODE=provided
 FRONTEND_TLS_SERVER_NAME=
 FRONTEND_BIND_ADDRESS=0.0.0.0
+# Collector REGTECH egress through a Cloudflare WARP proxy on this host: set WARP_ENABLED=true to use it.
+# An empty WARP_PROXY_URL means http://host.docker.internal:40000, the Docker host gateway.
 WARP_ENABLED=false
 WARP_PROXY_URL=
 TRUSTED_PROXY_NETWORKS=172.30.0.10/32
@@ -848,23 +850,26 @@ sync_database_role_secrets() {
     chmod 600 "${env_file}" || log_error "Unable to protect updated database role secrets."
 }
 
+# Placeholders, secret-manager references, and Compose expressions are not literal secrets.
+secret_value_unresolved() {
+    local key="$1"
+    local value="$2"
+    [ -z "${value}" ] ||
+        [[ "${value}" == op://* ]] ||
+        [[ "${value}" == *"${VARIABLE_REFERENCE_PREFIX}"* ]] ||
+        [[ "${value}" =~ \$[A-Za-z_][A-Za-z0-9_]* ]] ||
+        [[ "${value}" == __SET_* ]] ||
+        { [ "${key}" = "POSTGRES_PASSWORD" ] && [ "${value}" = "postgres" ]; }
+}
+
 validate_secret_keys() {
     local env_file="$1"
     shift
     local invalid_keys=()
-    local key value
+    local key
     for key in "$@"; do
-        if ! read_required_secret_value "${env_file}" "${key}"; then
-            invalid_keys+=("${key}")
-            continue
-        fi
-        value="${DOTENV_NORMALIZED_VALUE}"
-        if [ -z "${value}" ] ||
-           [[ "${value}" == op://* ]] ||
-           [[ "${value}" == *"${VARIABLE_REFERENCE_PREFIX}"* ]] ||
-           [[ "${value}" =~ \$[A-Za-z_][A-Za-z0-9_]* ]] ||
-           [[ "${value}" == __SET_* ]] ||
-           { [ "${key}" = "POSTGRES_PASSWORD" ] && [ "${value}" = "postgres" ]; }; then
+        if ! read_required_secret_value "${env_file}" "${key}" ||
+            secret_value_unresolved "${key}" "${DOTENV_NORMALIZED_VALUE}"; then
             invalid_keys+=("${key}")
         fi
     done
@@ -896,32 +901,222 @@ validate_database_role_names() {
     fi
 }
 
-sync_warp_settings() {
+env_assignment_count() {
     local env_file="$1"
-    local temp_file
-
-    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage WARP settings."
-    chmod 600 "${temp_file}" || log_error "Unable to protect staged WARP settings."
+    local key="$2"
+    local assignment_pattern="^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*="
+    local line
+    local count=0
 
     while IFS= read -r line || [ -n "${line}" ]; do
-        case "${line}" in
-            WARP_ENABLED=*|WARP_PROXY_URL=*)
+        if [[ "${line%$'\r'}" =~ ${assignment_pattern} ]]; then
+            count=$((count + 1))
+        fi
+    done < "${env_file}"
+    printf '%s' "${count}"
+}
+
+env_value_is_blank() {
+    local env_file="$1"
+    local key="$2"
+    local blank_pattern="^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=[[:space:]]*(\"\"|'')?[[:space:]]*$"
+    local line
+
+    while IFS= read -r line || [ -n "${line}" ]; do
+        if [[ "${line%$'\r'}" =~ ${blank_pattern} ]]; then
+            return 0
+        fi
+    done < "${env_file}"
+    return 1
+}
+
+# A fresh install may start from an env file the operator wrote first, for example one
+# that only sets ADMIN_PASSWORD or WARP_ENABLED. It qualifies when some required secret
+# is missing or blank while every secret it does set is a single literal value; anything
+# else falls through to validate_secret_keys, which names the offending keys.
+env_file_is_operator_seed() {
+    local env_file="$1"
+    local key
+    local missing=false
+
+    for key in "${LEGACY_REQUIRED_SECRET_KEYS[@]}"; do
+        case "$(env_assignment_count "${env_file}" "${key}")" in
+            0)
+                missing=true
+                ;;
+            1)
+                if env_value_is_blank "${env_file}" "${key}"; then
+                    missing=true
+                elif ! read_required_secret_value "${env_file}" "${key}" ||
+                    secret_value_unresolved "${key}" "${DOTENV_NORMALIZED_VALUE}"; then
+                    return 1
+                fi
                 ;;
             *)
-                printf '%s\n' "${line}" >> "${temp_file}" || log_error "Unable to stage WARP settings."
+                return 1
                 ;;
         esac
-    done < "${env_file}"
+    done
+    [ "${missing}" = true ]
+}
 
-    {
-        printf 'WARP_ENABLED=false\n'
-        printf 'WARP_PROXY_URL=\n'
-    } >> "${temp_file}" || log_error "Unable to record WARP settings."
+# Mirrors app/core/auth/security.py: the app refuses to bootstrap the administrator from a
+# password shorter than 12 characters or longer than 72 UTF-8 bytes, leaving login impossible.
+admin_password_meets_policy() {
+    local password="$1"
+    local characters bytes
 
-    mv "${temp_file}" "${env_file}" || log_error "Unable to update WARP settings in ${env_file}."
-    chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
+    characters=$(LC_ALL=C.UTF-8; printf '%s' "${#password}")
+    bytes=$(LC_ALL=C; printf '%s' "${#password}")
+    [ "${characters}" -ge 12 ] && [ "${bytes}" -le 72 ]
+}
 
-    log_info "Production collector proxy disabled"
+# Keep every value the operator set and add a generated line for each missing or blank key.
+complete_env_file() {
+    local env_file="$1"
+    local template temp_file line key key_pattern
+    local -a additions=()
+    local -a blank_keys=()
+
+    template=$(mktemp "${env_file}.template.XXXXXX") || log_error "Unable to stage generated secrets."
+    generate_env_file "${template}"
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^([A-Z][A-Z0-9_]*)= ]] || continue
+        key="${BASH_REMATCH[1]}"
+        case "$(env_assignment_count "${env_file}" "${key}")" in
+            0)
+                ;;
+            1)
+                env_value_is_blank "${env_file}" "${key}" || continue
+                blank_keys+=("${key}")
+                ;;
+            *)
+                continue
+                ;;
+        esac
+        additions+=("${line}")
+        if [ "${key}" = "ADMIN_PASSWORD" ]; then
+            ADMIN_CREDENTIALS_GENERATED=true
+        fi
+    done < "${template}"
+    rm -f "${template}"
+
+    if [ "${ADMIN_CREDENTIALS_GENERATED}" != true ]; then
+        read_required_secret_value "${env_file}" "ADMIN_PASSWORD" ||
+            log_error "ADMIN_PASSWORD in ${env_file} could not be read; nothing was changed."
+        admin_password_meets_policy "${DOTENV_NORMALIZED_VALUE}" ||
+            log_error "ADMIN_PASSWORD in ${env_file} must be at least 12 characters and at most 72 bytes; nothing was changed."
+    fi
+    [ "${#additions[@]}" -gt 0 ] || return 0
+
+    temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage the completed environment file."
+    chmod 600 "${temp_file}" || log_error "Unable to protect the completed environment file."
+    while IFS= read -r line || [ -n "${line}" ]; do
+        for key in "${blank_keys[@]}"; do
+            key_pattern="^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*="
+            [[ "${line}" =~ ${key_pattern} ]] && continue 2
+        done
+        printf '%s\n' "${line}"
+    done < "${env_file}" > "${temp_file}" || log_error "Unable to stage the completed environment file."
+    printf '%s\n' "${additions[@]}" >> "${temp_file}" || log_error "Unable to record generated secrets."
+    mv "${temp_file}" "${env_file}" || log_error "Unable to update ${env_file}."
+    chmod 600 "${env_file}" || log_error "Unable to protect ${env_file}."
+
+    log_success "Kept the values set in ${env_file} and generated the missing secrets"
+    if [ "${ADMIN_CREDENTIALS_GENERATED}" = true ]; then
+        write_initial_admin_password_file
+    else
+        log_info "Administrator password is the operator-defined ADMIN_PASSWORD in ${env_file}; no initial password file was written"
+    fi
+}
+
+# WARP is an opt-in egress proxy for the collector's REGTECH traffic, switched by the
+# operator in the env file. Keep WARP_ENABLED and WARP_PROXY_URL across runs, add the
+# disabled defaults only when a key is missing, and refuse values the collector would
+# misread. An empty WARP_PROXY_URL selects base.yml's http://host.docker.internal:40000.
+sync_warp_settings() {
+    local env_file="$1"
+    local enabled="false"
+    local proxy_url=""
+    local key line temp_file
+    local -a missing=()
+
+    for key in WARP_ENABLED WARP_PROXY_URL; do
+        case "$(env_assignment_count "${env_file}" "${key}")" in
+            0) missing+=("${key}") ;;
+            1) ;;
+            *) log_error "${key} is set more than once in ${env_file}; keep a single line." ;;
+        esac
+    done
+    if [ "${#missing[@]}" -gt 0 ]; then
+        temp_file=$(mktemp "${env_file}.tmp.XXXXXX") || log_error "Unable to stage WARP settings."
+        chmod 600 "${temp_file}" || log_error "Unable to protect staged WARP settings."
+        while IFS= read -r line || [ -n "${line}" ]; do
+            printf '%s\n' "${line}"
+        done < "${env_file}" > "${temp_file}" || log_error "Unable to stage WARP settings."
+        for key in "${missing[@]}"; do
+            case "${key}" in
+                WARP_ENABLED) printf 'WARP_ENABLED=false\n' ;;
+                WARP_PROXY_URL) printf 'WARP_PROXY_URL=\n' ;;
+            esac
+        done >> "${temp_file}" || log_error "Unable to record WARP settings."
+        mv "${temp_file}" "${env_file}" || log_error "Unable to update WARP settings in ${env_file}."
+        chmod 600 "${env_file}" || log_error "Unable to protect the updated environment file."
+    fi
+
+    if read_required_secret_value "${env_file}" "WARP_ENABLED"; then
+        enabled="${DOTENV_NORMALIZED_VALUE,,}"
+    fi
+    if read_required_secret_value "${env_file}" "WARP_PROXY_URL"; then
+        proxy_url="${DOTENV_NORMALIZED_VALUE}"
+        [[ "${proxy_url}" =~ ^(http|https|socks5|socks5h)://[A-Za-z0-9._-]+:[0-9]{1,5}/?$ ]] ||
+            log_error "WARP_PROXY_URL in ${env_file} must be SCHEME://HOST:PORT with http, https, socks5, or socks5h."
+    fi
+    case "${enabled}" in
+        true)
+            log_info "Collector WARP proxy enabled: REGTECH traffic goes through ${proxy_url:-http://host.docker.internal:40000}"
+            ;;
+        false)
+            log_info "Collector WARP proxy disabled (set WARP_ENABLED=true in ${env_file} to enable it)"
+            ;;
+        *)
+            log_error "WARP_ENABLED in ${env_file} must be true or false."
+            ;;
+    esac
+}
+
+# Optional REGTECH_ID/REGTECH_PW: the app stores them once as the REGTECH collection login on its
+# first start while none is saved, so a fresh install collects without a dashboard step.
+validate_regtech_login() {
+    local env_file="$1"
+    local key
+    local -a defined=()
+
+    for key in REGTECH_ID REGTECH_PW; do
+        case "$(env_assignment_count "${env_file}" "${key}")" in
+            0)
+                ;;
+            1)
+                env_value_is_blank "${env_file}" "${key}" && continue
+                if ! read_required_secret_value "${env_file}" "${key}" ||
+                    secret_value_unresolved "${key}" "${DOTENV_NORMALIZED_VALUE}"; then
+                    log_error "${key} in ${env_file} must be a literal value."
+                fi
+                defined+=("${key}")
+                ;;
+            *)
+                log_error "${key} is set more than once in ${env_file}; keep a single line."
+                ;;
+        esac
+    done
+    case "${#defined[@]}" in
+        1)
+            log_error "Set both REGTECH_ID and REGTECH_PW in ${env_file}, or neither."
+            ;;
+        2)
+            log_info "REGTECH login from ${env_file} is stored on the first start unless one is already saved"
+            ;;
+    esac
 }
 
 setup_secrets() {
@@ -934,6 +1129,9 @@ setup_secrets() {
     local env_file="${ENV_FILE}"
     if [ -f "${env_file}" ]; then
         chmod 600 "${env_file}" || log_error "Unable to protect existing environment file."
+        if env_file_is_operator_seed "${env_file}" && ! deployment_state_exists; then
+            complete_env_file "${env_file}"
+        fi
     else
         if deployment_state_exists; then
             log_error "Existing deployment state detected; refusing to generate new secrets. Restore the original ${env_file}."
@@ -958,6 +1156,7 @@ setup_secrets() {
     log_info "Deployment version pinned to ${VERSION}"
     sync_frontend_tls_settings "${env_file}"
     sync_warp_settings "${env_file}"
+    validate_regtech_login "${env_file}"
     log_warning "Back up ${env_file} securely; upgrades require the same encryption keys"
 }
 

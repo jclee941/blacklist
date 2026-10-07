@@ -66,6 +66,39 @@ def start_background_tasks(app):
         app.logger.error("Background task start failed: %s", e)
 
 
+def seed_regtech_credentials(app):
+    """Store REGTECH_ID/REGTECH_PW from the env file once, while no REGTECH credentials are saved.
+
+    Saved credentials stay authoritative, so dashboard edits are never overwritten by the env file.
+    """
+    username, password = config.REGTECH_ID, config.REGTECH_PW
+    if not username or not password:
+        return
+    db_service = app.extensions.get("db_service")
+    credential_service = app.extensions.get("secure_credential_service")
+    if not db_service or not credential_service:
+        return
+    with connection_lease(db_service) as conn:
+        cursor = conn.cursor()
+        try:
+            # postgres/initdb seeds a REGTECH row with empty credentials; only a filled one counts.
+            cursor.execute(
+                """
+                SELECT 1 FROM collection_credentials
+                WHERE service_name = 'REGTECH' AND COALESCE(username, '') <> '' AND COALESCE(password, '') <> ''
+                """
+            )
+            already_saved = cursor.fetchone() is not None
+        finally:
+            cursor.close()
+    if already_saved:
+        return
+    if credential_service.save_credentials("REGTECH", username, password, enabled=True):
+        app.logger.info("REGTECH credentials stored from the environment file")
+    else:
+        app.logger.error("Storing REGTECH credentials from the environment file failed")
+
+
 def start_cloudflare_sync(app):
     """Run the Cloudflare list listener in a daemon thread.
 
@@ -118,6 +151,10 @@ def start_delayed_background_tasks(app):
         time.sleep(5)
         with app.app_context():
             check_collector_health(app)
+            try:
+                seed_regtech_credentials(app)
+            except Exception:
+                app.logger.exception("Storing REGTECH credentials from the environment file failed")
             start_background_tasks(app)
             start_cloudflare_sync(app)
 

@@ -40,6 +40,18 @@ def test_collector_auth_secret_is_wired_to_both_services() -> None:
     assert "COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:?" in app_service
 
 
+def test_regtech_env_login_reaches_only_the_app() -> None:
+    # Given: the optional REGTECH login an operator may put in the env file.
+    app_service = _service_block("blacklist-app")
+    collector_service = _service_block("blacklist-collector")
+
+    # Then: only the app receives it (to store it encrypted); the collector keeps reading the database.
+    assert "REGTECH_ID: ${REGTECH_ID:-}" in app_service
+    assert "REGTECH_PW: ${REGTECH_PW:-}" in app_service
+    assert "REGTECH_ID" not in collector_service
+    assert "REGTECH_PW" not in collector_service
+
+
 def test_collector_auth_secret_example_is_an_empty_placeholder() -> None:
     env_example = ENV_EXAMPLE.read_text(encoding="utf-8")
 
