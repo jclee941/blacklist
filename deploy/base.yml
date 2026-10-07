@@ -115,6 +115,8 @@ services:
     mem_limit: 1g
     networks:
       - blacklist-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       blacklist-postgres:
         condition: service_healthy
@@ -140,8 +142,10 @@ services:
       COLLECTOR_AUTH_TOKEN: ${COLLECTOR_AUTH_TOKEN:?COLLECTOR_AUTH_TOKEN is required}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY is required}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
-      WARP_ENABLED: "false"
-      WARP_PROXY_URL: ""
+      # Opt-in REGTECH egress through a Cloudflare WARP proxy on the Docker host.
+      # WARP_ENABLED in the env file is the switch; the URL only locates the proxy.
+      WARP_ENABLED: ${WARP_ENABLED:-false}
+      WARP_PROXY_URL: ${WARP_PROXY_URL:-http://host.docker.internal:40000}
       FORTIGATE_CA_CERT: /run/blacklist/fortigate/ca.crt
       FORTIGATE_SSH_KNOWN_HOSTS: /run/blacklist/fortigate/known_hosts
       MAX_PAGES_PER_COLLECTION: ${MAX_PAGES_PER_COLLECTION:-20}

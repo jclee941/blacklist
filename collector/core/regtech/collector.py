@@ -23,6 +23,22 @@ from .page_collection import RegtechPageCollectorMixin
 logger = logging.getLogger(__name__)
 REGTECH_PAGE_SIZE = 50
 REGTECH_PAGE_ATTEMPTS: Final = 3
+WARP_ENABLED_VALUES: Final = frozenset({"true", "1", "yes"})
+
+
+def warp_proxy_url() -> Optional[str]:
+    """Return the REGTECH egress proxy, or None while WARP is switched off.
+
+    WARP_ENABLED is the on/off switch and WARP_PROXY_URL only says where the proxy
+    listens, so a URL left in the env file never routes traffic while WARP is off.
+    """
+    if os.getenv("WARP_ENABLED", "").strip().lower() not in WARP_ENABLED_VALUES:
+        return None
+    proxy_url = os.getenv("WARP_PROXY_URL", "").strip()
+    if not proxy_url:
+        logger.warning("WARP_ENABLED is on but WARP_PROXY_URL is empty; REGTECH requests go direct")
+        return None
+    return proxy_url
 
 
 class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin, RegtechPageCollectorMixin):
@@ -30,10 +46,12 @@ class RegtechCollector(RegtechAuthMixin, RegtechDataProcessorMixin, RegtechPageC
         self.base_url = CollectorConfig.REGTECH_BASE_URL
         self.session = requests.Session()
 
-        self.proxy_url = os.getenv("WARP_PROXY_URL")
+        self.proxy_url = warp_proxy_url()
         if self.proxy_url:
             self.session.proxies = {"http": self.proxy_url, "https": self.proxy_url}
             logger.info(f"🌐 WARP 프록시 활성화: {self.proxy_url}")
+        else:
+            logger.info("🌐 WARP 프록시 비활성화: REGTECH 직접 연결")
 
         self.session.headers.update(
             {

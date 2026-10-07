@@ -33,11 +33,10 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: blacklist-collector:latest
     environment:
+      # Development turns WARP on by default; set WARP_ENABLED=false in deploy/.env to
+      # collect directly. base.yml supplies WARP_PROXY_URL and the host-gateway alias.
       WARP_ENABLED: ${WARP_ENABLED:-true}
-      WARP_PROXY_URL: ${WARP_PROXY_URL:-http://host.docker.internal:40000}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    # Dev-only: REGTECH blocks this network's egress IP, so the collector sends its
+    # REGTECH blocks this network's egress IP, so development sends the collector's
     # requests through a WARP proxy on the developer's host. This is an
     # APPLICATION-level proxy, so it affects only the collector's outbound REGTECH
     # calls; no other service or host interface is routed through WARP.
@@ -46,13 +45,10 @@ services:
     # alias is required. MEASURED: a proxy bound to 127.0.0.1 only is REFUSED from
     # the bridge; it must listen on an address the gateway can reach. For
     # Cloudflare WARP run:
-    #   warp-cli proxy port 40000        # then bind/forward it to 0.0.0.0:40000
+    #   warp-cli proxy port 40000        # then relay it on the Docker gateway, e.g. 172.17.0.1:40000
     # Verify with:
     #   docker run --rm --add-host=host.docker.internal:host-gateway alpine \
     #     wget -qO- http://host.docker.internal:40000/
-    # install.sh records WARP_ENABLED and WARP_PROXY_URL after checking whether
-    # port 40000 is reachable from the Docker bridge. Direct development runs
-    # can set the same values explicitly.
 
   blacklist-app:
     extends:
