@@ -232,7 +232,15 @@ def test_verify_only_ignores_published_port_occupancy(tmp_path: Path) -> None:
 
         images_dir, environment = prepare_bundle(tmp_path)
         write_checksum_file(images_dir, BUNDLE_IMAGES)
-        (tmp_path / "bin" / "ss").unlink()
+        probe_log = tmp_path / "network-probes.log"
+        environment["TEST_NETWORK_PROBE_LOG"] = str(probe_log)
+        for command in ("ip", "ss"):
+            probe = tmp_path / "bin" / command
+            _ = probe.write_text(
+                '#!/bin/sh\nprintf "%s\\n" "$0 $*" >> "$TEST_NETWORK_PROBE_LOG"\nexit 97\n',
+                encoding="utf-8",
+            )
+            probe.chmod(0o755)
 
         installer = tmp_path / "install.sh"
         installer_source = installer.read_text(encoding="utf-8")
@@ -249,14 +257,8 @@ def test_verify_only_ignores_published_port_occupancy(tmp_path: Path) -> None:
         # When: read-only bundle verification runs without deploying services.
         result = run_verification(tmp_path, environment)
 
-    # Then: verification succeeds; deployment still checks the port after removing old containers.
+    # Then: bundle verification succeeds without invoking network selection or port probes.
     output = result.stdout + result.stderr
-    shipped_source = INSTALLER.read_text(encoding="utf-8")
-    deploy_body = shipped_source.split("\ndeploy_services() {", 1)[1].split("\n}", 1)[0]
     assert result.returncode == 0, output
     assert f"Port {published_port} is already in use" not in output
-    assert "for port in 443 2542 5432 6379 8545; do" not in shipped_source
-    assert deploy_body.index('docker rm -f "$c"') < deploy_body.index("verify_published_port_available")
-    assert deploy_body.index("verify_published_port_available") < deploy_body.index(
-        'log_info "Starting PostgreSQL and configuring runtime roles..."'
-    )
+    assert not probe_log.exists(), probe_log.read_text(encoding="utf-8") if probe_log.exists() else output

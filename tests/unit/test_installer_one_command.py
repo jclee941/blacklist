@@ -152,7 +152,14 @@ def installer_environment(root: Path) -> dict[str, str]:
     real_id = shutil.which("id")
     assert real_id is not None
     fake_root_id = f'#!/bin/sh\nif [ "${{1:-}}" = "-u" ]; then echo 0; exit 0; fi\nexec {real_id} "$@"\n'
-    for name, source in (("id", fake_root_id), ("docker", FAKE_DOCKER)):
+    fake_ip = """#!/bin/sh
+case "$*" in
+    *address*) printf '%s\\n' '[{"ifname":"eth-test","flags":["UP"],"operstate":"UP","addr_info":[{"family":"inet","local":"192.0.2.10"}]}]' ;;
+    *route*) printf '%s\\n' '[{"dst":"192.0.2.0/24","dev":"eth-test"}]' ;;
+    *) exit 1 ;;
+esac
+"""
+    for name, source in (("id", fake_root_id), ("docker", FAKE_DOCKER), ("ip", fake_ip), ("ss", "#!/bin/sh\nexit 0\n")):
         executable = bin_dir / name
         _ = executable.write_text(source, encoding="utf-8")
         executable.chmod(0o755)
@@ -337,9 +344,19 @@ def test_operator_files_inside_the_bundle_are_rejected_before_any_change(
     assert not (tmp_path / "etc").exists(), output
 
 
+@pytest.mark.parametrize(
+    ("network_arguments", "expected_binding"),
+    [
+        ((), "0.0.0.0"),
+        (("--interface", "eth-test"), "192.0.2.10"),
+        (("--bind-address", "192.0.2.10"), "192.0.2.10"),
+    ],
+)
 def test_one_command_install_provisions_inputs_before_touching_docker(
     tmp_path: Path,
     release_key: ReleaseKey,
+    network_arguments: tuple[str, ...],
+    expected_binding: str,
 ) -> None:
     # Given: a signed bundle and a fake Docker daemon that refuses the first volume mutation.
     bundle = prepare_bundle(tmp_path, release_key)
@@ -351,6 +368,7 @@ def test_one_command_install_provisions_inputs_before_touching_docker(
         bundle,
         environment,
         "--skip-load",
+        *network_arguments,
         *one_command_arguments(release_key, certificate, private_key),
     )
 
@@ -373,6 +391,7 @@ def test_one_command_install_provisions_inputs_before_touching_docker(
     values = parse_env(env_file)
     assert values["FRONTEND_TLS_MODE"] == "provided"
     assert values["FRONTEND_TLS_SERVER_NAME"] == SERVER_NAME
+    assert values["FRONTEND_BIND_ADDRESS"] == expected_binding
     assert values["ADMIN_PASSWORD"] not in output
 
     password_file = Path(f"{env_file}.initial-admin-password")

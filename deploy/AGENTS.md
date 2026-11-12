@@ -21,6 +21,8 @@ Only `blacklist-frontend` publishes a host port (`443` -> container `3000`). Pos
 
 - Frontend: `FRONTEND_TLS_MODE=provided` requires an operator certificate/key at `FRONTEND_TLS_DIR` matching `FRONTEND_TLS_SERVER_NAME`; `install.sh` checks expiry, hostname match, and that the key matches the cert. `--server-name`, `--tls-cert`, and `--tls-key` install them. Hostname coverage is judged from openssl's verdict text because `x509 -checkhost`/`-checkip` exit 0 on a mismatch. `self-signed` mode is loopback-only and for development.
 - Internal traffic (Postgres, Redis, collector, app): install-generated CA. Postgres uses `sslmode=verify-full`; Redis is TLS-only (`tls-auth-clients no`, plaintext port disabled).
+- `install.sh --pre-scan` inventories host interfaces, assigned addresses, listeners, routes, and Docker networks without changing files or services. Add `--configure-network` to preview interface/address selection and confirmation; normal terminal installation offers the same four-step flow. `--interface NAME` and `--bind-address IP` support unattended selection. Only the frontend publication and its env setting change; the installer never reconfigures host NICs, routes, or firewall rules.
+- Network checks run before key registration, image loading, secret updates, and deployment. They distinguish the target bind address from other interfaces, recognize this Compose project's existing frontend publication, reject conflicting host/Docker subnets and frontend/gateway address collisions, and require `BLACKLIST_NETWORK_SUBNET`, `FRONTEND_INTERNAL_IP`, and `TRUSTED_PROXY_NETWORKS` to agree. Keep an existing project bridge's subnet across upgrades. The embedded helper must remain compatible with host Python 3.6 syntax and libraries; application container Python requirements do not apply to the host.
 
 ## WARP
 
@@ -28,12 +30,12 @@ Only `blacklist-frontend` publishes a host port (`443` -> container `3000`). Pos
 
 ## INSTALL FLOW (`install.sh`)
 
-1. Check operator inputs before any mutation: the host release keyring or `--release-key` + `--fingerprint`, the frontend server name, and the certificate/key. Every missing item is reported at once.
+1. Check operator inputs before any mutation: the host release keyring or `--release-key` + `--fingerprint`, the frontend server name, and the certificate/key. Every missing input is reported at once. Then run the network pre-scan and resolve the frontend bind selection; cancellation or conflicts leave the installation unchanged.
 2. Register a `--release-key` whose fingerprint matches (a different existing keyring is never replaced), then verify `MANIFEST.sha256` entries and its detached signature (`MANIFEST.sha256.asc`).
 3. Install Docker/Compose if missing.
 4. Verify image `checksums.sha256` immediately before loading images (`load_images`), load them, generate missing secrets (writing the initial admin password file right away when the password is generated), and provision internal TLS plus the frontend certificate/key and server name.
 5. Start `blacklist-postgres` alone, wait for its health check, then run `configure-runtime-roles.sh` inside the container to bootstrap DB roles; its output is printed only on failure. A bundle built with `--seed-data` then imports `seed/blacklist_ips.csv.gz` into an empty `blacklist_ips` (never into a database that has rows), so the initial backfill is skipped.
-6. Start the remaining services and wait for every container to report healthy.
+6. Start the remaining services and wait for every container to report healthy. Compose reconciles the existing project containers; the installer does not force-remove them before deployment.
 
 ## CONVENTIONS
 

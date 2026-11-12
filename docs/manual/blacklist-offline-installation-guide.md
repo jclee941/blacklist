@@ -7,7 +7,7 @@
 - Docker Engine과 Docker Compose v2 (패키지에 포함되지 않으므로 미리 설치)
 - HTTPS 443 포트 사용 가능
 - Docker 데이터 디렉터리에 충분한 여유 공간
-- `sha256sum`, `openssl`, `python3`, `curl`, `tar`, `unzip`, `gpg`, `gpgv`
+- `sha256sum`, `openssl`, `python3`, `curl`, `tar`, `unzip`, `gpg`, `gpgv`, `ip`, `ss` (`ip`와 `ss`는 iproute2 패키지)
 - 조직의 인증된 별도 채널로 받은 릴리스 공개키와 40자리 fingerprint
 - 실제 접속 FQDN 또는 IP를 SAN에 포함한 프론트엔드 TLS 서버 인증서와 개인키(PEM)
 
@@ -38,7 +38,19 @@ cd blacklist-<버전>
 
 ## 3. 원커맨드 설치
 
-공개키, fingerprint, 접속 이름, 인증서와 개인키를 한 번에 넘기면 설치가 끝까지 진행됩니다. `--fingerprint`에는 패키지와 같은 채널이 아니라 별도 인증 채널로 받은 값을 넣습니다.
+설치 전에 네트워크만 읽기 전용으로 점검할 수 있습니다. 인터페이스와 할당 주소, 실제 적용할 바인딩, 443 포트 충돌, 호스트 및 Docker 서브넷 중복, 내부 서브넷·프론트엔드 IP·신뢰 프록시 설정의 일관성을 확인한 뒤 종료합니다. 파일이나 컨테이너는 변경하지 않습니다.
+
+```bash
+sudo bash install.sh --pre-scan
+```
+
+주소 선택 절차까지 미리 보려면 다음 명령을 사용합니다. 사전 점검, 인터페이스 선택, 해당 인터페이스에 이미 할당된 주소 하나 선택, 최종 검토 및 확인의 네 단계로 진행합니다. 확인해도 이 모드에서는 저장하거나 설치하지 않으며, 취소하거나 입력이 종료되어도 아무것도 변경하지 않습니다.
+
+```bash
+sudo bash install.sh --pre-scan --configure-network
+```
+
+공개키, fingerprint, 접속 이름, 인증서와 개인키를 한 번에 넘기면 설치가 끝까지 진행됩니다. 실제 터미널에서 일반 설치를 실행하면 위 주소 선택 절차를 자동으로 제안하며, `--configure-network`로 명시적으로 요청할 수도 있습니다. 기존 설치의 바인딩을 유지할 수 있습니다. `--fingerprint`에는 패키지와 같은 채널이 아니라 별도 인증 채널로 받은 값을 넣습니다.
 
 ```bash
 sudo bash install.sh \
@@ -49,9 +61,18 @@ sudo bash install.sh \
   --tls-key /root/tls/server.key
 ```
 
+무인 설치는 `--interface IFACE`, `--bind-address IP`로 대상을 지정합니다. 인터페이스에 사용 가능한 주소가 여러 개면 `--bind-address`도 필요합니다. 아래 예시의 인터페이스와 문서용 IP는 실제 할당된 값으로 바꾸고, 첫 설치에는 위 명령의 공개키·인증서 인자도 함께 넘깁니다. 기존 설치에서는 저장된 설정을 사용할 수 있습니다.
+
+```bash
+sudo bash install.sh --interface enp1s0 --bind-address 192.0.2.10 </dev/null
+sudo bash install.sh --bind-address 192.0.2.10 </dev/null
+```
+
+기존 무인 실행 명령과 `/etc/blacklist/.env`의 `FRONTEND_BIND_ADDRESS`도 계속 지원합니다. 별도 선택이나 기존 설정이 없는 새 무인 설치는 종전처럼 `0.0.0.0`을 사용합니다. 선택한 주소는 실제 설치에서만 `.env`에 저장하고 프론트엔드의 호스트 443 포트 공개에만 적용합니다. 설치기는 호스트 NIC의 주소, 링크, 라우팅, 방화벽 설정을 직접 재설정하거나 다른 프로젝트의 컨테이너를 중지하지 않습니다. 애플리케이션 브리지와 포트 공개에 필요한 네트워크 처리는 Docker가 관리합니다.
+
 설치기는 다음 순서로 진행합니다.
 
-1. 공개키 fingerprint, 접속 이름, 인증서 유효기간, 개인키 일치, SAN 포함 여부를 먼저 확인합니다. 부족한 항목이 있으면 모두 출력하고 아무것도 변경하지 않은 채 종료합니다.
+1. 네트워크 사전 점검과 공개키 fingerprint, 접속 이름, 인증서 유효기간, 개인키 일치, SAN 포함 여부 확인을 먼저 수행합니다. 부족한 항목이 있으면 모두 출력하고 아무것도 변경하지 않은 채 종료합니다.
 2. 공개키를 `/etc/blacklist/release-pubkey.gpg`에 등록합니다. 다른 키가 이미 등록돼 있으면 교체하지 않고 중단합니다.
 3. 매니페스트 서명과 이미지 체크섬을 검증한 뒤 이미지를 로드합니다.
 4. `/etc/blacklist/.env`에 없는 관리자 비밀번호와 암호화 키를 생성하고, 인증서와 개인키를 `/etc/blacklist/frontend-tls`에, 접속 이름을 `/etc/blacklist/.env`에 기록합니다.
@@ -116,6 +137,14 @@ FRONTEND_TLS_SERVER_NAME=blacklist.example.com
 FRONTEND_BIND_ADDRESS=0.0.0.0
 ```
 
+호스트와 다른 Docker 네트워크의 서브넷이 겹치면 `/etc/blacklist/.env`에서 다음 세 값을 함께 조정하고 `--pre-scan`을 다시 실행합니다. 이 값들은 외부 접속용 `FRONTEND_BIND_ADDRESS`와 별개인 Docker 내부 통신 설정입니다.
+
+| 설정                       | 조건                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `BLACKLIST_NETWORK_SUBNET` | 호스트 및 다른 Docker 네트워크와 겹치지 않는 애플리케이션 브리지 서브넷(CIDR)   |
+| `FRONTEND_INTERNAL_IP`     | 위 서브넷 안에서 프론트엔드가 사용할 유효한 주소. 브리지 게이트웨이 주소는 제외 |
+| `TRUSTED_PROXY_NETWORKS`   | 위 프론트엔드 내부 주소를 가리키는 `/32` 신뢰 프록시 범위                       |
+
 개발용 자체서명 모드는 명시적으로만 사용할 수 있고 installer가 loopback bind를 강제합니다.
 
 ```text
@@ -127,8 +156,10 @@ FRONTEND_BIND_ADDRESS=127.0.0.1
 
 ```bash
 sudo docker compose --env-file /etc/blacklist/.env -f docker-compose.yml ps
-curl --insecure --fail https://localhost/health
+curl --insecure --fail https://blacklist.example.com/health
 ```
+
+상태 확인 URL은 선택한 바인딩 주소로 연결되는 실제 접속 FQDN 또는 IP로 바꿉니다.
 
 정상 상태는 다음과 같습니다.
 
@@ -163,7 +194,7 @@ cd blacklist-<새 버전>
 sudo bash install.sh
 ```
 
-인증서를 교체할 때는 `--server-name`, `--tls-cert`, `--tls-key`를 함께 넘깁니다. `--stop-all-containers`는 호스트의 모든 컨테이너를 중지하므로 일반 설치와 업그레이드에서 사용하지 않습니다.
+인증서를 교체할 때는 `--server-name`, `--tls-cert`, `--tls-key`를 함께 넘깁니다. 기존 바인딩은 유지할 수 있으며, 네트워크 사전 점검은 업그레이드 대상 프로젝트의 기존 프론트엔드가 공개한 443 포트를 자체 사용으로 인식합니다. 다른 프로젝트의 컨테이너를 중지할 필요는 없습니다.
 
 ## 8. 데이터 포함 패키지
 

@@ -40,6 +40,9 @@ STAGED_KEYRING_DIR=""
 FRONTEND_SERVER_NAME_ARG=""
 FRONTEND_TLS_CERT_ARG=""
 FRONTEND_TLS_KEY_ARG=""
+FRONTEND_INTERFACE_ARG=""
+FRONTEND_BIND_ADDRESS_ARG=""
+NETWORK_INTERACTIVE=false
 OPERATOR_PROBLEMS=()
 POSTURE_COMPOSE_FILES=()
 readonly PUBLISHED_FRONTEND_PORT=443
@@ -171,6 +174,242 @@ for finding in findings:
     print(finding)
 
 sys.exit(1 if findings else 0)
+'
+
+readonly NETWORK_PREFLIGHT_PY='
+# This helper runs on the host, including Python 3.6 installations.
+from ipaddress import IPv4Address, IPv6Address, ip_address, ip_network
+import json
+import shutil
+import subprocess
+import sys
+from typing import List, NamedTuple, Set, Union
+
+
+class Address(NamedTuple):
+    interface: str
+    value: Union[IPv4Address, IPv6Address]
+
+
+def note(message: str) -> None:
+    print(message, file=sys.stderr)
+
+
+def choose(title: str, options: List[str]) -> int:
+    note("\n" + title)
+    for index, label in enumerate(options, start=1):
+        note(f"  {index}) {label}")
+    note("  0) Cancel without changes")
+    while True:
+        note("Choose a number (0 cancels):")
+        answer = sys.stdin.readline().strip().lower()
+        if answer in {"", "0", "q", "quit"}:
+            raise SystemExit(130)
+        if answer.isdecimal() and 1 <= int(answer) <= len(options):
+            return int(answer) - 1
+        note("Choose a listed number, or 0 to cancel.")
+
+
+def socket_address(value: str) -> Union[IPv4Address, IPv6Address]:
+    address = ip_address(value if value != "*" else "0.0.0.0")
+    if isinstance(address, IPv6Address):
+        return address.ipv4_mapped or address
+    return address
+
+
+def overlaps(first: str, second: str) -> bool:
+    left = socket_address(first)
+    right = socket_address(second)
+    if left.version != right.version:
+        return left == IPv6Address("::") or right == IPv6Address("::")
+    return left.is_unspecified or right.is_unspecified or left == right
+
+
+interactive, interface, requested, current, mode, subnet_text, frontend_text, trusted_text, project = sys.argv[1:]
+note("Step 1/4: Network pre-scan (read-only)")
+try:
+    links = json.loads(subprocess.check_output(["ip", "-j", "address", "show"], universal_newlines=True, stderr=subprocess.PIPE))
+    routes = json.loads(subprocess.check_output(["ip", "-j", "route", "show"], universal_newlines=True, stderr=subprocess.PIPE))
+    listeners = subprocess.check_output(["ss", "-H", "-ltnp", "sport = :443"], universal_newlines=True, stderr=subprocess.PIPE)
+    networks = []
+    containers = []
+    if shutil.which("docker"):
+        ids = subprocess.check_output(
+            ["docker", "network", "ls", "--filter", "driver=bridge", "--format", "{{.ID}}"],
+            universal_newlines=True, stderr=subprocess.PIPE,
+        ).split()
+        if ids:
+            networks = json.loads(subprocess.check_output(
+                ["docker", "network", "inspect", *ids], universal_newlines=True, stderr=subprocess.PIPE,
+            ))
+        ids = subprocess.check_output(["docker", "ps", "-q"], universal_newlines=True, stderr=subprocess.PIPE).split()
+        if ids:
+            containers = json.loads(subprocess.check_output(
+                ["docker", "inspect", *ids], universal_newlines=True, stderr=subprocess.PIPE,
+            ))
+    else:
+        note("  Docker is absent; no Docker network inventory is available yet.")
+    subnet = ip_network(subnet_text)
+    frontend = ip_address(frontend_text)
+    trusted = [ip_network(value.strip()) for value in trusted_text.split(",") if value.strip()]
+except (OSError, subprocess.CalledProcessError, ValueError) as error:
+    note("[FAIL] Network pre-scan could not inspect the configuration: " + str(error))
+    raise SystemExit(1) from error
+
+problems: List[str] = []
+bridge_gateway = subnet.network_address + 1 if subnet.num_addresses > 1 else subnet.network_address
+if mode not in {"provided", "self-signed"}:
+    problems.append("FRONTEND_TLS_MODE must be provided or self-signed.")
+own_devices: Set[str] = set()
+docker_devices: Set[str] = {"docker0"}
+for network in networks:
+    labels = network.get("Labels") or {}
+    own = labels.get("com.docker.compose.project") == project and labels.get("com.docker.compose.network") == "blacklist-net"
+    bridge = (network.get("Options") or {}).get("com.docker.network.bridge.name") or "br-" + network["Id"][:12]
+    docker_devices.add(bridge)
+    if own:
+        own_devices.add(bridge)
+    for entry in network["IPAM"]["Config"] or []:
+        existing = ip_network(entry["Subnet"])
+        if own and existing == subnet and entry.get("Gateway"):
+            bridge_gateway = ip_address(entry["Gateway"])
+        name = network["Name"]
+        note(f"  Docker network: {name} {existing}")
+        if own and existing != subnet:
+            problems.append(f"Existing project network {name} uses {existing}; preserve its subnet instead of changing it.")
+        elif not own and existing.version == subnet.version and existing.overlaps(subnet):
+            problems.append(f"Internal subnet {subnet} overlaps Docker network {name}: {existing}.")
+
+addresses: List[Address] = []
+for link in links:
+    name = link["ifname"]
+    state = link["operstate"]
+    note(f"  Interface: {name} ({state})")
+    available = "UP" in link["flags"] and state != "DOWN" and name not in docker_devices and not name.startswith("veth")
+    for entry in link.get("addr_info", []):
+        address = ip_address(entry["local"])
+        note(f"    {address}")
+        if available and not address.is_link_local and not entry.get("tentative") and not entry.get("dadfailed"):
+            addresses.append(Address(name, address))
+
+names = sorted({entry.interface for entry in addresses}, key=lambda name: (name == "lo", name))
+selected = requested
+try:
+    if interactive == "true" and not interface and not selected:
+        options = [f"Keep current binding: {current}"] if current else []
+        selectable = names if mode != "self-signed" else [
+            name for name in names if any(entry.interface == name and entry.value.is_loopback for entry in addresses)
+        ]
+        options += [f"Interface {name}" for name in selectable]
+        if mode != "self-signed":
+            options.append("All IPv4 interfaces: 0.0.0.0")
+        index = choose("Step 2/4: Select frontend interface", options)
+        if current and index == 0:
+            selected = current
+        else:
+            index -= bool(current)
+            if index == len(selectable):
+                selected = "0.0.0.0"
+            else:
+                interface = selectable[index]
+    else:
+        note("\nStep 2/4: Use the configured or explicit interface")
+    if interface:
+        candidates = [entry for entry in addresses if entry.interface == interface]
+        if mode == "self-signed":
+            candidates = [entry for entry in candidates if entry.value.is_loopback]
+        if not candidates:
+            note(f"[FAIL] Interface {interface} has no available host address.")
+            raise SystemExit(1)
+        if not selected:
+            if interactive == "true":
+                index = choose("Step 3/4: Select an assigned address", [str(entry.value) for entry in candidates])
+                selected = str(candidates[index].value)
+            elif len(candidates) == 1:
+                selected = str(candidates[0].value)
+            else:
+                note(f"[FAIL] Interface {interface} has multiple addresses; pass --bind-address IP.")
+                raise SystemExit(1)
+    selected = selected or current or ("127.0.0.1" if mode == "self-signed" else "0.0.0.0")
+    target = ip_address(selected)
+    if target.is_link_local or (
+        not target.is_unspecified and not any(
+            entry.value == target and (not interface or entry.interface == interface) for entry in addresses
+        )
+    ) or (interface and target.is_unspecified):
+        problems.append(f"Address {selected} is not assigned to the selected available host interface.")
+    if mode == "self-signed" and not target.is_loopback:
+        problems.append("Self-signed TLS requires a loopback bind address.")
+except KeyboardInterrupt:
+    raise SystemExit(130) from None
+except ValueError as error:
+    note("[FAIL] Invalid address selection: " + str(error))
+    raise SystemExit(1) from error
+
+note("\nStep 4/4: Review frontend binding")
+note(f"  FRONTEND_BIND_ADDRESS={selected}")
+note(f"  Internal subnet: {subnet}")
+note(f"  Frontend internal IP: {frontend}")
+note(f"  Bridge gateway: {bridge_gateway}")
+note("  Host NIC addresses and links are not reconfigured.")
+note("  Docker manages the application bridge and frontend publication.")
+if subnet.version != 4 or frontend not in subnet or frontend in {subnet.network_address, subnet.broadcast_address}:
+    problems.append(f"FRONTEND_INTERNAL_IP={frontend} must be a usable address in BLACKLIST_NETWORK_SUBNET={subnet}.")
+if frontend == bridge_gateway:
+    problems.append(f"FRONTEND_INTERNAL_IP={frontend} conflicts with the Docker bridge gateway.")
+if not any(frontend in network for network in trusted):
+    problems.append(f"TRUSTED_PROXY_NETWORKS must include FRONTEND_INTERNAL_IP={frontend}.")
+for route in routes:
+    destination = route.get("dst", "default")
+    if destination == "default" or route.get("dev") in own_devices:
+        continue
+    existing = ip_network(destination, strict=False)
+    if existing.prefixlen and existing.version == subnet.version and existing.overlaps(subnet):
+        device = route.get("dev", "unknown")
+        problems.append(f"Internal subnet {subnet} overlaps host route {existing} on {device}.")
+
+own_bindings: List[str] = []
+for container in containers:
+    labels = container["Config"].get("Labels") or {}
+    own = (
+        container["Name"] == "/blacklist-frontend"
+        and labels.get("com.docker.compose.project") == project
+        and labels.get("com.docker.compose.service") == "blacklist-frontend"
+    )
+    for port, bindings in (container["NetworkSettings"]["Ports"] or {}).items():
+        if not port.endswith("/tcp"):
+            continue
+        for binding in bindings or []:
+            if binding["HostPort"] != "443":
+                continue
+            address = binding["HostIp"] or "0.0.0.0"
+            if own:
+                own_bindings.append(address)
+            elif overlaps(selected, address):
+                name = container["Name"]
+                problems.append(f"Frontend port 443 conflicts with container {name} on {address}.")
+for line in listeners.splitlines():
+    endpoint = line.split()[3].rsplit(":", 1)[0].strip("[]")
+    if overlaps(selected, endpoint) and not (
+        "docker-proxy" in line and any(overlaps(endpoint, address) for address in own_bindings)
+    ):
+        problems.append(f"Frontend port 443 is already in use on {endpoint}.")
+if problems:
+    for problem in problems:
+        note("[FAIL] " + problem)
+    raise SystemExit(1)
+note("  [PASS] Assigned address, port 443, routes, and internal network settings")
+if own_bindings:
+    note("  Existing project frontend publication can be reused by Compose.")
+if interactive == "true":
+    note("Continue with this frontend binding? [y/N]:")
+    try:
+        confirmed = sys.stdin.readline().strip().lower() in {"y", "yes"}
+    except KeyboardInterrupt:
+        raise SystemExit(130) from None
+    if not confirmed:
+        raise SystemExit(130)
+print(selected)
 '
 
 require_root() {
@@ -472,18 +711,64 @@ preflight_checks() {
     log_success "Docker Compose $(docker compose version --short)"
 }
 
-verify_published_port_available() {
-    log_step "Verify Published Port Availability"
-
-    local listeners
-    if ! listeners=$(ss -H -ltn "sport = :${PUBLISHED_FRONTEND_PORT}" 2>/dev/null); then
-        log_error "Unable to inspect published port ${PUBLISHED_FRONTEND_PORT}"
+preflight_network() {
+    local scan_only="$1"
+    local tool key selected status
+    local current="" mode="provided" subnet="172.30.0.0/24"
+    local frontend_ip="172.30.0.10" trusted="172.30.0.10/32" project="blacklist"
+    local interactive="${NETWORK_INTERACTIVE}"
+    for tool in python3 ip ss; do
+        command -v "${tool}" > /dev/null 2>&1 ||
+            log_error "${tool} is required for the read-only network pre-scan (ip and ss are provided by iproute2)."
+    done
+    if [ -r "${ENV_FILE}" ]; then
+        for key in FRONTEND_BIND_ADDRESS FRONTEND_TLS_MODE BLACKLIST_NETWORK_SUBNET FRONTEND_INTERNAL_IP TRUSTED_PROXY_NETWORKS COMPOSE_PROJECT_NAME; do
+            if read_required_secret_value "${ENV_FILE}" "${key}"; then
+                case "${key}" in
+                    FRONTEND_BIND_ADDRESS) current="${DOTENV_NORMALIZED_VALUE}" ;;
+                    FRONTEND_TLS_MODE) mode="${DOTENV_NORMALIZED_VALUE}" ;;
+                    BLACKLIST_NETWORK_SUBNET) subnet="${DOTENV_NORMALIZED_VALUE}" ;;
+                    FRONTEND_INTERNAL_IP) frontend_ip="${DOTENV_NORMALIZED_VALUE}" ;;
+                    TRUSTED_PROXY_NETWORKS) trusted="${DOTENV_NORMALIZED_VALUE}" ;;
+                    COMPOSE_PROJECT_NAME) project="${DOTENV_NORMALIZED_VALUE}" ;;
+                esac
+            fi
+        done
     fi
-    if [ -n "${listeners}" ]; then
-        log_error "Published frontend port ${PUBLISHED_FRONTEND_PORT} is already in use"
+    current="${FRONTEND_BIND_ADDRESS:-${current}}"
+    mode="${FRONTEND_TLS_MODE:-${mode}}"
+    subnet="${BLACKLIST_NETWORK_SUBNET:-${subnet}}"
+    frontend_ip="${FRONTEND_INTERNAL_IP:-${frontend_ip}}"
+    trusted="${TRUSTED_PROXY_NETWORKS:-${trusted}}"
+    project="${COMPOSE_PROJECT_NAME:-${project}}"
+    if frontend_tls_inputs_given; then
+        mode="provided"
+    elif [ "${mode}" = "self-signed" ]; then
+        current="127.0.0.1"
     fi
-
-    log_success "Published frontend port ${PUBLISHED_FRONTEND_PORT} is available"
+    if [ "${scan_only}" = false ] && [ -t 0 ] && [ -t 1 ] &&
+        [ -z "${FRONTEND_INTERFACE_ARG}${FRONTEND_BIND_ADDRESS_ARG}" ]; then
+        interactive=true
+    fi
+    if selected=$(python3 -c "${NETWORK_PREFLIGHT_PY}" "${interactive}" \
+        "${FRONTEND_INTERFACE_ARG}" "${FRONTEND_BIND_ADDRESS_ARG}" "${current}" \
+        "${mode}" "${subnet}" "${frontend_ip}" "${trusted}" "${project}"); then
+        FRONTEND_BIND_ADDRESS_ARG="${selected}"
+        if [ "${scan_only}" = true ]; then
+            printf 'FRONTEND_BIND_ADDRESS=%s\n' "${selected}"
+            log_success "Network pre-scan completed (no changes were made)"
+        else
+            export FRONTEND_BIND_ADDRESS="${selected}"
+            log_success "Frontend binding selected: ${selected}:${PUBLISHED_FRONTEND_PORT}"
+        fi
+    else
+        status=$?
+        if [ "${status}" -eq 130 ]; then
+            log_info "Network selection cancelled (no changes were made)"
+            exit 130
+        fi
+        log_error "Network pre-scan failed; existing interfaces and services were left unchanged."
+    fi
 }
 
 verify_checksums() {
@@ -766,12 +1051,14 @@ sync_frontend_tls_settings() {
     case "${mode}" in
         provided)
             bind_address="0.0.0.0"
-            if read_required_secret_value "${env_file}" "FRONTEND_BIND_ADDRESS"; then
+            if [ -n "${FRONTEND_BIND_ADDRESS_ARG}" ]; then
+                bind_address="${FRONTEND_BIND_ADDRESS_ARG}"
+            elif read_required_secret_value "${env_file}" "FRONTEND_BIND_ADDRESS"; then
                 bind_address="${DOTENV_NORMALIZED_VALUE}"
             fi
             ;;
         self-signed)
-            bind_address="127.0.0.1"
+            bind_address="${FRONTEND_BIND_ADDRESS_ARG:-127.0.0.1}"
             ;;
         *)
             log_error "FRONTEND_TLS_MODE must be either provided or self-signed."
@@ -1598,16 +1885,6 @@ deploy_services() {
         "blacklist-postgres"
         "blacklist-redis"
     )
-    local c
-    for c in "${containers[@]}"; do
-        if docker ps -aq -f "name=^${c}$" | grep -q .; then
-            log_info "Removing existing container: ${c}..."
-            docker rm -f "$c" 2>/dev/null || true
-        fi
-    done
-
-    verify_published_port_available
-
     log_info "Starting PostgreSQL and configuring runtime roles..."
     local compose_output
     if ! compose_output=$(docker compose --env-file "${ENV_FILE}" -f "${SCRIPT_DIR}/docker-compose.yml" up -d --pull never blacklist-postgres 2>&1); then
@@ -1785,6 +2062,10 @@ show_help() {
     echo "    --server-name blacklist.example.com --tls-cert server.crt --tls-key server.key"
     echo ""
     echo "Options:"
+    echo "  --pre-scan    Inspect interfaces, addresses, port 443, and subnets without changes"
+    echo "  --configure-network  Select interface and address step by step (also works with --pre-scan)"
+    echo "  --interface NAME     Publish only on an available address of this interface"
+    echo "  --bind-address IP    Publish on this assigned host IP (0.0.0.0 selects all IPv4 interfaces)"
     echo "  --skip-load    Skip image loading (images already loaded)"
     echo "  --check-secrets Generate or validate .env, then exit"
     echo "  --export-seed-data FILE  Export blacklist_ips as gzip CSV for build_offline_bundle.py --seed-data, then exit"
@@ -1815,6 +2096,8 @@ set_operator_input() {
         --server-name) FRONTEND_SERVER_NAME_ARG="${value}" ;;
         --tls-cert) FRONTEND_TLS_CERT_ARG="${value}" ;;
         --tls-key) FRONTEND_TLS_KEY_ARG="${value}" ;;
+        --interface) FRONTEND_INTERFACE_ARG="${value}" ;;
+        --bind-address) FRONTEND_BIND_ADDRESS_ARG="${value}" ;;
     esac
 }
 
@@ -1836,6 +2119,10 @@ validate_operator_options() {
     if [ "${maintenance_only}" = true ] && { [ -n "${RELEASE_KEY_FILE}" ] || frontend_tls_inputs_given; }; then
         log_error "--release-key, --fingerprint, --server-name, --tls-cert, and --tls-key apply only to installation and --verify-only."
     fi
+    if [ "${maintenance_only}" = true ] &&
+        { [ -n "${FRONTEND_INTERFACE_ARG}${FRONTEND_BIND_ADDRESS_ARG}" ] || [ "${NETWORK_INTERACTIVE}" = true ]; }; then
+        log_error "Network selection options apply only to installation and --pre-scan."
+    fi
 }
 
 main() {
@@ -1844,6 +2131,7 @@ main() {
     local export_seed_file=""
     local generate_tls_only=false
     local verify_only=false
+    local pre_scan=false
     local maintenance_only=false
 
     while [ "$#" -gt 0 ]; do
@@ -1860,14 +2148,16 @@ main() {
             --export-seed-data=*) export_seed_file="${1#*=}" ;;
             --generate-tls-only) generate_tls_only=true ;;
             --verify-only) verify_only=true ;;
+            --pre-scan) pre_scan=true ;;
+            --configure-network) NETWORK_INTERACTIVE=true ;;
             --stop-all-containers) STOP_ALL_CONTAINERS=true ;;
             --skip-posture-check) SKIP_POSTURE_CHECK=true ;;
             --require-signature) REQUIRE_SIGNATURE=true ;;
-            --release-key|--fingerprint|--server-name|--tls-cert|--tls-key)
+            --release-key|--fingerprint|--server-name|--tls-cert|--tls-key|--interface|--bind-address)
                 set_operator_input "$1" "${2-}"
                 shift
                 ;;
-            --release-key=*|--fingerprint=*|--server-name=*|--tls-cert=*|--tls-key=*)
+            --release-key=*|--fingerprint=*|--server-name=*|--tls-cert=*|--tls-key=*|--interface=*|--bind-address=*)
                 set_operator_input "${1%%=*}" "${1#*=}"
                 ;;
             --help|-h) show_help; exit 0 ;;
@@ -1880,6 +2170,19 @@ main() {
         maintenance_only=true
     fi
     validate_operator_options "${maintenance_only}"
+
+    if [ "${pre_scan}" = true ]; then
+        if [ "${maintenance_only}" = true ] || [ "${verify_only}" = true ] ||
+            [ "${STOP_ALL_CONTAINERS}" = true ] || [ -n "${RELEASE_KEY_FILE}" ] || frontend_tls_inputs_given; then
+            log_error "--pre-scan cannot be combined with installation inputs or other operation modes."
+        fi
+        preflight_network true
+        return 0
+    fi
+    if [ "${verify_only}" = true ] &&
+        { [ -n "${FRONTEND_INTERFACE_ARG}${FRONTEND_BIND_ADDRESS_ARG}" ] || [ "${NETWORK_INTERACTIVE}" = true ]; }; then
+        log_error "Use --pre-scan to preview network selection; --verify-only checks the bundle."
+    fi
 
     if [ -n "${export_seed_file}" ]; then
         export_seed_data "${export_seed_file}"
@@ -1925,6 +2228,7 @@ main() {
     echo ""
 
     preflight_operator_inputs install
+    preflight_network false
     install_release_keyring
     preflight_checks
     verify_checksums
