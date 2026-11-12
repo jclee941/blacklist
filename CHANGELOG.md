@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.9] - 2026-11-12
+
+### Breaking
+
+- 없음. 기존 무인 설치와 유지보수 명령을 계속 지원합니다.
+
+### Added
+
+- feat(deploy): add safe installer network selection
+
+### Fixed
+
+- fix(security): patch release runtime dependencies
+
+---
+
 ## [5.1.8] - 2026-10-07
 
 ### Breaking
