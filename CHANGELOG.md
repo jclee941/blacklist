@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.1.10] - 2026-11-16
+
+### Breaking
+
+- 없음. 수집 일정, 수집 범위와 저장 형식은 그대로입니다.
+
+### Fixed
+
+- fix(dev): let Compose resolve base.yml from the deploy directory
+- fix(collector): report REGTECH portal maintenance instead of a login failure
+- fix(collector): log in before the daily REGTECH collection
+
+### Other
+
+- docs(release): add 5.1.10 release notes
+
+---
+
 ## [5.1.9] - 2026-11-12
 
 ### Breaking
