@@ -13,9 +13,9 @@ REGTECH (regtech.fsec.or.kr) collection pipeline. Mixin composition on `RegtechC
 | `page_collection.py` | curl page fetch: `-sS --max-time --max-filesize`, `_last_failure_kind` classification |
 | `data_processor.py`  | dedupe, post-processing, confidence scoring                                           |
 | `normalization.py`   | IP validation, private-IP filtering, date parsing (`_parse_date` → `str \| None`)     |
-| `html_parsing.py`    | HTML table parsing, country extraction                                                |
+| `html_parsing.py`    | HTML table parsing, country extraction, `maintenance_notice` (portal 점검 page)       |
 | `date_strategies.py` | collection date-window strategies (전체/사용자 지정/최근 1일/최근 3개월)              |
-| `errors.py`          | `RegtechPageCollectionError`, `RegtechCollectionBlockedError`, `_env_int`             |
+| `errors.py`          | page/WAF-block errors, `RegtechMaintenanceError`, `_env_int`                          |
 
 ## WAF HARDENING
 
@@ -25,6 +25,10 @@ The remote WAF quota-bans IPs for fast paging (empty bodies → blackhole). Curr
 - Circuit breaker: `REGTECH_BLOCK_THRESHOLD` (default 3) consecutive `block_suspect` signals (empty body, 403/429, table-less HTML) → `RegtechCollectionBlockedError`, run aborts for cooldown.
 - Failure kinds: `block_suspect` vs `http_error` vs `curl_error` drive the breaker; success resets.
 - Download size bound: page uses `run_text_bounded`, Excel uses `run_bounded`, and page curl additionally passes `--max-filesize`. Both paths cap output at `CollectorConfig.MAX_DOWNLOAD_BYTES` (default 10 MiB); oversized output kills the subprocess.
+
+## MAINTENANCE
+
+- During portal maintenance REGTECH serves one static 점검 안내 page for every URL. `authenticate` detects it on `loginForm`, skips the login POST and the auth limiter failure count, and raises `RegtechMaintenanceError`; schedulers record its message in `collection_history`.
 
 ## AUTH CACHE
 

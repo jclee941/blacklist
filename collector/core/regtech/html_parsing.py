@@ -1,7 +1,29 @@
 import logging
+import re
+from html import unescape
 from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
+_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]+>")
+_MAINTENANCE_WINDOW_RE = re.compile(r"작업\s*일시\s*:\s*[^○]+")
+
+
+def maintenance_notice(page: str) -> Optional[str]:
+    """Return the notice when REGTECH answers with its portal maintenance page instead of the app.
+
+    During maintenance every URL serves the same static page (title "... 포털 점검 안내"),
+    so a login against it fails without saying why.
+    """
+    title_match = _TITLE_RE.search(page)
+    if not title_match:
+        return None
+    title = " ".join(unescape(title_match.group(1)).split())
+    if "점검" not in title:
+        return None
+    body_text = " ".join(unescape(_TAG_RE.sub(" ", page[title_match.end() :])).split())
+    window = _MAINTENANCE_WINDOW_RE.search(body_text)
+    return window.group(0).strip() if window else title
 
 
 class RegtechHtmlParsingMixin:

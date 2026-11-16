@@ -81,9 +81,14 @@ def register_health_routes(server):
                 return jsonify({"success": False, "error": f"Invalid credentials found for {source_upper}"}), 400
 
             logger.info("Testing authentication for %s with user: %s", source_upper, username)
+            from .core.regtech.errors import RegtechMaintenanceError
             from .core.regtech_collector import RegtechCollector
 
-            auth_result = RegtechCollector().authenticate(username, password)
+            try:
+                auth_result = RegtechCollector().authenticate(username, password)
+            except RegtechMaintenanceError as exc:
+                logger.warning("⚠️ %s credential test skipped: %s", source_upper, exc)
+                return jsonify({"success": False, "error": str(exc), "timestamp": datetime.now().isoformat()})
             test_timestamp = datetime.now()
             logger.info(
                 "Test completed: %s - %s at %s",

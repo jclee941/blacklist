@@ -7,6 +7,9 @@ from typing import Any, Optional
 
 import requests
 
+from .errors import RegtechMaintenanceError
+from .html_parsing import maintenance_notice
+
 logger = logging.getLogger(__name__)
 
 # Per-process key for cache lookup keys. Python's built-in hash() collides, which
@@ -95,7 +98,11 @@ class RegtechAuthMixin:
                     "Referer": login_page_url,
                 }
             )
-            self.session.get(login_page_url, timeout=30)
+            login_page = self.session.get(login_page_url, timeout=30)
+            notice = maintenance_notice(login_page.text)
+            if notice:
+                logger.warning("🛠️ REGTECH 포털 점검 중 — 로그인하지 않음: %s", notice)
+                raise RegtechMaintenanceError(notice)
 
             login_payload = {
                 "username": username,
@@ -135,6 +142,8 @@ class RegtechAuthMixin:
                 logger.warning(f"⚠️ 인증 실패: redirect to {response.url}")
                 self.auth_rate_limiter.on_failure()
 
+        except RegtechMaintenanceError:
+            raise
         except Exception as e:
             logger.error(f"❌ 인증 오류: {e}")
             self.auth_rate_limiter.on_failure()

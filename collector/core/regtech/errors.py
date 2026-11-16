@@ -30,6 +30,16 @@ class RegtechCollectionBlockedError(RegtechPageCollectionError):
         )
 
 
+@dataclass(frozen=True, slots=True)
+class RegtechMaintenanceError(RuntimeError):
+    """REGTECH 포털이 점검 안내 페이지를 응답 — 인증정보 문제가 아니므로 로그인하지 않고 점검 종료 후 재시도"""
+
+    notice: str
+
+    def __str__(self) -> str:
+        return f"REGTECH portal under maintenance: {self.notice}"
+
+
 def _env_int(name: str, default: int) -> int:
     """환경변수 int 파싱 — 미설정/빈 값/잘못된 값이면 기본값"""
     raw = os.getenv(name)
