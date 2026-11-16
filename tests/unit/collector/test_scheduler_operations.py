@@ -408,3 +408,39 @@ def test_daily_collection_fetches_the_previous_day_without_a_page_cap(monkeypatc
 
     assert (collector.requested_start_date, collector.requested_end_date) == ("2026-10-06", "2026-10-07")
     assert collector.requested_max_pages is None
+
+
+class LoginRecordingCollectorFake(RegtechCollectorFake):
+    def __init__(self, login_succeeds: bool) -> None:
+        super().__init__()
+        self.login_succeeds = login_succeeds
+        self.logins: list[tuple[str, str]] = []
+
+    def authenticate(self, username: str, password: str) -> bool:
+        self.logins.append((username, password))
+        return self.login_succeeds
+
+
+class CredentialsSavingDatabaseFake(SavingDatabaseFake, CredentialsDatabaseFake):
+    pass
+
+
+def test_daily_collection_logs_in_with_stored_credentials_and_records_an_empty_run() -> None:
+    collector = LoginRecordingCollectorFake(login_succeeds=True)
+    database = CredentialsSavingDatabaseFake()
+
+    scheduled.run_daily_collection("daily", database, collector)
+
+    assert collector.logins == [("username", "password")]
+    assert collector.requested_max_pages is None
+    assert [(row["success"], row["items_collected"]) for row in database.history] == [(True, 0)]
+
+
+def test_daily_collection_records_a_failed_login_without_collecting() -> None:
+    collector = LoginRecordingCollectorFake(login_succeeds=False)
+    database = CredentialsSavingDatabaseFake()
+
+    scheduled.run_daily_collection("daily", database, collector)
+
+    assert collector.requested_page_size is None
+    assert [(row["success"], row["error_message"]) for row in database.history] == [(False, "Authentication failed")]

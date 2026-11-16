@@ -74,22 +74,23 @@ def run_daily_collection(schedule_name: str, database: Any = db_service, collect
     end_date = start_time.strftime("%Y-%m-%d")
     logger.info("📅 일일 수집 범위: %s ~ %s (1일, 페이지 제한 없음)", start_date, end_date)
     try:
+        if not collector.authenticate(credentials.get("username", ""), credentials.get("password", "")):
+            raise RuntimeError("Authentication failed")
         collected_ips = collector.collect_blacklist_data(
             start_date=start_date, end_date=end_date, page_size=REGTECH_PAGE_SIZE, max_pages=None
         )
+        saved_count, new_count, updated_count = (0, 0, 0)
         if collected_ips:
             saved_count, new_count, updated_count = save_blacklist_ips(collected_ips, database)
-            database.record_collection_history(
-                source="REGTECH",
-                success=True,
-                items_collected=saved_count,
-                execution_time_ms=execution_time_ms(start_time),
-                new_count=new_count,
-                updated_count=updated_count,
-            )
-            logger.info("✅ 일일 수집 완료: 신규 %s개, 중복 %s개", new_count, updated_count)
-            return
-        logger.warning("⚠️ 일일 수집 실패: 데이터 없음")
+        database.record_collection_history(
+            source="REGTECH",
+            success=True,
+            items_collected=saved_count,
+            execution_time_ms=execution_time_ms(start_time),
+            new_count=new_count,
+            updated_count=updated_count,
+        )
+        logger.info("✅ 일일 수집 완료: 신규 %s개, 중복 %s개", new_count, updated_count)
     except Exception as exc:
         logger.error("❌ 일일 수집 오류: %s", exc)
         database.record_collection_history(
